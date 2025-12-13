@@ -9,6 +9,7 @@
 #include "include/initialization.h"
 #include "include/initialField.h"
 
+
 //***************************************************************************************************************//
 
 PetscErrorCode SetSolutionFlagsPrecursor(domain_ *domain)
@@ -145,7 +146,7 @@ PetscErrorCode concurrentPrecursorInitialize(abl_ *abl)
         domain->mesh->meshName = abl->access->mesh->meshName + "/precursor";
 
         // initialize ibm
-        InitializeIBM(domain->ibm);
+        InitializePrecursorIBM(domain->ibm, abl->access->ibm);
 
         // copy ABL information into precursor and inflowFunction
         ABLInitializePrecursor(domain);
@@ -178,6 +179,157 @@ PetscErrorCode concurrentPrecursorInitialize(abl_ *abl)
     MPI_Barrier(abl->access->mesh->MESH_COMM);
 
     return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode InitializePrecursorIBM(ibm_ *ibm, ibm_ *succIbm)
+{
+    if(ibm != NULL)
+    {
+        PetscMPIInt rank;
+
+        mesh_ *mesh = ibm->access->mesh;
+        io_ *io = ibm->access->io;
+
+        VecDuplicate(mesh->lNvert, &(ibm->lNvertFixed));  VecSet(ibm->lNvertFixed,  0.0);
+
+        MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+        PetscPrintf(mesh->MESH_COMM, "\nIBM initialization...\n");
+
+        // read debug switch
+        readDictInt("./IBM/IBMProperties.dat", "debug", &(ibm->dbg));
+
+        // read dynamic IBM switch
+        readDictInt("./IBM/IBMProperties.dat", "dynamic", &(ibm->dynamic));
+
+        // read compute force and moment
+        readDictInt("./IBM/IBMProperties.dat", "computeForce", &(ibm->computeForce));
+
+        // read check normals
+        readDictInt("./IBM/IBMProperties.dat", "checkNormal", &(ibm->checkNormal));
+
+        // set wall shear force from wall model
+        readDictInt("./IBM/IBMProperties.dat", "wallShear", &(ibm->wallShearOn));
+
+        readDictInt("./IBM/IBMProperties.dat", "abl", &(ibm->ibmABL));
+
+        if(ibm->ibmABL)      readDictDouble("./IBM/IBMProperties.dat", "groundLevel",      &(mesh->grndLevel));
+        if(ibm->wallShearOn) readDictDouble("./IBM/IBMProperties.dat", "interpolationDistance", &(ibm->interpDist));
+
+        // write stl flag
+        readDictInt("./IBM/IBMProperties.dat", "writeSTL", &(ibm->writeSTL));
+
+        // read the number of ibm bodies
+        readDictInt("./IBM/IBMProperties.dat", "NumberofBodies", &(ibm->numBodies));
+
+        // read the interpolation method - MLS or CURVIB
+        readDictWord("./IBM/IBMProperties.dat", "InterpolationMethod", &(ibm->IBInterpolationModel));
+
+        if(ibm->IBInterpolationModel == "CURVIB")
+        {
+            readDictWord("./IBM/IBMProperties.dat", "CURVIBInterpolationType", &(ibm->curvibType));
+
+            if(ibm->curvibType == "CurvibTrilinear")
+            {
+                readDictWord("./IBM/IBMProperties.dat", "interpolationOrder", &(ibm->curvibOrder));
+            }
+
+            if(ibm->wallShearOn == 1 && ibm->curvibType == "CurvibTriangular")
+            {
+                char error[512];
+                sprintf(error, "IBM wall shear model currently available only with CURVIB trilinear interpolation\n");
+                fatalErrorInFunction("readIBMProperties",  error);
+            }
+        }
+
+        // read the write settings
+        if(ibm->computeForce)
+        {
+            readSubDictDouble("./IBM/IBMProperties.dat","writeSettings","timeStart", &(ibm->timeStart));
+            readSubDictWord  ("./IBM/IBMProperties.dat","writeSettings","intervalType", &(ibm->intervalType));
+            readSubDictDouble("./IBM/IBMProperties.dat","writeSettings","timeInterval", &(ibm->timeInterval));
+        }
+
+        //counter for number of moving objects
+        int movingObject = 0;
+
+        // initialize pointers to NULL
+        ibm->ibmFCells = NULL;
+        ibm->sBox      = NULL;
+        
+        //ibm elements point to the successor ibm elements
+        ibm->ibmBody = succIbm->ibmBody;
+        ibm->sBox = succIbm->sBox;
+        
+        // ibm search algorithm
+        PetscPrintf(mesh->MESH_COMM, "IBM search algorithm...");
+        ibmSearch(ibm);
+        PetscPrintf(mesh->MESH_COMM, "done\n");
+
+        MPI_Barrier(mesh->MESH_COMM);
+
+        //check that the ibm object has been detected
+        if(ibm->dbg) checkIBMexists(ibm);
+
+        //create local list of ibm fluid cells
+        findIBMFluidCells(ibm);
+
+        MPI_Barrier(mesh->MESH_COMM);
+
+        //find the processors that have ibm body in it - to parallelize
+        findIBMControlledProcs(ibm);
+
+        MPI_Barrier(mesh->MESH_COMM);
+
+        if(ibm->computeForce)
+        {
+            // divide the ibm elements into ibm processors based on the closest ibm fluid to the ibm element normal projection
+            initElementProjectionProcs(ibm);
+
+            MPI_Barrier(mesh->MESH_COMM);
+
+        }
+
+        //divide the ibm elements into ibm processors based on the closest ibm fluid to the element center
+        initElementProcs(ibm);
+
+        //find the closest normal projection element to every ibm fluid cell
+        if(ibm->wallShearOn)
+        {
+            findClosestIBMElement2Solid(ibm);
+        }
+        else 
+        {
+            findClosestIBMElement(ibm);
+        }
+
+        if (ibm->IBInterpolationModel == "CURVIB")
+        {
+            //find the intereption point on the background grid
+            if(ibm->curvibType == "CurvibTriangular")
+            {
+                findInterceptionPoint(ibm);
+            }
+        }
+
+        MPI_Barrier(mesh->MESH_COMM);
+
+        if (ibm->IBInterpolationModel == "MLS")
+        {
+            //find the fluid nodes within the support radius
+            findFluidSupportNodes(ibm);
+
+            //find the solid nodes within the support radius
+            findIBMMeshSupportNodes(ibm);
+
+            MPI_Barrier(mesh->MESH_COMM);
+
+        }
+    }
+    
+    return 0;
 }
 
 //***************************************************************************************************************//
@@ -1664,10 +1816,8 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
 
         if(abl->controllerActive)
         {
-            readDictInt  ("ABLProperties.dat", "precursorControllerTypeMismatch",   &(abl->controllerTypeMismatch));
 
-            const char* controllerProp = "controllerProperties";
-            if(abl->controllerTypeMismatch) controllerProp = "fringeControllerProperties";
+            const char* controllerProp = "controllerPropertiesPrecursor";
     
             readSubDictWord  ("ABLProperties.dat", controllerProp, "controllerType",   &(abl->controllerType));
             readSubDictDouble("ABLProperties.dat", controllerProp, "controllerMaxHeight", &(abl->controllerMaxHeight));
@@ -1745,9 +1895,9 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
                                     readDictDouble("ABLProperties.dat", "fCoriolis", &(abl->fc));
                                 }
 
-                                readSubDictDouble("ABLProperties.dat", "controllerProperties", "geoDampingAlpha",      &(abl->geoDampAlpha));
-                                readSubDictDouble("ABLProperties.dat", "controllerProperties", "geoDampingStartTime",  &(abl->geoDampStart));
-                                readSubDictDouble("ABLProperties.dat", "controllerProperties", "geoDampingTimeWindow", &(abl->geoDampWindow));
+                                readSubDictDouble("ABLProperties.dat", controllerProp, "geoDampingAlpha",      &(abl->geoDampAlpha));
+                                readSubDictDouble("ABLProperties.dat", controllerProp, "geoDampingStartTime",  &(abl->geoDampStart));
+                                readSubDictDouble("ABLProperties.dat", controllerProp, "geoDampingTimeWindow", &(abl->geoDampWindow));
 
                                 abl->geoDampH     = abl->hInv + 0.5 * abl->dInv;
                                 abl->geoDampDelta = abl->dInv;
@@ -1807,14 +1957,14 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
                         PetscReal geoWindMag;
 
                         // read geosptrophic height
-                        readSubDictDouble("ABLProperties.dat", "controllerProperties", "hGeo",     &(abl->hGeo));
-                        readSubDictDouble("ABLProperties.dat", "controllerProperties", "alphaGeo", &(abl->geoAngle));
-                        readSubDictDouble("ABLProperties.dat", "controllerProperties", "uGeoMag",  &geoWindMag);
-                        readSubDictInt   ("ABLProperties.dat", "controllerProperties", "windAngleController",  &abl->windAngleController);
+                        readSubDictDouble("ABLProperties.dat", controllerProp, "hGeo",     &(abl->hGeo));
+                        readSubDictDouble("ABLProperties.dat", controllerProp, "alphaGeo", &(abl->geoAngle));
+                        readSubDictDouble("ABLProperties.dat", controllerProp, "uGeoMag",  &geoWindMag);
+                        readSubDictInt   ("ABLProperties.dat", controllerProp, "windAngleController",  &abl->windAngleController);
 
                         if(abl->windAngleController)
                         {
-                            readSubDictDouble("ABLProperties.dat", "controllerProperties", "alphaHub", &(abl->refHubAngle));
+                            readSubDictDouble("ABLProperties.dat", controllerProp, "alphaHub", &(abl->refHubAngle));
                             abl->refHubAngle = abl->refHubAngle*M_PI/180;
                         }
 
@@ -1840,7 +1990,7 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
                             
                             PetscPrintf(mesh->MESH_COMM, "   -> Ug = (%f, %f, %f) m/s, UgMag = %f m/s\n", abl->uGeoBar.x, abl->uGeoBar.y, abl->uGeoBar.z, nMag(abl->uGeoBar));
                         }
-                        
+
                         PetscMalloc(sizeof(PetscInt)  * 2,       &(abl->closestLabelsGeo));
                         PetscMalloc(sizeof(PetscReal) * 2,       &(abl->levelWeightsGeo));
                         std::vector<PetscReal> absLevelDelta(nLevels);
@@ -1891,11 +2041,11 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
                 else if( (abl->controllerType=="directProfileAssimilation") || (abl->controllerType=="indirectProfileAssimilation") || (abl->controllerType=="waveletProfileAssimilation"))
                 {
                     // read PI controller properties
-                    readSubDictDouble("ABLProperties.dat", "controllerProperties", "relaxPI",          &(abl->relax));
-                    readSubDictDouble("ABLProperties.dat", "controllerProperties", "alphaPI",          &(abl->alpha));
-                    readSubDictDouble("ABLProperties.dat", "controllerProperties", "timeWindowPI",     &(abl->timeWindow));
-                    readSubDictInt   ("ABLProperties.dat", "controllerProperties", "avgSources",       &(abl->averageSource));
-                    readSubDictWord  ("ABLProperties.dat", "controllerProperties", "lowerLayerForcingType",   &(abl->flType));
+                    readSubDictDouble("ABLProperties.dat", controllerProp, "relaxPI",          &(abl->relax));
+                    readSubDictDouble("ABLProperties.dat", controllerProp, "alphaPI",          &(abl->alpha));
+                    readSubDictDouble("ABLProperties.dat", controllerProp, "timeWindowPI",     &(abl->timeWindow));
+                    readSubDictInt   ("ABLProperties.dat", controllerProp, "avgSources",       &(abl->averageSource));
+                    readSubDictWord  ("ABLProperties.dat", controllerProp, "lowerLayerForcingType",   &(abl->flType));
 
                     /* ABL Height Calculation*/
                     //allocate memory for ABL height calculation 
@@ -1910,7 +2060,7 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
                             abl->avgTotalStress[j] = 0.0;
                         } 
         
-                        readSubDictDouble("ABLProperties.dat", "controllerProperties", "hAverageTime",     &(abl->hAvgTime)); 
+                        readSubDictDouble("ABLProperties.dat", controllerProp, "hAverageTime",     &(abl->hAvgTime)); 
         
                         // create height directory, check for height file, if exists get ABL height
                         if
@@ -1983,7 +2133,7 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
                     }
                     else if(abl->flType == "constantHeight")
                     {
-                        readSubDictDouble("ABLProperties.dat", "controllerProperties", "lowestSrcHeight",  &(abl->lowestSrcHt));
+                        readSubDictDouble("ABLProperties.dat", controllerProp, "lowestSrcHeight",  &(abl->lowestSrcHt));
                     }
                     else if(abl->flType == "mesoDataHeight")
                     {
@@ -2012,7 +2162,7 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
                     {
                         PetscReal timeScaleMeso = 0.1 * abl->timeV[abl->numtV - 1] - abl->timeV[0];
 
-                        readSubDictDouble("ABLProperties.dat", "controllerProperties", "movingAvgWindow",       &(abl->tAvgWindow));
+                        readSubDictDouble("ABLProperties.dat", controllerProp, "movingAvgWindow",       &(abl->tAvgWindow));
 
                         if(abl->tAvgWindow > timeScaleMeso)
                         {
@@ -2041,7 +2191,7 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
 
                     if(abl->controllerType=="indirectProfileAssimilation")
                     {
-                        readSubDictInt   ("ABLProperties.dat", "controllerProperties", "polynomialOrder",   &(abl->polyOrder));
+                        readSubDictInt   ("ABLProperties.dat", controllerProp, "polynomialOrder",   &(abl->polyOrder));
 
                         //precompute the polynomial coefficient matrix using least square regression method.
                         computeLSqPolynomialCoefficientMatrix(abl); 
@@ -2056,12 +2206,12 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
                             fatalErrorInFunction("ABLInitialize",  error);
                         #endif
 
-                        readSubDictWord  ("ABLProperties.dat", "controllerProperties", "waveletName", &(abl->waveName));
-                        readSubDictWord  ("ABLProperties.dat", "controllerProperties", "waveletTMethod", &(abl->waveTMethod));
-                        readSubDictInt   ("ABLProperties.dat", "controllerProperties", "waveletDecompLevel", &(abl->waveLevel));
-                        readSubDictWord  ("ABLProperties.dat", "controllerProperties", "waveletExtn", &(abl->waveExtn));
-                        readSubDictWord  ("ABLProperties.dat", "controllerProperties", "waveletConvolution", &(abl->waveConv));
-                        readSubDictInt   ("ABLProperties.dat", "controllerProperties", "waveletBlend", &(abl->waveletBlend));
+                        readSubDictWord  ("ABLProperties.dat", controllerProp, "waveletName", &(abl->waveName));
+                        readSubDictWord  ("ABLProperties.dat", controllerProp, "waveletTMethod", &(abl->waveTMethod));
+                        readSubDictInt   ("ABLProperties.dat", controllerProp, "waveletDecompLevel", &(abl->waveLevel));
+                        readSubDictWord  ("ABLProperties.dat", controllerProp, "waveletExtn", &(abl->waveExtn));
+                        readSubDictWord  ("ABLProperties.dat", controllerProp, "waveletConvolution", &(abl->waveConv));
+                        readSubDictInt   ("ABLProperties.dat", controllerProp, "waveletBlend", &(abl->waveletBlend));
 
                         PetscPrintf(PETSC_COMM_WORLD, "   wavelet profile assimilation using %s with wavelet filtering : %s and %ld levels of decomposition\n", abl->waveTMethod.c_str(), abl->waveName.c_str(), abl->waveLevel);
 
@@ -2069,7 +2219,7 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
                 }
                 else if(abl->controllerType == "geostrophicProfileAssimilation")
                 {
-                    readSubDictWord  ("ABLProperties.dat", "controllerProperties", "lowerLayerForcingType",   &(abl->flType));
+                    readSubDictWord  ("ABLProperties.dat", controllerProp, "lowerLayerForcingType",   &(abl->flType));
                     if(abl->flType != "ablHeight")
                     {
                         char error[512];
@@ -2124,7 +2274,7 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
                         abl->avgTotalStress[j] = 0.0;
                     } 
 
-                    readSubDictDouble("ABLProperties.dat", "controllerProperties", "hAverageTime",     &(abl->hAvgTime)); 
+                    readSubDictDouble("ABLProperties.dat", controllerProp, "hAverageTime",     &(abl->hAvgTime)); 
 
                     // create height directory, check for height file, if exists get ABL height
                     if
@@ -2532,7 +2682,6 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
             }
         }
 
-        
         if(abl->controllerActiveT)
         {
             if(!(abl->access->flags->isTeqnActive))
@@ -2548,14 +2697,11 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
                 sprintf(error, "temperature controller cannot currently be used without velocity controller\n");
                 fatalErrorInFunction("ABLInitialize",  error);
             }
-
-            readDictInt  ("ABLProperties.dat", "precursorControllerTypeMismatch",   &(abl->controllerTypeMismatch));
-
-            const char* controllerProp = "controllerProperties";
-            if(abl->controllerTypeMismatch) controllerProp = "fringeControllerProperties";
-
-            readSubDictWord("ABLProperties.dat", controllerProp, "controllerActionT",    &(abl->controllerActionT));
-            readSubDictWord("ABLProperties.dat", controllerProp, "controllerTypeT",    &(abl->controllerTypeT));
+            
+            readDictWord     ("ABLProperties.dat", "controllerTypeT",    &(abl->controllerTypeT));
+            readDictWord     ("ABLProperties.dat", "controllerActionT",    &(abl->controllerActionT));
+            
+            const char* controllerProp = "controllerPropertiesPrecursor";
 
             PetscPrintf(mesh->MESH_COMM, "   precursor temperature controller type: %s\n", abl->controllerTypeT.c_str());
             PetscPrintf(mesh->MESH_COMM, "   precursor temperature controller action: %s\n", abl->controllerActionT.c_str());
@@ -2569,18 +2715,20 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
                     abl->tDes[l] = 0.0;
                 }
 
-                if(abl->controllerTypeT=="indirectProfileAssimilation" || abl->controllerTypeT=="directProfileAssimilation" || abl->controllerTypeT=="waveletProfileAssimilation")
-                {  
-                    // read proportional controller relaxation factor (same as the velocity one)
-                    readSubDictDouble("ABLProperties.dat", controllerProp, "relaxPI",          &(abl->relax));
-                    readSubDictWord  ("ABLProperties.dat", controllerProp, "lowerLayerForcingTypeT",   &(abl->flTypeT));
+                    if(abl->controllerTypeT=="indirectProfileAssimilation" || abl->controllerTypeT=="directProfileAssimilation" || abl->controllerTypeT=="waveletProfileAssimilation")
+                    {  
+                        // read proportional controller relaxation factor (same as the velocity one)
+                        readSubDictDouble("ABLProperties.dat", controllerProp, "relaxPI",          &(abl->relax));
+                        readSubDictWord  ("ABLProperties.dat", controllerProp, "lowerLayerForcingTypeT",   &(abl->flTypeT));
 
-                    if(abl->flTypeT == "constantHeight")
-                    {
-                        readSubDictDouble("ABLProperties.dat", controllerProp, "lowestSrcHeight",  &(abl->lowestSrcHt));
-                    }
-                    else if(abl->flTypeT == "mesoDataHeight")
-                    {
+                        PetscPrintf(mesh->MESH_COMM, "   controller type temperature: %s\n", abl->controllerTypeT.c_str());
+
+                        if(abl->flTypeT == "constantHeight")
+                        {
+                            readSubDictDouble("ABLProperties.dat", controllerProp, "lowestSrcHeight",  &(abl->lowestSrcHt));
+                        }
+                        else if(abl->flTypeT == "mesoDataHeight")
+                        {
 
                     }
                     else
@@ -2595,9 +2743,9 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
                     findTemperatureInterpolationWeights(abl);
                 }
 
-                if(abl->controllerTypeT=="indirectProfileAssimilation")
-                {
-                    readSubDictInt   ("ABLProperties.dat", controllerProp, "polynomialOrderT",   &(abl->polyOrderT));
+                    if(abl->controllerTypeT=="indirectProfileAssimilation")
+                    {
+                        readSubDictInt   ("ABLProperties.dat", controllerProp, "polynomialOrderT",   &(abl->polyOrderT));
 
                     //precompute the polynomial coefficient matrix using least square regression method.
                     computeLSqPolynomialCoefficientMatrixT(abl); 
@@ -2612,12 +2760,12 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
                         fatalErrorInFunction("ABLInitialize",  error);
                     #endif
 
-                    readSubDictWord  ("ABLProperties.dat", controllerProp, "waveletName", &(abl->waveName));
-                    readSubDictWord  ("ABLProperties.dat", controllerProp, "waveletTMethod", &(abl->waveTMethod));
-                    readSubDictInt   ("ABLProperties.dat", controllerProp, "waveletDecompLevel", &(abl->waveLevel));
-                    readSubDictWord  ("ABLProperties.dat", controllerProp, "waveletExtn", &(abl->waveExtn));
-                    readSubDictWord  ("ABLProperties.dat", controllerProp, "waveletConvolution", &(abl->waveConv));
-                    readSubDictInt   ("ABLProperties.dat", controllerProp, "waveletBlend", &(abl->waveletBlend));
+                        readSubDictWord  ("ABLProperties.dat", controllerProp, "waveletName", &(abl->waveName));
+                        readSubDictWord  ("ABLProperties.dat", controllerProp, "waveletTMethod", &(abl->waveTMethod));
+                        readSubDictInt   ("ABLProperties.dat", controllerProp, "waveletDecompLevel", &(abl->waveLevel));
+                        readSubDictWord  ("ABLProperties.dat", controllerProp, "waveletExtn", &(abl->waveExtn));
+                        readSubDictWord  ("ABLProperties.dat", controllerProp, "waveletConvolution", &(abl->waveConv));
+                        readSubDictInt   ("ABLProperties.dat", controllerProp, "waveletBlend", &(abl->waveletBlend));
 
                     PetscPrintf(PETSC_COMM_WORLD, "   wavelet profile assimilation using %s with wavelet filtering : %s and %ld levels of decomposition\n", abl->waveTMethod.c_str(), abl->waveName.c_str(), abl->waveLevel);
                 }

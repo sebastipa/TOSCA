@@ -9,7 +9,6 @@ struct abl_
     // flags
     PetscInt     controllerActive;               //!< activate velocity controller
     PetscInt     controllerActiveT;              //!< activate temperature controller
-    PetscInt     controllerTypeMismatch;         //!< activate if the controllers used in successor and precursor differ
     PetscInt     coriolisActive;                 //!< activate coriolis force
 
     // physical quantities

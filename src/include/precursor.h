@@ -56,3 +56,5 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain);
 PetscErrorCode concurrentPrecursorSolve(abl_ *abl);
 
 PetscErrorCode saveSourcePrecursor2Successor(abl_ *precursorABL, abl_ *successorABL);
+
+PetscErrorCode InitializePrecursorIBM(ibm_ *ibm, ibm_ *succIbm);

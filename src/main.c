@@ -125,7 +125,7 @@ int main(int argc, char **argv)
                     CorrectSourceTermsT(domain[d].teqn, 1);
                 }
             }
-            
+
             // update wind turbines
             if(flags.isWindFarmActive)
             {
