@@ -32,10 +32,25 @@ typedef struct
 {
     PetscInt                size;   //!< number of points
     PetscReal              *Uref;   //!< Uref
-    PetscReal                *Ct;   //!< Ct curve
-    PetscReal               *Cp;   //!< Cp curve (optional)
+    PetscReal              *Ct;   //!< Ct curve
+    PetscReal              *Cp;   //!< Cp curve (optional)
 }ctTable;
 
+//! \brief bladed pitch curve table properties 
+typedef struct
+{
+    PetscInt                size;   //!< number of points
+    PetscReal              *Uref;   //!< Uref
+    PetscReal              *pitch;  //!< blade pitch data
+}pitchTable;
+
+//! \brief rotor rpm curve table properties 
+typedef struct
+{
+    PetscInt                size;   //!< number of points
+    PetscReal              *Uref;   //!< Uref
+    PetscReal              *rpm;  //!< blade pitch data
+}rpmTable;
 
 //! \brief Structure containing a coarser AD mesh located 2.5 D upstrem each turbine for velocity sampling
 typedef struct
@@ -371,6 +386,8 @@ typedef struct
     PetscReal         bldInertia;    //!< blade intertia
     PetscReal        gbxRatioG2R;    //!< gearbox generator-to-rotor ratio
     PetscReal             gbxEff;    //!< gearbox mechanical efficiency
+    rpmTable              rpmTbl;    //!< table containing the rotor speed vs wind speed curve
+    word       rpmControllerType;
 
     // pitch controller (ADM and ALM models)
     word     pitchControllerType;   //!< name of torque controller (if none preserves intial omega, else reads from control/pitchControllerType)
@@ -382,6 +399,7 @@ typedef struct
     PetscReal           pitchS2R;   //!< pitch at which the sensit. of power to pitch variations has doubled w.r.t. rated position
     PetscReal             errPID;   //!< error of the PID controller
     PetscReal          intErrPID;   //!< integrated error of the PID controller
+    pitchTable          pitchTbl;   //!< table containing the variable pitch curve 
 
     PetscInt    pitchRateLimiter;   //!< activate pitch rate limiter (1 yes, 0 no)
     PetscInt   pitchAngleLimiter;   //!< activate pitch angle limiter (1 yes, 0 no)
@@ -620,6 +638,12 @@ PetscErrorCode readBladeProperties(windTurbine *wt, const char *dictName, const 
 
 //! \brief Reads the turbine Ct curve used in the turbine (given in the CtTable subdict inside the file named as the wind turbine type)
 PetscErrorCode readCtTable(windTurbine *wt, const char *dictName);
+
+//! \brief Reads the turbine blade pitch curve used in the turbine (given in the pitchTable subdict inside the file /turbines/control/bladePitchCurve)
+PetscErrorCode readPitchTable(windTurbine *wt, const char *dictName);
+
+//! \brief Reads the turbine rpm curve used in the turbine (given in the rpmTable subdict inside the file /turbines/control/rotorRpmCurve)
+PetscErrorCode readRpmTable(windTurbine *wt, const char *dictName);
 
 //! \brief Reads the tower properties used in the turbine (given in the towerData subdict inside the file named as the wind turbine)
 PetscErrorCode readTowerProperties(windTurbine *wt, const char *dictName);

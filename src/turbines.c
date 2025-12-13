@@ -461,6 +461,28 @@ PetscErrorCode computeRotSpeed(farm_ *farm)
                     // set to zero, controller deactivated
                     wt->genOmega = 0.0;
                     wt->genPwr   = 0.0;
+
+                    if(wt->rpmControllerType == "rpmControlCurve")
+                    {
+                        PetscReal Uref;
+
+                        if((*farm->turbineModels[t]) == "ADM")  Uref = wt->upPoints->Uref;
+                        else if((*farm->turbineModels[t]) == "ALM")  Uref = wt->upPoints->Uref;
+                        
+                        if(Uref == 0.0)
+                        {
+                           //initially dont change anything. use the initial rotor omega
+                        }
+                        else
+                        {
+                            PetscReal w[2];
+                            PetscInt  l[2];
+                            findInterpolationWeights(w, l, wt->rpmTbl.Uref, wt->rpmTbl.size, Uref);
+
+                            // compute blade pitch based on pitch curve
+                            wt->rtrOmega = (w[0]*wt->rpmTbl.rpm[l[0]] + w[1]*wt->rpmTbl.rpm[l[1]]) * wt->rpm2RadSec;
+                        }
+                    }
                 }
                 else
                 {
@@ -738,46 +760,72 @@ PetscErrorCode controlBldPitch(farm_ *farm)
                 }
                 else
                 {
-                    // compute gain scheduling
-                    PetscReal G = 1.0 / (1.0 + wt->collPitch / wt->pitchS2R);
+                    if((wt->pitchControllerType == "bladePitchCurve"))
+                    {   
+                        PetscReal Uref;
 
-                    // save old PID error
-                    PetscReal errPID_old = wt->errPID;
+                        if((*farm->turbineModels[t]) == "ADM")  Uref = wt->upPoints->Uref;
+                        else if((*farm->turbineModels[t]) == "ALM")  Uref = wt->upPoints->Uref;
+                        
+                        if(Uref == 0.0)
+                        {
+                            wt->collPitch = 0.0;
+                        }
+                        else
+                        {
+                            PetscReal w[2];
+                            PetscInt  l[2];
+                            findInterpolationWeights(w, l, wt->pitchTbl.Uref, wt->pitchTbl.size, Uref);
 
-                    // activation above rated speed is ensured by pitch saturation
-                    wt->errPID = wt->rtrOmega - wt->ratedRotorSpd;
-
-                    // cumulate integral PID error
-                    wt->intErrPID    += wt->errPID * clock->dt;
-
-                    // compute derivative PID error
-                    PetscReal derErrPID  = (wt->errPID - errPID_old) / PetscMax(clock->dt, 1e-5);
-
-                    // saturate the integrated PID error based on pitch min/max
-                    PetscReal intMinErr  = wt->pitchMin / (G * wt->pitchKI);
-                    PetscReal intMaxErr  = wt->pitchMax / (G * wt->pitchKI);
-                    wt->intErrPID     = PetscMin(PetscMax(wt->intErrPID, intMinErr), intMaxErr);
-
-                    // compute PID contributions
-                    PetscReal pitchP     = G * wt->pitchKP * wt->errPID;
-                    PetscReal pitchI     = G * wt->pitchKI * wt->intErrPID;
-                    PetscReal pitchD     = G * wt->pitchKD * derErrPID;
-
-                    // compute commanded pitch
-                    PetscReal pitchComm  = pitchP + pitchI + pitchD;
-
-                    // saturate pitch based on pitch min/max
-                    pitchComm = PetscMin(PetscMax(pitchComm, wt->pitchMin), wt->pitchMax);
-
-                    // add single blade components for specific control systems
-                    // (not implemented)
-
-                    if(wt->dbg && rank == wt->writerRank)
-                    {
-                        printf("Turbine %s: commPitch = %.3f deg, commPitchRate = %.3f deg/s, rotorSpeed = %.3f rpm\n", (*farm->turbineIds[t]).c_str(), wt->collPitch*wt->rad2deg, (pitchComm-wt->collPitch)*wt->rad2deg/clock->dt, wt->rtrOmega/wt->rpm2RadSec);
+                            // compute blade pitch based on pitch curve
+                            wt->collPitch = (w[0]*wt->pitchTbl.pitch[l[0]] + w[1]*wt->pitchTbl.pitch[l[1]]) * wt->deg2rad;
+                            wt->intErrPID = 0.0;
+                            wt->errPID    = 0.0;
+                        }
                     }
+                    else
+                    {
+                        // compute gain scheduling
+                        PetscReal G = 1.0 / (1.0 + wt->collPitch / wt->pitchS2R);
 
-                    wt->collPitch = pitchComm;
+                        // save old PID error
+                        PetscReal errPID_old = wt->errPID;
+
+                        // activation above rated speed is ensured by pitch saturation
+                        wt->errPID = wt->rtrOmega - wt->ratedRotorSpd;
+
+                        // cumulate integral PID error
+                        wt->intErrPID    += wt->errPID * clock->dt;
+
+                        // compute derivative PID error
+                        PetscReal derErrPID  = (wt->errPID - errPID_old) / PetscMax(clock->dt, 1e-5);
+
+                        // saturate the integrated PID error based on pitch min/max
+                        PetscReal intMinErr  = wt->pitchMin / (G * wt->pitchKI);
+                        PetscReal intMaxErr  = wt->pitchMax / (G * wt->pitchKI);
+                        wt->intErrPID     = PetscMin(PetscMax(wt->intErrPID, intMinErr), intMaxErr);
+
+                        // compute PID contributions
+                        PetscReal pitchP     = G * wt->pitchKP * wt->errPID;
+                        PetscReal pitchI     = G * wt->pitchKI * wt->intErrPID;
+                        PetscReal pitchD     = G * wt->pitchKD * derErrPID;
+
+                        // compute commanded pitch
+                        PetscReal pitchComm  = pitchP + pitchI + pitchD;
+
+                        // saturate pitch based on pitch min/max
+                        pitchComm = PetscMin(PetscMax(pitchComm, wt->pitchMin), wt->pitchMax);
+
+                        // add single blade components for specific control systems
+                        // (not implemented)
+
+                        if(wt->dbg && rank == wt->writerRank)
+                        {
+                            printf("Turbine %s: commPitch = %.3f deg, commPitchRate = %.3f deg/s, rotorSpeed = %.3f rpm\n", (*farm->turbineIds[t]).c_str(), wt->collPitch*wt->rad2deg, (pitchComm-wt->collPitch)*wt->rad2deg/clock->dt, wt->rtrOmega/wt->rpm2RadSec);
+                        }
+
+                        wt->collPitch = pitchComm;
+                    }
                 }
             }
             else
@@ -5752,9 +5800,10 @@ PetscErrorCode windTurbinesWrite(farm_ *farm)
                 }
                 else if((*farm->turbineModels[t]) == "AFM")
                 {
+                    PetscReal Umag = nMag(wt->afm.U);
                     MPI_Reduce(&(wt->afm.rtrThrust),  &rtrThrust,     1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
                     MPI_Reduce(&(wt->afm.aeroPwr),    &aeroPwr,       1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
-                    MPI_Reduce(&(wt->afm.U), &rtrAvgMagU,    1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
+                    MPI_Reduce(&(Umag), &rtrAvgMagU,    1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
 
                     rtrThrust    = rtrThrust  / wt->nProcsTrb / 1.0e3;
                     aeroPwr      = aeroPwr    / wt->nProcsTrb / 1.0e6;
@@ -9131,7 +9180,25 @@ PetscErrorCode readTurbineProperties(windTurbine *wt, const char *dictName, cons
 
         // read controllers input parameters
         if(wt->genControllerType   != "none") readGenControllerParameters(wt,   wt->genControllerType.c_str(), meshName.c_str());
-        if(wt->pitchControllerType != "none") readPitchControllerParameters(wt, wt->pitchControllerType.c_str(), meshName.c_str());
+        
+        if(wt->genControllerType   == "none")
+        {
+            readDictWord(dictName,   "rpmControllerType", &(wt->rpmControllerType));
+
+            if(wt->rpmControllerType   == "rpmControlCurve") readRpmTable(wt, "./turbines/control/rotorRpmCurve");
+        }
+
+        if(wt->pitchControllerType != "none") 
+        {
+            if(wt->pitchControllerType == "bladePitchCurve")
+            {
+                readPitchTable(wt, "./turbines/control/bladePitchCurve");
+            }
+            else 
+            {
+                readPitchControllerParameters(wt, wt->pitchControllerType.c_str(), meshName.c_str());
+            }
+        }
 
         // read airfoil types used in this turbine
         readAirfoilProperties(wt, dictName);
@@ -9781,6 +9848,382 @@ PetscErrorCode readBladeProperties(windTurbine *wt, const char *dictName, const 
        char error[512];
         sprintf(error, "could not find keyword bladeData in dictionary %s\n", dictName);
         fatalErrorInFunction("readBladeProperties",  error);
+    }
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode readPitchTable(windTurbine *wt, const char *dictName)
+{
+    // The dictionary must be located inside a
+    // file named as the bladePitchCurve and located
+    // inside ./turbines/control/ directory
+    // It must be defined as follows:
+    //
+    // pitchTable
+    // {
+    //     (Uref1 pitch1)
+    //     (Uref2 pitch2)
+    //                   ...
+    //     (UrefN pitchN)
+    // }
+
+    // two is the minimum number of data points.
+    // no checks for doubles or integers are performed,
+    // only the format is checked.
+
+    // define the local variables
+    std::vector<PetscReal> Uref;
+    std::vector<PetscReal> pitch;
+
+    PetscReal   Uref_i, pitch_i;
+    PetscInt    nlines = 0;
+
+    // pointer for strtod and strtol
+    char   *eptr;
+
+    // file stream
+    std::ifstream indata;
+
+    // word by word read
+    char word[256];
+
+    // open dictionary
+    indata.open(dictName);
+
+    if(!indata)
+    {
+       char error[512];
+        sprintf(error, "could not open %s dictionary\n", dictName);
+        fatalErrorInFunction("readPitchTable",  error);
+    }
+    else
+    {
+        // get word by word till end of dictionary
+        while(!indata.eof())
+        {
+            indata >> word;
+
+            // test if found subdictionary
+            if
+            (
+                strcmp
+                (
+                    "pitchTable",
+                    word
+                ) == 0
+            )
+            {
+                // read the first "{"
+                indata >> word;
+
+                std::string token1(word);
+                std::string token2;
+
+                // test if braket is the first word after the subdictionary entry
+                if(trim(token1)=="{")
+                {
+                    // read until end of file (should find "}" before)
+                    while(!indata.eof())
+                    {
+                        // read the first component, contains "(" character
+                        indata >> word;
+
+                        // put the word in a string for performing checks
+                        std::string token3(word);
+
+                        std::string first(word);
+                        if (first.find ("(") != std::string::npos)
+                        {
+                            // remove "( character from the first component
+                            PetscInt l1 = first.size();
+                            for(PetscInt i=0;i<l1;i++)
+                            {
+                                word[i] = word[i+1];
+                            }
+
+                            // store the first variable (Uref)
+                            Uref_i = std::strtod(word, &eptr);
+                            Uref.push_back(Uref_i);
+
+                            // read the second component (Ct)
+                            indata >> word;
+
+                            std::string ct_str(word);
+                            pitch_i = std::strtod(word, &eptr);
+                            pitch.push_back(pitch_i);
+
+                            if (ct_str.find (")") != std::string::npos)
+                            {
+                                // no Cp data on this line
+                                nlines++;
+                            }
+                            else
+                            {
+                                char error[512];
+                                sprintf(error, "expected <)> at end of line as reading pitchTable in %s dictionary\n", dictName);
+                                fatalErrorInFunction("readPitchTable",  error);
+                            }
+                        }
+                        // look for the terminating "}" if found: close the file, store the data and exit
+                        // if not found: may be another line
+                        else if(trim(token3)=="}")
+                        {
+                            if(nlines >= 2)
+                            {
+                                // close file
+                                indata.close();
+
+                                // allocate memory for the Ct table in the current wind turbine
+                                PetscMalloc(sizeof(pitchTable), &(wt->pitchTbl));
+                                PetscMalloc(nlines*sizeof(PetscReal), &(wt->pitchTbl.Uref));
+                                PetscMalloc(nlines*sizeof(PetscReal), &(wt->pitchTbl.pitch));
+
+                                // store the blade properties
+                                wt->pitchTbl.size = nlines;
+
+                                for(PetscInt p=0; p<wt->pitchTbl.size; p++)
+                                {
+                                    wt->pitchTbl.Uref[p]  = Uref[p];
+                                    wt->pitchTbl.pitch[p]  = pitch[p];
+                                }
+
+                                // clean the local variables
+                                std::vector<PetscReal> ().swap(Uref);
+                                std::vector<PetscReal> ().swap(pitch);
+                                // exit
+                                return(0);
+                            }
+                            else
+                            {
+                               char error[512];
+                                sprintf(error, "Required at least 2 data points as reading pitchTable in %s dictionary\n", dictName);
+                                fatalErrorInFunction("readPitchTable",  error);
+                            }
+                        }
+                        // if find another "{" means another subdict is entered: throws error
+                        else if(trim(token3)=="{")
+                        {
+                           char error[512];
+                            sprintf(error, "missing '}' token at end of pitchTable in %s dictionary\n", dictName);
+                            fatalErrorInFunction("readPitchTable",  error);
+                        }
+                        // we are at a new line and neither '(' nor '}' were found: throws error
+                        else
+                        {
+                             char error[512];
+                              sprintf(error, "expected either <(>  or <}> at new line as reading pitchTable in %s dictionary\n", dictName);
+                              fatalErrorInFunction("readPitchTable",  error);
+                        }
+                    }
+
+                    // have reached this point without finding }: throws error
+                   char error[512];
+                    sprintf(error, "missing '}' token at end of pitchTable in %s dictionary\n", dictName);
+                    fatalErrorInFunction("readPitchTable",  error);
+                }
+                else
+                {
+                   char error[512];
+                    sprintf(error, "expected '{' token after keyword pitchTable in dictionary %s, found '%s'\n", dictName, word);
+                    fatalErrorInFunction("readPitchTable",  error);
+                }
+            }
+        }
+
+       char error[512];
+        sprintf(error, "could not find keyword pitchTable in dictionary %s\n", dictName);
+        fatalErrorInFunction("readPitchTable",  error);
+    }
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode readRpmTable(windTurbine *wt, const char *dictName)
+{
+    // The dictionary must be located inside a
+    // file named as the rotorRpmCurve and located
+    // inside ./turbines/control/ directory
+    // It must be defined as follows:
+    //
+    // rpmTable
+    // {
+    //     (Uref1 rpm1)
+    //     (Uref2 rpm2)
+    //                   ...
+    //     (UrefN rpmN)
+    // }
+
+    // two is the minimum number of data points.
+    // no checks for doubles or integers are performed,
+    // only the format is checked.
+
+    // define the local variables
+    std::vector<PetscReal> Uref;
+    std::vector<PetscReal> rpm;
+
+    PetscReal   Uref_i, rpm_i;
+    PetscInt    nlines = 0;
+
+    // pointer for strtod and strtol
+    char   *eptr;
+
+    // file stream
+    std::ifstream indata;
+
+    // word by word read
+    char word[256];
+
+    // open dictionary
+    indata.open(dictName);
+
+    if(!indata)
+    {
+       char error[512];
+        sprintf(error, "could not open %s dictionary\n", dictName);
+        fatalErrorInFunction("readRpmTable",  error);
+    }
+    else
+    {
+        // get word by word till end of dictionary
+        while(!indata.eof())
+        {
+            indata >> word;
+
+            // test if found subdictionary
+            if
+            (
+                strcmp
+                (
+                    "rpmTable",
+                    word
+                ) == 0
+            )
+            {
+                // read the first "{"
+                indata >> word;
+
+                std::string token1(word);
+                std::string token2;
+
+                // test if braket is the first word after the subdictionary entry
+                if(trim(token1)=="{")
+                {
+                    // read until end of file (should find "}" before)
+                    while(!indata.eof())
+                    {
+                        // read the first component, contains "(" character
+                        indata >> word;
+
+                        // put the word in a string for performing checks
+                        std::string token3(word);
+
+                        std::string first(word);
+                        if (first.find ("(") != std::string::npos)
+                        {
+                            // remove "( character from the first component
+                            PetscInt l1 = first.size();
+                            for(PetscInt i=0;i<l1;i++)
+                            {
+                                word[i] = word[i+1];
+                            }
+
+                            // store the first variable (Uref)
+                            Uref_i = std::strtod(word, &eptr);
+                            Uref.push_back(Uref_i);
+
+                            // read the second component (Ct)
+                            indata >> word;
+
+                            std::string ct_str(word);
+                            rpm_i = std::strtod(word, &eptr);
+                            rpm.push_back(rpm_i);
+
+                            if (ct_str.find (")") != std::string::npos)
+                            {
+                                // no Cp data on this line
+                                nlines++;
+                            }
+                            else
+                            {
+                                char error[512];
+                                sprintf(error, "expected <)> at end of line as reading rpmTable in %s dictionary\n", dictName);
+                                fatalErrorInFunction("readRpmTable",  error);
+                            }
+                        }
+                        // look for the terminating "}" if found: close the file, store the data and exit
+                        // if not found: may be another line
+                        else if(trim(token3)=="}")
+                        {
+                            if(nlines >= 2)
+                            {
+                                // close file
+                                indata.close();
+
+                                // allocate memory for the Ct table in the current wind turbine
+                                PetscMalloc(sizeof(rpmTable), &(wt->rpmTbl));
+                                PetscMalloc(nlines*sizeof(PetscReal), &(wt->rpmTbl.Uref));
+                                PetscMalloc(nlines*sizeof(PetscReal), &(wt->rpmTbl.rpm));
+
+                                // store the blade properties
+                                wt->rpmTbl.size = nlines;
+
+                                for(PetscInt p=0; p<wt->rpmTbl.size; p++)
+                                {
+                                    wt->rpmTbl.Uref[p]  = Uref[p];
+                                    wt->rpmTbl.rpm[p]  = rpm[p];
+                                }
+
+                                // clean the local variables
+                                std::vector<PetscReal> ().swap(Uref);
+                                std::vector<PetscReal> ().swap(rpm);
+                                // exit
+                                return(0);
+                            }
+                            else
+                            {
+                               char error[512];
+                                sprintf(error, "Required at least 2 data points as reading rpmTable in %s dictionary\n", dictName);
+                                fatalErrorInFunction("readRpmTable",  error);
+                            }
+                        }
+                        // if find another "{" means another subdict is entered: throws error
+                        else if(trim(token3)=="{")
+                        {
+                           char error[512];
+                            sprintf(error, "missing '}' token at end of rpmTable in %s dictionary\n", dictName);
+                            fatalErrorInFunction("readRpmTable",  error);
+                        }
+                        // we are at a new line and neither '(' nor '}' were found: throws error
+                        else
+                        {
+                             char error[512];
+                              sprintf(error, "expected either <(>  or <}> at new line as reading rpmTable in %s dictionary\n", dictName);
+                              fatalErrorInFunction("readRpmTable",  error);
+                        }
+                    }
+
+                    // have reached this point without finding }: throws error
+                   char error[512];
+                    sprintf(error, "missing '}' token at end of rpmTable in %s dictionary\n", dictName);
+                    fatalErrorInFunction("readRpmTable",  error);
+                }
+                else
+                {
+                   char error[512];
+                    sprintf(error, "expected '{' token after keyword rpmTable in dictionary %s, found '%s'\n", dictName, word);
+                    fatalErrorInFunction("readRpmTable",  error);
+                }
+            }
+        }
+
+       char error[512];
+        sprintf(error, "could not find keyword rpmTable in dictionary %s\n", dictName);
+        fatalErrorInFunction("readRpmTable",  error);
     }
 
     return(0);
