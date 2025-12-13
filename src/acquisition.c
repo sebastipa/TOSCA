@@ -4913,232 +4913,309 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
 
             acquisition->userSections->uSection = new uSections*[nSurfaces];
 
-            for(PetscInt s=0; s<nSurfaces; s++)
+            // userSurface Directory 
+            word userslicesFolder = "./postProcessing/" + mesh->meshName + "/userSurfaces";
+            PetscInt dirRes = mkdir(userslicesFolder.c_str(), 0777);
+            if (dirRes != 0 && errno != EEXIST)
             {
-
-                PetscInt atLeastOneVector     = 0;
-                PetscInt atLeastOneScalar     = 0;
-
-                //reverses the number of cells in the two surface directions - test feature needs to be removed
-                PetscInt flipIndexOrder;
-
-                // allocate memory
-                acquisition->userSections->uSection[s] = new uSections;
-                
-                uSections *uSection = acquisition->userSections->uSection[s];
-                
-                userSecName = userSecPath + "/" + surfaceSeries[s];
-
-                //set surface name 
-                uSection->sectionName = surfaceSeries[s]; 
-
-                // read acquisition start time and type of interval
-                readDictDouble(userSecName.c_str(), "timeStart", &(uSection->timeStart));
-                readDictWord(userSecName.c_str(),   "intervalType", &(uSection->intervalType));
-                readDictDouble(userSecName.c_str(), "timeInterval", &(uSection->timeInterval));
-                readDictInt(userSecName.c_str(), "flipIndexOrder", &(flipIndexOrder));
-
-                // check if intervalType is known
-                if(uSection->intervalType != "timeStep" && uSection->intervalType != "adjustableTime")
+                char error[512];
+                sprintf(error, "could not create %s directory", userslicesFolder.c_str());
+                fatalErrorInFunction("sectionsInitialize", error);
+            }
+            else 
+            {
+                for(PetscInt s=0; s<nSurfaces; s++)
                 {
-                    char error[512];
-                    sprintf(error, "unknown interval type %s. Known types are timeStep and adjustableTime\n", uSection->intervalType.c_str());
-                    fatalErrorInFunction("sectionsInitialize",  error);
-                }
 
-                // read section indices
-                std::ifstream indata;
+                    PetscInt atLeastOneVector     = 0;
+                    PetscInt atLeastOneScalar     = 0;
 
-                indata.open(userSecName.c_str());
+                    //reverses the number of cells in the two surface directions - test feature needs to be removed
+                    PetscInt flipIndexOrder;
 
-                char buffer[256];
+                    // allocate memory
+                    acquisition->userSections->uSection[s] = new uSections;
+                    
+                    uSections *uSection = acquisition->userSections->uSection[s];
+                    
+                    userSecName = userSecPath + "/" + surfaceSeries[s];
 
-                while(!indata.eof())
-                {
-                    indata >> buffer;
+                    //set surface name 
+                    uSection->sectionName = surfaceSeries[s]; 
 
-                    if
-                    (
-                        strcmp
+                    // read acquisition start time and type of interval
+                    readDictDouble(userSecName.c_str(), "timeStart", &(uSection->timeStart));
+                    readDictWord(userSecName.c_str(),   "intervalType", &(uSection->intervalType));
+                    readDictDouble(userSecName.c_str(), "timeInterval", &(uSection->timeInterval));
+                    readDictInt(userSecName.c_str(), "flipIndexOrder", &(flipIndexOrder));
+
+                    // check if intervalType is known
+                    if(uSection->intervalType != "timeStep" && uSection->intervalType != "adjustableTime")
+                    {
+                        char error[512];
+                        sprintf(error, "unknown interval type %s. Known types are timeStep and adjustableTime\n", uSection->intervalType.c_str());
+                        fatalErrorInFunction("sectionsInitialize",  error);
+                    }
+
+                    // read section indices
+                    std::ifstream indata;
+
+                    indata.open(userSecName.c_str());
+
+                    char buffer[256];
+
+                    while(!indata.eof())
+                    {
+                        indata >> buffer;
+
+                        if
                         (
-                            "meshPoints",
-                            buffer
-                        ) == 0
-                    )
-                    {
-                        indata >> buffer;
-                        std::sscanf(buffer, "%ld", &(uSection->ny));
-
-                        indata >> buffer;
-                        std::sscanf(buffer, "%ld", &(uSection->nx));
-
-                        break;
-                    }
-
-                }
-
-                if(flipIndexOrder == 1)
-                { 
-                    PetscInt tempIndex;
-                    tempIndex = uSection->ny;
-                    uSection->ny = uSection->nx;
-                    uSection->nx = tempIndex;
-                }
-
-                // allocate memory for the co-ordinates of the points in the user defined surface
-                PetscInt nx = uSection->nx, ny = uSection->ny;
-
-                uSection->coor = (Cmpnts **)malloc( sizeof(Cmpnts *) * (ny) );
-
-                for(j=0; j<ny; j++)
-                {
-                    uSection->coor[j] = (Cmpnts *)malloc( sizeof(Cmpnts) * (nx) );
-                }
-
-                for(j=0; j<ny; j++)
-                {
-                    for(i=0; i<nx; i++)
-                    {
-                        indata >> buffer;
-                        std::sscanf(buffer, "%le", &(uSection->coor[j][i].x));
-
-                        indata >> buffer;
-                        std::sscanf(buffer, "%le", &(uSection->coor[j][i].y));
-
-                        indata >> buffer;
-                        std::sscanf(buffer, "%le", &(uSection->coor[j][i].z));
-                    }
-                }
-
-                indata.close();
-
-                //allocate memory 
-                uSection->closestId = (cellIds **)malloc( sizeof(cellIds *) * (ny) );
-
-                for(j=0; j<ny; j++)
-                {
-                    uSection->closestId[j] = (cellIds *)malloc( sizeof(cellIds) * (nx) );
-                }
-
-                uSection->hasCoor = (PetscInt **)malloc( sizeof(PetscInt *) * (ny) );
-
-                for(j=0; j<ny; j++)
-                {
-                    uSection->hasCoor[j] = (PetscInt *)malloc( sizeof(PetscInt) * (nx) );
-                }
-
-                cellIds **localId;
-                localId = (cellIds **)malloc( sizeof(cellIds *) * (ny) );
-
-                for(j=0; j<ny; j++)
-                {
-                    localId[j] = (cellIds *)malloc( sizeof(cellIds) * (nx) );
-                }
-
-
-
-                for(j=0; j<ny; j++)
-                {
-                    for(i=0; i<nx; i++)
-                    {
-                       localId[j][i].i = -100;
-                       localId[j][i].j = -100;
-                       localId[j][i].k = -100;
-
-                       uSection->hasCoor[j][i] = 0;
-                    }
-                }
-
-
-                for(PetscInt l=0; l<ny; l++)
-                {
-                    for(PetscInt m=0; m<nx; m++)
-                    {
-                        Cmpnts surfacePoint = nSet(uSection->coor[l][m]);
-
-                        PetscReal  lminDist = 1e30,  gminDist = 1e30;
-                        cellIds closestIds;
-
-                        for (k=lzs; k<lze; k++)
+                            strcmp
+                            (
+                                "meshPoints",
+                                buffer
+                            ) == 0
+                        )
                         {
-                            for (j=lys; j<lye; j++)
-                            {
-                                for (i=lxs; i<lxe; i++)
-                                {
-                                    Cmpnts distVec = nSub(surfacePoint, cent[k][j][i]);
-                                    PetscReal distMag = nMag(distVec) + procContrib;
+                            indata >> buffer;
+                            std::sscanf(buffer, "%ld", &(uSection->ny));
 
-                                    if(distMag < lminDist)
-                                    {
-                                        lminDist = distMag;
-                                        closestIds.i = i;
-                                        closestIds.j = j;
-                                        closestIds.k = k;
-                                    }
+                            indata >> buffer;
+                            std::sscanf(buffer, "%ld", &(uSection->nx));
 
-                                }
-                            }
-                        }   
+                            break;
+                        }
 
-                        MPI_Allreduce(&lminDist, &gminDist, 1, MPIU_REAL, MPIU_MIN, mesh->MESH_COMM);
+                    }
 
-                        if(lminDist == gminDist)
+                    if(flipIndexOrder == 1)
+                    { 
+                        PetscInt tempIndex;
+                        tempIndex = uSection->ny;
+                        uSection->ny = uSection->nx;
+                        uSection->nx = tempIndex;
+                    }
+
+                    // allocate memory for the co-ordinates of the points in the user defined surface
+                    PetscInt nx = uSection->nx, ny = uSection->ny;
+
+                    uSection->coor = (Cmpnts **)malloc( sizeof(Cmpnts *) * (ny) );
+
+                    for(j=0; j<ny; j++)
+                    {
+                        uSection->coor[j] = (Cmpnts *)malloc( sizeof(Cmpnts) * (nx) );
+                    }
+
+                    for(j=0; j<ny; j++)
+                    {
+                        for(i=0; i<nx; i++)
                         {
-                            localId[l][m].i = closestIds.i;
-                            localId[l][m].j = closestIds.j;
-                            localId[l][m].k = closestIds.k;
+                            indata >> buffer;
+                            std::sscanf(buffer, "%le", &(uSection->coor[j][i].x));
 
-                            PetscReal cellWidth = 5.0*pow(1.0/aj[closestIds.k][closestIds.j][closestIds.i], 1.0/3.0);
+                            indata >> buffer;
+                            std::sscanf(buffer, "%le", &(uSection->coor[j][i].y));
 
-                            if(gminDist > cellWidth)
-                            {
-                                char warning[256];
-                                sprintf(warning, "User defined section has parts outside the domain, consider redefining the surface");
-                                warningInFunction("sectionsInitialize",  warning);
-                            }
-
-                            uSection->hasCoor[l][m] = 1;
+                            indata >> buffer;
+                            std::sscanf(buffer, "%le", &(uSection->coor[j][i].z));
                         }
                     }
 
-                    MPI_Allreduce(&(localId[l][0]), &(uSection->closestId[l][0]), 3*nx, MPIU_INT, MPIU_MAX, mesh->MESH_COMM);
-                }
+                    indata.close();
 
-                // free the allocated memory for coorPts
-                for(j = 0; j<ny; j++)
-                {
-                    free(localId[j]);
-                }
-
-                free(localId);  
-
-                atLeastOneVector++;
-                if(flags->isTeqnActive) atLeastOneScalar++;
-                if(flags->isLesActive)  atLeastOneScalar++;
-                if(acquisition->isPerturbABLActive) {atLeastOneScalar++; atLeastOneVector++;}
-
-                if(atLeastOneVector)
-                {
-                    // allocate memory for scalar and vector variables
-                    uSection->vectorSec = (Cmpnts **)malloc( sizeof(Cmpnts *) * ny );
+                    //allocate memory 
+                    uSection->closestId = (cellIds **)malloc( sizeof(cellIds *) * (ny) );
 
                     for(j=0; j<ny; j++)
                     {
-                        uSection->vectorSec[j] = (Cmpnts *)malloc( sizeof(Cmpnts) * nx );
+                        uSection->closestId[j] = (cellIds *)malloc( sizeof(cellIds) * (nx) );
                     }
-                }
 
-                if(atLeastOneScalar)
-                {
-                    uSection->scalarSec = (PetscReal **)malloc( sizeof(PetscReal *) * ny );
+                    uSection->hasCoor = (PetscInt **)malloc( sizeof(PetscInt *) * (ny) );
 
                     for(j=0; j<ny; j++)
                     {
-                        uSection->scalarSec[j] = (PetscReal *)malloc( sizeof(PetscReal) * nx );
+                        uSection->hasCoor[j] = (PetscInt *)malloc( sizeof(PetscInt) * (nx) );
+                    }
+
+                    cellIds **localId;
+                    localId = (cellIds **)malloc( sizeof(cellIds *) * (ny) );
+
+                    for(j=0; j<ny; j++)
+                    {
+                        localId[j] = (cellIds *)malloc( sizeof(cellIds) * (nx) );
+                    }
+
+
+
+                    for(j=0; j<ny; j++)
+                    {
+                        for(i=0; i<nx; i++)
+                        {
+                        localId[j][i].i = -100;
+                        localId[j][i].j = -100;
+                        localId[j][i].k = -100;
+
+                        uSection->hasCoor[j][i] = 0;
+                        }
+                    }
+
+
+                    for(PetscInt l=0; l<ny; l++)
+                    {
+                        for(PetscInt m=0; m<nx; m++)
+                        {
+                            Cmpnts surfacePoint = nSet(uSection->coor[l][m]);
+
+                            PetscReal  lminDist = 1e30,  gminDist = 1e30;
+                            cellIds closestIds;
+
+                            for (k=lzs; k<lze; k++)
+                            {
+                                for (j=lys; j<lye; j++)
+                                {
+                                    for (i=lxs; i<lxe; i++)
+                                    {
+                                        Cmpnts distVec = nSub(surfacePoint, cent[k][j][i]);
+                                        PetscReal distMag = nMag(distVec) + procContrib;
+
+                                        if(distMag < lminDist)
+                                        {
+                                            lminDist = distMag;
+                                            closestIds.i = i;
+                                            closestIds.j = j;
+                                            closestIds.k = k;
+                                        }
+
+                                    }
+                                }
+                            }   
+
+                            MPI_Allreduce(&lminDist, &gminDist, 1, MPIU_REAL, MPIU_MIN, mesh->MESH_COMM);
+
+                            if(lminDist == gminDist)
+                            {
+                                localId[l][m].i = closestIds.i;
+                                localId[l][m].j = closestIds.j;
+                                localId[l][m].k = closestIds.k;
+
+                                PetscReal cellWidth = 5.0*pow(1.0/aj[closestIds.k][closestIds.j][closestIds.i], 1.0/3.0);
+
+                                // if(gminDist > cellWidth)
+                                // {
+                                //     char warning[256];
+                                //     sprintf(warning, "User defined section has parts outside the domain, consider redefining the surface");
+                                //     warningInFunction("sectionsInitialize",  warning);
+                                // }
+
+                                uSection->hasCoor[l][m] = 1;
+                            }
+                        }
+
+                        MPI_Allreduce(&(localId[l][0]), &(uSection->closestId[l][0]), 3*nx, MPIU_INT, MPIU_MAX, mesh->MESH_COMM);
+                    }
+
+                    // free the allocated memory for coorPts
+                    for(j = 0; j<ny; j++)
+                    {
+                        free(localId[j]);
+                    }
+
+                    free(localId);  
+
+                    char    usersliceName[256];
+                    sprintf(usersliceName, "%s/%s", userslicesFolder.c_str(), uSection->sectionName.c_str());
+
+                    errno = 0;
+                    PetscInt dirRes = mkdir(usersliceName, 0777);
+                    if (dirRes != 0 && errno != EEXIST)
+                    {
+                        char error[512];
+                        sprintf(error, "could not create %s directory\n", usersliceName);
+                        fatalErrorInFunction("sectionsInitialize", error);
+                    }
+                    else 
+                    {
+                        // create U directory in which time snapshots are saved
+                        PetscInt dirRes;
+                        char usersliceNameU[260];
+                        sprintf(usersliceNameU, "%s/U", usersliceName);
+
+                        errno = 0;
+                        dirRes = mkdir(usersliceNameU, 0777);
+                        if (dirRes != 0 && errno != EEXIST)
+                        {
+                            char error[512];
+                            sprintf(error, "could not create %s directory\n", usersliceNameU);
+                            fatalErrorInFunction("sectionsInitialize", error);
+                        }
+                        else
+                        {
+                            atLeastOneVector++;
+                        }
+
+                        char usersliceNameP[260];
+                        sprintf(usersliceNameP, "%s/p", usersliceName);
+
+                        errno = 0;
+                        dirRes = mkdir(usersliceNameP, 0777);
+                        if (dirRes != 0 && errno != EEXIST)
+                        {
+                            char error[512];
+                            sprintf(error, "could not create %s directory\n", usersliceNameP);
+                            fatalErrorInFunction("sectionsInitialize", error);
+                        }
+                        else
+                        {
+                            //remove_subdirs(mesh->MESH_COMM, ksliceNameP);
+                            atLeastOneScalar++;
+                        }
+
+                        // create T directory in which time snapshots are saved
+                        if(flags->isTeqnActive)
+                        {
+                            char usersliceNameT[260];
+                            sprintf(usersliceNameT, "%s/T", usersliceName);
+
+                            errno = 0;
+                            dirRes = mkdir(usersliceNameT, 0777);
+                            if (dirRes != 0 && errno != EEXIST)
+                            {
+                                char error[512];
+                                sprintf(error, "could not create %s directory\n", usersliceNameT);
+                                fatalErrorInFunction("sectionsInitialize", error);
+                            }
+                            else
+                            {
+                                //remove_subdirs(mesh->MESH_COMM, ksliceNameT);
+                                atLeastOneScalar++;
+                            }
+                        }
+                    }
+
+                    if(atLeastOneVector)
+                    {
+                        // allocate memory for scalar and vector variables
+                        uSection->vectorSec = (Cmpnts **)malloc( sizeof(Cmpnts *) * ny );
+
+                        for(j=0; j<ny; j++)
+                        {
+                            uSection->vectorSec[j] = (Cmpnts *)malloc( sizeof(Cmpnts) * nx );
+                        }
+                    }
+
+                    if(atLeastOneScalar)
+                    {
+                        uSection->scalarSec = (PetscReal **)malloc( sizeof(PetscReal *) * ny );
+
+                        for(j=0; j<ny; j++)
+                        {
+                            uSection->scalarSec[j] = (PetscReal *)malloc( sizeof(PetscReal) * nx );
+                        }
                     }
                 }
-            }
-            
+
+            }            
         }
         else
         {
@@ -5324,6 +5401,48 @@ PetscErrorCode writeSections(acquisition_ *acquisition)
                     if(flags->isTeqnActive) kSectionSaveScalar(mesh, kSections, kplane, teqn->Tmprt, "T");
                     if(flags->isLesActive)  kSectionSaveScalar(mesh, kSections, kplane, les->lNu_t, "nut");
                     if(flags->isIBMActive)  kSectionSaveScalar(mesh, kSections, kplane, mesh->lNvert, "nv");
+                }
+            }
+        }
+
+        // write user defined sections to file
+        if(acquisition->userSections->available)
+        {
+            udSections *userSections = acquisition->userSections;
+
+            for(PetscInt s=0; s<userSections->nSections; s++)
+            {
+                uSections *uSection = userSections->uSection[s];
+
+                PetscReal timeStart    = uSection->timeStart;
+                PetscReal timeInterval = uSection->timeInterval;
+                PetscReal epsilon      = 1e-8;
+                // check the time and see if must write
+                if
+                (
+                    clock->time >= timeStart && // write only if past acquisition start
+                    (
+                        // adjustableTime: write only if clock->time is multiple of time interval
+                        (
+                            uSection->intervalType == "adjustableTime" &&
+                            mustWrite(clock->time, timeStart, timeInterval)
+                        ) ||
+                        // timeStep: write every timeInterval iterations
+                        (
+                            uSection->intervalType == "timeStep" &&
+                            (clock->it / timeInterval - std::floor(clock->it / timeInterval + epsilon) < 1e-10)
+                        )
+                    )
+
+                )
+                {
+                    PetscPrintf(mesh->MESH_COMM, "Saving user defined section: %s\n", uSection->sectionName.c_str());
+
+                    // store data
+                    userSectionSaveVector(mesh, uSection, ueqn->lUcat, "U");
+                    userSectionSaveScalar(mesh, uSection, peqn->lP, "p");
+
+                    if(flags->isTeqnActive) userSectionSaveScalar(mesh, uSection, teqn->lTmprt, "T");
                 }
             }
         }
@@ -5750,6 +5869,137 @@ PetscErrorCode kSectionSaveVector(mesh_ *mesh, sections *sec, PetscInt kplane, V
 
 //***************************************************************************************************************//
 
+PetscErrorCode userSectionSaveVector(mesh_ *mesh, uSections *uSection, Vec &V, const char* fieldName)
+{
+    clock_        *clock = mesh->access->clock;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      i, j, k;
+    PetscMPIInt   rank;
+
+    Cmpnts        ***v, ***cent;
+
+    // formatted print width
+    PetscInt width1 = -5;
+    PetscInt width2 = -50;
+
+    MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+    PetscInt nx = uSection->nx, ny = uSection->ny;
+
+    // set to zero
+    for(j=0; j<ny; j++)
+    {
+        for(i=0; i<nx; i++)
+        {
+            uSection->vectorSec[j][i].x = 0;
+            uSection->vectorSec[j][i].y = 0;
+            uSection->vectorSec[j][i].z = 0;
+        }
+    }
+
+    DMDAVecGetArray(mesh->fda, V, &v);
+    DMDAVecGetArray(mesh->fda, mesh->lCent, &cent);
+
+    PetscInt ci, cj, ck;
+
+    for(j=0; j<ny; j++)
+    {
+        for(i=0; i<nx; i++)
+        {
+            ci = uSection->closestId[j][i].i;
+            cj = uSection->closestId[j][i].j;
+            ck = uSection->closestId[j][i].k;
+
+            Cmpnts cr = nSet(uSection->coor[j][i]);
+
+            if(uSection->hasCoor[j][i])
+            {
+                vectorPointLocalVolumeInterpolation
+                (
+                        mesh,
+                        cr.x, cr.y, cr.z,
+                        ci, cj, ck,
+                        cent,
+                        v,
+                        uSection->vectorSec[j][i]
+                );
+            }
+
+        }
+    }
+
+    DMDAVecRestoreArray(mesh->fda, V, &v);
+    DMDAVecRestoreArray(mesh->fda, mesh->lCent, &cent);
+
+    // reduce the values by storing only on the master node
+    // mpi operation is sum because the other values are zero
+    // reduce the values by storing only on the master node
+    if(!rank)
+    {
+        for(j=0; j<ny; j++)
+        {
+            MPI_Reduce(MPI_IN_PLACE, uSection->vectorSec[j], nx*3, MPIU_REAL, MPIU_SUM, 0, mesh->MESH_COMM);
+        }
+    }
+    else
+    {
+        for(j=0; j<ny; j++)
+        {
+            MPI_Reduce(uSection->vectorSec[j], uSection->vectorSec[j], nx*3, MPIU_REAL, MPIU_SUM, 0, mesh->MESH_COMM);
+        }
+    }
+
+    // apply periodic boundary conditions as average fields are only defined internally
+    if(!rank)
+    {
+        for (j=0; j<ny; j++)
+        {
+            mSet(uSection->vectorSec[j][0],  uSection->vectorSec[j][1]);
+            mSet(uSection->vectorSec[j][nx-1], uSection->vectorSec[j][nx-2]);
+        }
+        for (i=0; i<nx; i++)
+        {
+            mSet(uSection->vectorSec[0][i],  uSection->vectorSec[1][i]);
+            mSet(uSection->vectorSec[ny-1][i], uSection->vectorSec[ny-2][i]);
+        }
+    }
+
+    if(!rank)
+    {
+        word timeName = getTimeName(clock);
+
+        char fname[256];
+        sprintf(fname, "./postProcessing/%s/userSurfaces/%s/%s/%s", mesh->meshName.c_str(), uSection->sectionName.c_str(), fieldName, timeName.c_str());
+
+        PetscPrintf(PETSC_COMM_WORLD, "fname = %s\n", fname);
+        PetscPrintf(mesh->MESH_COMM, "    %*s/%s to %*s\n", width1, uSection->sectionName.c_str(), fieldName, width2, fname);
+
+        FILE *fp=fopen(fname, "wb");
+        if(!fp)
+        {
+           char error[512];
+            sprintf(error, "cannot open file %s", fname);
+            fatalErrorInFunction("userSectionSaveVector",  error);
+        }
+
+        for(j=0; j<ny; j++)
+        {
+            fwrite(&uSection->vectorSec[j][0], sizeof(Cmpnts), nx, fp);
+        }
+        fclose(fp);
+    }
+
+    return(0);
+}
+
+
+//***************************************************************************************************************//
+
 PetscErrorCode iSectionSaveScalar(mesh_ *mesh, sections *sec, PetscInt iplane, Vec &V, const char* fieldName)
 {
     clock_        *clock = mesh->access->clock;
@@ -6011,6 +6261,135 @@ PetscErrorCode kSectionSaveScalar(mesh_ *mesh, sections *sec, PetscInt kplane, V
         for(j=0; j<my; j++)
         {
             fwrite(&sec->scalarSec[j][0], sizeof(PetscReal), mx, fp);
+        }
+        fclose(fp);
+    }
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode userSectionSaveScalar(mesh_ *mesh, uSections *uSection, Vec &V, const char* fieldName)
+{
+    clock_        *clock = mesh->access->clock;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      i, j, k;
+    PetscMPIInt   rank;
+
+    PetscReal    ***v;
+    Cmpnts       ***cent;
+
+    // formatted print width
+    PetscInt width1 = -5;
+    PetscInt width2 = -50;
+
+    MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+    PetscInt nx = uSection->nx, ny = uSection->ny;
+
+    // set to zero
+    for(j=0; j<ny; j++)
+    {
+        for(i=0; i<nx; i++)
+        {
+            uSection->scalarSec[j][i] = 0;
+        }
+    }
+
+    DMDAVecGetArray(mesh->da, V, &v);
+    DMDAVecGetArray(mesh->fda, mesh->lCent, &cent);
+
+    PetscInt ci, cj, ck;
+
+    for(j=0; j<ny; j++)
+    {
+        for(i=0; i<nx; i++)
+        {
+            ci = uSection->closestId[j][i].i;
+            cj = uSection->closestId[j][i].j;
+            ck = uSection->closestId[j][i].k;
+
+            Cmpnts cr = nSet(uSection->coor[j][i]);
+
+            if(uSection->hasCoor[j][i])
+            {
+                scalarPointLocalVolumeInterpolation
+                (
+                        mesh,
+                        cr.x, cr.y, cr.z,
+                        ci, cj, ck,
+                        cent,
+                        v,
+                        uSection->scalarSec[j][i]
+                );
+            }
+
+        }
+    }
+
+    DMDAVecRestoreArray(mesh->da, V, &v);
+    DMDAVecRestoreArray(mesh->fda, mesh->lCent, &cent);
+
+    // reduce the values by storing only on the master node
+    // mpi operation is sum because the other values are zero
+    // reduce the values by storing only on the master node
+    if(!rank)
+    {
+        for(j=0; j<ny; j++)
+        {
+            MPI_Reduce(MPI_IN_PLACE, uSection->scalarSec[j], nx, MPIU_REAL, MPIU_SUM, 0, mesh->MESH_COMM);
+        }
+    }
+    else
+    {
+        for(j=0; j<ny; j++)
+        {
+            MPI_Reduce(uSection->scalarSec[j], uSection->scalarSec[j], nx, MPIU_REAL, MPIU_SUM, 0, mesh->MESH_COMM);
+        }
+    }
+
+    // apply periodic boundary conditions as average fields are only defined internally
+    if(!rank)
+    {
+        for (j=0; j<ny; j++)
+        {
+            uSection->scalarSec[j][0]    = uSection->scalarSec[j][1];
+            uSection->scalarSec[j][nx-1] = uSection->scalarSec[j][nx-2];
+        }
+        for (i=0; i<nx; i++)
+        {
+            uSection->scalarSec[0][i]     = uSection->scalarSec[1][i];
+            uSection->scalarSec[ny-1][i]  = uSection->scalarSec[ny-2][i];
+        }
+    }
+
+    if(!rank)
+    {
+        word timeName = getTimeName(clock);
+
+        char fname[256];
+        sprintf(fname, "./postProcessing/%s/userSurfaces/%s/%s/%s", mesh->meshName.c_str(), uSection->sectionName.c_str(), fieldName, timeName.c_str());
+
+        PetscPrintf(PETSC_COMM_WORLD, "fname = %s\n", fname);
+        PetscPrintf(mesh->MESH_COMM, "    %*s/%s to %*s\n", width1, uSection->sectionName.c_str(), fieldName, width2, fname);
+
+        FILE *fp=fopen(fname, "wb");
+        if(!fp)
+        {
+           char error[512];
+            sprintf(error, "cannot open file %s", fname);
+            fatalErrorInFunction("userSectionSaveScalar",  error);
+        }
+
+        for(j=0; j<ny; j++)
+        {
+            fwrite(&uSection->scalarSec[j][0], sizeof(PetscReal), nx, fp);
         }
         fclose(fp);
     }

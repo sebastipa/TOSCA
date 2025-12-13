@@ -79,6 +79,9 @@ PetscErrorCode jSectionSaveVector(mesh_ *mesh, sections *sec, PetscInt jplane, V
 //! \brief Saves k-section vector data
 PetscErrorCode kSectionSaveVector(mesh_ *mesh, sections *sec, PetscInt kplane, Vec &V, const char* fieldName);
 
+//! \brief Saves k-section vector data
+PetscErrorCode userSectionSaveVector(mesh_ *mesh, uSections *uSection, Vec &V, const char* fieldName);
+
 //! \brief Saves i-section scalar data
 PetscErrorCode iSectionSaveScalar(mesh_ *mesh, sections *sec, PetscInt iplane, Vec &V, const char* fieldName);
 
@@ -87,6 +90,8 @@ PetscErrorCode jSectionSaveScalar(mesh_ *mesh, sections *sec, PetscInt jplane, V
 
 //! \brief Saves k-section scalar data
 PetscErrorCode kSectionSaveScalar(mesh_ *mesh, sections *sec, PetscInt kplane, Vec &V, const char* fieldName);
+
+PetscErrorCode userSectionSaveScalar(mesh_ *mesh, uSections *uSection, Vec &V, const char* fieldName);
 
 // FIELDS AVERAGES ACQUISITION
 // ============================================================================================================= //

@@ -44,6 +44,8 @@ PetscErrorCode binaryJSectionsPerturbToXMF(domain_ *domain, postProcess *pp);
 //! \brief Reads binary k-section data and writes paraview data into XMF folder
 PetscErrorCode binaryKSectionsToXMF(domain_ *domain);
 
+PetscErrorCode binaryUserSectionsToXMF(domain_ *domain);
+
 //! \brief Reads k-section data from average fields and writes paraview data into XMF folder
 PetscErrorCode fieldKSectionsToXMF(domain_ *domain);
 
@@ -83,6 +85,8 @@ PetscErrorCode userSectionLoadScalarFromField(Vec &V, mesh_ *mesh, uSections *uS
 //! \briefReads from k-slices time series and loads the velocity, temperature and nut planes. Important: assumes T and nut databases have the same times of U.
 PetscErrorCode kSectionLoadVector(mesh_ *mesh, sections *sec, PetscInt kplane, const word &fieldName, PetscReal time);
 PetscErrorCode kSectionLoadScalar(mesh_ *mesh, sections *sec, PetscInt kplane, const word &fieldName, PetscReal time);
+PetscErrorCode userSectionLoadVector(mesh_ *mesh, uSections *uSection, const word &fieldName, PetscReal time);
+PetscErrorCode userSectionLoadScalar(mesh_ *mesh, uSections *uSection, const word &fieldName, PetscReal time);
 
 //! Generate the section on-the-fly in the post processing phase (for average fields that only have to be done at the end)
 PetscErrorCode iSectionLoadSymmTensorFromField(Vec &V, mesh_ *mesh, sections *sec, PetscInt kplane, const word &fieldName, PetscReal time);

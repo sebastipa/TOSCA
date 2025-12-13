@@ -55,6 +55,7 @@ struct les_
 
     Vec           lTau;                   //!< tau sgs tensor for structural models
     Vec           lQ;                     //!< q sgs vector for structural models
+    
     // initial nut field
     word          initFieldType;
 
