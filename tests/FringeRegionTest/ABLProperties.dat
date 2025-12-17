@@ -36,11 +36,19 @@ vkConst 0.4
 smearT 0.5
 
 # Activation flags 
+
+# Coriolis source terms
 coriolisActive 1
+
+# Velocity and temperature controllers
 controllerActive 1
 controllerActiveT 0
+
+# Precursor velocity and temperature controllers
 controllerActivePrecursor  1
 controllerActivePrecursorT 0
+
+# Mismatch flag between successor and precursor controllers
 precursorControllerTypeMismatch 0
 
 controllerProperties

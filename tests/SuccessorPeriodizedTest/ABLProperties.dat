@@ -30,20 +30,18 @@ gABL 0.0
 vkConst 0.4
 
 # Rampanelli and Zardi temperature model parameter.
-smearT 0.5
+smearT 0.33
 
-# Activate Coriolis force 
+# Activate Coriolis force  
 coriolisActive 1
 
-# Activate velocity controller 
+# Activate velocity and temperature controllers
 controllerActive 1
-
-# Activate temperature controller 
 controllerActiveT 0
 
 controllerProperties
 {
-    # Velocity controller parameters
+    # controller parameters
     controllerAction read
     controllerType timeAverageSeries
 
