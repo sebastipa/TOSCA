@@ -262,7 +262,25 @@ PetscErrorCode InitializeWindFarm(farm_ *farm)
 
         #if USE_OPENFAST
         // get global params and position of force and velocity points from openfast
-        getDataFromOpenFAST(farm);
+        for(PetscInt t=0; t<nT; t++)
+        {
+            if(farm->wt[t]->useOpenFAST)
+            {
+                // update velocity points from OpenFAST
+                getVelPtsBladeOpenFAST(farm->wt[t]);
+                if(farm->wt[t]->includeTwr)
+                {
+                    getVelPtsTwrOpenFAST(farm->wt[t]);
+                }
+
+                // update Force points from OpenFAST
+                getForcePtsBladeOpenFAST(farm->wt[t]);
+                if(farm->wt[t]->includeTwr)
+                {
+                    getForcePtsTwrOpenFAST(farm->wt[t]);
+                }
+            }
+        }
 
         // compute initial condition for openfast
         stepZeroOpenFAST(farm);

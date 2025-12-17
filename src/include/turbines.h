@@ -322,7 +322,7 @@ typedef struct
     PetscInt            trbMoved;   //!< flag telling if the turbine has moved (triggers point-processor ownership update)
 
     // additional info for ADM and ALM models
-    word                  rotDir;   //!< (AD/AL) rotation dir as seen lookingthrough the WT from the front
+    word                  rotDir;   //!< (AD/AL) rotation dir as seen looking at the WT from the front
     PetscInt              nFoils;   //!< (AD/AL) number of airfoils in the database
     word             **foilNames;   //!< (AD/AL) array of pointers of size(n-foils in turbine) to airfoil names
     foilInfo             **foils;   //!< (AD/AL) array of pointers of size(n-foils in turbine) to each airfoil's info
@@ -470,6 +470,10 @@ typedef struct
     fast::OpenFAST         *FAST;   //!< OpenFAST object (points to that of the farm struct, used for access)
     fast::fastInputs         *fi;   //!< OpenFAST input structure (points to that of the farm struct, used for access)
     PetscInt       openfastIndex;   //!< index of this turbine in the OpenFAST labeling (-1 if not coupled)
+    PetscInt         initialized;   //!< flag telling if the OpenFAST coupling has been initialized for this turbine
+
+    // time-varying parameters
+    Cmpnts                 base;    //!< current base coordinates of the wind turbine
     
     // number of points for velocity sampling and force projection
     PetscInt     nBladeVelPtsOF;    //!< number of blade points for OpenFAST (note: this are for 1 blade, multiply for nBlades to have the total) 

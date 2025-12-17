@@ -1295,6 +1295,9 @@ PetscErrorCode findControlledPointsNacelle(farm_ *farm)
 
 PetscErrorCode findControlledPointsSample(farm_ *farm)
 {
+    // this is the last "findControlledPoints..." function to be called
+    // as trbMoved flag is zeroed at the end. 
+
     mesh_            *mesh = farm->access->mesh;
     DM               da = mesh->da, fda = mesh->fda;
     DMDALocalInfo    info = mesh->info;

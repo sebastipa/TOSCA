@@ -43,7 +43,7 @@ PetscErrorCode findControlledPointsTowerOpenFAST(farm_ *farm);
 PetscErrorCode getDataFromOpenFAST(farm_ *farm);
 
     //! \brief Get global turbine parameters from OpenFAST
-    PetscErrorCode getGlobParamsOpenFAST(windTurbine *wt);
+    PetscErrorCode getGlobParamsOpenFAST(windTurbine *wt, const word actuatorModel);
 
     //! \brief Get positions of velocity turbine points from OpenFAST
     PetscErrorCode getVelPtsBladeOpenFAST(windTurbine *wt);
@@ -62,7 +62,6 @@ PetscErrorCode mapOFDisplToActPts(farm_ *farm);
 
 //! \brief Translate OpenFAST forces into TOSCA forces depending on the actutor model
 PetscErrorCode mapOFForcesToActPts(farm_ *farm);
-
 
 #endif
 

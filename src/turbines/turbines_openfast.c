@@ -136,6 +136,13 @@ PetscErrorCode initOpenFAST(farm_ *farm)
 
                 // get rank that solves this turbine (called by all)
                 thisTurbRank = farm->FAST->get_procNo(wt->openfastIndex);
+
+                // initialize azimuth and base
+                wt->base.x      = farm->base[t].x;
+                wt->base.y      = farm->base[t].y;
+                wt->base.z      = farm->base[t].z;
+                wt->gbxRatioG2R = 100;
+                wt->initialized = 0; // this is set to 1 after stepZeroOpenFAST is called
                 
                 // compute number of velocity points 
                 PetscInt nVelPtsBlade = 0;
@@ -350,7 +357,11 @@ PetscErrorCode getDataFromOpenFAST(farm_ *farm)
             }
 
             // update global WT parameters from OpenFAST
-            getGlobParamsOpenFAST(farm->wt[t]);
+            if (farm->wt[t]->initialized)
+            {
+                getGlobParamsOpenFAST(farm->wt[t], (*farm->turbineModels[t]));
+            }
+            farm->wt[t]->initialized = 1;
         }
     }
 
@@ -359,7 +370,7 @@ PetscErrorCode getDataFromOpenFAST(farm_ *farm)
 
 //***************************************************************************************************************//
 
-PetscErrorCode getGlobParamsOpenFAST(windTurbine *wt)
+PetscErrorCode getGlobParamsOpenFAST(windTurbine *wt, const word actuatorModel)
 {
     // parameters are only broadcasted on this turbine processors 
     // and set to zero on others for consistency with parallel sum when writing data to file 
@@ -370,6 +381,8 @@ PetscErrorCode getGlobParamsOpenFAST(windTurbine *wt)
     MPI_Comm_rank(wt->fi->comm, &rank);
     MPI_Comm_size(wt->fi->comm, &nProcs);
     thisTurbRank = wt->FAST->get_procNo(wt->openfastIndex);
+
+    // update tower base: TO BE IMPLEMENTED FOR FLOATING TURBINES
 
     // update rotCenter
     std::vector<PetscReal> hubPosition(3,0.0);
@@ -400,7 +413,7 @@ PetscErrorCode getGlobParamsOpenFAST(windTurbine *wt)
     // update twrTop  
     Cmpnts overH  = nScale(wt->ovrHang, wt->rtrDir);
     wt->twrTop    = nSub(wt->rotCenter, overH);
-    //wt->twrDir    = TO BE IMPLEMENTED - NEED TURBINE BASE FROM FARM
+    wt->twrDir    = nUnit(nSub(wt->rotCenter, wt->base));
 
     // get omega hat as vector product between old and new position of last blade force point (tip of blade 3)
     Cmpnts rOld  = wt->forcePtBladeOld;
@@ -413,9 +426,9 @@ PetscErrorCode getGlobParamsOpenFAST(windTurbine *wt)
     // get angle in radians 
     PetscReal cosAngle = fabs(nDot(nUnit(rOld_p), nUnit(rNew_p)));
     PetscReal angle    = acos(cosAngle);
-    wt->rtrOmega       = angle / wt->fi->dtDriver; // in rad/s
-    wt->rtrOmegaFilt   = wt->rtrOmega;             // no filtering for now
-    wt->genOmega       = wt->rtrOmega * 100;       // gearbox ratio of 100 for now
+    wt->rtrOmega       = angle / wt->fi->dtDriver;       // in rad/s
+    wt->rtrOmegaFilt   = wt->rtrOmega;                   // no filtering for now
+    wt->genOmega       = wt->rtrOmega * wt->gbxRatioG2R; // gearbox ratio of 100 for now
     
     wt->omega_hat      = nUnit(nCross(rOld_p, rNew_p));
 
@@ -430,8 +443,8 @@ PetscErrorCode getGlobParamsOpenFAST(windTurbine *wt)
     }
 
     // compute azimut as the azimuthal position of the last blade force point (tip of blade 3)
-    // in OpenFAST azimuth is 0 when blade 1 is pointing up (in the direction of the positive y axis)
-    // and increases when blade 1 goes down (clockwise when looking from the top)
+    // in OpenFAST azimuth is 0 when blade 0 is pointing up (in the direction of the positive y axis)
+    // and increases when blade 0 goes down (clockwise when looking from the front)
     PetscReal azimuth = 0.0;
     if(wt->rotDir == "cw")
     {
@@ -451,23 +464,6 @@ PetscErrorCode getGlobParamsOpenFAST(windTurbine *wt)
     }
     azimuth = azimuth * 180.0 / PETSC_PI; 
 
-    if(rank == thisTurbRank) 
-    {
-        printf("\nTurbine %s, OpenFAST rank %d out of %d\n", wt->id.c_str(), rank, nProcs);
-        printf(" - old tip pos: %f %f %f\n", rOld.x, rOld.y, rOld.z);
-        printf(" - new tip pos: %f %f %f\n", rNew.x, rNew.y, rNew.z);
-        printf(" - rotCenter: %f %f %f\n", wt->rotCenter.x, wt->rotCenter.y, wt->rotCenter.z);
-        printf(" - rtrAxis:   %f %f %f\n", wt->rtrAxis.x,   wt->rtrAxis.y,   wt->rtrAxis.z);
-        printf(" - rtrDir:    %f %f %f\n", wt->rtrDir.x,    wt->rtrDir.y,    wt->rtrDir.z);
-        printf(" - twrTop:    %f %f %f\n", wt->twrTop.x,    wt->twrTop.y,    wt->twrTop.z);
-        printf(" - twrDir:    %f %f %f\n", wt->twrDir.x,    wt->twrDir.y,    wt->twrDir.z);
-        printf(" - rtrOmega:  %f (rad/s)\n", wt->rtrOmega);
-        printf(" - genOmega:  %f (rad/s)\n", wt->genOmega);
-        printf(" - omega_hat: %f %f %f\n", wt->omega_hat.x, wt->omega_hat.y, wt->omega_hat.z);
-        printf(" - rotDir:    %s\n", wt->rotDir.c_str());  
-        printf(" - azimuth:   %f (deg)\n", azimuth); 
-    }
-
     // get blade pitch and average it 
     std::vector<double> bld_pitch(wt->nBlades, 0.0);
     if(rank == thisTurbRank)
@@ -484,33 +480,31 @@ PetscErrorCode getGlobParamsOpenFAST(windTurbine *wt)
     }
     wt->collPitch /= (PetscReal)wt->nBlades;
 
-    
-    // wt->azimuth        compute by saving the angular poisition of one of the points 
-
+    // compute aerodynamic loads: thrust, torque, power
     PetscReal gThrust   = 0.0;
     PetscReal gTorque   = 0.0;
     PetscReal gAeroPwr  = 0.0;
 
     PetscReal gThrustFAST  = 0.0;
     PetscReal gTorqueFAST  = 0.0;
+    PetscReal gAeroPwrFAST = 0.0;
 
     if(rank == thisTurbRank)
     {
         // number of points in the AL mesh
         PetscInt npts_t = wt->nBladeForcePtsOF * wt->nBlades;
 
-        // get air density 
-        PetscReal rho = 1.0;
-
         // get thrust and torque from OpenFAST (for validation)
         std::vector<double> thrustVec(wt->nBlades,0.0);
         std::vector<double> torqueVec(wt->nBlades,0.0);
         wt->FAST->computeTorqueThrust(wt->openfastIndex, torqueVec, thrustVec);
-        for(PetscInt b=0; b<wt->nBlades; b++)
-        {
-            gThrustFAST += thrustVec[b];
-            gTorqueFAST += torqueVec[b];
-        }
+
+        Cmpnts torqueVec_cmpnts = nSetFromComponents(torqueVec[0], torqueVec[1], torqueVec[2]);
+        Cmpnts thrustVec_cmpnts = nSetFromComponents(thrustVec[0], thrustVec[1], thrustVec[2]);
+        
+        gThrustFAST  = nDot(thrustVec_cmpnts, nScale(-1.0, wt->rtrAxis));
+        gTorqueFAST  = nDot(torqueVec_cmpnts, nScale(-1.0, wt->rtrAxis));
+        gAeroPwrFAST = gTorqueFAST * wt->rtrOmega; // in Watts
 
         // loop over all blade force points and sum forces and torques
         for(PetscInt p=0; p<npts_t; p++)
@@ -524,62 +518,28 @@ PetscErrorCode getGlobParamsOpenFAST(windTurbine *wt)
             // get part of r_p that is normal to rotor axis
             mSub(r_p, nScale(nDot(r_p, wt->rtrAxis), wt->rtrAxis));
 
-            Cmpnts xb_hat, yb_hat, zb_hat;
+            gThrust += nDot(wt->forceValsBlade[p], wt->rtrAxis);
 
-            if(wt->rotDir == "cw")
-            {
-                zb_hat = nUnit(r_p);
-                xb_hat = nScale(-1.0, wt->rtrAxis);
-                yb_hat = nCross(zb_hat, xb_hat);
-            }
-            else if(wt->rotDir == "ccw")
-            {
-                zb_hat = nUnit(r_p);
-                         mScale(-1.0, zb_hat);
-                xb_hat = nScale(-1.0, wt->rtrAxis);
-                yb_hat = nCross(zb_hat, xb_hat);
-            }
-
-            gThrust += nDot(wt->forceValsBlade[p], wt->rtrAxis) * rho;
-
-            gTorque += nDot(wt->forceValsBlade[p], yb_hat) * nMag(r_p) * rho;
+            gTorque += nDot(nCross(r_p, wt->forceValsBlade[p]), wt->rtrAxis); 
         }
 
         gAeroPwr = gTorque * wt->rtrOmega; // in Watts
     }
 
     // broadcast global parameters to all processors
-    MPI_Bcast(&gThrust, 1, MPIU_REAL, thisTurbRank, wt->fi->comm);
-    MPI_Bcast(&gTorque, 1, MPIU_REAL, thisTurbRank, wt->fi->comm);
-    MPI_Bcast(&gAeroPwr, 1, MPIU_REAL, thisTurbRank, wt->fi->comm);
-    MPI_Bcast(&gThrustFAST, 1, MPIU_REAL, thisTurbRank, wt->fi->comm);
-    MPI_Bcast(&gTorqueFAST, 1, MPIU_REAL, thisTurbRank, wt->fi->comm);
+    MPI_Bcast(&gThrust     , 1, MPIU_REAL, thisTurbRank, wt->fi->comm);
+    MPI_Bcast(&gTorque     , 1, MPIU_REAL, thisTurbRank, wt->fi->comm);
+    MPI_Bcast(&gAeroPwr    , 1, MPIU_REAL, thisTurbRank, wt->fi->comm);
+    MPI_Bcast(&gThrustFAST , 1, MPIU_REAL, thisTurbRank, wt->fi->comm);
+    MPI_Bcast(&gTorqueFAST , 1, MPIU_REAL, thisTurbRank, wt->fi->comm);
+    MPI_Bcast(&gAeroPwrFAST, 1, MPIU_REAL, thisTurbRank, wt->fi->comm);
 
-    // print
-    if(rank == thisTurbRank) 
-    {
-        printf(" - rtrOmega:    %f (rad/s)\n", wt->rtrOmega);
-        printf(" - genOmega:    %f (rad/s)\n", wt->genOmega);
-        printf(" - omega_hat:   %f %f %f\n", wt->omega_hat.x, wt->omega_hat.y, wt->omega_hat.z);
-        printf(" - rotDir:      %s\n", wt->rotDir.c_str());
-        printf(" - collPitch:   %f (deg)\n", wt->collPitch);
-        printf(" - gThrust:     %f (kN)   \n", gThrust/1.0e3);
-        printf(" - gTorque:     %f (kNm)  \n", gTorque/1.0e3);
-        printf(" - gAeroPwr:    %f (MW)   \n", gAeroPwr/1.0e6);
-        printf(" - gThrustFAST: %f (kN)   from OpenFAST\n", gThrustFAST/1.0e3);
-        printf(" - gTorqueFAST: %f (kNm)  from OpenFAST\n", gTorqueFAST/1.0e3);
-        printf(" - gPwrFAST   : %f (MW)  from OpenFAST\n", gTorqueFAST * wt->rtrOmega/1.0e6);
-    }
-
-
-    wt->genTorque = 0.0;
-    // wt->genPwr         can be calculated from aero power given the generator efficiency (which is a global parameter)
-    wt->genPwr = gAeroPwr * wt->genEff; // in Watts
+    wt->genTorque = gTorqueFAST  / wt->gbxRatioG2R; // in Nm
+    wt->genPwr    = gAeroPwrFAST * wt->genEff;      // in Watts
     wt->intErrPID = 0.0;
-    wt->errPID   = 0.0;
-    wt->yawAngle = std::atan2(-1.0 * wt->rtrDir.y, -1.0 * wt->rtrDir.x) * wt->rad2deg;
+    wt->errPID    = 0.0;
+    wt->yawAngle  = std::atan2(-1.0 * wt->rtrDir.y, -1.0 * wt->rtrDir.x) * wt->rad2deg;
 
-    //wt->flowAngle      easy from wind at actuator point 1 (nacelle)
     if(nMag(wt->velValsBlade[0]) > 0.0)
     {
         wt->flowAngle = std::atan2(wt->velValsBlade[0].y, wt->velValsBlade[0].x) * wt->rad2deg;
@@ -620,7 +580,62 @@ PetscErrorCode getGlobParamsOpenFAST(windTurbine *wt)
         }
     }
 
+    // always trigger processor point search 
     wt->trbMoved = 1;
+
+    // print
+    if(rank == thisTurbRank && wt->dbg)
+    {
+        printf("\nTurbine %s, OpenFAST rank %d out of %d\n", wt->id.c_str(), rank, nProcs);
+        printf(" - old tip pos : %f %f %f\n", rOld.x, rOld.y, rOld.z);
+        printf(" - new tip pos : %f %f %f\n", rNew.x, rNew.y, rNew.z);
+        printf(" - rotCenter   : %f %f %f\n", wt->rotCenter.x, wt->rotCenter.y, wt->rotCenter.z);
+        printf(" - rtrAxis     : %f %f %f\n", wt->rtrAxis.x,   wt->rtrAxis.y,   wt->rtrAxis.z);
+        printf(" - rtrDir      : %f %f %f\n", wt->rtrDir.x,    wt->rtrDir.y,    wt->rtrDir.z);
+        printf(" - twrTop      : %f %f %f\n", wt->twrTop.x,    wt->twrTop.y,    wt->twrTop.z);
+        printf(" - twrDir      : %f %f %f\n", wt->twrDir.x,    wt->twrDir.y,    wt->twrDir.z);
+        printf(" - yaw angle   : %f (deg)\n", wt->yawAngle);
+        printf(" - flow angle  : %f (deg)\n", wt->flowAngle);
+        printf(" - yaw error   : %f (deg)\n", wt->yawError);
+        printf(" - rtrOmega    : %f (rad/s)\n", wt->rtrOmega);
+        printf(" - genOmega    : %f (rad/s)\n", wt->genOmega);
+        printf(" - omega_hat   : %f %f %f\n", wt->omega_hat.x, wt->omega_hat.y, wt->omega_hat.z);
+        printf(" - rotDir      : %s\n", wt->rotDir.c_str());  
+        printf(" - azimuth     : %f (deg)\n", azimuth); 
+        printf(" - collPitch   : %f (deg)\n", wt->collPitch);
+        printf(" - gThrust     : %f (kN)   \n", gThrust/1.0e3);
+        printf(" - gThrustFAST : %f (kN)   from OpenFAST\n", gThrustFAST/1.0e3);
+        printf(" - gTorque     : %f (kNm)  \n", gTorque/1.0e3);
+        printf(" - gTorqueFAST : %f (kNm)  from OpenFAST\n", gTorqueFAST/1.0e3);
+        printf(" - gAeroPwr    : %f (MW)   \n", gAeroPwr/1.0e6);
+        printf(" - gAeroPwrFAST: %f (MW)  from OpenFAST\n", gAeroPwrFAST/1.0e6);
+    }
+
+    // write actuator model specific data 
+    if(actuatorModel == "ADM")
+    {
+        wt->adm.rtrThrust = gThrustFAST;
+        wt->adm.aeroPwr  = gAeroPwrFAST;
+
+        wt->adm.rtrTorque = gTorqueFAST;
+    }
+    else if(actuatorModel == "uniformADM")
+    {
+        wt->uadm.rtrThrust = gThrustFAST;
+        wt->uadm.aeroPwr  = gAeroPwrFAST;
+    }
+    else if(actuatorModel == "AFM")
+    {
+        wt->afm.rtrThrust = gThrustFAST;
+        wt->afm.aeroPwr  = gAeroPwrFAST;
+    }
+    else if(actuatorModel == "ALM")
+    {
+        wt->alm.rtrThrust = gThrustFAST;
+        wt->alm.aeroPwr  = gAeroPwrFAST;
+        wt->alm.rtrTorque = gTorqueFAST;
+        wt->alm.azimuth   = azimuth;
+    }
 
     return(0);
 }
