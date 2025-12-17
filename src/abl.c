@@ -168,6 +168,9 @@ PetscErrorCode InitializeABL(abl_ *abl)
         readSubDictWord  ("ABLProperties.dat", "controllerProperties", "controllerType",   &(abl->controllerType));
         readSubDictWord  ("ABLProperties.dat", "controllerProperties", "controllerAction",   &(abl->controllerAction));
 
+        PetscPrintf(mesh->MESH_COMM, "   velocity controller type: %s\n", abl->controllerType.c_str());
+        PetscPrintf(mesh->MESH_COMM, "   velocity controller action: %s\n", abl->controllerAction.c_str());
+
         abl->cumulatedSource.x = 0.0;
         abl->cumulatedSource.y = 0.0;
         abl->cumulatedSource.z = 0.0;
@@ -626,7 +629,7 @@ PetscErrorCode InitializeABL(abl_ *abl)
                 PetscMalloc(sizeof(PetscReal) * nLevels,       &(abl->avgHeatFlux));   
                 PetscMalloc(sizeof(Cmpnts) * nLevels,       &(abl->avgStress));   
 
-//read the abl->avgStress - different if restarting the simulation - so read from file avgStress
+                //read the abl->avgStress - different if restarting the simulation - so read from file avgStress
                 std::stringstream stream;
                 stream << std::fixed << std::setprecision(mesh->access->clock->timePrecision) << mesh->access->clock->startTime;
                 word location = "./fields/" + mesh->meshName + "/" + stream.str();
@@ -1102,12 +1105,15 @@ PetscErrorCode InitializeABL(abl_ *abl)
         if(!abl->controllerActive)
         {
             char error[512];
-            sprintf(error, "temperature controller is currently set only if velocity controller is active\n");
+            sprintf(error, "temperature controller cannot currently be used without velocity controller\n");
             fatalErrorInFunction("ABLInitialize",  error);
         }
 
-        readDictWord  ("ABLProperties.dat", "controllerActionT",   &(abl->controllerActionT));
-        readDictWord  ("ABLProperties.dat", "controllerTypeT",    &(abl->controllerTypeT));
+        readSubDictWord  ("ABLProperties.dat", "controllerProperties", "controllerActionT",   &(abl->controllerActionT));
+        readSubDictWord  ("ABLProperties.dat", "controllerProperties", "controllerTypeT",    &(abl->controllerTypeT));
+
+        PetscPrintf(mesh->MESH_COMM, "   temperature controller type: %s\n", abl->controllerTypeT.c_str());
+        PetscPrintf(mesh->MESH_COMM, "   temperature controller action: %s\n", abl->controllerActionT.c_str());
 
         if(abl->controllerActionT == "write")
         {
@@ -1118,13 +1124,15 @@ PetscErrorCode InitializeABL(abl_ *abl)
                 abl->tDes[l] = 0.0;
             }
 
+            if(abl->controllerTypeT=="initial")
+            {
+                // nothing to do 
+            }
             if(abl->controllerTypeT=="indirectProfileAssimilation" || abl->controllerTypeT=="directProfileAssimilation" || abl->controllerTypeT=="waveletProfileAssimilation")
             {  
                 // read proportional controller relaxation factor (same as the velocity one)
                 readSubDictDouble("ABLProperties.dat", "controllerProperties", "relaxPI",          &(abl->relax));
                 readSubDictWord  ("ABLProperties.dat", "controllerProperties", "lowerLayerForcingTypeT",   &(abl->flTypeT));
-
-                PetscPrintf(mesh->MESH_COMM, "   controller type temperature: %s\n", abl->controllerTypeT.c_str());
 
                 if(abl->flTypeT == "constantHeight")
                 {
@@ -1145,7 +1153,6 @@ PetscErrorCode InitializeABL(abl_ *abl)
 
                 findTemperatureInterpolationWeights(abl);
             }
-
             if(abl->controllerTypeT=="indirectProfileAssimilation")
             {
                 readSubDictInt   ("ABLProperties.dat", "controllerProperties", "polynomialOrderT",   &(abl->polyOrderT));
@@ -1153,7 +1160,6 @@ PetscErrorCode InitializeABL(abl_ *abl)
                 //precompute the polynomial coefficient matrix using least square regression method.
                 computeLSqPolynomialCoefficientMatrixT(abl); 
             }
-
             if(abl->controllerTypeT=="waveletProfileAssimilation")
             {
                 #if USE_PYTHON

@@ -82,7 +82,8 @@ PetscErrorCode SetSolutionFlagsPrecursor(domain_ *domain)
 
 PetscErrorCode concurrentPrecursorInitialize(abl_ *abl)
 {
-    PetscPrintf(abl->access->mesh->MESH_COMM, "Initializing concurrent precursor:\n");
+    PetscPrintf(abl->access->mesh->MESH_COMM, "\n\nInitializing concurrent precursor:\n");
+    PetscPrintf(abl->access->mesh->MESH_COMM, "******************************************************************\n\n");
 
     // allocate memory
     abl->precursor = new precursor_;
@@ -171,6 +172,9 @@ PetscErrorCode concurrentPrecursorInitialize(abl_ *abl)
         InitializeAcquisitionPrecursor(domain);
     }
 
+    PetscPrintf(abl->access->mesh->MESH_COMM, "\nFinished initializing concurrent precursor:\n");
+    PetscPrintf(abl->access->mesh->MESH_COMM, "******************************************************************\n\n");
+
     MPI_Barrier(abl->access->mesh->MESH_COMM);
 
     return(0);
@@ -247,6 +251,7 @@ PetscErrorCode InitializeMeshPrecursor(abl_ *abl)
     DMGetCoordinatesLocal(da, &Coor);
     DMDAVecGetArray(fda, Coor, &coor);
 
+    PetscPrintf(mesh_s->MESH_COMM, "Initializing precursor mesh...\n");
     PetscPrintf(mesh_s->MESH_COMM, "    - creating successor/precursor 1 to 1 processor mapping\n");
 
     MPI_Comm_rank(mesh_s->MESH_COMM, &rank);
@@ -728,6 +733,9 @@ PetscErrorCode InitializeMeshPrecursor(abl_ *abl)
             PetscPrintf(mesh_p->MESH_COMM, "      -> setting curvilinear coordinates...");
             SetMeshMetrics(mesh_p);
             PetscPrintf(mesh_p->MESH_COMM, "done\n");
+            
+            // finish initializing mesh
+            PetscPrintf(mesh_p->MESH_COMM, "done\n\n");
 
             // bounding box initialize
             SetBoundingBox(mesh_p);
@@ -845,7 +853,6 @@ PetscErrorCode concurrentPrecursorSolve(abl_ *abl)
             UpdateCsk(domain->les);
             UpdatekT(domain->les);
             UpdateWallModelsT(domain->teqn);
-
             SolveTEqn(domain->teqn);
         }
 
@@ -1560,6 +1567,8 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
             fatalErrorInFunction("ABLInitializePrecursor",  error);
         }
 
+        PetscPrintf(mesh->MESH_COMM, "Reading ABL properties...\n");
+
         abl_ *abl =  domain->abl;
 
         readDictDouble  ("ABLProperties.dat", "hRough",                    &(abl->hRough));
@@ -1664,6 +1673,9 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
             readSubDictDouble("ABLProperties.dat", controllerProp, "controllerMaxHeight", &(abl->controllerMaxHeight));
             readSubDictWord  ("ABLProperties.dat", controllerProp, "controllerAction",   &(abl->controllerAction));
 
+            PetscPrintf(mesh->MESH_COMM, "   precursor velocity controller type: %s\n", abl->controllerType.c_str());
+            PetscPrintf(mesh->MESH_COMM, "   precursor velocity controller action: %s\n", abl->controllerAction.c_str());
+
             abl->cumulatedSource.x = 0.0;
             abl->cumulatedSource.y = 0.0;
             abl->cumulatedSource.z = 0.0;
@@ -1677,8 +1689,6 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
                     readSubDictDouble("ABLProperties.dat", controllerProp, "relaxPI",          &(abl->relax));
                     readSubDictDouble("ABLProperties.dat", controllerProp, "alphaPI",          &(abl->alpha));
                     readSubDictDouble("ABLProperties.dat", controllerProp, "timeWindowPI",     &(abl->timeWindow));
-
-                    PetscPrintf(mesh->MESH_COMM, "   -> precursor controller type: %s\n", abl->controllerType.c_str());
 
                     // calculating levels interpolation weights at reference height
                     {
@@ -2391,7 +2401,7 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
                             abl->cumulatedSource.z = abl->cumulatedSource.z / nAvgSources;
                             abl->avgTimeStep       = abl->avgTimeStep       / nAvgSources;
 
-                            PetscPrintf(mesh->MESH_COMM, "average driving sources = (%e %e %e), average time step = %lf\n\n", abl->cumulatedSource.x, abl->cumulatedSource.y, abl->cumulatedSource.z, abl->avgTimeStep);
+                            PetscPrintf(mesh->MESH_COMM, "   -> average driving sources = (%e %e %e), average time step = %lf\n", abl->cumulatedSource.x, abl->cumulatedSource.y, abl->cumulatedSource.z, abl->avgTimeStep);
                         }
                     }
                 }
@@ -2561,273 +2571,280 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
                     sprintf(error, "unknown controllerAction, available types are:\n        1 : write\n        2 : read\n");
                     fatalErrorInFunction("ABLInitializePrecursor",  error);
             }
+        }
 
-            if(abl->controllerActiveT)
+        
+        if(abl->controllerActiveT)
+        {
+            if(!(abl->access->flags->isTeqnActive))
             {
-                if(!(abl->access->flags->isTeqnActive))
+                char error[512];
+                sprintf(error, "temperature controller cannot be used without potential temperature flag on\n");
+                fatalErrorInFunction("ABLInitialize",  error);
+            }
+
+            if(!abl->controllerActive)
+            {
+                char error[512];
+                sprintf(error, "temperature controller cannot currently be used without velocity controller\n");
+                fatalErrorInFunction("ABLInitialize",  error);
+            }
+
+            readDictInt  ("ABLProperties.dat", "precursorControllerTypeMismatch",   &(abl->controllerTypeMismatch));
+
+            const char* controllerProp = "controllerProperties";
+            if(abl->controllerTypeMismatch) controllerProp = "fringeControllerProperties";
+
+            readSubDictWord("ABLProperties.dat", controllerProp, "controllerActionT",    &(abl->controllerActionT));
+            readSubDictWord("ABLProperties.dat", controllerProp, "controllerTypeT",    &(abl->controllerTypeT));
+
+            PetscPrintf(mesh->MESH_COMM, "   precursor temperature controller type: %s\n", abl->controllerTypeT.c_str());
+            PetscPrintf(mesh->MESH_COMM, "   precursor temperature controller action: %s\n", abl->controllerActionT.c_str());
+
+            if(abl->controllerActionT == "write")
+            {
+                PetscMalloc(sizeof(PetscReal) * nLevels, &(abl->tDes));
+
+                for(l=0; l<nLevels; l++)
                 {
-                    char error[512];
-                    sprintf(error, "temperature controller cannot be used without potential temperature flag on\n");
-                    fatalErrorInFunction("ABLInitialize",  error);
+                    abl->tDes[l] = 0.0;
                 }
 
-                if(!abl->controllerActive)
-                {
-                    char error[512];
-                    sprintf(error, "temperature controller is currently set only if velocity controller is active\n");
-                    fatalErrorInFunction("ABLInitialize",  error);
-                }
+                if(abl->controllerTypeT=="indirectProfileAssimilation" || abl->controllerTypeT=="directProfileAssimilation" || abl->controllerTypeT=="waveletProfileAssimilation")
+                {  
+                    // read proportional controller relaxation factor (same as the velocity one)
+                    readSubDictDouble("ABLProperties.dat", controllerProp, "relaxPI",          &(abl->relax));
+                    readSubDictWord  ("ABLProperties.dat", controllerProp, "lowerLayerForcingTypeT",   &(abl->flTypeT));
 
-                readDictWord     ("ABLProperties.dat", "controllerTypeT",    &(abl->controllerTypeT));
-                readDictWord     ("ABLProperties.dat", "controllerActionT",    &(abl->controllerActionT));
-
-                if(abl->controllerActionT == "write")
-                {
-                    PetscMalloc(sizeof(PetscReal) * nLevels, &(abl->tDes));
-
-                    for(l=0; l<nLevels; l++)
+                    if(abl->flTypeT == "constantHeight")
                     {
-                        abl->tDes[l] = 0.0;
+                        readSubDictDouble("ABLProperties.dat", controllerProp, "lowestSrcHeight",  &(abl->lowestSrcHt));
                     }
-
-                    if(abl->controllerTypeT=="indirectProfileAssimilation" || abl->controllerTypeT=="directProfileAssimilation" || abl->controllerTypeT=="waveletProfileAssimilation")
-                    {  
-                        // read proportional controller relaxation factor (same as the velocity one)
-                        readSubDictDouble("ABLProperties.dat", "controllerProperties", "relaxPI",          &(abl->relax));
-                        readSubDictWord  ("ABLProperties.dat", "controllerProperties", "lowerLayerForcingTypeT",   &(abl->flTypeT));
-
-                        PetscPrintf(mesh->MESH_COMM, "   controller type temperature: %s\n", abl->controllerTypeT.c_str());
-
-                        if(abl->flTypeT == "constantHeight")
-                        {
-                            readSubDictDouble("ABLProperties.dat", "controllerProperties", "lowestSrcHeight",  &(abl->lowestSrcHt));
-                        }
-                        else if(abl->flTypeT == "mesoDataHeight")
-                        {
-
-                        }
-                        else
-                        {
-                            char error[512];
-                            sprintf(error, "unknown lower layer mesoscale forcing type, available types are:\n        1 : constantHeight\n      2 : mesoDataHeight\n");
-                            fatalErrorInFunction("ABLInitialize",  error);  
-                        } 
-
-                        readMesoScaleTemperatureData(abl);
-
-                        findTemperatureInterpolationWeights(abl);
-                    }
-
-                    if(abl->controllerTypeT=="indirectProfileAssimilation")
+                    else if(abl->flTypeT == "mesoDataHeight")
                     {
-                        readSubDictInt   ("ABLProperties.dat", "controllerProperties", "polynomialOrderT",   &(abl->polyOrderT));
 
-                        //precompute the polynomial coefficient matrix using least square regression method.
-                        computeLSqPolynomialCoefficientMatrixT(abl); 
-                    }
-
-                    if(abl->controllerTypeT=="waveletProfileAssimilation")
-                    {
-                        #if USE_PYTHON
-                        #else
-                            char error[512];
-                            sprintf(error, "Wavelet profile assimilation requires python modules enabled. Set USE_PYTHON flag to 1 in makefile\n");
-                            fatalErrorInFunction("ABLInitialize",  error);
-                        #endif
-
-                        readSubDictWord  ("ABLProperties.dat", "controllerProperties", "waveletName", &(abl->waveName));
-                        readSubDictWord  ("ABLProperties.dat", "controllerProperties", "waveletTMethod", &(abl->waveTMethod));
-                        readSubDictInt   ("ABLProperties.dat", "controllerProperties", "waveletDecompLevel", &(abl->waveLevel));
-                        readSubDictWord  ("ABLProperties.dat", "controllerProperties", "waveletExtn", &(abl->waveExtn));
-                        readSubDictWord  ("ABLProperties.dat", "controllerProperties", "waveletConvolution", &(abl->waveConv));
-                        readSubDictInt   ("ABLProperties.dat", "controllerProperties", "waveletBlend", &(abl->waveletBlend));
-
-                        PetscPrintf(PETSC_COMM_WORLD, "   wavelet profile assimilation using %s with wavelet filtering : %s and %ld levels of decomposition\n", abl->waveTMethod.c_str(), abl->waveName.c_str(), abl->waveLevel);
-                    }
-                }
-                else if(abl->controllerActionT == "read")
-                {
-                    if(abl->controllerTypeT=="timeHeightSeries")
-                    {
-                        std::vector<std::vector<PetscReal>> preCompSourcesTmp;
-
-                        // word by word read
-                        char word[256];
-
-                        // buffer for read data
-                        PetscReal buffer;
-
-                        // time counter
-                        PetscInt ntimes, numLevels;
-
-                        std::ifstream indata;
-                        indata.open("inflowDatabase/temperatureSource");
-
-                        if(!indata)
-                        {
-                            char error[512];
-                            sprintf(error, "cannot open file inflowDatabase/temperatureSource\n");
-                            fatalErrorInFunction("ABLInitialize",  error);
-                        }
-                        else 
-                        {
-                            std::string tmpStr;
-
-                            ntimes = 0, numLevels = 0;
-                            for (PetscInt t = 0; std::getline(indata, tmpStr); t++)
-                            {
-                                if (!tmpStr.empty())
-                                {
-                                    ntimes++;
-                                }
-                            }  
-
-                            //first three lines are header
-                            ntimes = ntimes-3;
-                
-                            // save the number of times
-                            abl->nSourceTimes = ntimes;
-
-                            // go back on top of file
-                            indata.close();
-                            indata.open("inflowDatabase/temperatureSource");
-                                                    
-                            // skip first line - levels
-                            std::getline(indata, tmpStr);
-
-                            //read the number of levels 
-                            indata >> word;
-                            while(strcmp("time", word) !=0 )
-                            {
-                                numLevels++;
-                                indata >> word;
-                            }
-
-                            //save number of levels in the original data
-                            abl->numhT = numLevels;
-
-                            // go back on top of file
-                            indata.close();
-                            indata.open("inflowDatabase/temperatureSource");
-
-                            // skip first line - levels
-                            std::getline(indata, tmpStr);
-
-                            PetscMalloc(sizeof(PetscReal) * numLevels, &(abl->hT));
-
-                            //read each of the levels
-                            for (PetscInt j = 0; j<numLevels; j++)
-                            {
-                                indata >> abl->hT[j];
-                            }
-
-                            // go back on top of file
-                            indata.close();
-                            indata.open("inflowDatabase/temperatureSource");
-
-                            //skip the first 3 lines 
-                            for (PetscInt t = 0; t<3; t++)
-                            {
-                                std::getline(indata, tmpStr);
-                            }    
-
-                            // resize the source table
-                            preCompSourcesTmp.resize(ntimes);
-
-                            //temperature per level + time
-                            PetscInt wPerLine = numLevels + 1;
-
-                            for (PetscInt t = 0; t<ntimes; t++)
-                            {
-                                for (PetscInt j = 0; j<wPerLine; j++)
-                                {
-                                    indata >> word;
-                                    std::sscanf(word, "%lf", &buffer);
-
-                                    preCompSourcesTmp[t].push_back(buffer);
-                                }
-                            }                   
-                            
-                            indata.close();
-                        }
-                        
-                        PetscMalloc(sizeof(PetscReal **) * ntimes, &(abl->timeHtSourcesT));
-
-                        for(PetscInt t=0; t<ntimes; t++)
-                        {
-                            PetscMalloc(sizeof(PetscReal*) * numLevels, &(abl->timeHtSourcesT[t]));
-                        }
-
-                        for(PetscInt t=0; t<ntimes; t++)
-                        {
-                            for(PetscInt j=0; j<numLevels; j++)
-                            {
-                                PetscMalloc(sizeof(PetscReal) * 2, &(abl->timeHtSourcesT[t][j]));
-                            }
-                        }
-                        
-                        //save the time for each height
-                        for(PetscInt t=0; t<ntimes; t++)
-                        {
-                            for(PetscInt j=0; j<numLevels; j++)
-                            {
-                                abl->timeHtSourcesT[t][j][0] = preCompSourcesTmp[t][0];
-                            }
-                        }
-
-                        for(PetscInt t=0; t<ntimes; t++)
-                        {
-                            for(PetscInt j=0; j<numLevels; j++)
-                            {
-                                abl->timeHtSourcesT[t][j][1] = preCompSourcesTmp[t][j + 1];
-                            }
-                        }     
-
-                        // clean the temporary variables
-                        for(PetscInt t=0; t<ntimes; t++)
-                        {
-                            std::vector<PetscReal> ().swap(preCompSourcesTmp[t]);
-                        }
-
-                        if(numLevels != my-2)
-                        {
-                            //find interpolation ids and weights to interpolate from the original precursor mesh source data to the current mesh
-                            findTimeHeightSeriesInterpolationWtsT(abl);
-                        }
-
-                        // find the initial time assimilation index and weights
-                        PetscReal tim = abl->access->clock->startTime;
-
-                        PetscInt  idx1, idx2;
-                        idx1 = 0;
-                        idx2 = ntimes - 1;
-
-                        for(PetscInt t=0; t<ntimes; t++)
-                        {
-                            if (abl->timeHtSourcesT[t][0][0] <= tim && abl->timeHtSourcesT[t][0][0] > abl->timeHtSourcesT[idx1][0][0]) 
-                            {
-                                idx1 = t;
-                            }
-                            if (abl->timeHtSourcesT[t][0][0] >= tim && abl->timeHtSourcesT[t][0][0] < abl->timeHtSourcesT[idx2][0][0]) 
-                            {
-                                idx2 = t;
-                            }
-                        }
-
-                        //ensure index are not same
-                        if(idx1 == idx2)
-                        {
-                            idx2 = idx1+1;
-                        }
-
-                        abl->currentCloseIdxT = idx1;
                     }
                     else
                     {
                         char error[512];
-                        sprintf(error, "unknown controllerType for controller action read, available types are:\n        1 : timeHeightSeries\n");
+                        sprintf(error, "unknown lower layer mesoscale forcing type, available types are:\n        1 : constantHeight\n      2 : mesoDataHeight\n");
+                        fatalErrorInFunction("ABLInitialize",  error);  
+                    } 
+
+                    readMesoScaleTemperatureData(abl);
+
+                    findTemperatureInterpolationWeights(abl);
+                }
+
+                if(abl->controllerTypeT=="indirectProfileAssimilation")
+                {
+                    readSubDictInt   ("ABLProperties.dat", controllerProp, "polynomialOrderT",   &(abl->polyOrderT));
+
+                    //precompute the polynomial coefficient matrix using least square regression method.
+                    computeLSqPolynomialCoefficientMatrixT(abl); 
+                }
+
+                if(abl->controllerTypeT=="waveletProfileAssimilation")
+                {
+                    #if USE_PYTHON
+                    #else
+                        char error[512];
+                        sprintf(error, "Wavelet profile assimilation requires python modules enabled. Set USE_PYTHON flag to 1 in makefile\n");
+                        fatalErrorInFunction("ABLInitialize",  error);
+                    #endif
+
+                    readSubDictWord  ("ABLProperties.dat", controllerProp, "waveletName", &(abl->waveName));
+                    readSubDictWord  ("ABLProperties.dat", controllerProp, "waveletTMethod", &(abl->waveTMethod));
+                    readSubDictInt   ("ABLProperties.dat", controllerProp, "waveletDecompLevel", &(abl->waveLevel));
+                    readSubDictWord  ("ABLProperties.dat", controllerProp, "waveletExtn", &(abl->waveExtn));
+                    readSubDictWord  ("ABLProperties.dat", controllerProp, "waveletConvolution", &(abl->waveConv));
+                    readSubDictInt   ("ABLProperties.dat", controllerProp, "waveletBlend", &(abl->waveletBlend));
+
+                    PetscPrintf(PETSC_COMM_WORLD, "   wavelet profile assimilation using %s with wavelet filtering : %s and %ld levels of decomposition\n", abl->waveTMethod.c_str(), abl->waveName.c_str(), abl->waveLevel);
+                }
+            }
+            else if(abl->controllerActionT == "read")
+            {
+                if(abl->controllerTypeT=="timeHeightSeries")
+                {
+                    std::vector<std::vector<PetscReal>> preCompSourcesTmp;
+
+                    // word by word read
+                    char word[256];
+
+                    // buffer for read data
+                    PetscReal buffer;
+
+                    // time counter
+                    PetscInt ntimes, numLevels;
+
+                    std::ifstream indata;
+                    indata.open("inflowDatabase/temperatureSource");
+
+                    if(!indata)
+                    {
+                        char error[512];
+                        sprintf(error, "cannot open file inflowDatabase/temperatureSource\n");
                         fatalErrorInFunction("ABLInitialize",  error);
                     }
+                    else 
+                    {
+                        std::string tmpStr;
+
+                        ntimes = 0, numLevels = 0;
+                        for (PetscInt t = 0; std::getline(indata, tmpStr); t++)
+                        {
+                            if (!tmpStr.empty())
+                            {
+                                ntimes++;
+                            }
+                        }  
+
+                        //first three lines are header
+                        ntimes = ntimes-3;
+            
+                        // save the number of times
+                        abl->nSourceTimes = ntimes;
+
+                        // go back on top of file
+                        indata.close();
+                        indata.open("inflowDatabase/temperatureSource");
+                                                
+                        // skip first line - levels
+                        std::getline(indata, tmpStr);
+
+                        //read the number of levels 
+                        indata >> word;
+                        while(strcmp("time", word) !=0 )
+                        {
+                            numLevels++;
+                            indata >> word;
+                        }
+
+                        //save number of levels in the original data
+                        abl->numhT = numLevels;
+
+                        // go back on top of file
+                        indata.close();
+                        indata.open("inflowDatabase/temperatureSource");
+
+                        // skip first line - levels
+                        std::getline(indata, tmpStr);
+
+                        PetscMalloc(sizeof(PetscReal) * numLevels, &(abl->hT));
+
+                        //read each of the levels
+                        for (PetscInt j = 0; j<numLevels; j++)
+                        {
+                            indata >> abl->hT[j];
+                        }
+
+                        // go back on top of file
+                        indata.close();
+                        indata.open("inflowDatabase/temperatureSource");
+
+                        //skip the first 3 lines 
+                        for (PetscInt t = 0; t<3; t++)
+                        {
+                            std::getline(indata, tmpStr);
+                        }    
+
+                        // resize the source table
+                        preCompSourcesTmp.resize(ntimes);
+
+                        //temperature per level + time
+                        PetscInt wPerLine = numLevels + 1;
+
+                        for (PetscInt t = 0; t<ntimes; t++)
+                        {
+                            for (PetscInt j = 0; j<wPerLine; j++)
+                            {
+                                indata >> word;
+                                std::sscanf(word, "%lf", &buffer);
+
+                                preCompSourcesTmp[t].push_back(buffer);
+                            }
+                        }                   
+                        
+                        indata.close();
+                    }
+                    
+                    PetscMalloc(sizeof(PetscReal **) * ntimes, &(abl->timeHtSourcesT));
+
+                    for(PetscInt t=0; t<ntimes; t++)
+                    {
+                        PetscMalloc(sizeof(PetscReal*) * numLevels, &(abl->timeHtSourcesT[t]));
+                    }
+
+                    for(PetscInt t=0; t<ntimes; t++)
+                    {
+                        for(PetscInt j=0; j<numLevels; j++)
+                        {
+                            PetscMalloc(sizeof(PetscReal) * 2, &(abl->timeHtSourcesT[t][j]));
+                        }
+                    }
+                    
+                    //save the time for each height
+                    for(PetscInt t=0; t<ntimes; t++)
+                    {
+                        for(PetscInt j=0; j<numLevels; j++)
+                        {
+                            abl->timeHtSourcesT[t][j][0] = preCompSourcesTmp[t][0];
+                        }
+                    }
+
+                    for(PetscInt t=0; t<ntimes; t++)
+                    {
+                        for(PetscInt j=0; j<numLevels; j++)
+                        {
+                            abl->timeHtSourcesT[t][j][1] = preCompSourcesTmp[t][j + 1];
+                        }
+                    }     
+
+                    // clean the temporary variables
+                    for(PetscInt t=0; t<ntimes; t++)
+                    {
+                        std::vector<PetscReal> ().swap(preCompSourcesTmp[t]);
+                    }
+
+                    if(numLevels != my-2)
+                    {
+                        //find interpolation ids and weights to interpolate from the original precursor mesh source data to the current mesh
+                        findTimeHeightSeriesInterpolationWtsT(abl);
+                    }
+
+                    // find the initial time assimilation index and weights
+                    PetscReal tim = abl->access->clock->startTime;
+
+                    PetscInt  idx1, idx2;
+                    idx1 = 0;
+                    idx2 = ntimes - 1;
+
+                    for(PetscInt t=0; t<ntimes; t++)
+                    {
+                        if (abl->timeHtSourcesT[t][0][0] <= tim && abl->timeHtSourcesT[t][0][0] > abl->timeHtSourcesT[idx1][0][0]) 
+                        {
+                            idx1 = t;
+                        }
+                        if (abl->timeHtSourcesT[t][0][0] >= tim && abl->timeHtSourcesT[t][0][0] < abl->timeHtSourcesT[idx2][0][0]) 
+                        {
+                            idx2 = t;
+                        }
+                    }
+
+                    //ensure index are not same
+                    if(idx1 == idx2)
+                    {
+                        idx2 = idx1+1;
+                    }
+
+                    abl->currentCloseIdxT = idx1;
+                }
+                else
+                {
+                    char error[512];
+                    sprintf(error, "unknown controllerType for controller action read, available types are:\n        1 : timeHeightSeries\n");
+                    fatalErrorInFunction("ABLInitialize",  error);
                 }
             }
         }
@@ -2862,6 +2879,8 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
         {
             // no fringe region in the concurrent domain
         }
+        
+        PetscPrintf(mesh->MESH_COMM, "done\n\n");
     }
 
     return(0);
