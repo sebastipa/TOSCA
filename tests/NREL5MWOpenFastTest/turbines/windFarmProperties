@@ -1,13 +1,19 @@
 # TOSCA Input file - Wind Farm Properties
 # -------------------------------------------
 
-windFarmName            Isolated
+windFarmName            isolated
 
 arraySpecification      onebyone
 
 debug                   0
 
-nFastSubSteps           4
+fastSettings
+{
+    nFastSubSteps           4
+    timeInterval            1000
+    restart                 0
+}
+
 
 writeSettings
 {
