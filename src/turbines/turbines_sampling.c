@@ -194,8 +194,10 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm)
                     PetscReal ub_x = nDot(gWind[p], xb_hat);
                     PetscReal ub_y = nDot(gWind[p], yb_hat);
 
-                    PetscReal dA   = wt->adm.dr[p] * wt->adm.chord[p];
-
+                    PetscReal dA;
+                    if(!wt->useOpenFAST) dA = wt->adm.dr[p] * wt->adm.chord[p];
+                    else dA = M_PI * wt->rTip * wt->rTip / (PetscReal)(wt->alm.nPoints);
+                    
                     rtrAvgMagU += sqrt(ub_x*ub_x + ub_y*ub_y) * dA;
 
                     areaSum += dA;
@@ -614,7 +616,9 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm)
                     PetscReal ub_x = nDot(wt->alm.gWind[p], xb_hat);
                     PetscReal ub_y = nDot(wt->alm.gWind[p], yb_hat);
 
-                    PetscReal dA   = wt->alm.dr[p] * wt->alm.chord[p];
+                    PetscReal dA;
+                    if(!wt->useOpenFAST) dA = wt->alm.dr[p] * wt->alm.chord[p];
+                    else dA = M_PI * wt->rTip * wt->rTip / (PetscReal)(wt->alm.nPoints);
 
                     rtrAvgMagU += sqrt(ub_x*ub_x + ub_y*ub_y) * dA;
 

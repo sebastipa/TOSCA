@@ -47,15 +47,13 @@ PetscErrorCode initOpenFAST(farm_ *farm)
         farm->fi.dryRun           = (bool)0;
         farm->fi.debug            = (bool)farm->dbg;
         farm->fi.tStart           = (double)farm->access->clock->startTime;
-        farm->fi.simStart         = fast::init;                           // restart to be implemented
-        farm->fi.restartFreq      = (int)100;                             // need to dynamically define it
-        farm->fi.outputFreq       = (int)farm->timeInterval;              // need to dynamically define it
+        if(farm->fastRestart)     farm->fi.simStart = fast::restartDriverInitFAST;
+        else                      farm->fi.simStart = fast::init;
+        farm->fi.restartFreq      = (int)farm->fastTimeInterval;                             
+        farm->fi.outputFreq       = (int)farm->fastTimeInterval;              
         farm->fi.tMax             = (double)farm->access->clock->endTime; 
         farm->fi.dtFAST           = (double)(farm->access->clock->dt)/((double)farm->nFastSubSteps);
         farm->fi.dtDriver         = (double)farm->access->clock->dt;
-
-        // allocate initial OpenFAST iteration 
-        farm->iterOpenFAST        = 0; // need to dynamically define it
 
         // allocate memory for turbine data
         farm->fi.globTurbineData.resize(farm->fi.nTurbinesGlob);
@@ -142,6 +140,7 @@ PetscErrorCode initOpenFAST(farm_ *farm)
                 wt->base.y      = farm->base[t].y;
                 wt->base.z      = farm->base[t].z;
                 wt->gbxRatioG2R = 100;
+                wt->genEff      = 0.94;
                 wt->initialized = 0; // this is set to 1 after stepZeroOpenFAST is called
                 
                 // compute number of velocity points 
@@ -325,7 +324,7 @@ PetscErrorCode stepOpenFAST(farm_ *farm)
     // do OpenFAST time stepping 
     for (PetscInt n = 0; n < farm->nFastSubSteps; n++)
     {
-        bool writeFilesOF = false;
+        bool writeFilesOF = true;
         farm->FAST->step(writeFilesOF);
     }
 
@@ -340,7 +339,7 @@ PetscErrorCode getDataFromOpenFAST(farm_ *farm)
 {
     for(PetscInt t=0; t<farm->size; t++)
     {
-        if(farm->wt[t]->useOpenFAST)
+        if(farm->wt[t]->useOpenFAST)   
         {
             // update velocity points from OpenFAST
             getVelPtsBladeOpenFAST(farm->wt[t]);
@@ -357,11 +356,7 @@ PetscErrorCode getDataFromOpenFAST(farm_ *farm)
             }
 
             // update global WT parameters from OpenFAST
-            if (farm->wt[t]->initialized)
-            {
-                getGlobParamsOpenFAST(farm->wt[t], (*farm->turbineModels[t]));
-            }
-            farm->wt[t]->initialized = 1;
+            getGlobParamsOpenFAST(farm->wt[t], (*farm->turbineModels[t]));
         }
     }
 
@@ -834,7 +829,12 @@ PetscErrorCode getForcePtsBladeOpenFAST(windTurbine *wt)
         // set old position of last blade force point (tip of blade 3)
         if(pi == nForcePtsBlade-1)
         {
-            mSet(wt->forcePtBladeOld, wt->forcePtsBlade[pi]);
+            if(wt->initialized) mSet(wt->forcePtBladeOld, wt->forcePtsBlade[pi]);
+            else                
+            {
+                mSet(wt->forcePtBladeOld, gForcePoints[pi]);
+                wt->initialized = 1;
+            }            
         }
 
         // set new position of blade force points

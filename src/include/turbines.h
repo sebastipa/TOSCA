@@ -551,8 +551,8 @@ struct farm_
     PetscInt           nOpenFAST;   //!< number of turbines coupled to OpenFAST
     PetscInt        *openfastIds;   //!< array of size nturbines containing indices turbines coupled to OpenFAST in the OpenFAST labeling (-1 if not coupled)
     PetscInt       nFastSubSteps;   //!< number of OpenFAST time steps per TOSCA time step
-    PetscInt        iterOpenFAST;   //!< current OpenFAST global interation
-
+    PetscInt    fastTimeInterval;   //!< interval in openfast steps to write restart files and outputs
+    PetscInt         fastRestart;   //!< flag to restart from OpenFAST restart files
 #endif
 
 };

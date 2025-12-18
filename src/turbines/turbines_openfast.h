@@ -42,20 +42,20 @@ PetscErrorCode findControlledPointsTowerOpenFAST(farm_ *farm);
 //! \brief Update turbine points and parameters from OpenFAST after a step
 PetscErrorCode getDataFromOpenFAST(farm_ *farm);
 
-    //! \brief Get global turbine parameters from OpenFAST
-    PetscErrorCode getGlobParamsOpenFAST(windTurbine *wt, const word actuatorModel);
+//! \brief Get global turbine parameters from OpenFAST
+PetscErrorCode getGlobParamsOpenFAST(windTurbine *wt, const word actuatorModel);
 
-    //! \brief Get positions of velocity turbine points from OpenFAST
-    PetscErrorCode getVelPtsBladeOpenFAST(windTurbine *wt);
+//! \brief Get positions of velocity turbine points from OpenFAST
+PetscErrorCode getVelPtsBladeOpenFAST(windTurbine *wt);
 
-    //! \brief Get positions of force turbine points from OpenFAST
-    PetscErrorCode getForcePtsBladeOpenFAST(windTurbine *wt);
+//! \brief Get positions of force turbine points from OpenFAST
+PetscErrorCode getForcePtsBladeOpenFAST(windTurbine *wt);
 
-    //! \brief Get positions of velocity tower points from OpenFAST
-    PetscErrorCode getVelPtsTwrOpenFAST(windTurbine *wt);
+//! \brief Get positions of velocity tower points from OpenFAST
+PetscErrorCode getVelPtsTwrOpenFAST(windTurbine *wt);
 
-    //! \brief Get positions of force tower points from OpenFAST
-    PetscErrorCode getForcePtsTwrOpenFAST(windTurbine *wt);
+//! \brief Get positions of force tower points from OpenFAST
+PetscErrorCode getForcePtsTwrOpenFAST(windTurbine *wt);
 
 //! \brief Translate OpenFAST force points displacements into TOSCA actuator point displacements 
 PetscErrorCode mapOFDisplToActPts(farm_ *farm);

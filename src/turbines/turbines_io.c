@@ -1726,38 +1726,44 @@ PetscErrorCode meshADM(windTurbine *wt)
 		// add hub radius (as if all was aligned)
 		rMag += nMag(rHub);
 
-        // interpolate blade propertes (only depend on r)
-        PetscReal  weights[2];
-        PetscInt   labels[2];
+        if(!wt->useOpenFAST)
+        {
+            // interpolate blade propertes (only depend on r)
+            PetscReal  weights[2];
+            PetscInt   labels[2];
 
-        findInterpolationWeights(weights, labels, wt->blade.radius, wt->blade.size, rMag);
+            findInterpolationWeights(weights, labels, wt->blade.radius, wt->blade.size, rMag);
+
+            for(PetscInt ai=0; ai<wt->adm.nAzimuth; ai++)
+            {
+                // set interpolation variables
+                PetscReal w1 = weights[0]; PetscInt l1 = labels[0];
+                PetscReal w2 = weights[1]; PetscInt l2 = labels[1];
+
+                // allocate memory for the 2 closest foil ids
+                PetscMalloc(2*sizeof(PetscInt), &(wt->adm.foilIds[pi]));
+
+                // allocate memory for the 2 interpolation weights
+                PetscMalloc(2*sizeof(PetscReal), &(wt->adm.iw[pi]));
+
+                // set airfoil chord
+                wt->adm.chord[pi] = w1*wt->blade.chord[l1] + w2*wt->blade.chord[l2];
+
+                // set airfoil twist
+                wt->adm.twist[pi] = w1*wt->blade.twist[l1] + w2*wt->blade.twist[l2];
+
+                // set airfoil ids
+                wt->adm.foilIds[pi][0] = wt->blade.foilIds[l1];
+                wt->adm.foilIds[pi][1] = wt->blade.foilIds[l2];
+
+                // set interpolation weights
+                wt->adm.iw[pi][0] = w1;
+                wt->adm.iw[pi][1] = w2;
+            }
+        }
 
         for(PetscInt ai=0; ai<wt->adm.nAzimuth; ai++)
         {
-            // set interpolation variables
-            PetscReal w1 = weights[0]; PetscInt l1 = labels[0];
-            PetscReal w2 = weights[1]; PetscInt l2 = labels[1];
-
-            // allocate memory for the 2 closest foil ids
-            PetscMalloc(2*sizeof(PetscInt), &(wt->adm.foilIds[pi]));
-
-            // allocate memory for the 2 interpolation weights
-            PetscMalloc(2*sizeof(PetscReal), &(wt->adm.iw[pi]));
-
-            // set airfoil chord
-            wt->adm.chord[pi] = w1*wt->blade.chord[l1] + w2*wt->blade.chord[l2];
-
-            // set airfoil twist
-            wt->adm.twist[pi] = w1*wt->blade.twist[l1] + w2*wt->blade.twist[l2];
-
-            // set airfoil ids
-            wt->adm.foilIds[pi][0] = wt->blade.foilIds[l1];
-            wt->adm.foilIds[pi][1] = wt->blade.foilIds[l2];
-
-            // set interpolation weights
-            wt->adm.iw[pi][0] = w1;
-            wt->adm.iw[pi][1] = w2;
-
             // set the rotor solidity (only depends on radius)
             wt->adm.solidity[pi] = (PetscReal)wt->nBlades / (PetscReal)wt->adm.nAzimuth;
 
@@ -2124,44 +2130,50 @@ PetscErrorCode meshALM(windTurbine *wt)
         // add hub radius (as if all was aligned)
         rMag += nMag(rHub);
 
-        // interpolate blade propertes (only depend on r)
-        PetscReal  weights[2];
-        PetscInt   labels[2];
+        if(!wt->useOpenFAST)
+        {
+            // interpolate blade propertes (only depend on r)
+            PetscReal  weights[2];
+            PetscInt   labels[2];
 
-        findInterpolationWeights(weights, labels, wt->blade.radius, wt->blade.size, rMag);
+            findInterpolationWeights(weights, labels, wt->blade.radius, wt->blade.size, rMag);
+
+            for(PetscInt ai=0; ai<wt->alm.nAzimuth; ai++)
+            {
+                // set interpolation variables
+                PetscReal w1 = weights[0]; PetscInt l1 = labels[0];
+                PetscReal w2 = weights[1]; PetscInt l2 = labels[1];
+
+                // allocate memory for the 2 closest foil ids
+                PetscMalloc(2*sizeof(PetscInt), &(wt->alm.foilIds[pi]));
+
+                // allocate memory for the 2 interpolation weights
+                PetscMalloc(2*sizeof(PetscReal), &(wt->alm.iw[pi]));
+
+                // set airfoil chord
+                wt->alm.chord[pi] = w1*wt->blade.chord[l1] + w2*wt->blade.chord[l2];
+
+                // set airfoil twist
+                wt->alm.twist[pi] = w1*wt->blade.twist[l1] + w2*wt->blade.twist[l2];
+
+                // set airfoil thickness
+                if(wt->alm.projectionType=="anisotropic")
+                {
+                    wt->alm.thick[pi] = w1*wt->blade.thick[l1] + w2*wt->blade.thick[l2];
+                }
+
+                // set airfoil ids
+                wt->alm.foilIds[pi][0] = wt->blade.foilIds[l1];
+                wt->alm.foilIds[pi][1] = wt->blade.foilIds[l2];
+
+                // set interpolation weights
+                wt->alm.iw[pi][0] = w1;
+                wt->alm.iw[pi][1] = w2;
+            }
+        }
 
         for(PetscInt ai=0; ai<wt->alm.nAzimuth; ai++)
         {
-            // set interpolation variables
-            PetscReal w1 = weights[0]; PetscInt l1 = labels[0];
-            PetscReal w2 = weights[1]; PetscInt l2 = labels[1];
-
-            // allocate memory for the 2 closest foil ids
-            PetscMalloc(2*sizeof(PetscInt), &(wt->alm.foilIds[pi]));
-
-            // allocate memory for the 2 interpolation weights
-            PetscMalloc(2*sizeof(PetscReal), &(wt->alm.iw[pi]));
-
-            // set airfoil chord
-            wt->alm.chord[pi] = w1*wt->blade.chord[l1] + w2*wt->blade.chord[l2];
-
-            // set airfoil twist
-            wt->alm.twist[pi] = w1*wt->blade.twist[l1] + w2*wt->blade.twist[l2];
-
-            // set airfoil thickness
-            if(wt->alm.projectionType=="anisotropic")
-            {
-                wt->alm.thick[pi] = w1*wt->blade.thick[l1] + w2*wt->blade.thick[l2];
-            }
-
-            // set airfoil ids
-            wt->alm.foilIds[pi][0] = wt->blade.foilIds[l1];
-            wt->alm.foilIds[pi][1] = wt->blade.foilIds[l2];
-
-            // set interpolation weights
-            wt->alm.iw[pi][0] = w1;
-            wt->alm.iw[pi][1] = w2;
-
             // set the rotor solidity (it is one for the ALM)
             wt->alm.solidity[pi] = 1.0;
 
@@ -2864,10 +2876,10 @@ PetscErrorCode readFarmProperties(farm_ *farm)
     readDictWord(windFarmPropertiesFile.c_str(), "arraySpecification", &arraySpec);
 
 #if USE_OPENFAST
-
-    // use OpenFAST turbine-specific flag
-    readDictInt(windFarmPropertiesFile.c_str(),    "nFastSubSteps",&(farm->nFastSubSteps));
-    
+    // use OpenFAST global flags 
+    readSubDictInt (windFarmPropertiesFile.c_str(),"fastSettings","nFastSubSteps", &(farm->nFastSubSteps));
+    readSubDictInt (windFarmPropertiesFile.c_str(),"fastSettings","timeInterval",  &(farm->fastTimeInterval));
+    readSubDictInt (windFarmPropertiesFile.c_str(),"fastSettings","restart",       &(farm->fastRestart));    
 #endif
 
     // read the wind turbines one by one until end of file
@@ -2926,6 +2938,14 @@ PetscErrorCode readFarmProperties(farm_ *farm)
         // read wind farm control table for this wind turbine
         if(farm->farmControlActive[t])
         {
+            if(farm->wt[t]->useOpenFAST)
+            {
+                // print error 
+                char error[512];
+                sprintf(error, "turbine %s: windFarmController flag must be set to 0 in windFarmProperties file as this turbine has OpenFAST coupling\n", farm->wt[t]->id.c_str());
+                fatalErrorInFunction("readFarmProperties",  error);
+            }
+
             readWindFarmControlTable(farm->wt[t]);
         }
 
@@ -3414,92 +3434,118 @@ PetscErrorCode readTurbineProperties(windTurbine *wt, const char *dictName, cons
     wt->rtrAxis = xr_hat;
 
     // read parameters for AD/AL models
-    if(modelName == "ADM" || modelName == "ALM")
+    if(!wt->useOpenFAST)
     {
-        PetscReal initOmega;
-
-        readDictInt(dictName,    "nBlades",     &(wt->nBlades));
-        readDictWord(dictName,   "rotationDir", &(wt->rotDir));
-        readDictDouble(dictName, "initialOmega",&(initOmega));
-        wt->rtrOmega = initOmega * wt->rpm2RadSec;
-
-        // read torque controller
-        readDictWord(dictName,   "genControllerType", &(wt->genControllerType));
-
-        // read pitch controller type
-        readDictWord(dictName,   "pitchControllerType", &(wt->pitchControllerType));
-
-        // read controllers input parameters
-        if(wt->genControllerType   != "none") readGenControllerParameters(wt,   wt->genControllerType.c_str(), meshName.c_str());
-        if(wt->pitchControllerType != "none") readPitchControllerParameters(wt, wt->pitchControllerType.c_str(), meshName.c_str());
-
-        // read airfoil types used in this turbine
-        readAirfoilProperties(wt, dictName);
-
-        // Allocate memory for the foil info, this is an array of pointers.
-        // Each pointer will point to an airfoil. Advantages: the size is the
-        // one of a pointer for the allocation and the objects can be not
-        // linear in memory.
-        wt->foils = (foilInfo**)malloc(wt->nFoils*sizeof(foilInfo*));
-
-        // read the property file for each airfoil
-        for(PetscInt f=0; f<wt->nFoils; f++)
+        if(modelName == "ADM" || modelName == "ALM")
         {
-            // dynamic memory allocation (make the f-th pointer point to the struct)
-            wt->foils[f] = (foilInfo*)malloc(sizeof(foilInfo));
+            readDictInt(dictName,    "nBlades",     &(wt->nBlades));
+            readDictWord(dictName,   "rotationDir", &(wt->rotDir));
+        
+            PetscReal initOmega;
+            readDictDouble(dictName, "initialOmega",&(initOmega));
+            wt->rtrOmega = initOmega * wt->rpm2RadSec;
 
-            // set the name of the airfoil
-            PetscMalloc(sizeof(word), &(wt->foils[f]->name));
-            wt->foils[f]->name = *(wt->foilNames[f]);
+            // read torque controller
+            readDictWord(dictName,   "genControllerType", &(wt->genControllerType));
 
-            // set the path to the airfoil data file
-            word name2af = "./turbines/" + meshName + "/airfoils/" + *(wt->foilNames[f]);
+            // read pitch controller type
+            readDictWord(dictName,   "pitchControllerType", &(wt->pitchControllerType));
 
-            // set the reset of the variables by reading the table
-            readAirfoilTable(wt->foils[f], name2af.c_str());
-        }
+            // read controllers input parameters
+            if(wt->genControllerType   != "none") readGenControllerParameters(wt,   wt->genControllerType.c_str(), meshName.c_str());
+            if(wt->pitchControllerType != "none") readPitchControllerParameters(wt, wt->pitchControllerType.c_str(), meshName.c_str());
 
-        PetscInt readThickness = 0;
+            // read airfoil types used in this turbine
+            readAirfoilProperties(wt, dictName);
 
-        if(modelName == "ALM")
-        {
-            word projectionType;
-            readDictWord(dictName, "projection", &projectionType);
+            // Allocate memory for the foil info, this is an array of pointers.
+            // Each pointer will point to an airfoil. Advantages: the size is the
+            // one of a pointer for the allocation and the objects can be not
+            // linear in memory.
+            wt->foils = (foilInfo**)malloc(wt->nFoils*sizeof(foilInfo*));
 
-            if(projectionType=="anisotropic")
+            // read the property file for each airfoil
+            for(PetscInt f=0; f<wt->nFoils; f++)
             {
-                readThickness = 1;
+                // dynamic memory allocation (make the f-th pointer point to the struct)
+                wt->foils[f] = (foilInfo*)malloc(sizeof(foilInfo));
+
+                // set the name of the airfoil
+                PetscMalloc(sizeof(word), &(wt->foils[f]->name));
+                wt->foils[f]->name = *(wt->foilNames[f]);
+
+                // set the path to the airfoil data file
+                word name2af = "./turbines/" + meshName + "/airfoils/" + *(wt->foilNames[f]);
+
+                // set the reset of the variables by reading the table
+                readAirfoilTable(wt->foils[f], name2af.c_str());
             }
-        }
 
-        // read blade properties
-        readBladeProperties(wt, dictName, readThickness);
-
-        // check that the max airfoil label in the blade properties actually
-        // matches the number if provided airfoils
-        PetscInt max_id = 0;
-
-        // find max id
-        for(PetscInt i=0; i<wt->blade.size; i++)
-        {
-            if(wt->blade.foilIds[i] > max_id)
+            PetscInt readThickness = 0;
+            if(modelName == "ALM")
             {
-                max_id = wt->blade.foilIds[i];
+                word projectionType;
+                readDictWord(dictName, "projection", &projectionType);
+
+                if(projectionType=="anisotropic") readThickness = 1;
             }
+
+            // read blade properties
+            readBladeProperties(wt, dictName, readThickness);
+
+            // check that the max airfoil label in the blade properties actually
+            // matches the number if provided airfoils
+            PetscInt max_id = 0;
+
+            // find max id
+            for(PetscInt i=0; i<wt->blade.size; i++)
+            {
+                if(wt->blade.foilIds[i] > max_id)
+                {
+                    max_id = wt->blade.foilIds[i];
+                }
+            }
+
+            if(max_id+1>wt->nFoils)
+            {
+                char error[512];
+                sprintf(error, "requested more airfoils than the number provided in turbine type %s (airfoils and bladeData mismatch)\n",wt->type.c_str());
+                fatalErrorInFunction("readTurbineProperties",  error);
+            }   
         }
 
-        if(max_id+1>wt->nFoils)
-        {
-            char error[512];
-            sprintf(error, "requested more airfoils than the number provided in turbine type %s (airfoils and bladeData mismatch)\n",wt->type.c_str());
-            fatalErrorInFunction("readTurbineProperties",  error);
-        }
+        // read yaw controller parameters (all models: ADM/ALM/UADM/AFM)
+        readDictWord(dictName,   "yawControllerType", &(wt->yawControllerType));
+
+        if(wt->yawControllerType   != "none") readYawControllerParameters(wt,   wt->yawControllerType.c_str(), meshName.c_str());
     }
+    else
+    {
+        if(modelName == "ALM" || modelName == "ADM")
+        {
+            readDictInt(dictName,    "nBlades",     &(wt->nBlades));
+            readDictWord(dictName,   "rotationDir", &(wt->rotDir));
 
-    // read yaw controller parameters (all models: ADM/ALM/UADM/AFM)
-    readDictWord(dictName,   "yawControllerType", &(wt->yawControllerType));
+            wt->genControllerType   = "none";
+            wt->pitchControllerType = "none";
+            wt->rtrOmega            = 0.0;
 
-    if(wt->yawControllerType   != "none") readYawControllerParameters(wt,   wt->yawControllerType.c_str(), meshName.c_str());
+            // set empty airfoil properties
+            wt->nFoils          = 0;
+            wt->foilNames       = NULL;
+            wt->foils           = NULL;
+
+            // set empty blade properties
+            wt->blade.size      = 0;
+            wt->blade.radius    = NULL;
+            wt->blade.chord     = NULL;
+            wt->blade.twist     = NULL;
+            wt->blade.thick     = NULL;
+            wt->blade.foilIds   = NULL;
+        }
+
+        wt->yawControllerType   = "none";
+    }
 
     if(wt->includeTwr)
     {
@@ -3553,7 +3599,7 @@ PetscErrorCode readAirfoilProperties(windTurbine *wt, const char *dictName)
 
     if(!indata)
     {
-       char error[512];
+        char error[512];
         sprintf(error, "could not open %s dictionary\n", dictName);
         fatalErrorInFunction("readAirfoilProperties",  error);
     }
@@ -3618,7 +3664,7 @@ PetscErrorCode readAirfoilProperties(windTurbine *wt, const char *dictName)
                             }
                             else
                             {
-                               char error[512];
+                                char error[512];
                                 sprintf(error, "Required at least 1 entry as reading airfoils subdictionary in %s dictionary\n", dictName);
                                 fatalErrorInFunction("readAirfoilProperties",  error);
                             }
