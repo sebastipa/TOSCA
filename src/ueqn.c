@@ -124,8 +124,8 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
 
     if(ueqn->ddtScheme == "backwardEuler")
     {
-        ueqn->relExitTol        = 1e-30;
-        ueqn->absExitTol        = 1e-5;
+        ueqn->relExitTol = 1e-30;
+        ueqn->absExitTol = 1e-5;
 
         PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-relTolU",  &(ueqn->relExitTol), PETSC_NULL);
         PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-absTolU",  &(ueqn->absExitTol), PETSC_NULL);
@@ -137,21 +137,21 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
         // set the SNES evaluating function
         SNESSetFunction(ueqn->snesU, ueqn->Rhs, UeqnSNES, (void *)ueqn);
 
-        // create jacobian matrix
+        // create matrix-free Jacobian
         MatCreateSNESMF(ueqn->snesU, &(ueqn->JU));
         SNESSetJacobian(ueqn->snesU, ueqn->JU, ueqn->JU, MatMFFDComputeJacobian, (void *)ueqn);
 
         // set SNES solver type
-        // SNESSetType(ueqn->snesU, SNESNEWTONTR);          //SNESTR
-        SNESSetType(ueqn->snesU, SNESNEWTONLS);        //SNESLS is better for stiff PDEs such as the one including IB but slower
+        SNESSetType(ueqn->snesU, SNESNEWTONTR);          //SNESTR
+        // SNESSetType(ueqn->snesU, SNESNEWTONLS);        //SNESLS is better for stiff PDEs such as the one including IB but slower
 
         // set SNES solve and step failures
         SNESSetMaxLinearSolveFailures(ueqn->snesU,10000);
         SNESSetMaxNonlinearStepFailures(ueqn->snesU,10000);
-        SNESKSPSetUseEW(ueqn->snesU, PETSC_TRUE);
 
-        // set SNES Krylov Sub-Space parameters
-        SNESKSPSetParametersEW(ueqn->snesU,3,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);
+        // enable Eisenstat-Walker for adaptive KSP tolerances
+        SNESKSPSetUseEW(ueqn->snesU, PETSC_TRUE);
+        SNESKSPSetParametersEW(ueqn->snesU, 3, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT);
 
         // SNES tolerances
         // 2nd arg: absolute tolerance
@@ -161,24 +161,26 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
         // 6th arg: maximum function evaluations
         SNESSetTolerances(ueqn->snesU, ueqn->absExitTol, ueqn->relExitTol, 1e-30, 20, 1000);
 
+        // get KSP and PC
         SNESGetKSP(ueqn->snesU, &(ueqn->ksp));
-        KSPGetPC(ueqn->ksp,&(ueqn->pc));
+        KSPGetPC(ueqn->ksp, &(ueqn->pc));
 
-        // set KSP solver type
+        // set KSP type 
         KSPSetType(ueqn->ksp, KSPGMRES);
 
-        //KSPSetInitialGuessNonzero(ksp, PETSC_TRUE);    //2009.09.22 poor performance
-        //KSPSetInitialGuessKnoll(ksp, PETSC_TRUE);      //2009.09.22
-
-        //KSPFischerGuess itg;
-        //KSPFischerGuessCreate(ksp,1,100,&itg);
-        //KSPSetFischerGuess(ksp, itg);                  //2009.09.22
-
-        //KSPGMRESSetPreAllocateVectors(ksp);            --> crazy thing consumes memory
-
         PCSetType(ueqn->pc, PCNONE);
-        PetscReal rtol=ueqn->relExitTol, atol=ueqn->absExitTol, dtol=1e30;
+        PetscReal rtol = ueqn->relExitTol, atol = ueqn->absExitTol, dtol = 1e30;
         KSPSetTolerances(ueqn->ksp, rtol, atol, dtol, 1000);
+
+        // add nonlinear preconditioning for stiffness 
+        SNES npc;
+        SNESGetNPC(ueqn->snesU, &npc);
+        SNESSetType(npc, SNESNEWTONLS);  
+
+        // set modern line search (cubic backtracking for robustness)
+        SNESLineSearch linesearch;
+        SNESGetLineSearch(ueqn->snesU, &linesearch);
+        SNESLineSearchSetType(linesearch, SNESLINESEARCHBT);
     }
     else if(ueqn->ddtScheme == "forwardEuler" || ueqn->ddtScheme == "rungeKutta4")
     {
@@ -1412,8 +1414,8 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                 
                 for (j=0; j<nlevels; j++) 
                 {             
-                    if(abl->flType == "constantHeight" || abl->flType == "ablHeight")
-                    {
+                    // if(abl->flType == "constantHeight" || abl->flType == "ablHeight")
+                    // {
                         if(abl->cellLevels[j] < abl->bottomSrcHtV)
                         {
                             srcPA[j].x = srcPA[abl->lowestIndV].x;
@@ -1421,7 +1423,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                             srcPA[j].z = srcPA[abl->lowestIndV].z;
                         }
                     
-                    }
+                    // }
 
                     if(abl->cellLevels[j] > abl->hV[abl->numhV - 1])
                     {
@@ -1605,16 +1607,16 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
             // PetscPrintf(mesh->MESH_COMM, "Correcting source terms using source average from time %lf\n", abl->sourceAvgStartTime);
 
             // do not scale with dt
-            // s.x = abl->cumulatedSource.x;
-            // s.y = abl->cumulatedSource.y;
-            // s.z = abl->cumulatedSource.z;
+            s.x = abl->cumulatedSource.x;
+            s.y = abl->cumulatedSource.y;
+            s.z = abl->cumulatedSource.z;
 
             // scale with dt
-            PetscReal dtScale = clock->dt / abl->avgTimeStep;
+            //PetscReal dtScale = clock->dt / abl->avgTimeStep;
 
-            s.x = abl->cumulatedSource.x * dtScale;
-            s.y = abl->cumulatedSource.y * dtScale;
-            s.z = abl->cumulatedSource.z * dtScale;
+            // s.x = abl->cumulatedSource.x * dtScale;
+            // s.y = abl->cumulatedSource.y * dtScale;
+            // s.z = abl->cumulatedSource.z * dtScale;
         }
         else if(abl->controllerType=="timeHeightSeries")
         {
@@ -1758,6 +1760,10 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
     DMDAVecGetArray(fda, mesh->lCent, &cent);
 
     // update the source term
+    // source term made independent of simulation time step dt to prevent variation with time step changes 
+    // previously source term = deltaU / dt, now source term = alpha deltaU, where alpha is a constant with units of 1/s
+    // this prevents need for source term scaling in read mode based on the time step used when the source term was computed
+    // source term is scaled when multiplied by dt in the momentum equation assembly instead
     for (k=lzs; k<lze; k++)
     {
         for (j=lys; j<lye; j++)
@@ -1770,10 +1776,9 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                     {
                         if(abl->controllerType=="geostrophic")
                         {
-                            // multiply by dt for how TOSCA builds the source RHS
-                            source[k][j][i].x = (abl->a.x + abl->b.x * ucat[k][j][i].y) * clock->dt;
+                            source[k][j][i].x = abl->a.x + abl->b.x * ucat[k][j][i].y;
                             
-                            source[k][j][i].y = (abl->a.y + abl->b.y * ucat[k][j][i].x) * clock->dt;
+                            source[k][j][i].y = abl->a.y + abl->b.y * ucat[k][j][i].x;
                             
                             source[k][j][i].z = 0.0;
                         }
@@ -1781,15 +1786,13 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                         {
                             if(applyGeoDamping)
                             {
-                                // multiply by dt for how TOSCA builds the source RHS (only geo damping)
-
                                 PetscReal  height = cent[k][j][i].z - mesh->grndLevel;
-                                source[k][j][i].x = s.x +
+                                source[k][j][i].x = (s.x +
                                                     scaleHyperTangTop   (height, abl->geoDampH, abl->geoDampDelta) *
-                                                    abl->geoDampC*abl->geoDampAlpha*(abl->geoDampUBar.x - abl->geoDampU[j-1].x) * clock->dt;
-                                source[k][j][i].y = s.y +
+                                                    abl->geoDampC*abl->geoDampAlpha*(abl->geoDampUBar.x - abl->geoDampU[j-1].x));
+                                source[k][j][i].y = (s.y +
                                                     scaleHyperTangTop   (height, abl->geoDampH, abl->geoDampDelta) *
-                                                    abl->geoDampC*abl->geoDampAlpha*(abl->geoDampUBar.y - abl->geoDampU[j-1].y) * clock->dt;
+                                                    abl->geoDampC*abl->geoDampAlpha*(abl->geoDampUBar.y - abl->geoDampU[j-1].y));
                                 source[k][j][i].z = 0.0;
                             }
                             else
@@ -1801,16 +1804,16 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                         }
                         else if(abl->controllerType=="geostrophicProfileAssimilation")
                         {
-                            source[k][j][i].x = abl->srcPA[j-1].x * clock->dt;
-                            source[k][j][i].y = abl->srcPA[j-1].y * clock->dt;
+                            source[k][j][i].x = abl->srcPA[j-1].x;
+                            source[k][j][i].y = abl->srcPA[j-1].y;
                             source[k][j][i].z = 0.0;
                         }
                         else if( (abl->controllerType=="directProfileAssimilation") || (abl->controllerType=="indirectProfileAssimilation") || (abl->controllerType=="waveletProfileAssimilation"))
                         {
                             if(abl->averageSource)
                             {
-                                source[k][j][i].x = abl->avgsrc[j-1].x * clock->dt;
-                                source[k][j][i].y = abl->avgsrc[j-1].y * clock->dt;
+                                source[k][j][i].x = abl->avgsrc[j-1].x;
+                                source[k][j][i].y = abl->avgsrc[j-1].y;
                                 source[k][j][i].z = 0.0;  
 
                                 if((abl->cellLevels[j-1] > abl->bottomSrcHtV) && (abl->cellLevels[j-1] < abl->hV[abl->numhV - 1]))
@@ -1821,8 +1824,8 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                             }
                             else
                             {
-                                source[k][j][i].x = abl->srcPA[j-1].x * clock->dt;
-                                source[k][j][i].y = abl->srcPA[j-1].y * clock->dt;
+                                source[k][j][i].x = abl->srcPA[j-1].x;
+                                source[k][j][i].y = abl->srcPA[j-1].y;
                                 source[k][j][i].z = 0.0;
                                                                 
                                 if((abl->cellLevels[j-1] > abl->bottomSrcHtV) && (abl->cellLevels[j-1] < abl->hV[abl->numhV - 1]))
@@ -1837,14 +1840,14 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                     {
                         if(abl->controllerType == "timeSeries" || abl->controllerType == "timeAverageSeries" || abl->controllerType == "timeSeriesFromPrecursor")
                         {
-                            source[k][j][i].x = s.x * clock->dt;
-                            source[k][j][i].y = s.y * clock->dt;
+                            source[k][j][i].x = s.x;
+                            source[k][j][i].y = s.y;
                             source[k][j][i].z = 0.0;
                         }
                         else if(abl->controllerType == "timeHeightSeries")
                         {
-                            source[k][j][i].x = src[j-1].x * clock->dt;
-                            source[k][j][i].y = src[j-1].y * clock->dt;
+                            source[k][j][i].x = src[j-1].x;
+                            source[k][j][i].y = src[j-1].y;
                             source[k][j][i].z = 0.0;
                         }
                     }
@@ -5937,10 +5940,10 @@ PetscErrorCode UeqnSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr)
     // transform to cartesian
     contravariantToCartesian(ueqn);
 
-    if(ueqn->access->flags->isIBMActive)
-    {
-        UpdateImmersedBCs(ueqn->access->ibm);
-    }
+    // if(ueqn->access->flags->isIBMActive)
+    // {
+    //     UpdateImmersedBCs(ueqn->access->ibm);
+    // }
 
     if(ueqn->access->flags->isOversetActive)
     {
@@ -6018,11 +6021,7 @@ PetscErrorCode UeqnSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr)
         dampingSourceU(ueqn, Rhs, 1.0);
     }
 
-
-    // multiply for dt
-    VecScale(Rhs, dt);
-
-    // add driving source terms after as it is not scaled by 1/dt
+    // add driving source terms 
     if(ueqn->access->flags->isAblActive)
     {
         if(ueqn->access->abl->controllerActive)
@@ -6035,6 +6034,9 @@ PetscErrorCode UeqnSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr)
     {
         meanGradPForcing(ueqn, Rhs, 1.0);
     }
+
+    // multiply for dt
+    VecScale(Rhs, dt);
     
     resetNonResolvedCellFaces(mesh, Rhs);
 
@@ -6062,10 +6064,10 @@ PetscErrorCode FormExplicitRhsU(ueqn_ *ueqn)
     // transform to cartesian
     contravariantToCartesian(ueqn);
 
-    if(ueqn->access->flags->isIBMActive)
-    {
-        UpdateImmersedBCs(ueqn->access->ibm);
-    }
+    // if(ueqn->access->flags->isIBMActive)
+    // {
+    //     UpdateImmersedBCs(ueqn->access->ibm);
+    // }
 
     if(ueqn->access->flags->isOversetActive)
     {
@@ -6132,19 +6134,18 @@ PetscErrorCode FormExplicitRhsU(ueqn_ *ueqn)
         dampingSourceU(ueqn, ueqn->Rhs, 1.0);
     }
 
-    // source term is pre-scaled by dt, so here we have to divide it again since
-    // the rhs is not multiplied by dt in this function
+    // add driving source terms
     if(ueqn->access->flags->isAblActive)
     {
         if(ueqn->access->abl->controllerActive)
         {
-            sourceU(ueqn, ueqn->Rhs, 1.0 / clock->dt);
+            sourceU(ueqn, ueqn->Rhs, 1.0);
         }
     }
 
     if(ueqn->access->flags->isMeangradPForcingActive)
     {
-        meanGradPForcing(ueqn, ueqn->Rhs, 1.0 / clock->dt);
+        meanGradPForcing(ueqn, ueqn->Rhs, 1.0);
     }
 
     resetNonResolvedCellFaces(mesh, ueqn->Rhs);
