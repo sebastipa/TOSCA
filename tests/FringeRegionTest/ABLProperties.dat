@@ -36,20 +36,11 @@ vkConst 0.4
 smearT 0.5
 
 # Activation flags 
-
-# Coriolis source terms
 coriolisActive 1
-
-# Velocity and temperature controllers
 controllerActive 1
 controllerActiveT 0
-
-# Precursor velocity and temperature controllers
 controllerActivePrecursor  1
 controllerActivePrecursorT 0
-
-# Mismatch flag between successor and precursor controllers
-precursorControllerTypeMismatch 0
 
 controllerProperties
 {
@@ -75,6 +66,30 @@ controllerProperties
     # Geostrophic height
     hGeo 900
     
+    # Geostrophic angle
+    alphaGeo 0
+
+}
+
+controllerPropertiesPrecursor
+{
+    # Velocity controller type (write->pressure/geostrphic/directProfileAssimilation, read->timeSeries/timeAverageSeries/timeHeightSeries)
+    controllerAction read
+    controllerType timeAverageSeries
+    relaxPI 0.7                                                                                                                                 # Velocity controller proportional over integral contribution ratio
+    alphaPI 0.9
+
+    # Velocity controller time filter
+    timeWindowPI 3600
+
+    # Velocity controller max height of influence
+    controllerMaxHeight 100000.0
+                                                                          # Start time for the given momentum source average (only controller type 'average')
+    controllerAvgStartTime 9000.0
+
+    # Geostrophic height
+    hGeo 900
+
     # Geostrophic angle
     alphaGeo 0
 

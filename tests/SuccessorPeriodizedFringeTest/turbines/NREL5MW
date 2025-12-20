@@ -26,10 +26,10 @@ nAziPts             50
 epsilon             8.0
 debug               0
 initialOmega        10.41
+CtType		    constant
 
 # Uniform actuator disk parameters
 Ct                  0.783
-CtType		    constant
 sampleType          rotorUpstream
 Uref                9.0
 

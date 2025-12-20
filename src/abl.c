@@ -1062,8 +1062,8 @@ PetscErrorCode InitializeABL(abl_ *abl)
             fatalErrorInFunction("ABLInitialize",  error);
         }
 
-        readSubDictWord  ("ABLProperties.dat", "controllerProperties", "controllerActionT",   &(abl->controllerActionT));
-        readSubDictWord  ("ABLProperties.dat", "controllerProperties", "controllerTypeT",    &(abl->controllerTypeT));
+        readDictWord  ("ABLProperties.dat", "controllerActionT",   &(abl->controllerActionT));
+        readDictWord  ("ABLProperties.dat", "controllerTypeT",    &(abl->controllerTypeT));
 
         PetscPrintf(mesh->MESH_COMM, "   temperature controller type: %s\n", abl->controllerTypeT.c_str());
         PetscPrintf(mesh->MESH_COMM, "   temperature controller action: %s\n", abl->controllerActionT.c_str());
@@ -4767,8 +4767,8 @@ PetscErrorCode findABLHeight(abl_ *abl)
     {
         ablHtStable = PetscMin(ablHtShear, ablHtRiB);
 
-        if(ablHtStable == ablHtRiB)
-            PetscPrintf(PETSC_COMM_WORLD, "RiB based ABL height used.\n");
+        // if(ablHtStable == ablHtRiB)
+        //     PetscPrintf(PETSC_COMM_WORLD, "RiB based ABL height used.\n");
     }
 
     if(abl->heatFluxSwitch > 0.02)
