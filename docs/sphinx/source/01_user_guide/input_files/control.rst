@@ -98,7 +98,7 @@ Solution Flags
                           
                           TOSCA has been extensively and most used adopting the *dynamicLASI* model for ABL and wind plant 
                           simulations. Other models have been recently added to the code and might perform better in some 
-                          cases (especially *dynamicLASD* and *amd*).
+                          cases (especially *dynamicLASD*, *amd* and the *bardinaAMD* models).
    ---------------------- -----------------------------------------------------------------------------------------------------
    ``-potentialT``        Specifies if potential temperature transport equation is solved (set to 1) or not (set to 0).
    ---------------------- -----------------------------------------------------------------------------------------------------
@@ -135,6 +135,10 @@ Solution Flags
                           ``fields/precursor`` directory. This is used for coarse concurrent precursor, where a good solution
                           has to be continuously feed because the simulation cannot be really self-sustained in the concurrent
                           precursor. 
+   ---------------------- -----------------------------------------------------------------------------------------------------
+   ``-precursorIBM``      Concurrent precursor **has to** be enabled with this flag. Set this flag to enable immersed boundary
+                          method (IBM) on for the concurrent precursor simulation. Useful if the precursor simulates a terrain
+                          that needs to be modeled with IBM.
    ---------------------- -----------------------------------------------------------------------------------------------------
    ``-kLeftRayleigh``     Specifies if horizontal Rayleigh damping at ``kLeft`` boundary is present in the simulation. 
                           Requires additional input in ``ABLProperties.dat`` file if activated.
@@ -182,7 +186,7 @@ Solution Controls
                              scheme, to balance diffusion and dispersion), ``centralUpwindW`` (weighted version, for 
                              graded/non-uniform meshes), ``central4`` (high-order central scheme, add diffusion through 
                              ``-hyperVisc`` parameter, default value is 1 - no diffusion, diffusion value of 0.75-0.8
-                             is recommended).)
+                             is recommended, if set to 0, this scheme becomes a third order quick scheme).)
    ------------------------- ----------------------------------------------------------------------------------------------------
    ``-relTolU``              Requires ``-dUdtScheme`` set to ``backwardEuler``, discarded otherwise. Allows to set the relative 
                              exit tolerance for the Newton method used to solve implicit discretized momentum equation, default 

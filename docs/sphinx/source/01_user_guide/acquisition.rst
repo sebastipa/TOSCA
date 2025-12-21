@@ -63,12 +63,12 @@ is a plane. Conversely, for curvilinear meshes the surface follows the curviline
 than coordinates. For these reason, these sections are faster to write.  
 
 Conversely, user-defined sections are defined by providing the cartesian coordinates of each point, hence they can be arbitrary surfaces
-within the computational domain and data is tri-linearly interpolated at the surface points. User-defined sections are only processed by the utility ``tosca2PV``, 
-and are used to slice averaged fields after the simulation has completed. Hence, ``-averaging`` should be activated during the run in order to produce 
-the average data to be later sliced. 
+within the computational domain and data is tri-linearly interpolated at the surface points. User-defined sections can be saved during the simulation
+similar to curvilinear section or processed aposteriori by the utility ``tosca2PV``, in the latter case they are used to slice averaged fields after the simulation 
+has completed. Hence, ``-averaging`` should be activated during the run in order to produce the average data to be later sliced. 
 
-The workflow to save sections in TOSCA is as follows: in order to save instantaneous data, curvilinear sections should be used, as these are gathered 
-during the simulation. If the ``-averaging`` flag is activated in the ``control.dat`` file during the simulation, average fields are produced as explained 
+The workflow to save sections in TOSCA is as follows: there is the option to save instantaneous sections during the simulation or averaged sections after. 
+If the ``-averaging`` flag is activated in the ``control.dat`` file during the simulation, average fields are produced as explained 
 in Sec. :ref:`averaging-subsection`. These fields can be sliced after the simulation by ``tosca2PV``, both by curvilinear and user-defined sections.  
 
 TOSCA only saves the slices in binary format, these are then converted to *hdf5* format, which can be visualized in *ParaView*, by running 
@@ -287,6 +287,9 @@ The various fields that are accumulated by TOSCA based on the values of ``-avera
                                   Activated with ``-averaging`` greater than 0 in the ``control.dat`` file.
    ------------------------------ -------------------------------------------------------------------------------------------------
    ``avgUU``                      averaged resolved Reynolds stress tensor components :math:`\overline{u'_i u'_j}`. 
+                                  Activated with ``-averaging`` greater than 0 in the ``control.dat`` file.
+   ------------------------------ -------------------------------------------------------------------------------------------------
+   ``avgDUU``                     averaged resolved dispersive stress tensor components :math:`\overline{u''_i u''_j}`. 
                                   Activated with ``-averaging`` greater than 0 in the ``control.dat`` file.
    ------------------------------ -------------------------------------------------------------------------------------------------
    ``avgOmega``                   averaged vorticity :math:`\overline{\omega_i}`.
@@ -793,6 +796,21 @@ The following table summarizes the available fields and how to activate them in 
    ------------------------------ ----------------------------------------------------------------------------
    ``Q``                          Q-criterion, activated with ``-computeQ`` set to 1 in the ``control.dat`` 
                                   file.
+   ------------------------------ ----------------------------------------------------------------------------
+   ``Qg``                         second invariant of velocity gradient tensor, activated with ``-computeQg`` 
+                                  set to 1 in the ``control.dat`` file.
+   ------------------------------ ----------------------------------------------------------------------------
+   ``Rg``                         third invariant of velocity gradient tensor, activated with ``-computeRg`` 
+                                  set to 1 in the ``control.dat`` file.
+   ------------------------------ ----------------------------------------------------------------------------
+   ``Qs``                         second invariant of strain rate tensor, activated with ``-computeQs`` 
+                                  set to 1 in the ``control.dat`` file.
+   ------------------------------ ----------------------------------------------------------------------------
+   ``Rs``                         third invariant of strain rate tensor, activated with ``-computeRs`` 
+                                  set to 1 in the ``control.dat`` file.
+   ------------------------------ ----------------------------------------------------------------------------
+   ``Qr``                         second invariant of rotational rate tensor, activated with ``-computeQr`` 
+                                  set to 1 in the ``control.dat`` file.
    ------------------------------ ----------------------------------------------------------------------------
    ``bf``                         wind farm body force field, activated with ``-computeFarmForce`` set to 1 
                                   in the ``control.dat`` file.
