@@ -1,0 +1,31 @@
+#internal field 
+
+#internalField    spreadInflow
+
+internalField uniform
+		{
+			value (8.0 0.0 0.0)
+			perturbations 0
+		}
+
+# boundary patches
+iLeft   periodic
+
+iRight  periodic
+
+jLeft   velocityWallFunction
+        {
+            type -3
+            kRough 0.1
+            uStarEval averaged
+            gammaM 4.9
+            kappa  0.4
+            thetaRef 263.5
+        }
+
+jRight slip
+        
+kLeft   periodic
+
+kRight  periodic
+

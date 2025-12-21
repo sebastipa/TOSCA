@@ -1,0 +1,89 @@
+# TOSCA Input file - ABLProperties 
+# --------------------------------- 
+
+# Reference velocity and height for the velocity controller. 
+uRef  (8.00 0.0)
+hRef  90.0
+
+# Reference potential temperature. 
+tRef 263.5
+
+# Equivalent Roughness length. 
+hRough 0.1
+
+# Height of the center of the inversion layer. 
+hInv 120.0
+
+# Width of the inversion layer. 
+dInv 40.0
+
+# Potential temperature jump across the inversion layer. 
+gInv 0.4
+
+# Potential temperature gradient on top of the inversion layer.
+gTop 0.01
+
+gABL 0.0
+
+# Von Karman Constant.
+vkConst 0.4
+
+# Rampanelli and Zardi temperature model parameter.
+smearT 1.0
+
+# Activation flags
+coriolisActive 1
+controllerActive 1
+controllerActiveT 0
+controllerActivePrecursorT 0
+
+# velocity perturbations to trigger turbulence 
+perturbations 1
+
+# Coriolis parameter: 7.272205217e-5 * sin(latitude)
+fCoriolis 6.95e-5
+
+controllerProperties
+{
+    # Velocity controller type (computed->pressure/geostrphic, given->read/average)
+    controllerAction write
+    controllerType   geostrophic
+
+    # Geostrophic wind controller gain factor 
+    relaxPI 1.0e-4
+
+    # Velocity controller proportional over integral contribution ratio
+    alphaPI 0.8
+
+    # Velocity controller time filter
+    timeWindowPI 200.0
+
+    # Velocity controller max height of influence 
+    controllerMaxHeight 100000.0
+
+    # Geostrophic Wind (should be constant)
+    uGeoMag 8
+
+    # Geostrophic Wind angle (Initial geostrophic angle is wind
+    # angle controller is on) 
+    alphaGeo            0
+
+    # Geostrophic height
+    hGeo 600
+
+    # wind angle controller
+    windAngleController 1
+
+    # Wind 
+    alphaHub	        0
+}
+
+# Fringe layers properties (activate in the control.dat - zDampingLayer = 1, xDampingLayer = 1)
+zDampingProperties
+{
+    zDampingStart   400
+    zDampingEnd     720.0
+    zDampingAlpha   0.0016
+    zDampingAlsoXY  0 
+}    
+
