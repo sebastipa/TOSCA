@@ -108,6 +108,11 @@ entries specific to each dictionaries is given in the subsequent tables.
    ----------------------------------- -------------- --------------------------------------------------
    ``controllerActive``                bool           Velocity controller activation flag. Requires
                                                       ``controllerProperties`` dictionary.
+   ----------------------------------- -------------- --------------------------------------------------                                                   
+   ``controllerActivePrecursor``       bool           Velocity controller activation flag. Similar to
+                                                      ``controllerActive``, but for the concurrent
+                                                      precursor simulation. Requires
+                                                      ``controllerPropertiesPrecursor`` dictionary.                                                      
    ----------------------------------- -------------- --------------------------------------------------
    ``controllerActiveT``               bool           Temperature controller activation flag. Requires
                                                       ``controllerProperties`` dictionary.
@@ -115,47 +120,7 @@ entries specific to each dictionaries is given in the subsequent tables.
    ``controllerActivePrecursorT``      bool           Temperature controller activation flag. Similar to
                                                       ``controllerActiveT``, but for the concurrent
                                                       precursor simulation. Requires
-                                                      ``controllerPropertiesPrecursor`` dictionary.
-   ----------------------------------- -------------- --------------------------------------------------                                                   
-   ``controllerActivePrecursor``       bool           Velocity controller activation flag. Similar to
-                                                      ``controllerActive``, but for the concurrent
-                                                      precursor simulation. Requires
-                                                      ``controllerPropertiesPrecursor`` dictionary.
-   ----------------------------------- -------------- --------------------------------------------------
-   ``controllerTypeT``                 string         Available types are:
-
-                                                      - *initial*
-                                                      - *directProfileAssimilation*
-                                                      - *indirectProfileAssimilation* 
-                                                      - *waveletProfileAssimilation*
-                                                      - *timeHeightSeries* 
-
-                                                      *initial*, *directProfileAssimilation*, 
-                                                      *indirectProfileAssimilation* and 
-                                                      *waveletProfileAssimilation* are of type 
-                                                      ``controllerActionT`` *write* while 
-                                                      *timeHeightSeries* is of type 
-                                                      ``controllerActionT`` *read*. 
-                                                      Type *initial* tries to 
-                                                      maintain the initial horizontally averaged 
-                                                      potential temperature profile. Types 
-                                                      *directProfileAssimilation*,  
-                                                      *indirectProfileAssimilation* and
-                                                      *waveletProfileAssimilation* calculate source 
-                                                      terms to follow a provided time-series of 
-                                                      potential temperature profile. They require 
-                                                      additional entries in the ``controllerProperties``
-                                                      subdictionary, i.e. ``relaxPI``, 
-                                                      ``lowestSrcHeight``, ``highestSrcHeight``.  
-                                                      Moreover, ``polynomialOrder`` is also required for 
-                                                      controller type *indirectProfileAssimilation*.                                                      
-   ----------------------------------- -------------- --------------------------------------------------                                                   
-   ``controllerActionT``               string         can be set to *write* or *read*. The former 
-                                                      writes the temperature source terms to file.
-                                                      The latter reads these previously written source 
-                                                      terms and directly applies them with
-                                                      no feedback controlling action. This keyword has 
-                                                      to be set in combination with ``controllerTypeT``.                                                 
+                                                      ``controllerPropertiesPrecursor`` dictionary.                                                
    ----------------------------------- -------------- --------------------------------------------------
    ``perturbations``                   bool           Adds divergence-free sinusoidal perturbations to
                                                       triger turbulence in the initial condition when
@@ -174,7 +139,9 @@ entries specific to each dictionaries is given in the subsequent tables.
                                                          controllerProperties
                                                          {
                                                             controllerAction       string
+                                                            controllerActionT      string
                                                             controllerType         string
+                                                            controllerTypeT        string
                                                             relaxPI                scalar
                                                             alphaPI                scalar
                                                             timeWindowPI           scalar
@@ -210,7 +177,9 @@ entries specific to each dictionaries is given in the subsequent tables.
                                                          controllerPropertiesPrecursor
                                                          {
                                                             controllerAction       string
+                                                            controllerActionT      string
                                                             controllerType         string
+                                                            controllerTypeT        string
                                                             relaxPI                scalar
                                                             alphaPI                scalar
                                                             timeWindowPI           scalar
@@ -406,7 +375,7 @@ entries specific to each dictionaries is given in the subsequent tables.
 
 The meaning of the entires required in the dictionaries listed in the above table are described in the following tables.
 
-controllerProperties & controllerPropertiesPrecursor
+controllerProperties/controllerPropertiesPrecursor
 ****************************************************
 
 .. table::
@@ -431,6 +400,14 @@ controllerProperties & controllerPropertiesPrecursor
                                                     *indirectProfileAssimilation* require ``controllerAction`` set to *write*, while 
                                                     *timeSeries*, *timeAverageSeries* and *timeHeightSeries* require ``controllerAction`` 
                                                     set to *read*.
+   ----------------------------- ------------------ -------------------------------------------------------------------------------------
+   ``controllerActionT``         string             can be set to *write* or *read*. The former writes the temperature source terms to 
+                                                    file. The latter reads these previously written source terms and directly applies 
+                                                    them with no feedback controlling action. This keyword has to be set in combination 
+                                                    with ``controllerTypeT``. Types *initial*, *directProfileAssimilation*, 
+                                                    *indirectProfileAssimilation* and *waveletProfileAssimilation* require 
+                                                    ``controllerActionT`` set to *write*, while *timeHeightSeries* requires 
+                                                    ``controllerActionT`` set to *read*.  
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
    ``controllerType``            string             Available types are: 
 
@@ -474,7 +451,26 @@ controllerProperties & controllerPropertiesPrecursor
                                                     Recently, the *waveletProfileAssimilation* controller type has been also 
                                                     introduced. To use this controller, please see the 
                                                     *tests/WaveletProfileAssimilationTest*. Note that it requires TOSCA to be compiled 
-                                                    with the USE_PYTHON flag set to 1.                                                                    
+                                                    with the USE_PYTHON flag set to 1.  
+   ----------------------------- ------------------ -------------------------------------------------------------------------------------
+   ``controllerTypeT``           string             Available types are:
+
+                                                    - *initial*
+                                                    - *directProfileAssimilation*
+                                                    - *indirectProfileAssimilation* 
+                                                    - *waveletProfileAssimilation*
+                                                    - *timeHeightSeries* 
+
+                                                    *initial*, *directProfileAssimilation*, *indirectProfileAssimilation* and 
+                                                    *waveletProfileAssimilation* are of type ``controllerActionT`` *write* while 
+                                                    *timeHeightSeries* is of type ``controllerActionT`` *read*. Type *initial* tries to 
+                                                    maintain the initial horizontally averaged potential temperature profile. Types 
+                                                    *directProfileAssimilation*, *indirectProfileAssimilation* and 
+                                                    *waveletProfileAssimilation* calculate source terms to follow a provided time-series 
+                                                    of potential temperature profile. They require additional entries in the 
+                                                    ``controllerProperties`` subdictionary, i.e. ``relaxPI``, ``lowestSrcHeight``, 
+                                                    ``highestSrcHeight``. Moreover, ``polynomialOrder`` is also required for controller 
+                                                    type *indirectProfileAssimilation*.                                                                                                                       
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
    ``alphaPI``                   scalar             proportional over integral controlling action used by all controllers characterized 
                                                     by a ``controllerAction`` of type *write*. A too low value makes the controller 

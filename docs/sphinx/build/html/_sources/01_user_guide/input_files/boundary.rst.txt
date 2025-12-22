@@ -513,7 +513,23 @@ available within TOSCA are summarized in the following table:
                                               tRef   scalar 
                                               tLapse scalar 
                                            }
-                                                                
+   ------------------------------------ ----------------------------------------------------------------------------
+   ``linearCNBL``                       Only available for ``T``. Sets an initial temperature profile characterized
+                                        by a constant temperature *tRef* from ground upto *hRef*, followed by a 
+                                        linear lapse rate *tLapse* along ``j``. Used to prescribe an initial 
+                                        convective neutral boundary layer (CNBL) potential temperature 
+                                        stratification.
+                                        
+                                        Usage:
+                                        
+                                        .. code-block:: C
+                                        
+                                           linear
+                                           {
+                                              tRef   scalar 
+                                              tLapse scalar
+                                              hRef   scalar 
+                                           }                 
    ==================================== ============================================================================
 
 
