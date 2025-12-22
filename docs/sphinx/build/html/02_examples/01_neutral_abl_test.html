@@ -134,12 +134,13 @@ layer to displace upwards), the Coriolis force and the initial flow perturbation
 controllerActiveT<span class="w"> </span><span class="m">1</span><span class="w">               </span><span class="c1"># activates temperature controller</span>
 controllerTypeT<span class="w">   </span>initial<span class="w">         </span><span class="c1"># target temperature is the initial temperature</span>
 coriolisActive<span class="w">    </span><span class="m">1</span><span class="w">               </span><span class="c1"># activates Coriolis force</span>
-fCoriolis<span class="w">         </span><span class="m">5</span>.156303966e-5<span class="w">  </span><span class="c1"># 2 times the Coriolis parameter</span>
+fCoriolis<span class="w">         </span><span class="m">5</span>.156303966e-5<span class="w">  </span><span class="c1"># equal to Omega*sin(phi) (i.e. Coriolis parameter / 2)</span>
 perturbations<span class="w">     </span><span class="m">1</span><span class="w">               </span><span class="c1"># flow perturbations</span>
 </pre></div>
 </div>
-<p>Notably, the <code class="docutils literal notranslate"><span class="pre">fCoriolis</span></code> should be set to <span class="math notranslate nohighlight">\(7.272205217\cdot 10^{-5} \sin(\phi)\)</span> (2 times the Coriolis parameter),
-where <span class="math notranslate nohighlight">\(\phi\)</span> is the latitude. This is a TOSCA convention and other codes do the multiplication by 2 internally.
+<p>Notably, the <code class="docutils literal notranslate"><span class="pre">fCoriolis</span></code> should be set to <span class="math notranslate nohighlight">\(7.272205217\cdot 10^{-5} \sin(\phi)\)</span> (this corresponds to
+<cite>Omega sin(phi)</cite>, or half of what is commonly referred to as the Coriolis parameter <span class="math notranslate nohighlight">\(f_c\)</span>), where
+<span class="math notranslate nohighlight">\(\phi\)</span> is the latitude. This is a TOSCA convention, as the multiplication by 2 is performed internally.
 Finally, the parameters defining the velocity controller must be specified in the <em>controllerProperties</em> dictionary, namely</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>controllerProperties
 <span class="o">{</span>

@@ -1,0 +1,2 @@
+This test case simulates the GABLES stable boundary layer benchmark. Rename boundaryRead folder to boundary when restarting the simulation, 
+along with setting the startTime to latestTime in the control.dat.

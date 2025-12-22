@@ -323,7 +323,7 @@ PetscErrorCode averageFieldsInitialize(acquisition_ *acquisition)
     mesh_  *mesh  = acquisition->access->mesh;
     flags_ *flags = acquisition->access->flags;
 
-    if(io->averaging || io->phaseAveraging || io->qCrit || io->l2Crit || io->sources || io->windFarmForce || flags->isPvCatalystActive || io->continuity)
+    if(io->averaging || io->phaseAveraging || io->qCrit || io->vgtQg|| io->vgtRg|| io->vgtQs|| io->vgtRs || io->vgtQr || io->l2Crit || io->sources || io->windFarmForce || flags->isPvCatalystActive || io->continuity)
     {
         PetscMalloc(sizeof(avgFields), &(acquisition->fields));
         avgFields *avg = acquisition->fields;
@@ -336,6 +336,31 @@ PetscErrorCode averageFieldsInitialize(acquisition_ *acquisition)
         if(io->l2Crit)
         {
             VecDuplicate(mesh->Nvert, &(avg->L2));  VecSet(avg->L2,0.);
+        }
+
+        if(io->vgtQg)
+        {
+            VecDuplicate(mesh->Nvert, &(avg->Qg));  VecSet(avg->Qg,0.);
+        }
+
+        if(io->vgtRg)
+        {
+            VecDuplicate(mesh->Nvert, &(avg->Rg));  VecSet(avg->Rg,0.);
+        }
+
+        if(io->vgtQs)
+        {
+            VecDuplicate(mesh->Nvert, &(avg->Qs));  VecSet(avg->Qs,0.);
+        }
+
+        if(io->vgtRs)
+        {
+            VecDuplicate(mesh->Nvert, &(avg->Rs));  VecSet(avg->Rs,0.);
+        }
+
+        if(io->vgtQr)
+        {
+            VecDuplicate(mesh->Nvert, &(avg->Qr));  VecSet(avg->Qr,0.);
         }
 
         if(io->windFarmForce)
@@ -363,7 +388,9 @@ PetscErrorCode averageFieldsInitialize(acquisition_ *acquisition)
             // allocate memory and set to zero
             VecDuplicate(mesh->Cent,  &(avg->avgU));        VecSet(avg->avgU,0.);
             VecDuplicate(mesh->Nvert, &(avg->avgP));        VecSet(avg->avgP,0.);
+            
             DMCreateGlobalVector(mesh->sda, &(avg->avgUU)); VecSet(avg->avgUU,0.);
+            VecDuplicate(avg->avgUU,  &(avg->avgDUU));      VecSet(avg->avgDUU,0.);
 
             if(io->averaging > 1)
             {
@@ -1629,6 +1656,146 @@ PetscErrorCode averageFields(acquisition_ *acquisition)
 
             PetscTime(&te);
             PetscPrintf(mesh->MESH_COMM, "Averaged fields in %lf s\n", te-ts);
+        }
+    }
+
+    //now compute the dispersive stresses once we have the time average
+    if(io->averaging)
+    {
+        // accumulation flags for current time step
+        PetscInt    accumulateAvg      = 0;
+        PetscReal   epsilon            = 1e-8;
+        PetscReal   startTimeAvg         = io->avgStartTime;
+        PetscReal   timeIntervalAvg      = io->avgPrd;
+
+        // check if must accumulate averaged fields
+        if(mustWrite(clock->time, startTimeAvg, timeIntervalAvg))
+        {
+            accumulateAvg = 1;
+        }
+        
+        if(accumulateAvg)
+        {
+            mesh_  *mesh   = acquisition->access->mesh;
+            ueqn_  *ueqn   = acquisition->access->ueqn;
+
+            avgFields *avg = acquisition->fields;
+
+            DMDALocalInfo info = mesh->info;
+            DM            da = mesh->da, fda = mesh->fda, sda = mesh->sda;
+
+            PetscInt       xs = info.xs, xe = info.xs + info.xm;
+            PetscInt       ys = info.ys, ye = info.ys + info.ym;
+            PetscInt       zs = info.zs, ze = info.zs + info.zm;
+            PetscInt       mx = info.mx, my = info.my, mz = info.mz;
+
+            PetscInt       i, j, k, l;
+            PetscInt       lxs, lxe, lys, lye, lzs, lze;
+
+            symmTensor     ***uud_mean;
+            Cmpnts         ***umean;
+            PetscReal      ***aj, ***nvert;
+
+            // the vertical direction is the j direction in curvilinear coordinates
+            PetscInt nLevels = my-2;
+
+            //horizontal plane mean of the time averaged velocity
+            std::vector<Cmpnts> lVelocity(nLevels);
+            std::vector<Cmpnts> gVelocity(nLevels);
+            std::vector<PetscReal> lVolumes(nLevels);
+            std::vector<PetscReal> gVolumes(nLevels);
+
+            // indices for internal cells
+            lxs = xs; if (lxs==0) lxs++; lxe = xe; if (lxe==mx) lxe--;
+            lys = ys; if (lys==0) lys++; lye = ye; if (lye==my) lye--;
+            lzs = zs; if (lzs==0) lzs++; lze = ze; if (lze==mz) lze--;
+
+            for(l=0; l<nLevels; l++)
+            {
+                lVelocity[l] = {0., 0., 0.};
+                gVelocity[l] = {0., 0., 0.};
+                lVolumes[l] = 0.0;
+                gVolumes[l] = 0.0;
+            }
+
+            DMDAVecGetArray(fda, avg->avgU,  &umean);
+            DMDAVecGetArray(da,  mesh->lAj,  &aj);
+
+            //compute space average of the time averaged fields
+            for (k=lzs; k<lze; k++)
+            {
+                for (j=lys; j<lye; j++)
+                {
+                    for (i=lxs; i<lxe; i++)
+                    {
+                        lVelocity[j-1].x  += umean[k][j][i].x / aj[k][j][i];
+                        lVelocity[j-1].y  += umean[k][j][i].y / aj[k][j][i];
+                        lVelocity[j-1].z  += umean[k][j][i].z / aj[k][j][i];
+                        lVolumes[j-1] += 1 / aj[k][j][i];
+                    }
+                }
+            }
+
+            MPI_Allreduce(&lVelocity[0], &gVelocity[0], 3*nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+            MPI_Allreduce(&lVolumes[0], &gVolumes[0], nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+            for(l=0; l<nLevels; l++)
+            {
+                if(gVolumes[l] > epsilon)
+                {
+                    gVelocity[l].x /= gVolumes[l];
+                    gVelocity[l].y /= gVolumes[l];
+                    gVelocity[l].z /= gVolumes[l];
+                }
+                else
+                {
+                    gVelocity[l].x = 0.0;
+                    gVelocity[l].y = 0.0;
+                    gVelocity[l].z = 0.0;
+                }
+            }
+
+            DMDAVecRestoreArray(da,  mesh->lAj, &aj);
+
+            DMDAVecGetArray(sda, avg->avgDUU, &uud_mean);
+            DMDAVecGetArray(da, mesh->lNvert, &nvert);
+
+            //compute the dispersive stress tensor
+            for (k=lzs; k<lze; k++)
+            {
+                for (j=lys; j<lye; j++)
+                {
+                    for (i=lxs; i<lxe; i++)
+                    {
+                        if(isFluidCell(k, j, i, nvert))
+                        {
+                            // dispersive stress tensor
+                            uud_mean[k][j][i].xx = (umean[k][j][i].x - gVelocity[j-1].x) * (umean[k][j][i].x - gVelocity[j-1].x);
+                            uud_mean[k][j][i].yy = (umean[k][j][i].y - gVelocity[j-1].y) * (umean[k][j][i].y - gVelocity[j-1].y);
+                            uud_mean[k][j][i].zz = (umean[k][j][i].z - gVelocity[j-1].z) * (umean[k][j][i].z - gVelocity[j-1].z);
+
+                            uud_mean[k][j][i].xy = (umean[k][j][i].x - gVelocity[j-1].x) * (umean[k][j][i].y - gVelocity[j-1].y);
+                            uud_mean[k][j][i].xz = (umean[k][j][i].x - gVelocity[j-1].x) * (umean[k][j][i].z - gVelocity[j-1].z);
+                            uud_mean[k][j][i].yz = (umean[k][j][i].y - gVelocity[j-1].y) * (umean[k][j][i].z - gVelocity[j-1].z);
+                        }
+                        else
+                        {
+                            uud_mean[k][j][i].xx = 0.0;
+                            uud_mean[k][j][i].yy = 0.0;
+                            uud_mean[k][j][i].zz = 0.0;
+
+                            uud_mean[k][j][i].xy = 0.0;
+                            uud_mean[k][j][i].xz = 0.0;
+                            uud_mean[k][j][i].yz = 0.0;
+                        }
+                    }
+                }
+            }
+
+            DMDAVecRestoreArray(sda, avg->avgDUU, &uud_mean);
+            DMDAVecRestoreArray(fda, avg->avgU,  &umean);
+            DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+
         }
     }
 
@@ -4746,232 +4913,309 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
 
             acquisition->userSections->uSection = new uSections*[nSurfaces];
 
-            for(PetscInt s=0; s<nSurfaces; s++)
+            // userSurface Directory 
+            word userslicesFolder = "./postProcessing/" + mesh->meshName + "/userSurfaces";
+            PetscInt dirRes = mkdir(userslicesFolder.c_str(), 0777);
+            if (dirRes != 0 && errno != EEXIST)
             {
-
-                PetscInt atLeastOneVector     = 0;
-                PetscInt atLeastOneScalar     = 0;
-
-                //reverses the number of cells in the two surface directions - test feature needs to be removed
-                PetscInt flipIndexOrder;
-
-                // allocate memory
-                acquisition->userSections->uSection[s] = new uSections;
-                
-                uSections *uSection = acquisition->userSections->uSection[s];
-                
-                userSecName = userSecPath + "/" + surfaceSeries[s];
-
-                //set surface name 
-                uSection->sectionName = surfaceSeries[s]; 
-
-                // read acquisition start time and type of interval
-                readDictDouble(userSecName.c_str(), "timeStart", &(uSection->timeStart));
-                readDictWord(userSecName.c_str(),   "intervalType", &(uSection->intervalType));
-                readDictDouble(userSecName.c_str(), "timeInterval", &(uSection->timeInterval));
-                readDictInt(userSecName.c_str(), "flipIndexOrder", &(flipIndexOrder));
-
-                // check if intervalType is known
-                if(uSection->intervalType != "timeStep" && uSection->intervalType != "adjustableTime")
+                char error[512];
+                sprintf(error, "could not create %s directory", userslicesFolder.c_str());
+                fatalErrorInFunction("sectionsInitialize", error);
+            }
+            else 
+            {
+                for(PetscInt s=0; s<nSurfaces; s++)
                 {
-                    char error[512];
-                    sprintf(error, "unknown interval type %s. Known types are timeStep and adjustableTime\n", uSection->intervalType.c_str());
-                    fatalErrorInFunction("sectionsInitialize",  error);
-                }
 
-                // read section indices
-                std::ifstream indata;
+                    PetscInt atLeastOneVector     = 0;
+                    PetscInt atLeastOneScalar     = 0;
 
-                indata.open(userSecName.c_str());
+                    //reverses the number of cells in the two surface directions - test feature needs to be removed
+                    PetscInt flipIndexOrder;
 
-                char buffer[256];
+                    // allocate memory
+                    acquisition->userSections->uSection[s] = new uSections;
+                    
+                    uSections *uSection = acquisition->userSections->uSection[s];
+                    
+                    userSecName = userSecPath + "/" + surfaceSeries[s];
 
-                while(!indata.eof())
-                {
-                    indata >> buffer;
+                    //set surface name 
+                    uSection->sectionName = surfaceSeries[s]; 
 
-                    if
-                    (
-                        strcmp
+                    // read acquisition start time and type of interval
+                    readDictDouble(userSecName.c_str(), "timeStart", &(uSection->timeStart));
+                    readDictWord(userSecName.c_str(),   "intervalType", &(uSection->intervalType));
+                    readDictDouble(userSecName.c_str(), "timeInterval", &(uSection->timeInterval));
+                    readDictInt(userSecName.c_str(), "flipIndexOrder", &(flipIndexOrder));
+
+                    // check if intervalType is known
+                    if(uSection->intervalType != "timeStep" && uSection->intervalType != "adjustableTime")
+                    {
+                        char error[512];
+                        sprintf(error, "unknown interval type %s. Known types are timeStep and adjustableTime\n", uSection->intervalType.c_str());
+                        fatalErrorInFunction("sectionsInitialize",  error);
+                    }
+
+                    // read section indices
+                    std::ifstream indata;
+
+                    indata.open(userSecName.c_str());
+
+                    char buffer[256];
+
+                    while(!indata.eof())
+                    {
+                        indata >> buffer;
+
+                        if
                         (
-                            "meshPoints",
-                            buffer
-                        ) == 0
-                    )
-                    {
-                        indata >> buffer;
-                        std::sscanf(buffer, "%ld", &(uSection->ny));
-
-                        indata >> buffer;
-                        std::sscanf(buffer, "%ld", &(uSection->nx));
-
-                        break;
-                    }
-
-                }
-
-                if(flipIndexOrder == 1)
-                { 
-                    PetscInt tempIndex;
-                    tempIndex = uSection->ny;
-                    uSection->ny = uSection->nx;
-                    uSection->nx = tempIndex;
-                }
-
-                // allocate memory for the co-ordinates of the points in the user defined surface
-                PetscInt nx = uSection->nx, ny = uSection->ny;
-
-                uSection->coor = (Cmpnts **)malloc( sizeof(Cmpnts *) * (ny) );
-
-                for(j=0; j<ny; j++)
-                {
-                    uSection->coor[j] = (Cmpnts *)malloc( sizeof(Cmpnts) * (nx) );
-                }
-
-                for(j=0; j<ny; j++)
-                {
-                    for(i=0; i<nx; i++)
-                    {
-                        indata >> buffer;
-                        std::sscanf(buffer, "%le", &(uSection->coor[j][i].x));
-
-                        indata >> buffer;
-                        std::sscanf(buffer, "%le", &(uSection->coor[j][i].y));
-
-                        indata >> buffer;
-                        std::sscanf(buffer, "%le", &(uSection->coor[j][i].z));
-                    }
-                }
-
-                indata.close();
-
-                //allocate memory 
-                uSection->closestId = (cellIds **)malloc( sizeof(cellIds *) * (ny) );
-
-                for(j=0; j<ny; j++)
-                {
-                    uSection->closestId[j] = (cellIds *)malloc( sizeof(cellIds) * (nx) );
-                }
-
-                uSection->hasCoor = (PetscInt **)malloc( sizeof(PetscInt *) * (ny) );
-
-                for(j=0; j<ny; j++)
-                {
-                    uSection->hasCoor[j] = (PetscInt *)malloc( sizeof(PetscInt) * (nx) );
-                }
-
-                cellIds **localId;
-                localId = (cellIds **)malloc( sizeof(cellIds *) * (ny) );
-
-                for(j=0; j<ny; j++)
-                {
-                    localId[j] = (cellIds *)malloc( sizeof(cellIds) * (nx) );
-                }
-
-
-
-                for(j=0; j<ny; j++)
-                {
-                    for(i=0; i<nx; i++)
-                    {
-                       localId[j][i].i = -100;
-                       localId[j][i].j = -100;
-                       localId[j][i].k = -100;
-
-                       uSection->hasCoor[j][i] = 0;
-                    }
-                }
-
-
-                for(PetscInt l=0; l<ny; l++)
-                {
-                    for(PetscInt m=0; m<nx; m++)
-                    {
-                        Cmpnts surfacePoint = nSet(uSection->coor[l][m]);
-
-                        PetscReal  lminDist = 1e30,  gminDist = 1e30;
-                        cellIds closestIds;
-
-                        for (k=lzs; k<lze; k++)
+                            strcmp
+                            (
+                                "meshPoints",
+                                buffer
+                            ) == 0
+                        )
                         {
-                            for (j=lys; j<lye; j++)
-                            {
-                                for (i=lxs; i<lxe; i++)
-                                {
-                                    Cmpnts distVec = nSub(surfacePoint, cent[k][j][i]);
-                                    PetscReal distMag = nMag(distVec) + procContrib;
+                            indata >> buffer;
+                            std::sscanf(buffer, "%ld", &(uSection->ny));
 
-                                    if(distMag < lminDist)
-                                    {
-                                        lminDist = distMag;
-                                        closestIds.i = i;
-                                        closestIds.j = j;
-                                        closestIds.k = k;
-                                    }
+                            indata >> buffer;
+                            std::sscanf(buffer, "%ld", &(uSection->nx));
 
-                                }
-                            }
-                        }   
+                            break;
+                        }
 
-                        MPI_Allreduce(&lminDist, &gminDist, 1, MPIU_REAL, MPIU_MIN, mesh->MESH_COMM);
+                    }
 
-                        if(lminDist == gminDist)
+                    if(flipIndexOrder == 1)
+                    { 
+                        PetscInt tempIndex;
+                        tempIndex = uSection->ny;
+                        uSection->ny = uSection->nx;
+                        uSection->nx = tempIndex;
+                    }
+
+                    // allocate memory for the co-ordinates of the points in the user defined surface
+                    PetscInt nx = uSection->nx, ny = uSection->ny;
+
+                    uSection->coor = (Cmpnts **)malloc( sizeof(Cmpnts *) * (ny) );
+
+                    for(j=0; j<ny; j++)
+                    {
+                        uSection->coor[j] = (Cmpnts *)malloc( sizeof(Cmpnts) * (nx) );
+                    }
+
+                    for(j=0; j<ny; j++)
+                    {
+                        for(i=0; i<nx; i++)
                         {
-                            localId[l][m].i = closestIds.i;
-                            localId[l][m].j = closestIds.j;
-                            localId[l][m].k = closestIds.k;
+                            indata >> buffer;
+                            std::sscanf(buffer, "%le", &(uSection->coor[j][i].x));
 
-                            PetscReal cellWidth = 5.0*pow(1.0/aj[closestIds.k][closestIds.j][closestIds.i], 1.0/3.0);
+                            indata >> buffer;
+                            std::sscanf(buffer, "%le", &(uSection->coor[j][i].y));
 
-                            if(gminDist > cellWidth)
-                            {
-                                char warning[256];
-                                sprintf(warning, "User defined section has parts outside the domain, consider redefining the surface");
-                                warningInFunction("sectionsInitialize",  warning);
-                            }
-
-                            uSection->hasCoor[l][m] = 1;
+                            indata >> buffer;
+                            std::sscanf(buffer, "%le", &(uSection->coor[j][i].z));
                         }
                     }
 
-                    MPI_Allreduce(&(localId[l][0]), &(uSection->closestId[l][0]), 3*nx, MPIU_INT, MPIU_MAX, mesh->MESH_COMM);
-                }
+                    indata.close();
 
-                // free the allocated memory for coorPts
-                for(j = 0; j<ny; j++)
-                {
-                    free(localId[j]);
-                }
-
-                free(localId);  
-
-                atLeastOneVector++;
-                if(flags->isTeqnActive) atLeastOneScalar++;
-                if(flags->isLesActive)  atLeastOneScalar++;
-                if(acquisition->isPerturbABLActive) {atLeastOneScalar++; atLeastOneVector++;}
-
-                if(atLeastOneVector)
-                {
-                    // allocate memory for scalar and vector variables
-                    uSection->vectorSec = (Cmpnts **)malloc( sizeof(Cmpnts *) * ny );
+                    //allocate memory 
+                    uSection->closestId = (cellIds **)malloc( sizeof(cellIds *) * (ny) );
 
                     for(j=0; j<ny; j++)
                     {
-                        uSection->vectorSec[j] = (Cmpnts *)malloc( sizeof(Cmpnts) * nx );
+                        uSection->closestId[j] = (cellIds *)malloc( sizeof(cellIds) * (nx) );
                     }
-                }
 
-                if(atLeastOneScalar)
-                {
-                    uSection->scalarSec = (PetscReal **)malloc( sizeof(PetscReal *) * ny );
+                    uSection->hasCoor = (PetscInt **)malloc( sizeof(PetscInt *) * (ny) );
 
                     for(j=0; j<ny; j++)
                     {
-                        uSection->scalarSec[j] = (PetscReal *)malloc( sizeof(PetscReal) * nx );
+                        uSection->hasCoor[j] = (PetscInt *)malloc( sizeof(PetscInt) * (nx) );
+                    }
+
+                    cellIds **localId;
+                    localId = (cellIds **)malloc( sizeof(cellIds *) * (ny) );
+
+                    for(j=0; j<ny; j++)
+                    {
+                        localId[j] = (cellIds *)malloc( sizeof(cellIds) * (nx) );
+                    }
+
+
+
+                    for(j=0; j<ny; j++)
+                    {
+                        for(i=0; i<nx; i++)
+                        {
+                        localId[j][i].i = -100;
+                        localId[j][i].j = -100;
+                        localId[j][i].k = -100;
+
+                        uSection->hasCoor[j][i] = 0;
+                        }
+                    }
+
+
+                    for(PetscInt l=0; l<ny; l++)
+                    {
+                        for(PetscInt m=0; m<nx; m++)
+                        {
+                            Cmpnts surfacePoint = nSet(uSection->coor[l][m]);
+
+                            PetscReal  lminDist = 1e30,  gminDist = 1e30;
+                            cellIds closestIds;
+
+                            for (k=lzs; k<lze; k++)
+                            {
+                                for (j=lys; j<lye; j++)
+                                {
+                                    for (i=lxs; i<lxe; i++)
+                                    {
+                                        Cmpnts distVec = nSub(surfacePoint, cent[k][j][i]);
+                                        PetscReal distMag = nMag(distVec) + procContrib;
+
+                                        if(distMag < lminDist)
+                                        {
+                                            lminDist = distMag;
+                                            closestIds.i = i;
+                                            closestIds.j = j;
+                                            closestIds.k = k;
+                                        }
+
+                                    }
+                                }
+                            }   
+
+                            MPI_Allreduce(&lminDist, &gminDist, 1, MPIU_REAL, MPIU_MIN, mesh->MESH_COMM);
+
+                            if(lminDist == gminDist)
+                            {
+                                localId[l][m].i = closestIds.i;
+                                localId[l][m].j = closestIds.j;
+                                localId[l][m].k = closestIds.k;
+
+                                PetscReal cellWidth = 5.0*pow(1.0/aj[closestIds.k][closestIds.j][closestIds.i], 1.0/3.0);
+
+                                // if(gminDist > cellWidth)
+                                // {
+                                //     char warning[256];
+                                //     sprintf(warning, "User defined section has parts outside the domain, consider redefining the surface");
+                                //     warningInFunction("sectionsInitialize",  warning);
+                                // }
+
+                                uSection->hasCoor[l][m] = 1;
+                            }
+                        }
+
+                        MPI_Allreduce(&(localId[l][0]), &(uSection->closestId[l][0]), 3*nx, MPIU_INT, MPIU_MAX, mesh->MESH_COMM);
+                    }
+
+                    // free the allocated memory for coorPts
+                    for(j = 0; j<ny; j++)
+                    {
+                        free(localId[j]);
+                    }
+
+                    free(localId);  
+
+                    char    usersliceName[256];
+                    sprintf(usersliceName, "%s/%s", userslicesFolder.c_str(), uSection->sectionName.c_str());
+
+                    errno = 0;
+                    PetscInt dirRes = mkdir(usersliceName, 0777);
+                    if (dirRes != 0 && errno != EEXIST)
+                    {
+                        char error[512];
+                        sprintf(error, "could not create %s directory\n", usersliceName);
+                        fatalErrorInFunction("sectionsInitialize", error);
+                    }
+                    else 
+                    {
+                        // create U directory in which time snapshots are saved
+                        PetscInt dirRes;
+                        char usersliceNameU[260];
+                        sprintf(usersliceNameU, "%s/U", usersliceName);
+
+                        errno = 0;
+                        dirRes = mkdir(usersliceNameU, 0777);
+                        if (dirRes != 0 && errno != EEXIST)
+                        {
+                            char error[512];
+                            sprintf(error, "could not create %s directory\n", usersliceNameU);
+                            fatalErrorInFunction("sectionsInitialize", error);
+                        }
+                        else
+                        {
+                            atLeastOneVector++;
+                        }
+
+                        char usersliceNameP[260];
+                        sprintf(usersliceNameP, "%s/p", usersliceName);
+
+                        errno = 0;
+                        dirRes = mkdir(usersliceNameP, 0777);
+                        if (dirRes != 0 && errno != EEXIST)
+                        {
+                            char error[512];
+                            sprintf(error, "could not create %s directory\n", usersliceNameP);
+                            fatalErrorInFunction("sectionsInitialize", error);
+                        }
+                        else
+                        {
+                            //remove_subdirs(mesh->MESH_COMM, ksliceNameP);
+                            atLeastOneScalar++;
+                        }
+
+                        // create T directory in which time snapshots are saved
+                        if(flags->isTeqnActive)
+                        {
+                            char usersliceNameT[260];
+                            sprintf(usersliceNameT, "%s/T", usersliceName);
+
+                            errno = 0;
+                            dirRes = mkdir(usersliceNameT, 0777);
+                            if (dirRes != 0 && errno != EEXIST)
+                            {
+                                char error[512];
+                                sprintf(error, "could not create %s directory\n", usersliceNameT);
+                                fatalErrorInFunction("sectionsInitialize", error);
+                            }
+                            else
+                            {
+                                //remove_subdirs(mesh->MESH_COMM, ksliceNameT);
+                                atLeastOneScalar++;
+                            }
+                        }
+                    }
+
+                    if(atLeastOneVector)
+                    {
+                        // allocate memory for scalar and vector variables
+                        uSection->vectorSec = (Cmpnts **)malloc( sizeof(Cmpnts *) * ny );
+
+                        for(j=0; j<ny; j++)
+                        {
+                            uSection->vectorSec[j] = (Cmpnts *)malloc( sizeof(Cmpnts) * nx );
+                        }
+                    }
+
+                    if(atLeastOneScalar)
+                    {
+                        uSection->scalarSec = (PetscReal **)malloc( sizeof(PetscReal *) * ny );
+
+                        for(j=0; j<ny; j++)
+                        {
+                            uSection->scalarSec[j] = (PetscReal *)malloc( sizeof(PetscReal) * nx );
+                        }
                     }
                 }
-            }
-            
+
+            }            
         }
         else
         {
@@ -5157,6 +5401,48 @@ PetscErrorCode writeSections(acquisition_ *acquisition)
                     if(flags->isTeqnActive) kSectionSaveScalar(mesh, kSections, kplane, teqn->Tmprt, "T");
                     if(flags->isLesActive)  kSectionSaveScalar(mesh, kSections, kplane, les->lNu_t, "nut");
                     if(flags->isIBMActive)  kSectionSaveScalar(mesh, kSections, kplane, mesh->lNvert, "nv");
+                }
+            }
+        }
+
+        // write user defined sections to file
+        if(acquisition->userSections->available)
+        {
+            udSections *userSections = acquisition->userSections;
+
+            for(PetscInt s=0; s<userSections->nSections; s++)
+            {
+                uSections *uSection = userSections->uSection[s];
+
+                PetscReal timeStart    = uSection->timeStart;
+                PetscReal timeInterval = uSection->timeInterval;
+                PetscReal epsilon      = 1e-8;
+                // check the time and see if must write
+                if
+                (
+                    clock->time >= timeStart && // write only if past acquisition start
+                    (
+                        // adjustableTime: write only if clock->time is multiple of time interval
+                        (
+                            uSection->intervalType == "adjustableTime" &&
+                            mustWrite(clock->time, timeStart, timeInterval)
+                        ) ||
+                        // timeStep: write every timeInterval iterations
+                        (
+                            uSection->intervalType == "timeStep" &&
+                            (clock->it / timeInterval - std::floor(clock->it / timeInterval + epsilon) < 1e-10)
+                        )
+                    )
+
+                )
+                {
+                    PetscPrintf(mesh->MESH_COMM, "Saving user defined section: %s\n", uSection->sectionName.c_str());
+
+                    // store data
+                    userSectionSaveVector(mesh, uSection, ueqn->lUcat, "U");
+                    userSectionSaveScalar(mesh, uSection, peqn->lP, "p");
+
+                    if(flags->isTeqnActive) userSectionSaveScalar(mesh, uSection, teqn->lTmprt, "T");
                 }
             }
         }
@@ -5583,6 +5869,137 @@ PetscErrorCode kSectionSaveVector(mesh_ *mesh, sections *sec, PetscInt kplane, V
 
 //***************************************************************************************************************//
 
+PetscErrorCode userSectionSaveVector(mesh_ *mesh, uSections *uSection, Vec &V, const char* fieldName)
+{
+    clock_        *clock = mesh->access->clock;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      i, j, k;
+    PetscMPIInt   rank;
+
+    Cmpnts        ***v, ***cent;
+
+    // formatted print width
+    PetscInt width1 = -5;
+    PetscInt width2 = -50;
+
+    MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+    PetscInt nx = uSection->nx, ny = uSection->ny;
+
+    // set to zero
+    for(j=0; j<ny; j++)
+    {
+        for(i=0; i<nx; i++)
+        {
+            uSection->vectorSec[j][i].x = 0;
+            uSection->vectorSec[j][i].y = 0;
+            uSection->vectorSec[j][i].z = 0;
+        }
+    }
+
+    DMDAVecGetArray(mesh->fda, V, &v);
+    DMDAVecGetArray(mesh->fda, mesh->lCent, &cent);
+
+    PetscInt ci, cj, ck;
+
+    for(j=0; j<ny; j++)
+    {
+        for(i=0; i<nx; i++)
+        {
+            ci = uSection->closestId[j][i].i;
+            cj = uSection->closestId[j][i].j;
+            ck = uSection->closestId[j][i].k;
+
+            Cmpnts cr = nSet(uSection->coor[j][i]);
+
+            if(uSection->hasCoor[j][i])
+            {
+                vectorPointLocalVolumeInterpolation
+                (
+                        mesh,
+                        cr.x, cr.y, cr.z,
+                        ci, cj, ck,
+                        cent,
+                        v,
+                        uSection->vectorSec[j][i]
+                );
+            }
+
+        }
+    }
+
+    DMDAVecRestoreArray(mesh->fda, V, &v);
+    DMDAVecRestoreArray(mesh->fda, mesh->lCent, &cent);
+
+    // reduce the values by storing only on the master node
+    // mpi operation is sum because the other values are zero
+    // reduce the values by storing only on the master node
+    if(!rank)
+    {
+        for(j=0; j<ny; j++)
+        {
+            MPI_Reduce(MPI_IN_PLACE, uSection->vectorSec[j], nx*3, MPIU_REAL, MPIU_SUM, 0, mesh->MESH_COMM);
+        }
+    }
+    else
+    {
+        for(j=0; j<ny; j++)
+        {
+            MPI_Reduce(uSection->vectorSec[j], uSection->vectorSec[j], nx*3, MPIU_REAL, MPIU_SUM, 0, mesh->MESH_COMM);
+        }
+    }
+
+    // apply periodic boundary conditions as average fields are only defined internally
+    if(!rank)
+    {
+        for (j=0; j<ny; j++)
+        {
+            mSet(uSection->vectorSec[j][0],  uSection->vectorSec[j][1]);
+            mSet(uSection->vectorSec[j][nx-1], uSection->vectorSec[j][nx-2]);
+        }
+        for (i=0; i<nx; i++)
+        {
+            mSet(uSection->vectorSec[0][i],  uSection->vectorSec[1][i]);
+            mSet(uSection->vectorSec[ny-1][i], uSection->vectorSec[ny-2][i]);
+        }
+    }
+
+    if(!rank)
+    {
+        word timeName = getTimeName(clock);
+
+        char fname[256];
+        sprintf(fname, "./postProcessing/%s/userSurfaces/%s/%s/%s", mesh->meshName.c_str(), uSection->sectionName.c_str(), fieldName, timeName.c_str());
+
+        PetscPrintf(PETSC_COMM_WORLD, "fname = %s\n", fname);
+        PetscPrintf(mesh->MESH_COMM, "    %*s/%s to %*s\n", width1, uSection->sectionName.c_str(), fieldName, width2, fname);
+
+        FILE *fp=fopen(fname, "wb");
+        if(!fp)
+        {
+           char error[512];
+            sprintf(error, "cannot open file %s", fname);
+            fatalErrorInFunction("userSectionSaveVector",  error);
+        }
+
+        for(j=0; j<ny; j++)
+        {
+            fwrite(&uSection->vectorSec[j][0], sizeof(Cmpnts), nx, fp);
+        }
+        fclose(fp);
+    }
+
+    return(0);
+}
+
+
+//***************************************************************************************************************//
+
 PetscErrorCode iSectionSaveScalar(mesh_ *mesh, sections *sec, PetscInt iplane, Vec &V, const char* fieldName)
 {
     clock_        *clock = mesh->access->clock;
@@ -5844,6 +6261,135 @@ PetscErrorCode kSectionSaveScalar(mesh_ *mesh, sections *sec, PetscInt kplane, V
         for(j=0; j<my; j++)
         {
             fwrite(&sec->scalarSec[j][0], sizeof(PetscReal), mx, fp);
+        }
+        fclose(fp);
+    }
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode userSectionSaveScalar(mesh_ *mesh, uSections *uSection, Vec &V, const char* fieldName)
+{
+    clock_        *clock = mesh->access->clock;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      i, j, k;
+    PetscMPIInt   rank;
+
+    PetscReal    ***v;
+    Cmpnts       ***cent;
+
+    // formatted print width
+    PetscInt width1 = -5;
+    PetscInt width2 = -50;
+
+    MPI_Comm_rank(mesh->MESH_COMM, &rank);
+
+    PetscInt nx = uSection->nx, ny = uSection->ny;
+
+    // set to zero
+    for(j=0; j<ny; j++)
+    {
+        for(i=0; i<nx; i++)
+        {
+            uSection->scalarSec[j][i] = 0;
+        }
+    }
+
+    DMDAVecGetArray(mesh->da, V, &v);
+    DMDAVecGetArray(mesh->fda, mesh->lCent, &cent);
+
+    PetscInt ci, cj, ck;
+
+    for(j=0; j<ny; j++)
+    {
+        for(i=0; i<nx; i++)
+        {
+            ci = uSection->closestId[j][i].i;
+            cj = uSection->closestId[j][i].j;
+            ck = uSection->closestId[j][i].k;
+
+            Cmpnts cr = nSet(uSection->coor[j][i]);
+
+            if(uSection->hasCoor[j][i])
+            {
+                scalarPointLocalVolumeInterpolation
+                (
+                        mesh,
+                        cr.x, cr.y, cr.z,
+                        ci, cj, ck,
+                        cent,
+                        v,
+                        uSection->scalarSec[j][i]
+                );
+            }
+
+        }
+    }
+
+    DMDAVecRestoreArray(mesh->da, V, &v);
+    DMDAVecRestoreArray(mesh->fda, mesh->lCent, &cent);
+
+    // reduce the values by storing only on the master node
+    // mpi operation is sum because the other values are zero
+    // reduce the values by storing only on the master node
+    if(!rank)
+    {
+        for(j=0; j<ny; j++)
+        {
+            MPI_Reduce(MPI_IN_PLACE, uSection->scalarSec[j], nx, MPIU_REAL, MPIU_SUM, 0, mesh->MESH_COMM);
+        }
+    }
+    else
+    {
+        for(j=0; j<ny; j++)
+        {
+            MPI_Reduce(uSection->scalarSec[j], uSection->scalarSec[j], nx, MPIU_REAL, MPIU_SUM, 0, mesh->MESH_COMM);
+        }
+    }
+
+    // apply periodic boundary conditions as average fields are only defined internally
+    if(!rank)
+    {
+        for (j=0; j<ny; j++)
+        {
+            uSection->scalarSec[j][0]    = uSection->scalarSec[j][1];
+            uSection->scalarSec[j][nx-1] = uSection->scalarSec[j][nx-2];
+        }
+        for (i=0; i<nx; i++)
+        {
+            uSection->scalarSec[0][i]     = uSection->scalarSec[1][i];
+            uSection->scalarSec[ny-1][i]  = uSection->scalarSec[ny-2][i];
+        }
+    }
+
+    if(!rank)
+    {
+        word timeName = getTimeName(clock);
+
+        char fname[256];
+        sprintf(fname, "./postProcessing/%s/userSurfaces/%s/%s/%s", mesh->meshName.c_str(), uSection->sectionName.c_str(), fieldName, timeName.c_str());
+
+        PetscPrintf(PETSC_COMM_WORLD, "fname = %s\n", fname);
+        PetscPrintf(mesh->MESH_COMM, "    %*s/%s to %*s\n", width1, uSection->sectionName.c_str(), fieldName, width2, fname);
+
+        FILE *fp=fopen(fname, "wb");
+        if(!fp)
+        {
+           char error[512];
+            sprintf(error, "cannot open file %s", fname);
+            fatalErrorInFunction("userSectionSaveScalar",  error);
+        }
+
+        for(j=0; j<ny; j++)
+        {
+            fwrite(&uSection->scalarSec[j][0], sizeof(PetscReal), nx, fp);
         }
         fclose(fp);
     }
@@ -6779,6 +7325,535 @@ PetscErrorCode computeQCritIO(acquisition_ *acquisition)
     DMDAVecRestoreArray(da, mesh->lmeshTag, &meshTag);
     DMDAVecRestoreArray(da, mesh->lAj, &aj);
     DMDAVecRestoreArray(da, acquisition->fields->Q, &q);
+
+    MPI_Barrier ( mesh->MESH_COMM );
+
+    return 0;
+}
+//***************************************************************************************************************//
+PetscErrorCode computeVgtSecondInvariantIO(acquisition_ *acquisition)
+{
+    mesh_         *mesh = acquisition->access->mesh;
+    ueqn_         *ueqn = acquisition->access->ueqn;
+    DM            da = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      i, j, k;
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+
+    Cmpnts        ***ucat;
+    Cmpnts        ***csi, ***eta, ***zet;
+    PetscReal     ***nvert, ***meshTag, ***aj, ***qg, ***ocode;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    DMDAVecGetArray(fda, ueqn->lUcat,  &ucat);
+    DMDAVecGetArray(fda, mesh->lCsi, &csi);
+    DMDAVecGetArray(fda, mesh->lEta, &eta);
+    DMDAVecGetArray(fda, mesh->lZet, &zet);
+    DMDAVecGetArray(da, mesh->lNvert, &nvert);
+    DMDAVecGetArray(da, mesh->lmeshTag, &meshTag);
+    DMDAVecGetArray(da, mesh->lAj, &aj);
+    DMDAVecGetArray(da, acquisition->fields->Qg, &qg);
+
+    for (k=lzs; k<lze; k++)
+    for (j=lys; j<lye; j++)
+    for (i=lxs; i<lxe; i++)
+    {
+        if( isIBMSolidCell(k, j, i, nvert) || isZeroedCell(k, j, i, meshTag))
+        {
+            continue;
+        }
+
+        PetscReal ajc = aj[k][j][i];
+        PetscReal csi0 = csi[k][j][i].x, csi1 = csi[k][j][i].y, csi2 = csi[k][j][i].z;
+        PetscReal eta0 = eta[k][j][i].x, eta1 = eta[k][j][i].y, eta2 = eta[k][j][i].z;
+        PetscReal zet0 = zet[k][j][i].x, zet1 = zet[k][j][i].y, zet2 = zet[k][j][i].z;
+        PetscReal dudc, dvdc, dwdc, dude, dvde, dwde, dudz, dvdz, dwdz;
+        PetscReal du_dx, du_dy, du_dz, dv_dx, dv_dy, dv_dz, dw_dx, dw_dy, dw_dz;
+
+        Compute_du_center
+        (
+            mesh, i, j, k,
+            mx, my, mz,
+            ucat, nvert, meshTag, 
+            &dudc, &dvdc, &dwdc,
+            &dude, &dvde, &dwde,
+            &dudz, &dvdz, &dwdz
+        );
+
+        Compute_du_dxyz
+        (
+            mesh,
+            csi0, csi1, csi2,
+            eta0, eta1, eta2,
+            zet0, zet1, zet2,
+            ajc,
+            dudc, dvdc, dwdc,
+            dude, dvde, dwde,
+            dudz, dvdz, dwdz,
+            &du_dx, &dv_dx, &dw_dx,
+            &du_dy, &dv_dy, &dw_dy,
+            &du_dz, &dv_dz, &dw_dz
+        );
+
+        Tensor VGT, S, R; 
+        zeroTensor(&VGT);
+        zeroTensor(&S);
+        zeroTensor(&R);
+
+        VGT.xx = du_dx; VGT.xy = du_dy; VGT.xz = du_dz;
+        VGT.yx = dv_dx; VGT.yy = dv_dy; VGT.yz = dv_dz;
+        VGT.zx = dw_dx; VGT.zy = dw_dy; VGT.zz = dw_dz;
+
+        S = symm(VGT);                  //strain-rate
+        R = skewsymm(VGT);              //rotation-rate
+
+        PetscReal Snorm = frobeniusNorm(S);
+        PetscReal Rnorm = frobeniusNorm(R);
+
+        qg[k][j][i] = 0.5 * (PetscPowReal(Rnorm, 2.0) - PetscPowReal(Snorm, 2.0));
+    }
+
+    DMDAVecRestoreArray(fda, ueqn->lUcat,  &ucat);
+    DMDAVecRestoreArray(fda, mesh->lCsi, &csi);
+    DMDAVecRestoreArray(fda, mesh->lEta, &eta);
+    DMDAVecRestoreArray(fda, mesh->lZet, &zet);
+    DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da, mesh->lmeshTag, &meshTag);
+    DMDAVecRestoreArray(da, mesh->lAj, &aj);
+    DMDAVecRestoreArray(da, acquisition->fields->Qg, &qg);
+
+    MPI_Barrier ( mesh->MESH_COMM );
+
+    return 0;
+}
+
+//***************************************************************************************************************//
+PetscErrorCode computeVgtThirdInvariantIO(acquisition_ *acquisition)
+{
+    mesh_         *mesh = acquisition->access->mesh;
+    ueqn_         *ueqn = acquisition->access->ueqn;
+    DM            da = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      i, j, k;
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+
+    Cmpnts        ***ucat;
+    Cmpnts        ***csi, ***eta, ***zet;
+    PetscReal     ***nvert, ***meshTag, ***aj, ***rg, ***ocode;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    DMDAVecGetArray(fda, ueqn->lUcat,  &ucat);
+    DMDAVecGetArray(fda, mesh->lCsi, &csi);
+    DMDAVecGetArray(fda, mesh->lEta, &eta);
+    DMDAVecGetArray(fda, mesh->lZet, &zet);
+    DMDAVecGetArray(da, mesh->lNvert, &nvert);
+    DMDAVecGetArray(da, mesh->lmeshTag, &meshTag);
+    DMDAVecGetArray(da, mesh->lAj, &aj);
+    DMDAVecGetArray(da, acquisition->fields->Rg, &rg);
+
+    for (k=lzs; k<lze; k++)
+    for (j=lys; j<lye; j++)
+    for (i=lxs; i<lxe; i++)
+    {
+        if( isIBMSolidCell(k, j, i, nvert) || isZeroedCell(k, j, i, meshTag))
+        {
+            continue;
+        }
+
+        PetscReal ajc = aj[k][j][i];
+        PetscReal csi0 = csi[k][j][i].x, csi1 = csi[k][j][i].y, csi2 = csi[k][j][i].z;
+        PetscReal eta0 = eta[k][j][i].x, eta1 = eta[k][j][i].y, eta2 = eta[k][j][i].z;
+        PetscReal zet0 = zet[k][j][i].x, zet1 = zet[k][j][i].y, zet2 = zet[k][j][i].z;
+        PetscReal dudc, dvdc, dwdc, dude, dvde, dwde, dudz, dvdz, dwdz;
+        PetscReal du_dx, du_dy, du_dz, dv_dx, dv_dy, dv_dz, dw_dx, dw_dy, dw_dz;
+
+        Compute_du_center
+        (
+            mesh, i, j, k,
+            mx, my, mz,
+            ucat, nvert, meshTag, 
+            &dudc, &dvdc, &dwdc,
+            &dude, &dvde, &dwde,
+            &dudz, &dvdz, &dwdz
+        );
+
+        Compute_du_dxyz
+        (
+            mesh,
+            csi0, csi1, csi2,
+            eta0, eta1, eta2,
+            zet0, zet1, zet2,
+            ajc,
+            dudc, dvdc, dwdc,
+            dude, dvde, dwde,
+            dudz, dvdz, dwdz,
+            &du_dx, &dv_dx, &dw_dx,
+            &du_dy, &dv_dy, &dw_dy,
+            &du_dz, &dv_dz, &dw_dz
+        );
+
+        Tensor VGT;
+        zeroTensor(&VGT);
+
+        VGT.xx = du_dx; VGT.xy = du_dy; VGT.xz = du_dz;
+        VGT.yx = dv_dx; VGT.yy = dv_dy; VGT.yz = dv_dz;
+        VGT.zx = dw_dx; VGT.zy = dw_dy; VGT.zz = dw_dz;
+        
+        Cmpnts omega;
+
+        omega = vorticity(VGT);
+        
+        Tensor S = symm(VGT);
+
+        Tensor SxS = multTensor(S,S);
+
+        PetscReal term1 = doubleContract(S,SxS);
+
+        Cmpnts Sow = multTensorVector(S, omega);
+
+        PetscReal term2 = nDot(omega, Sow);
+
+        //davidson book: An Introduction for Scientists and Engineers
+        PetscReal temp = -(1.0/3.0) * ( term1 + (3.0/4.0)*term2 );
+        
+        //or some authors use -ve sign with third invariant.
+        //PetscReal temp = -computeThirdInvariant(VGT); 
+    
+        rg[k][j][i] = temp;
+    }
+
+    DMDAVecRestoreArray(fda, ueqn->lUcat,  &ucat);
+    DMDAVecRestoreArray(fda, mesh->lCsi, &csi);
+    DMDAVecRestoreArray(fda, mesh->lEta, &eta);
+    DMDAVecRestoreArray(fda, mesh->lZet, &zet);
+    DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da, mesh->lmeshTag, &meshTag);
+    DMDAVecRestoreArray(da, mesh->lAj, &aj);
+    DMDAVecRestoreArray(da, acquisition->fields->Rg, &rg);
+
+    MPI_Barrier ( mesh->MESH_COMM );
+
+    return 0;
+}
+//***************************************************************************************************************
+PetscErrorCode computeStrainRateSecondInvariantIO(acquisition_ *acquisition)
+{
+    mesh_         *mesh = acquisition->access->mesh;
+    ueqn_         *ueqn = acquisition->access->ueqn;
+    DM            da = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      i, j, k;
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+
+    Cmpnts        ***ucat;
+    Cmpnts        ***csi, ***eta, ***zet;
+    PetscReal     ***nvert, ***meshTag, ***aj, ***qs, ***ocode;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    DMDAVecGetArray(fda, ueqn->lUcat,  &ucat);
+    DMDAVecGetArray(fda, mesh->lCsi, &csi);
+    DMDAVecGetArray(fda, mesh->lEta, &eta);
+    DMDAVecGetArray(fda, mesh->lZet, &zet);
+    DMDAVecGetArray(da, mesh->lNvert, &nvert);
+    DMDAVecGetArray(da, mesh->lmeshTag, &meshTag);
+    DMDAVecGetArray(da, mesh->lAj, &aj);
+    DMDAVecGetArray(da, acquisition->fields->Qs, &qs);
+
+    for (k=lzs; k<lze; k++)
+    for (j=lys; j<lye; j++)
+    for (i=lxs; i<lxe; i++)
+    {
+        if( isIBMSolidCell(k, j, i, nvert) || isZeroedCell(k, j, i, meshTag))
+        {
+            continue;
+        }
+
+        PetscReal ajc = aj[k][j][i];
+        PetscReal csi0 = csi[k][j][i].x, csi1 = csi[k][j][i].y, csi2 = csi[k][j][i].z;
+        PetscReal eta0 = eta[k][j][i].x, eta1 = eta[k][j][i].y, eta2 = eta[k][j][i].z;
+        PetscReal zet0 = zet[k][j][i].x, zet1 = zet[k][j][i].y, zet2 = zet[k][j][i].z;
+        PetscReal dudc, dvdc, dwdc, dude, dvde, dwde, dudz, dvdz, dwdz;
+        PetscReal du_dx, du_dy, du_dz, dv_dx, dv_dy, dv_dz, dw_dx, dw_dy, dw_dz;
+
+        Compute_du_center
+        (
+            mesh, i, j, k,
+            mx, my, mz,
+            ucat, nvert, meshTag, 
+            &dudc, &dvdc, &dwdc,
+            &dude, &dvde, &dwde,
+            &dudz, &dvdz, &dwdz
+        );
+
+        Compute_du_dxyz
+        (
+            mesh,
+            csi0, csi1, csi2,
+            eta0, eta1, eta2,
+            zet0, zet1, zet2,
+            ajc,
+            dudc, dvdc, dwdc,
+            dude, dvde, dwde,
+            dudz, dvdz, dwdz,
+            &du_dx, &dv_dx, &dw_dx,
+            &du_dy, &dv_dy, &dw_dy,
+            &du_dz, &dv_dz, &dw_dz
+        );
+
+        Tensor VGT, S;
+        zeroTensor(&VGT);
+        zeroTensor(&S);
+
+        VGT.xx = du_dx; VGT.xy = du_dy; VGT.xz = du_dz;
+        VGT.yx = dv_dx; VGT.yy = dv_dy; VGT.yz = dv_dz;
+        VGT.zx = dw_dx; VGT.zy = dw_dy; VGT.zz = dw_dz;
+    
+        S = symm(VGT);
+        
+        PetscReal temp = -0.5 * tensorInnerProduct(S);
+        
+        qs[k][j][i] = temp;
+    }
+
+    DMDAVecRestoreArray(fda, ueqn->lUcat,  &ucat);
+    DMDAVecRestoreArray(fda, mesh->lCsi, &csi);
+    DMDAVecRestoreArray(fda, mesh->lEta, &eta);
+    DMDAVecRestoreArray(fda, mesh->lZet, &zet);
+    DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da, mesh->lmeshTag, &meshTag);
+    DMDAVecRestoreArray(da, mesh->lAj, &aj);
+    DMDAVecRestoreArray(da, acquisition->fields->Qs, &qs);
+
+    MPI_Barrier ( mesh->MESH_COMM );
+
+    return 0;
+}
+//***************************************************************************************************************
+PetscErrorCode computeStrainRateThirdInvariantIO(acquisition_ *acquisition)
+{
+    mesh_         *mesh = acquisition->access->mesh;
+    ueqn_         *ueqn = acquisition->access->ueqn;
+    DM            da = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      i, j, k;
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+
+    Cmpnts        ***ucat;
+    Cmpnts        ***csi, ***eta, ***zet;
+    PetscReal     ***nvert, ***meshTag, ***aj, ***rs, ***ocode;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    DMDAVecGetArray(fda, ueqn->lUcat,  &ucat);
+    DMDAVecGetArray(fda, mesh->lCsi, &csi);
+    DMDAVecGetArray(fda, mesh->lEta, &eta);
+    DMDAVecGetArray(fda, mesh->lZet, &zet);
+    DMDAVecGetArray(da, mesh->lNvert, &nvert);
+    DMDAVecGetArray(da, mesh->lmeshTag, &meshTag);
+    DMDAVecGetArray(da, mesh->lAj, &aj);
+    DMDAVecGetArray(da, acquisition->fields->Rs, &rs);
+
+    for (k=lzs; k<lze; k++)
+    for (j=lys; j<lye; j++)
+    for (i=lxs; i<lxe; i++)
+    {
+        if( isIBMSolidCell(k, j, i, nvert) || isZeroedCell(k, j, i, meshTag))
+        {
+            continue;
+        }
+
+        PetscReal ajc = aj[k][j][i];
+        PetscReal csi0 = csi[k][j][i].x, csi1 = csi[k][j][i].y, csi2 = csi[k][j][i].z;
+        PetscReal eta0 = eta[k][j][i].x, eta1 = eta[k][j][i].y, eta2 = eta[k][j][i].z;
+        PetscReal zet0 = zet[k][j][i].x, zet1 = zet[k][j][i].y, zet2 = zet[k][j][i].z;
+        PetscReal dudc, dvdc, dwdc, dude, dvde, dwde, dudz, dvdz, dwdz;
+        PetscReal du_dx, du_dy, du_dz, dv_dx, dv_dy, dv_dz, dw_dx, dw_dy, dw_dz;
+
+        Compute_du_center
+        (
+            mesh, i, j, k,
+            mx, my, mz,
+            ucat, nvert, meshTag, 
+            &dudc, &dvdc, &dwdc,
+            &dude, &dvde, &dwde,
+            &dudz, &dvdz, &dwdz
+        );
+
+        Compute_du_dxyz
+        (
+            mesh,
+            csi0, csi1, csi2,
+            eta0, eta1, eta2,
+            zet0, zet1, zet2,
+            ajc,
+            dudc, dvdc, dwdc,
+            dude, dvde, dwde,
+            dudz, dvdz, dwdz,
+            &du_dx, &dv_dx, &dw_dx,
+            &du_dy, &dv_dy, &dw_dy,
+            &du_dz, &dv_dz, &dw_dz
+        );
+
+        Tensor VGT;
+        zeroTensor(&VGT);
+
+        VGT.xx = du_dx; VGT.xy = du_dy; VGT.xz = du_dz;
+        VGT.yx = dv_dx; VGT.yy = dv_dy; VGT.yz = dv_dz;
+        VGT.zx = dw_dx; VGT.zy = dw_dy; VGT.zz = dw_dz;
+    
+        Tensor S = symm(VGT);
+        
+        Tensor S2 = multTensor(S, S);
+
+        Tensor S3 = multTensor(S2, S);
+       
+        PetscReal traceS3 = trace(S3);
+        
+        PetscReal temp = -(1.0 / 3.0) * traceS3;
+        
+        rs[k][j][i] = temp;
+    }
+
+    DMDAVecRestoreArray(fda, ueqn->lUcat,  &ucat);
+    DMDAVecRestoreArray(fda, mesh->lCsi, &csi);
+    DMDAVecRestoreArray(fda, mesh->lEta, &eta);
+    DMDAVecRestoreArray(fda, mesh->lZet, &zet);
+    DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da, mesh->lmeshTag, &meshTag);
+    DMDAVecRestoreArray(da, mesh->lAj, &aj);
+    DMDAVecRestoreArray(da, acquisition->fields->Rs, &rs);
+
+    MPI_Barrier ( mesh->MESH_COMM );
+
+    return 0;
+}
+//**********************************************************************************************************
+PetscErrorCode computeQrIO(acquisition_ *acquisition)
+{
+    mesh_         *mesh = acquisition->access->mesh;
+    ueqn_         *ueqn = acquisition->access->ueqn;
+    DM            da = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      i, j, k;
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+
+    Cmpnts        ***ucat;
+    Cmpnts        ***csi, ***eta, ***zet;
+    PetscReal     ***nvert, ***meshTag, ***aj, ***qr, ***ocode;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    DMDAVecGetArray(fda, ueqn->lUcat,  &ucat);
+    DMDAVecGetArray(fda, mesh->lCsi, &csi);
+    DMDAVecGetArray(fda, mesh->lEta, &eta);
+    DMDAVecGetArray(fda, mesh->lZet, &zet);
+    DMDAVecGetArray(da, mesh->lNvert, &nvert);
+    DMDAVecGetArray(da, mesh->lmeshTag, &meshTag);
+    DMDAVecGetArray(da, mesh->lAj, &aj);
+    DMDAVecGetArray(da, acquisition->fields->Qr, &qr);
+
+    for (k=lzs; k<lze; k++)
+    for (j=lys; j<lye; j++)
+    for (i=lxs; i<lxe; i++)
+    {
+        if( isIBMSolidCell(k, j, i, nvert) || isZeroedCell(k, j, i, meshTag))
+        {
+            continue;
+        }
+
+        PetscReal ajc = aj[k][j][i];
+        PetscReal csi0 = csi[k][j][i].x, csi1 = csi[k][j][i].y, csi2 = csi[k][j][i].z;
+        PetscReal eta0 = eta[k][j][i].x, eta1 = eta[k][j][i].y, eta2 = eta[k][j][i].z;
+        PetscReal zet0 = zet[k][j][i].x, zet1 = zet[k][j][i].y, zet2 = zet[k][j][i].z;
+        PetscReal dudc, dvdc, dwdc, dude, dvde, dwde, dudz, dvdz, dwdz;
+        PetscReal du_dx, du_dy, du_dz, dv_dx, dv_dy, dv_dz, dw_dx, dw_dy, dw_dz;
+
+        Compute_du_center
+        (
+            mesh, i, j, k,
+            mx, my, mz,
+            ucat, nvert, meshTag, 
+            &dudc, &dvdc, &dwdc,
+            &dude, &dvde, &dwde,
+            &dudz, &dvdz, &dwdz
+        );
+
+        Compute_du_dxyz
+        (
+            mesh,
+            csi0, csi1, csi2,
+            eta0, eta1, eta2,
+            zet0, zet1, zet2,
+            ajc,
+            dudc, dvdc, dwdc,
+            dude, dvde, dwde,
+            dudz, dvdz, dwdz,
+            &du_dx, &dv_dx, &dw_dx,
+            &du_dy, &dv_dy, &dw_dy,
+            &du_dz, &dv_dz, &dw_dz
+        );
+
+        Tensor VGT, R;
+        zeroTensor(&VGT);
+        zeroTensor(&R);
+
+        VGT.xx = du_dx; VGT.xy = du_dy; VGT.xz = du_dz;
+        VGT.yx = dv_dx; VGT.yy = dv_dy; VGT.yz = dv_dz;
+        VGT.zx = dw_dx; VGT.zy = dw_dy; VGT.zz = dw_dz;
+    
+        R = skewsymm(VGT);
+        
+        PetscReal temp = 0.5 * tensorInnerProduct(R);
+        
+        qr[k][j][i] = temp;
+    }
+
+    DMDAVecRestoreArray(fda, ueqn->lUcat,  &ucat);
+    DMDAVecRestoreArray(fda, mesh->lCsi, &csi);
+    DMDAVecRestoreArray(fda, mesh->lEta, &eta);
+    DMDAVecRestoreArray(fda, mesh->lZet, &zet);
+    DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da, mesh->lmeshTag, &meshTag);
+    DMDAVecRestoreArray(da, mesh->lAj, &aj);
+    DMDAVecRestoreArray(da, acquisition->fields->Qr, &qr);
 
     MPI_Barrier ( mesh->MESH_COMM );
 
@@ -9431,10 +10506,16 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
 
         ueqn_         *ueqn    = acquisition->access->ueqn;
         teqn_         *teqn;
+        les_          *les;
 
         if(acquisition->access->flags->isTeqnActive)
         {
             teqn = acquisition->access->teqn;
+        }
+
+        if(acquisition->access->flags->isLesActive)
+        {
+            les = acquisition->access->les;
         }
 
         DM            da = mesh->da, fda = mesh->fda;
@@ -9685,7 +10766,13 @@ PetscErrorCode averagingABLInitialize(domain_ *domain)
 
             if(acquisition->access->flags->isTeqnActive)
             {
-                if(acquisition->access->flags->isLesActive && acquisition->access->les->model == AMD)
+                if(acquisition->access->flags->isLesActive && 
+                   (les->model == AMD   || 
+                    les->model == DSM   || 
+                    les->model == DLASI || 
+                    les->model == DLASD || 
+                    les->model == DPASD ||
+                    les->model == BAMD))
                 {
                     // q1_mean file
                     sprintf(fileName, "%s/q1_mean", ablStat->timeName.c_str());
@@ -10181,7 +11268,7 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
             Cmpnts        ***ucat, ***uprime;           // cartesian vel. and fluct. part
             Cmpnts        ***csi, ***eta, ***zet;
             PetscReal     ***tmprt, ***tprime, ***nut, ***ksg;  // potential temp. and fluct. part and turb. visc.
-            PetscReal     ***aj, ***nvert, ***meshTag, ***ldt;
+            PetscReal     ***aj, ***nvert, ***meshTag, ***lkt;
 
             word          fileName;
 
@@ -10216,9 +11303,15 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                 DMDAVecGetArray(da,  teqn->lTmprt,    &tmprt);
                 DMDAVecGetArray(da,  ablStat->TPrime, &tprime);
 
-                if (acquisition->access->flags->isLesActive && acquisition->access->les->model == AMD)
+                if (acquisition->access->flags->isLesActive && 
+                   (les->model == AMD   || 
+                    les->model == DSM   || 
+                    les->model == DLASI || 
+                    les->model == DLASD || 
+                    les->model == DPASD ||
+                    les->model == BAMD))
                 {
-                    DMDAVecGetArray(da,  les->lDiff_t, &ldt);
+                    DMDAVecGetArray(da,  les->lk_t, &lkt);
                 }
             }
 
@@ -10273,9 +11366,15 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                         {
                             lTemperature[j-1] += tmprt[k][j][i]  / aj[k][j][i];
 
-                            if (acquisition->access->flags->isLesActive && acquisition->access->les->model == AMD)
+                            if (acquisition->access->flags->isLesActive && 
+                               (les->model == AMD   || 
+                                les->model == DSM   || 
+                                les->model == DLASI || 
+                                les->model == DLASD || 
+                                les->model == DPASD ||
+                                les->model == BAMD))
                             {
-                                ldiffT[j-1] += ldt[k][j][i]/ aj[k][j][i];
+                                ldiffT[j-1] += lkt[k][j][i]/ aj[k][j][i];
                             }
                         }
                     }
@@ -10290,7 +11389,13 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
             {
                 MPI_Allreduce(&lTemperature[0], &gTemperature[0], nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
 
-                if (acquisition->access->flags->isLesActive && acquisition->access->les->model == AMD)
+                if (acquisition->access->flags->isLesActive && 
+                   (les->model == AMD   || 
+                    les->model == DSM   || 
+                    les->model == DLASI || 
+                    les->model == DLASD || 
+                    les->model == DPASD ||
+                    les->model == BAMD))
                 {
                     MPI_Allreduce(&ldiffT[0], &gdiffT[0], nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
                 }
@@ -10310,7 +11415,13 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                 {
                     ablStat->TMean[l]   = gTemperature[l] / totVolPerLevel;
 
-                    if (acquisition->access->flags->isLesActive && acquisition->access->les->model == AMD)
+                    if (acquisition->access->flags->isLesActive && 
+                       (les->model == AMD   || 
+                        les->model == DSM   || 
+                        les->model == DLASI || 
+                        les->model == DLASD || 
+                        les->model == DPASD ||
+                        les->model == BAMD))
                     {
                         ablStat->diffTMean[l]   = gdiffT[l] / totVolPerLevel;
                     }
@@ -10468,9 +11579,15 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                                 &dt_dx, &dt_dy, &dt_dz
                             );
 
-                            if (acquisition->access->flags->isLesActive && acquisition->access->les->model == AMD)
+                            if (acquisition->access->flags->isLesActive && 
+                               (les->model == AMD   || 
+                                les->model == DSM   || 
+                                les->model == DLASI || 
+                                les->model == DLASD || 
+                                les->model == DPASD ||
+                                les->model == BAMD))
                             {
-                                PetscReal diffT = ldt[k][j][i];
+                                PetscReal diffT = lkt[k][j][i];
 
                                 lq[j-1].x  += ( - diffT * dt_dx) * volCell;
                                 lq[j-1].y  += ( - diffT * dt_dy) * volCell;
@@ -10493,6 +11610,245 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                 }
             }
 
+            if (les->model == BAMD || les->model == BV)
+            {
+
+                for (k = lzs; k < lze; k++)
+                for (j = lys; j < lye; j++)
+                for (i = lxs; i < lxe; i++)
+                {
+                    /* Skip solid cells */
+                    if ( isIBMSolidCell(k, j, i, nvert) )
+                    {
+                        continue;
+                    }
+
+                    // get 1/V at the i-face
+                    PetscReal ajc = aj[k][j][i];
+
+                    // pre-set variables for speed
+                    volCell      = 1.0 / ajc;
+                    
+                   PetscReal csi0 = csi[k][j][i].x, csi1 = csi[k][j][i].y, csi2 = csi[k][j][i].z;
+                   PetscReal eta0 = eta[k][j][i].x, eta1 = eta[k][j][i].y, eta2 = eta[k][j][i].z;
+                   PetscReal zet0 = zet[k][j][i].x, zet1 = zet[k][j][i].y, zet2 = zet[k][j][i].z;
+
+                    PetscReal filter, test_filter;                         // grid filter and dynamic model filter
+
+                    PetscReal u[3][3][3] ,   v[3][3][3] ,   w[3][3][3];    // cartesian velocity
+                    
+                    PetscReal uu[3][3][3]  , uv[3][3][3]  , uw[3][3][3];   //         |uu uv uw|
+                    
+                    PetscReal vu[3][3][3]  , vv[3][3][3]  , vw[3][3][3];   // tensor: |vu vv vw|
+                    
+                    PetscReal wu[3][3][3]  , wv[3][3][3]  , ww[3][3][3];   //         |wu wv ww|
+                    
+                    PetscInt p, q, r;
+
+                    for (p = -1; p <= 1; p++)
+                    for (q = -1; q <= 1; q++)
+                    for (r = -1; r <= 1; r++)
+                    {
+                        PetscInt R = r + 1, Q = q + 1, P = p + 1;
+                        PetscInt K = k + r, J = j + q, I = i + p;
+
+                        //cartesian velocity
+                        u[R][Q][P] = ucat[K][J][I].x;
+                        v[R][Q][P] = ucat[K][J][I].y;
+                        w[R][Q][P] = ucat[K][J][I].z;
+                    
+                        //uu tensor components
+                        
+                        uu[R][Q][P] = u[R][Q][P] * u[R][Q][P];
+                        uv[R][Q][P] = u[R][Q][P] * v[R][Q][P];
+                        uw[R][Q][P] = u[R][Q][P] * w[R][Q][P];
+
+                        vu[R][Q][P] = v[R][Q][P] * u[R][Q][P];
+                        vv[R][Q][P] = v[R][Q][P] * v[R][Q][P];
+                        vw[R][Q][P] = v[R][Q][P] * w[R][Q][P];
+
+                        wu[R][Q][P] = w[R][Q][P] * u[R][Q][P];
+                        wv[R][Q][P] = w[R][Q][P] * v[R][Q][P];
+                        ww[R][Q][P] = w[R][Q][P] * w[R][Q][P];
+                    }
+
+                    //Build filter weights (using a binomial 3x3x3 kernel)
+                    
+                    PetscReal coef[3][3][3] = 
+                    {
+                        0.015625, 0.03125, 0.015625,
+                        0.03125, 0.0625, 0.03125,
+                        0.015625, 0.03125, 0.015625,
+                    
+                    
+                        0.03125, 0.0625, 0.03125,
+                        0.0625, 0.125, 0.0625,
+                        0.03125, 0.0625, 0.03125,
+                    
+                    
+                        0.015625, 0.03125, 0.015625,
+                        0.03125, 0.0625, 0.03125,
+                        0.015625, 0.03125, 0.015625
+                    };
+
+                    PetscReal weight[3][3][3];
+
+                    PetscReal sum_vol = 0;
+
+                    for (p = -1; p <= 1; p++)
+                    for (q = -1; q <= 1; q++)
+                    for (r = -1; r <= 1; r++)
+                    {
+                        PetscInt R = r + 1, Q = q + 1, P = p + 1;
+            
+                        PetscInt K = k + r, J = j + q, I = i + p;
+                        
+                        if 
+                        (
+                            (isFluidCell(K, J, I, nvert) || isIBMFluidCell(K, J, I, nvert)) &&
+                            
+                            (I != 0 && I != mx-1 && J != 0 && J != my-1 && K != 0 && K != mz-1))
+
+                        {
+
+                            sum_vol += (1.0/aj[K][J][I]) * 8.0 * coef[R][Q][P];
+                            weight[R][Q][P] = 1;
+                        
+                        } 
+                        
+                        else 
+                        {
+                            weight[R][Q][P] = 0;
+                        }
+                    
+                    }
+                    
+                    //Apply test filter to local velocity fields
+                    
+                    PetscReal _u = integrateTestfilterSimpson(u, weight);
+                    PetscReal _v = integrateTestfilterSimpson(v, weight);
+                    PetscReal _w = integrateTestfilterSimpson(w, weight);
+                    
+                    //Apply test filter to product
+                    PetscReal _uu = integrateTestfilterSimpson(uu, weight);
+                    PetscReal _uv = integrateTestfilterSimpson(uv, weight);
+                    PetscReal _uw = integrateTestfilterSimpson(uw, weight);
+                    
+                    PetscReal _vu = integrateTestfilterSimpson(vu, weight);
+                    PetscReal _vv = integrateTestfilterSimpson(vv, weight);
+                    PetscReal _vw = integrateTestfilterSimpson(vw, weight);
+
+                    PetscReal _wu = integrateTestfilterSimpson(wu, weight);
+                    PetscReal _wv = integrateTestfilterSimpson(wv, weight);
+                    PetscReal _ww = integrateTestfilterSimpson(ww, weight);
+
+                    //Sum the Bardina SGS stress ---
+                    //tau_ij = test-filtered(u_i*u_j) - (test-filtered(u_i))*(test-filtered(u_j))
+                    //and store the full 3x3 tensor in tauSGSCat.
+                    
+                    lR[j-1].xx += (_uu - _u*_u) * volCell;
+                    lR[j-1].xy += (_uv - _u*_v) * volCell;
+                    lR[j-1].xz += (_uw - _u*_w) * volCell;
+                    lR[j-1].yy += (_vv - _v*_v) * volCell;
+                    lR[j-1].yz += (_vw - _v*_w) * volCell;
+                    lR[j-1].zz += (_ww - _w*_w) * volCell;
+                } 
+
+                if(acquisition->access->flags->isTeqnActive)
+                {
+                    for (k = lzs; k < lze; k++)
+                    for (j = lys; j < lye; j++)
+                    for (i = lxs; i < lxe; i++)
+                    {
+                        /* Skip solid cells */
+                        if( isIBMSolidCell(k, j, i, nvert) || isZeroedCell(k, j, i, meshTag))
+                        {
+                            continue;
+                        }
+
+                        // get 1/V at the i-face
+                        PetscReal ajc = aj[k][j][i];
+
+                        // pre-set variables for speed
+                        volCell      = 1.0 / ajc;
+
+                        PetscReal u[3][3][3] ,   v[3][3][3] ,   w[3][3][3];    // cartesian velocity
+                        
+                        PetscReal utheta[3][3][3]  , vtheta[3][3][3]  , wtheta[3][3][3]  ;
+                        
+                        PetscReal theta[3][3][3]  ;
+                                    
+                        PetscInt p, q, r;
+
+                        for (p = -1; p <= 1; p++)
+                        for (q = -1; q <= 1; q++)
+                        for (r = -1; r <= 1; r++)
+                        {
+                            PetscInt R = r + 1, Q = q + 1, P = p + 1;
+                            PetscInt K = k + r, J = j + q, I = i + p;
+
+                            //cartesian velocity
+                            u[R][Q][P] = ucat[K][J][I].x;
+                            v[R][Q][P] = ucat[K][J][I].y;
+                            w[R][Q][P] = ucat[K][J][I].z;
+
+                            theta[R][Q][P] = tmprt[K][J][I];
+
+                            utheta[R][Q][P] = u[R][Q][P] * theta[R][Q][P];
+                            vtheta[R][Q][P] = v[R][Q][P] * theta[R][Q][P];
+                            wtheta[R][Q][P] = w[R][Q][P] * theta[R][Q][P];
+                        }
+
+                        PetscReal weight[3][3][3];
+
+                        for (p = -1; p <= 1; p++)
+                        for (q = -1; q <= 1; q++)
+                        for (r = -1; r <= 1; r++)
+                        {
+                            PetscInt R = r + 1, Q = q + 1, P = p + 1;
+                
+                            PetscInt K = k + r, J = j + q, I = i + p;
+                            
+                            if 
+                            (
+                                (isFluidCell(K, J, I, nvert) || isIBMFluidCell(K, J, I, nvert)) &&
+                                
+                                (I != 0 && I != mx-1 && J != 0 && J != my-1 && K != 0 && K != mz-1))
+
+                            {
+                                weight[R][Q][P] = 1;                
+                            } 
+                            
+                            else 
+                            {
+                                weight[R][Q][P] = 0;
+                            }
+                        
+                        }
+                        
+                        //Apply test filter to local velocity fields
+                        
+                        PetscReal _u = integrateTestfilterSimpson(u, weight);
+                        PetscReal _v = integrateTestfilterSimpson(v, weight);
+                        PetscReal _w = integrateTestfilterSimpson(w, weight);
+
+                        PetscReal _theta = integrateTestfilterSimpson(theta, weight);
+
+                        //Apply test filter to product
+                        PetscReal _utheta = integrateTestfilterSimpson(utheta, weight);        
+                        PetscReal _vtheta = integrateTestfilterSimpson(vtheta, weight);
+                        PetscReal _wtheta = integrateTestfilterSimpson(wtheta, weight);
+
+                        //Compute the Bardina SGS stress ---
+                        //q_i = test-filtered(U_i*theta) - (test-filtered(U_i))*(test-filtered(theta))
+                        
+                        lq[j-1].x += (_utheta - _u*_theta) * volCell;   
+                        lq[j-1].y += (_vtheta - _v*_theta) * volCell;   
+                        lq[j-1].z += (_wtheta - _w*_theta) * volCell;   
+                    } 
+                }
+            }
+            
             // sum statistics over processors
             MPI_Allreduce(&lS[0],  &gS[0],  6*nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
             MPI_Allreduce(&lSw[0], &gSw[0], 6*nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
@@ -10502,7 +11858,13 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
             {
                 MPI_Allreduce(&lTU[0], &gTU[0], 3*nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
 
-                if (acquisition->access->flags->isLesActive && acquisition->access->les->model == AMD)
+                if (acquisition->access->flags->isLesActive && 
+                   (les->model == AMD   || 
+                    les->model == DSM   || 
+                    les->model == DLASI || 
+                    les->model == DLASD || 
+                    les->model == DPASD ||
+                    les->model == BAMD))
                 {
                     MPI_Allreduce(&lq[0], &gq[0], 3*nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
                 }
@@ -10540,7 +11902,13 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                     ablStat->TvMean[l] = gTU[l].y / totVolPerLevel;
                     ablStat->TwMean[l] = gTU[l].z / totVolPerLevel;
 
-                    if (acquisition->access->flags->isLesActive && acquisition->access->les->model == AMD)
+                    if (acquisition->access->flags->isLesActive && 
+                       (les->model == AMD   || 
+                        les->model == DSM   || 
+                        les->model == DLASI || 
+                        les->model == DLASD || 
+                        les->model == DPASD ||
+                        les->model == BAMD))
                     {
                         ablStat->q1Mean[l] = gq[l].x / totVolPerLevel;
                         ablStat->q2Mean[l] = gq[l].y / totVolPerLevel;
@@ -10575,9 +11943,15 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
                 DMDAVecRestoreArray(da,  teqn->lTmprt,    &tmprt);
                 DMDAVecRestoreArray(da,  ablStat->TPrime, &tprime);
 
-                if (acquisition->access->flags->isLesActive && acquisition->access->les->model == AMD)
+                if (acquisition->access->flags->isLesActive && 
+                   (les->model == AMD   || 
+                    les->model == DSM   || 
+                    les->model == DLASI || 
+                    les->model == DLASD || 
+                    les->model == DPASD ||
+                    les->model == BAMD))
                 {
-                    DMDAVecRestoreArray(da,  les->lDiff_t, &ldt);
+                    DMDAVecRestoreArray(da,  les->lk_t, &lkt);
                 }
             }
 
@@ -10662,7 +12036,13 @@ PetscErrorCode writeAveragingABL(domain_ *domain)
 
                 if(acquisition->access->flags->isTeqnActive)
                 {
-                    if (acquisition->access->flags->isLesActive && acquisition->access->les->model == AMD)
+                    if (acquisition->access->flags->isLesActive && 
+                       (les->model == AMD   || 
+                        les->model == DSM   || 
+                        les->model == DLASI || 
+                        les->model == DLASD || 
+                        les->model == DPASD ||
+                        les->model == BAMD))
                     {
                         // q1_mean file
                         fileName = ablStat->timeName + "/q1_mean";

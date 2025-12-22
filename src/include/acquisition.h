@@ -79,6 +79,9 @@ PetscErrorCode jSectionSaveVector(mesh_ *mesh, sections *sec, PetscInt jplane, V
 //! \brief Saves k-section vector data
 PetscErrorCode kSectionSaveVector(mesh_ *mesh, sections *sec, PetscInt kplane, Vec &V, const char* fieldName);
 
+//! \brief Saves k-section vector data
+PetscErrorCode userSectionSaveVector(mesh_ *mesh, uSections *uSection, Vec &V, const char* fieldName);
+
 //! \brief Saves i-section scalar data
 PetscErrorCode iSectionSaveScalar(mesh_ *mesh, sections *sec, PetscInt iplane, Vec &V, const char* fieldName);
 
@@ -87,6 +90,8 @@ PetscErrorCode jSectionSaveScalar(mesh_ *mesh, sections *sec, PetscInt jplane, V
 
 //! \brief Saves k-section scalar data
 PetscErrorCode kSectionSaveScalar(mesh_ *mesh, sections *sec, PetscInt kplane, Vec &V, const char* fieldName);
+
+PetscErrorCode userSectionSaveScalar(mesh_ *mesh, uSections *uSection, Vec &V, const char* fieldName);
 
 // FIELDS AVERAGES ACQUISITION
 // ============================================================================================================= //
@@ -99,6 +104,22 @@ PetscErrorCode averageFields(acquisition_ *acquisition);
 
 //! \brief Compute Q criteria for I/O in cartesian form
 PetscErrorCode computeQCritIO(acquisition_ *acquisition);
+
+// Five invariants of VGT Qg, Rg, Qs, Rs, Qr
+//! \brief Compute Qg criteria for I/O in cartesian form
+PetscErrorCode computeVgtSecondInvariantIO(acquisition_ *acquisition);
+
+//! \brief Compute Rg criteria for I/O in cartesian form
+PetscErrorCode computeVgtThirdInvariantIO(acquisition_ *acquisition);
+
+//! \brief Compute Qs criteria for I/O in cartesian form
+PetscErrorCode computeStrainRateSecondInvariantIO(acquisition_ *acquisition);
+
+//! \brief Compute Rs criteria for I/O in cartesian form
+PetscErrorCode computeStrainRateThirdInvariantIO(acquisition_ *acquisition);
+
+//! \brief Compute Qr criteria for I/O in cartesian form
+PetscErrorCode computeQrIO(acquisition_ *acquisition);
 
 //! \brief Compute coriolis force for I/O in cartesian form
 PetscErrorCode computeCoriolisIO(acquisition_ *acquisition);

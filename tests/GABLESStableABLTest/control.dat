@@ -1,0 +1,83 @@
+# OKWind Input file - Control.dat
+# --------------------------------- 
+# Simulation
+# ---------------------------------
+-startFrom                 startTime
+-startTime                 0.0
+-endTime                   1000.0
+-cfl                       0.9
+-adjustTimeStep            1
+-timeStep                  0.001
+-timePrecision             6
+
+# Write Data
+# ---------------------------------
+-intervalType              adjustableTime
+-timeInterval              50.0
+-purgeWrite                0
+
+# Solution 
+# ---------------------------------
+-potentialT                1
+-abl                       1
+-zDampingLayer             1
+-xDampingLayer             0
+-ibm                       0
+
+-absTolU                   1e-8
+-poissonIt                 12
+-poissonTol                1e-8
+-poissonSolver             HYPRE
+
+# Turbulence Model
+# ---------------------------------
+-les                       1
+-lesModel                  bardinaAMD
+-max_cs                    10
+-amd_cs                    0.1
+# Numerical Schemes
+# ---------------------------------
+-dUdtScheme                backwardEuler
+-dTdtScheme                backwardEuler
+-divScheme                 central4
+-hyperVisc                 0.8
+
+# Wind Turbine
+# ---------------------------------
+-windplant                 0
+
+# Constants 
+# ---------------------------------
+-nu                        1.5e-5
+-rho                       1.225
+-Pr                        0.71
+
+# Mesh
+# ---------------------------------
+-meshFileType             cartesian
+
+
+# Acquisition
+# ---------------------------------
+-sections                1
+-probes                  0
+-averageABL              1
+-avgABLPeriod            20.0
+-avgABLStartTime         0.00
+-average3LM              0
+
+-computeQ                0
+-computeQg               0
+-computeQs               0
+-computeRs               0
+-computeRg               0
+-averaging               1
+-avgPeriod               5
+-avgStartTime            500.00
+
+# PostProcessing 
+# ---------------------------------
+-writeRaster              0
+-postProcessFields        0
+
+

@@ -194,6 +194,10 @@ PetscErrorCode SetInitialFieldU(ueqn_ *ueqn)
             }
         }
 
+        if(ueqn->access->flags->isMeangradPForcingActive)
+        {
+            readSubDictVector(filename.c_str(), "readField", "uBulk", &(ueqn->uBulk));
+        }
         // all fields read together later
     }
     else if (ueqn->initFieldType == "uniform")
@@ -203,6 +207,11 @@ PetscErrorCode SetInitialFieldU(ueqn_ *ueqn)
 
         readSubDictVector(filename.c_str(), "uniform", "value",         &(uRef));
         readSubDictInt   (filename.c_str(), "uniform", "perturbations", &(addPerturbations));
+
+        if(ueqn->access->flags->isMeangradPForcingActive)
+        {
+            readSubDictVector(filename.c_str(), "uniform", "uBulk", &(ueqn->uBulk));
+        }
 
         PetscPrintf(mesh->MESH_COMM, "Setting initial field for U: %s\n\n", ueqn->initFieldType.c_str());
         SetUniformFieldU(ueqn, uRef, addPerturbations);
@@ -214,6 +223,11 @@ PetscErrorCode SetInitialFieldU(ueqn_ *ueqn)
             char error[512];
             sprintf(error, "activate ABL flag before setting the ABLFlow initial field\n");
             fatalErrorInFunction("SetInitialFieldU", error);
+        }
+
+        if(ueqn->access->flags->isMeangradPForcingActive)
+        {
+            readSubDictVector(filename.c_str(), "ABLFlow", "uBulk", &(ueqn->uBulk));
         }
 
         PetscPrintf(mesh->MESH_COMM, "Setting initial field for U: %s\n\n", ueqn->initFieldType.c_str());
@@ -235,22 +249,38 @@ PetscErrorCode SetInitialFieldU(ueqn_ *ueqn)
             fatalErrorInFunction("SetInitialFieldU", error);
         }
 
+        if(ueqn->access->flags->isMeangradPForcingActive)
+        {
+            readSubDictVector(filename.c_str(), "ABLFlowZilitinkevich", "uBulk", &(ueqn->uBulk));
+        }
+
         PetscPrintf(mesh->MESH_COMM, "Setting initial field for U: %s\n\n", ueqn->initFieldType.c_str());
         SetABLInitialFlowUZilitinkevich(ueqn);
     }
     else if (ueqn->initFieldType == "TGVFlow")
     {
-         PetscReal u0, freq;
-        
-         readSubDictDouble (filename.c_str(), "TGVFlow", "u0", &u0);
-         readSubDictDouble (filename.c_str(), "TGVFlow", "freq",      &freq);
+        PetscReal u0, freq;
+    
+        readSubDictDouble (filename.c_str(), "TGVFlow", "u0", &u0);
+        readSubDictDouble (filename.c_str(), "TGVFlow", "freq",      &freq);
 
-         PetscPrintf(mesh->MESH_COMM, "Setting initial field for U: %s\n\n", ueqn->initFieldType.c_str());
-         SetTaylorGreenFieldU(ueqn, u0, freq);
+        if(ueqn->access->flags->isMeangradPForcingActive)
+        {
+            readSubDictVector(filename.c_str(), "TGVFlow", "uBulk", &(ueqn->uBulk));
+        }
+
+        PetscPrintf(mesh->MESH_COMM, "Setting initial field for U: %s\n\n", ueqn->initFieldType.c_str());
+        SetTaylorGreenFieldU(ueqn, u0, freq);
     }
     else if (ueqn->initFieldType == "spreadInflow")
     {
         PetscPrintf(mesh->MESH_COMM, "Setting initial field for U: %s\n\n", ueqn->initFieldType.c_str());
+        
+        if(ueqn->access->flags->isMeangradPForcingActive)
+        {
+            readSubDictVector(filename.c_str(), "spreadInflow", "uBulk", &(ueqn->uBulk));
+        }
+
         SpreadInletFlowU(ueqn);
     }
     else
@@ -311,6 +341,17 @@ PetscErrorCode SetInitialFieldT(teqn_ *teqn)
         PetscPrintf(mesh->MESH_COMM, "Setting initial field for T: %s\n\n", teqn->initFieldType.c_str());
         SetLinearFieldT(teqn, tRef, tLapse);
     }
+    else if (teqn->initFieldType == "linearCNBL")
+    {
+        PetscReal tRef, tLapse, hRef;
+
+        readSubDictDouble(filename.c_str(), "linearCNBL", "tRef", &(tRef));
+        readSubDictDouble(filename.c_str(), "linearCNBL", "tLapse", &(tLapse));
+        readSubDictDouble(filename.c_str(), "linearCNBL", "hRef", &(hRef));
+
+        PetscPrintf(mesh->MESH_COMM, "Setting initial field for T: %s\n\n", teqn->initFieldType.c_str());
+        SetLinearCNBLFieldT(teqn, tRef, tLapse, hRef);
+    }  
     else if (teqn->initFieldType == "ABLFlow" || teqn->initFieldType == "ABLFlowZilitinkevich")
     {
         if(!(teqn->access->flags->isAblActive))
@@ -1060,8 +1101,6 @@ PetscErrorCode SetTaylorGreenFieldU(ueqn_ *ueqn, PetscReal &u0, PetscReal &freq)
     PetscReal Ly = mesh->bounds.Ly;
     PetscReal Lz = mesh->bounds.Lz;
 
-
-
     PetscReal kx = freq * (2.0 * M_PI / Lx);
     PetscReal ky = freq * (2.0 * M_PI / Ly);
     PetscReal kz = freq * (2.0 * M_PI / Lz); 
@@ -1087,7 +1126,6 @@ PetscErrorCode SetTaylorGreenFieldU(ueqn_ *ueqn, PetscReal &u0, PetscReal &freq)
                 PetscReal Vtgv = -u0 * cos(kx * x) * sin(ky * y) * cos(kz * z);
                 PetscReal Wtgv = 0.0;
 
-                
                 ucat[k][j][i].x = Utgv;
                 ucat[k][j][i].y = Vtgv;
                 ucat[k][j][i].z = Wtgv;
@@ -1102,11 +1140,9 @@ PetscErrorCode SetTaylorGreenFieldU(ueqn_ *ueqn, PetscReal &u0, PetscReal &freq)
     //scatter data to local values
     DMGlobalToLocalBegin(fda, ueqn->Ucat, INSERT_VALUES, ueqn->lUcat);
     DMGlobalToLocalEnd(fda,   ueqn->Ucat, INSERT_VALUES, ueqn->lUcat);
-
     
     UpdateCartesianBCs(ueqn);
 
-    
     DMDAVecGetArray(fda, mesh->lICsi, &icsi);
     DMDAVecGetArray(fda, mesh->lJEta, &jeta);
     DMDAVecGetArray(fda, mesh->lKZet, &kzet);
@@ -1139,7 +1175,6 @@ PetscErrorCode SetTaylorGreenFieldU(ueqn_ *ueqn, PetscReal &u0, PetscReal &freq)
         {
             for (i = lxs; i < lxe; i++)
             {
-                
                 uFaceJ.x = 0.5 * (ucat[k][j][i].x + ucat[k][j+1][i].x);
                 uFaceJ.y = 0.5 * (ucat[k][j][i].y + ucat[k][j+1][i].y);
                 uFaceJ.z = 0.5 * (ucat[k][j][i].z + ucat[k][j+1][i].z);
@@ -1158,7 +1193,6 @@ PetscErrorCode SetTaylorGreenFieldU(ueqn_ *ueqn, PetscReal &u0, PetscReal &freq)
         {
             for (i = lxs; i < lxe; i++)
             {
-                
                 uFaceK.x = 0.5 * (ucat[k][j][i].x + ucat[k+1][j][i].x);
                 uFaceK.y = 0.5 * (ucat[k][j][i].y + ucat[k+1][j][i].y);
                 uFaceK.z = 0.5 * (ucat[k][j][i].z + ucat[k+1][j][i].z);
@@ -1177,7 +1211,6 @@ PetscErrorCode SetTaylorGreenFieldU(ueqn_ *ueqn, PetscReal &u0, PetscReal &freq)
     DMDAVecRestoreArray(fda, mesh->lKZet, &kzet);
     DMDAVecRestoreArray(fda, ueqn->lUcat,  &ucat);
     DMDAVecRestoreArray(fda, ueqn->Ucont, &ucont);
-
     
     DMGlobalToLocalBegin(fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
     DMGlobalToLocalEnd(fda,   ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
@@ -1186,8 +1219,8 @@ PetscErrorCode SetTaylorGreenFieldU(ueqn_ *ueqn, PetscReal &u0, PetscReal &freq)
 
     return(0);
 }
-//***************************************************************************************************************//
 
+//***************************************************************************************************************//
 PetscErrorCode SpreadInletFlowU(ueqn_ *ueqn)
 {
     mesh_         *mesh = ueqn->access->mesh;
@@ -1666,6 +1699,7 @@ PetscErrorCode SetLinearFieldT(teqn_ *teqn, PetscReal &tRef, PetscReal &tLapse)
     DMDAVecGetArray(fda, mesh->Cent, &cent);
 
     // loop on the internal cells and set the reference cartesian velocity
+
     for(k=lzs; k<lze; k++)
     {
         for(j=lys; j<lye; j++)
@@ -1674,7 +1708,62 @@ PetscErrorCode SetLinearFieldT(teqn_ *teqn, PetscReal &tRef, PetscReal &tLapse)
             {
                 PetscReal h = cent[k][j][i].z - mesh->grndLevel;
 
-                temp[k][j][i] = tRef + h*tLapse;
+                temp[k][j][i] = tRef + h * tLapse;
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(da, teqn->Tmprt,  &temp);
+    DMDAVecRestoreArray(fda, mesh->Cent, &cent);
+
+    // scatter data to local values
+    DMGlobalToLocalBegin(da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
+    DMGlobalToLocalEnd(da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
+
+    UpdateTemperatureBCs(teqn);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+PetscErrorCode SetLinearCNBLFieldT(teqn_ *teqn, PetscReal &tRef, PetscReal &tLapse, PetscReal &hRef)
+{
+    mesh_         *mesh = teqn->access->mesh;
+    DM            da    = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info  = mesh->info;
+    PetscInt      xs    = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys    = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs    = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx    = info.mx, my = info.my, mz = info.mz;
+
+    PetscReal     ***temp;
+    Cmpnts        ***cent;
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    DMDAVecGetArray(da, teqn->Tmprt,  &temp);
+    DMDAVecGetArray(fda, mesh->Cent, &cent);
+
+    // loop on the internal cells and set the reference cartesian velocity
+
+    for(k=lzs; k<lze; k++)
+    {
+        for(j=lys; j<lye; j++)
+        {
+            for(i=lxs; i<lxe; i++)
+            {
+                PetscReal h = cent[k][j][i].z - mesh->grndLevel;
+
+                if(h <= hRef) temp[k][j][i] = tRef;
+                else
+                {
+                    temp[k][j][i] = tRef + (h - hRef)*tLapse;
+                }
             }
         }
     }

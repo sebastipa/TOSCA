@@ -21,11 +21,17 @@ struct avgFields
     // turbulence criterions
     Vec           Q;                          //!< Q criterion field
     Vec           L2;                         //!< L2 criterion field (not yet implemented)
+    Vec           Qg;                         //!< second invariant of VGT
+    Vec           Rg;                         //!< third invariant of VGT
+    Vec           Qs;                         //!< second invariant of strain
+    Vec           Rs;                         //!< third invariant of strain
+    Vec           Qr;                         //!< rotation invariant
 
     // averaging
     Vec           avgU;                       //!< sum of u, v, w over time
     Vec           avgP;                       //!< sum of p over time
     Vec           avgUU;                      //!< sum of resolved R stresses over time
+    Vec           avgDUU;                     //!< sum of dispersive stresses over time
     Vec           avgP2;                      //!< sum of p^2 over time
     Vec           avgNut;                     //!< sun of nut over time
     Vec           avgCs;                      //!< sum of cs over time

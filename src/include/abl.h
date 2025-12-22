@@ -9,7 +9,6 @@ struct abl_
     // flags
     PetscInt     controllerActive;               //!< activate velocity controller
     PetscInt     controllerActiveT;              //!< activate temperature controller
-    PetscInt     controllerTypeMismatch;         //!< activate if the controllers used in successor and precursor differ
     PetscInt     coriolisActive;                 //!< activate coriolis force
 
     // physical quantities
@@ -38,6 +37,7 @@ struct abl_
     // velocity controller (common)
     word         controllerType;                 //!< velocity controller type: write/read (writes in postProcessing/momentumSource, reads from momentumSource)
     word         controllerAction;
+    word         controllerActionT;
     PetscReal    relax;                          //!< source term relaxation factor
     PetscReal    alpha;                          //!< proportional over integral controller action ratio
     PetscReal    timeWindow;                     //!< time window of the integral part
@@ -49,7 +49,7 @@ struct abl_
 
     // geostrophic damping for pressure controller
     PetscInt     geostrophicDampingActive;       //!< geosptrophic oscillation damping
-	PetscInt     mesoScaleInputActive;           //!< use mesoscale data for pressure controller uDes
+    PetscInt     mesoScaleInputActive;           //!< use mesoscale data for pressure controller uDes
     
     PetscReal    geoDampAvgDT;                   //!< average time step from simulation start
 	Cmpnts       geoDampAvgS;                    //!< expected geostrophic velocity
@@ -66,16 +66,18 @@ struct abl_
     PetscInt     *closestLabelsGeo;              //!< closest heights w.r.t. controller height
     PetscReal    *levelWeightsGeo;               //!< weights for variables interpolated at closest heights w.r.t. controller height
     Cmpnts       uGeoBar;                        //!< desired geostrophic wind speed magnitude
-    PetscReal    omegaBar;                       //!< rotation velocity
-    PetscReal    hubAngle;                       //!< filtered angle at hub height
-    PetscReal    geoAngle;                       //!< cumulated wind angle given by the sum of all rotations and filtered
+    PetscReal    refHubAngle;                    //!< reference hub angle (typically 0 for canonical ABL cases)
+    PetscReal    geoAngle;                       //!< geostrophic wind angle
+    PetscInt     windAngleController;            //!< flag to switch on wind angle controller - to control the wind direction to match the reference hub angle 
     Cmpnts       a,b;                            //!< the two constant parts of the controller (a = geo forcing, b = wind angle controller)
 
     // read and average
     PetscInt     currentCloseIdx;                //!< save the current closest index at each iteration to speed up the interpolation search
+    PetscInt     currentCloseIdxT;    
     PetscReal    sourceAvgStartTime;             //!< if controllerType is 'average', average sources from this time value
     PetscReal    **preCompSources;               //!< table of given sources [ntimesteps][time|sourceX|sourceY|sourceZ] for velocity controller type = timeSeries/timeAverageSeries
     PetscReal    ***timeHtSources;               //!< table of given timeheight sources [time|sourceX|sourceY|sourceZ] at each cell level, controller type = timeHeightSeries
+    PetscReal    ***timeHtSourcesT;               //!< table of given timeheight sources [time|source|] at each cell level, controller type = timeHeightSeries
     PetscInt     nSourceTimes;                   //!< number of times in the pre-computed sources
     Cmpnts       cumulatedSource;                //!< cumulated error of the velocity controller (equalt to gradP at steady state)
     Cmpnts       *cumulatedSourceHt;              //!< cumulated error of the velocity controller for every mesh level
@@ -185,6 +187,7 @@ struct abl_
     PetscReal    *timeT;
     PetscReal    *hT;
     Cmpnts       **uMeso;
+    Cmpnts       *uGeoPrev;
     PetscReal    **tMeso;
 
     PetscInt     numhV;
@@ -230,6 +233,7 @@ struct abl_
     word         flType;
     word         flTypeT;
     PetscReal    *avgTotalStress;
+    Cmpnts       *avgStress;
     PetscReal    *avgHeatFlux;
     PetscReal    hAvgTime;
     PetscReal    bottomSrcHtV;
@@ -287,6 +291,8 @@ PetscErrorCode computeLSqPolynomialCoefficientMatrix(abl_ *abl);
 PetscErrorCode computeLSqPolynomialCoefficientMatrixT(abl_ *abl);
 
 PetscErrorCode findTimeHeightSeriesInterpolationWts(abl_ *abl);
+
+PetscErrorCode findTimeHeightSeriesInterpolationWtsT(abl_ *abl);
 
 PetscErrorCode findABLHeight(abl_ *abl);
 

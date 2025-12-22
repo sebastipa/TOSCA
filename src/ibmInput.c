@@ -32,9 +32,6 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
     // read check normals
     readDictInt("./IBM/IBMProperties.dat", "checkNormal", &(ibm->checkNormal));
 
-    // read average normals
-    readDictInt("./IBM/IBMProperties.dat", "averageNormal", &(ibm->averageNormal));
-
     // set wall shear force from wall model
     readDictInt("./IBM/IBMProperties.dat", "wallShear", &(ibm->wallShearOn));
 
@@ -186,6 +183,12 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
             // read name of the element set
             readSubDictWord("./IBM/IBMProperties.dat", objectName, "elementSet", &(ibmBody->elementSet));
         }
+
+        if(ibmBody->fileType == "grd")
+        {
+            // read name of the element set
+            readSubDictInt("./IBM/IBMProperties.dat", objectName, "addSideFaces", &(ibmBody->addSideFaces));
+        }
     }
 
     // read the ibm motion
@@ -289,11 +292,6 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
     return 0;
 }
 
-//***************************************************************************************************************//
-PetscErrorCode createHalfEdgeDataStructure(ibm_ *ibm, PetscInt b)
-{
-    return 0;
-}
 //***************************************************************************************************************//
 
 PetscErrorCode readIBMObjectMesh(ibm_ *ibm, PetscInt b)
@@ -496,126 +494,6 @@ PetscErrorCode readIBMObjectMesh(ibm_ *ibm, PetscInt b)
     return 0;
 }
 
-//***************************************************************************************************************//
-ibmNode* initializeIBMNodes(PetscInt numNodes)
-{
-    ibmNode *nodes = new ibmNode[numNodes];
-
-    for (PetscInt i = 0; i < numNodes; i++)
-    {
-        nodes[i].numConnected = 0;
-
-        for(PetscInt j = 0; j < MAX_ELEMENTS_PER_NODE; j++)
-        {
-            nodes[i].elem[j] = -1;
-        }
-    }
-
-    return nodes;
-}
-//***************************************************************************************************************//
-
-PetscErrorCode nodeElementConnectivity(ibm_ *ibm)
-{
-    mesh_         *mesh = ibm->access->mesh;
-    PetscMPIInt   nprocs; MPI_Comm_size(mesh->MESH_COMM, &nprocs);
-    PetscMPIInt   rank;   MPI_Comm_rank(mesh->MESH_COMM, &rank);
-
-    for (PetscInt b = 0; b < ibm->numBodies; b++)
-    {
-        ibmObject   *ibmBody = ibm->ibmBody[b];
-        ibmMesh       *ibMsh = ibmBody->ibMsh;
-        PetscInt    totElems = ibMsh->elems;
-        PetscInt    totNodes = ibMsh->nodes;
-
-        PetscInt   lNumElems = totElems/nprocs;
-        PetscInt  extraElems = totElems % nprocs;
-
-        //define the start and end of the the elements each processor will handle
-        PetscInt   startElem = rank * lNumElems + (rank < extraElems ? rank : extraElems);
-        PetscInt     endElem = startElem + lNumElems - (rank < extraElems ? 0 : 1);
-
-        // initialize the ibm element nodes
-        ibMsh->ibmMeshNode = initializeIBMNodes(totNodes);
-        ibmNode *ibmNodes  = ibMsh->ibmMeshNode;
-
-        // Compute reverse connectivity
-        for (PetscInt i = startElem; i <= endElem; i++)
-        {
-            PetscInt node;
-
-            node = ibMsh->nID1[i];
-            ibmNodes[node].elem[ibmNodes[node].numConnected] = i;
-            ibmNodes[node].numConnected++;
-
-            if(ibmNodes[node].numConnected > MAX_ELEMENTS_PER_NODE)
-            {
-                char error[512];
-                sprintf(error, "Max element per node currently set to 20. But more than 20 elements connected to node %ld found\n", node);
-                fatalErrorInFunction("nodeElementConnectivity", error);
-            }
-
-            node = ibMsh->nID2[i];
-            ibmNodes[node].elem[ibmNodes[node].numConnected] = i;
-            ibmNodes[node].numConnected++;
-
-            if(ibmNodes[node].numConnected > MAX_ELEMENTS_PER_NODE)
-            {
-                char error[512];
-                sprintf(error, "Max element per node currently set to 20. But more than 20 elements connected to node %ld found\n", node);
-                fatalErrorInFunction("nodeElementConnectivity", error);
-            }
-
-            node = ibMsh->nID3[i];
-            ibmNodes[node].elem[ibmNodes[node].numConnected] = i;
-            ibmNodes[node].numConnected++;
-
-            if(ibmNodes[node].numConnected > MAX_ELEMENTS_PER_NODE)
-            {
-                char error[512];
-                sprintf(error, "Max element per node currently set to 20. But more than 20 elements connected to node %ld found\n", node);
-                fatalErrorInFunction("nodeElementConnectivity", error);
-            }
-
-        }
-
-        if (rank == 0)
-        {
-            ibmNode* tempNodes = initializeIBMNodes(totNodes);
-
-            for (PetscInt source = 1; source < nprocs; source++)
-            {
-                MPI_Recv(tempNodes, totNodes * sizeof(ibmNode), MPI_BYTE, source, 0, mesh->MESH_COMM, MPI_STATUS_IGNORE);
-
-                for (PetscInt i = 0; i < totNodes; i++)
-                {
-                    for (PetscInt j = 0; j < tempNodes[i].numConnected; j++)
-                    {
-                        ibmNodes[i].elem[ibmNodes[i].numConnected] = tempNodes[i].elem[j];
-                        ibmNodes[i].numConnected++;
-
-                        if(ibmNodes[i].numConnected > MAX_ELEMENTS_PER_NODE)
-                        {
-                            char error[512];
-                            sprintf(error, "Max element per node currently set to 20. But more than 20 elements connected to node %ld found\n", i);
-                            fatalErrorInFunction("nodeElementConnectivity", error);
-                        }
-                    }
-                }
-            }
-
-            free(tempNodes);
-        }
-        else
-        {
-            MPI_Send(ibmNodes, totNodes * sizeof(ibmNode), MPI_BYTE, 0, 0, mesh->MESH_COMM);
-        }
-
-        MPI_Bcast(ibmNodes, totNodes * sizeof(ibmNode), MPI_BYTE, 0, mesh->MESH_COMM);
-    }
-
-    return 0;
-}
 //***************************************************************************************************************//
 
 PetscErrorCode combineMesh(ibmObject *ibmBody)
@@ -1841,8 +1719,22 @@ PetscErrorCode readIBMBodyFileGRD(ibmObject *ibmBody)
     delX = (xMax - xMin)/ (numX-1);
     delY = (yMax - yMin)/ (numY-1);
 
-    ibMesh->nodes = numX * numY;
-    ibMesh->elems = 2 * (numX-1) * (numY-1);
+    // Compute original nodes and elements (top face)
+    PetscInt orig_nodes = numX * numY;
+    PetscInt orig_elems = 2 * (numX-1) * (numY-1);
+
+    // Compute total nodes and elements conditionally if adding side faces (and bottom face)
+    PetscInt new_nodes = 0;
+    PetscInt new_elems = 0;
+
+    if (ibmBody->addSideFaces) 
+    {
+        new_nodes = numX * numY;
+        new_elems = 4 * (numX + numY - 2) + orig_elems;
+    }
+
+    ibMesh->nodes = orig_nodes + new_nodes;
+    ibMesh->elems = orig_elems + new_elems;
 
     // allocate memory for the x, y and z co-ordinates of the nodes
     PetscMalloc(ibMesh->nodes * sizeof(Cmpnts), &(ibMesh->nCoor));
@@ -1851,7 +1743,7 @@ PetscErrorCode readIBMBodyFileGRD(ibmObject *ibmBody)
     PetscMalloc(ibMesh->nodes * sizeof(Cmpnts), &(ibMesh->nU));
     PetscMalloc(ibMesh->nodes * sizeof(Cmpnts), &(ibMesh->nUPrev));
 
-    // set the node co-rdinates from the file and initialize the node velocity to 0
+    // set the node coordinates from the file and initialize the node velocity to 0
     PetscInt n = 0;
     for(PetscInt j = 0; j < numY; j++)
     {
@@ -1871,6 +1763,27 @@ PetscErrorCode readIBMBodyFileGRD(ibmObject *ibmBody)
             mSetValue(ibMesh->nUPrev[n], 0.0);
 
             n++;
+        }
+    }
+
+    if (ibmBody->addSideFaces) 
+    {
+        // Add full bottom nodes at z=0
+        PetscReal bottom_z = 0.0;  // Hardcoded to 0 as per requirement
+        PetscInt bottom_start = orig_nodes;
+
+        for(PetscInt j = 0; j < numY; j++)
+        {
+            for(PetscInt i = 0; i < numX; i++)
+            {
+                ibMesh->nCoor[n].x = xMin + i * delX;
+                ibMesh->nCoor[n].y = yMin + j * delY;
+                ibMesh->nCoor[n].z = bottom_z;
+                mSum(ibMesh->nCoor[n], ibmBody->baseLocation);
+                mSetValue(ibMesh->nU[n], 0.0);
+                mSetValue(ibMesh->nUPrev[n], 0.0);
+                n++;
+            }
         }
     }
 
@@ -1895,6 +1808,103 @@ PetscErrorCode readIBMBodyFileGRD(ibmObject *ibmBody)
             ibMesh->nID3[n] = numX*(j+1) + i;
 
             n++;
+        }
+    }
+
+    if (ibmBody->addSideFaces) {
+        PetscInt bottom_start = orig_nodes;
+
+        // Add elements for front side (no reverse order)
+        for(PetscInt i = 0; i < numX - 1; i++)
+        {
+            PetscInt top_a = i;
+            PetscInt top_b = i + 1;
+            PetscInt bottom_a = bottom_start + i;
+            PetscInt bottom_b = bottom_start + i + 1;
+
+            ibMesh->nID1[n] = bottom_a;
+            ibMesh->nID2[n] = bottom_b;
+            ibMesh->nID3[n] = top_a;
+            n++;
+
+            ibMesh->nID1[n] = bottom_b;
+            ibMesh->nID2[n] = top_b;
+            ibMesh->nID3[n] = top_a;
+            n++;
+        }
+
+        // Add elements for back side (reverse order for outward normal)
+        for(PetscInt i = 0; i < numX - 1; i++)
+        {
+            PetscInt top_a = numX * (numY - 1) + i;
+            PetscInt top_b = numX * (numY - 1) + i + 1;
+            PetscInt bottom_a = bottom_start + numX * (numY - 1) + i;
+            PetscInt bottom_b = bottom_start + numX * (numY - 1) + i + 1;
+
+            ibMesh->nID1[n] = bottom_a;
+            ibMesh->nID2[n] = top_a;
+            ibMesh->nID3[n] = bottom_b;
+            n++;
+
+            ibMesh->nID1[n] = bottom_b;
+            ibMesh->nID2[n] = top_a;
+            ibMesh->nID3[n] = top_b;
+            n++;
+        }
+
+        // Add elements for left side (reverse order for outward normal)
+        for(PetscInt j = 0; j < numY - 1; j++)
+        {
+            PetscInt top_a = numX * j + 0;
+            PetscInt top_b = numX * (j + 1) + 0;
+            PetscInt bottom_a = bottom_start + numX * j + 0;
+            PetscInt bottom_b = bottom_start + numX * (j + 1) + 0;
+
+            ibMesh->nID1[n] = bottom_a;
+            ibMesh->nID2[n] = top_a;
+            ibMesh->nID3[n] = bottom_b;
+            n++;
+
+            ibMesh->nID1[n] = bottom_b;
+            ibMesh->nID2[n] = top_a;
+            ibMesh->nID3[n] = top_b;
+            n++;
+        }
+
+        // Add elements for right side (no reverse order)
+        for(PetscInt j = 0; j < numY - 1; j++)
+        {
+            PetscInt top_a = numX * j + (numX - 1);
+            PetscInt top_b = numX * (j + 1) + (numX - 1);
+            PetscInt bottom_a = bottom_start + numX * j + (numX - 1);
+            PetscInt bottom_b = bottom_start + numX * (j + 1) + (numX - 1);
+
+            ibMesh->nID1[n] = bottom_a;
+            ibMesh->nID2[n] = bottom_b;
+            ibMesh->nID3[n] = top_a;
+            n++;
+
+            ibMesh->nID1[n] = bottom_b;
+            ibMesh->nID2[n] = top_b;
+            ibMesh->nID3[n] = top_a;
+            n++;
+        }
+
+        // Add elements for bottom face (reverse order for outward normal pointing down)
+        for(PetscInt j = 0; j < numY - 1; j++)
+        {
+            for(PetscInt i = 0; i < numX - 1; i++)
+            {
+                ibMesh->nID1[n] = bottom_start + numX * j + i;
+                ibMesh->nID2[n] = bottom_start + numX * (j + 1) + i;
+                ibMesh->nID3[n] = bottom_start + numX * j + i + 1;
+                n++;
+
+                ibMesh->nID1[n] = bottom_start + numX * j + i + 1;
+                ibMesh->nID2[n] = bottom_start + numX * (j + 1) + i;
+                ibMesh->nID3[n] = bottom_start + numX * (j + 1) + i + 1;
+                n++;
+            }
         }
     }
 

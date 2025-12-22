@@ -44,6 +44,8 @@ PetscErrorCode binaryJSectionsPerturbToXMF(domain_ *domain, postProcess *pp);
 //! \brief Reads binary k-section data and writes paraview data into XMF folder
 PetscErrorCode binaryKSectionsToXMF(domain_ *domain);
 
+PetscErrorCode binaryUserSectionsToXMF(domain_ *domain);
+
 //! \brief Reads k-section data from average fields and writes paraview data into XMF folder
 PetscErrorCode fieldKSectionsToXMF(domain_ *domain);
 
@@ -83,6 +85,8 @@ PetscErrorCode userSectionLoadScalarFromField(Vec &V, mesh_ *mesh, uSections *uS
 //! \briefReads from k-slices time series and loads the velocity, temperature and nut planes. Important: assumes T and nut databases have the same times of U.
 PetscErrorCode kSectionLoadVector(mesh_ *mesh, sections *sec, PetscInt kplane, const word &fieldName, PetscReal time);
 PetscErrorCode kSectionLoadScalar(mesh_ *mesh, sections *sec, PetscInt kplane, const word &fieldName, PetscReal time);
+PetscErrorCode userSectionLoadVector(mesh_ *mesh, uSections *uSection, const word &fieldName, PetscReal time);
+PetscErrorCode userSectionLoadScalar(mesh_ *mesh, uSections *uSection, const word &fieldName, PetscReal time);
 
 //! Generate the section on-the-fly in the post processing phase (for average fields that only have to be done at the end)
 PetscErrorCode iSectionLoadSymmTensorFromField(Vec &V, mesh_ *mesh, sections *sec, PetscInt kplane, const word &fieldName, PetscReal time);
@@ -137,6 +141,18 @@ void xmfWriteFileSymmTensor
     const char *PathSave, const char *symmTensorName,
     const char * XX, const char * YY, const char *ZZ,
     const char * XY, const char * XZ, const char *YZ,
+    const char *center = "Cell"
+);
+
+//! \brief Writes a full tensor in the XMF files
+void xmfWriteFileTensor
+(
+    FILE *xmf, const char *filexmf,
+    PetscInt size_x, PetscInt size_y, PetscInt size_z,
+    const char *PathSave, const char *TensorName,
+    const char * XX, const char * XY, const char *XZ,
+    const char * YX, const char * YY, const char *YZ,
+    const char * ZX, const char * ZY, const char *ZZ,
     const char *center = "Cell"
 );
 
@@ -203,6 +219,19 @@ PetscErrorCode writeVectorToXMF
 
 //! \brief Writes a symmetric tensor field (appends to XMF and creates HDF)
 PetscErrorCode writeSymmTensorToXMF
+(
+    domain_    *domain,
+    const char *filexmf,
+    const char *hdfilen,
+    hid_t	   *file_id,
+    hid_t      *dataspace_id,
+    PetscReal     time,
+    const char *fieldName,
+    Vec        V
+);
+
+//! \brief Writes a full tensor field (appends to XMF and creates HDF)
+PetscErrorCode writeTensorToXMF
 (
     domain_    *domain,
     const char *filexmf,

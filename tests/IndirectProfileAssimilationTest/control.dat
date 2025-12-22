@@ -5,7 +5,7 @@
 # ---------------------------------
 -startFrom                 startTime
 -startTime                 0
--endTime                   10000
+-endTime                   1000
 -cfl                       0.9
 -adjustTimeStep            1
 -timeStep                  0.5

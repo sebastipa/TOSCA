@@ -108,6 +108,9 @@ PetscReal      L2NormPETSc(peqn_ *peqn, Mat &A, Vec &X, Vec &B);
 //! \brief Compute pressure gradient term
 PetscErrorCode GradP(peqn_ *peqn);
 
+//! \brief Compute 4th order pressure gradient term
+PetscErrorCode GradP4thOrder(peqn_ *peqn);
+
 //! \brief Compute cell-matrix connectivity
 PetscErrorCode SetPoissonConnectivity(peqn_ *peqn);
 

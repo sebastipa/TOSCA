@@ -2919,7 +2919,7 @@ PetscErrorCode UpdateNutBCs(les_ *les)
 
 //***************************************************************************************************************//
 
-PetscErrorCode UpdateDiffBCs(les_ *les)
+PetscErrorCode UpdatektBCs(les_ *les)
 {
     mesh_          *mesh = les->access->mesh;
     DM            da   = mesh->da, fda = mesh->fda;
@@ -2929,18 +2929,18 @@ PetscErrorCode UpdateDiffBCs(les_ *les)
     PetscInt      zs   = info.zs, ze = info.zs + info.zm;
     PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
 
-    word          typeName = "boundary/diff";
+    word          typeName = "boundary/kt";
 
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
     PetscInt      i, j, k;
 
-    PetscReal     ***diff, ***nvert, ***meshTag;
+    PetscReal     ***kt, ***nvert, ***meshTag;
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
 
-    DMDAVecGetArray(da, les->lDiff_t, &diff);
+    DMDAVecGetArray(da, les->lk_t, &kt);
     DMDAVecGetArray(da, mesh->lNvert, &nvert);
     DMDAVecGetArray(da, mesh->lmeshTag, &meshTag);
 
@@ -2953,87 +2953,86 @@ PetscErrorCode UpdateDiffBCs(les_ *les)
                 // set to zero at solid internal cells and skip
                 if(isIBMSolidCell(k, j, i, nvert) || isZeroedCell(k, j, i, meshTag))
                 {
-                    diff[k][j][i] = 0.0;
+                    kt[k][j][i] = 0.0;
                     continue;
                 }
 
                 // periodic boundary condition on i-left patch
                 if (mesh->boundaryNut.iLeft=="periodic" && i==1)
                 {
-                    if(mesh->i_periodic)       diff[k][j][i-1] = diff[k][j][mx-2];
-                    else if(mesh->ii_periodic) diff[k][j][i-1] = diff[k][j][-2];
+                    if(mesh->i_periodic)       kt[k][j][i-1] = kt[k][j][mx-2];
+                    else if(mesh->ii_periodic) kt[k][j][i-1] = kt[k][j][-2];
                 }
                 else if (i==1)
                 {
-                    diff[k][j][i-1] = diff[k][j][i];
+                    kt[k][j][i-1] = kt[k][j][i];
                 }
 
                 // periodic boundary condition on i-right patch
                 if (mesh->boundaryNut.iRight=="periodic" && i==mx-2)
                 {
-                    if(mesh->i_periodic)        diff[k][j][i+1] = diff[k][j][1];
-                    else if (mesh->ii_periodic) diff[k][j][i+1] = diff[k][j][mx+1];
+                    if(mesh->i_periodic)        kt[k][j][i+1] = kt[k][j][1];
+                    else if (mesh->ii_periodic) kt[k][j][i+1] = kt[k][j][mx+1];
                 }
                 else if (i==mx-2)
                 {
-                    diff[k][j][i+1] = diff[k][j][i];
+                    kt[k][j][i+1] = kt[k][j][i];
                 }
 
                 // periodic boundary condition on j-left patch
                 if (mesh->boundaryNut.jLeft=="periodic" && j==1)
                 {
-                    if(mesh->j_periodic)       diff[k][j-1][i] = diff[k][my-2][i];
-                    else if(mesh->jj_periodic) diff[k][j-1][i] = diff[k][-2][i];
+                    if(mesh->j_periodic)       kt[k][j-1][i] = kt[k][my-2][i];
+                    else if(mesh->jj_periodic) kt[k][j-1][i] = kt[k][-2][i];
                 }
                 else if (j==1)
                 {
-                    diff[k][j-1][i] = diff[k][j][i];
+                    kt[k][j-1][i] = kt[k][j][i];
                 }
 
                 // periodic boundary condition on j-right patch
                 if (mesh->boundaryNut.jRight=="periodic" && j==my-2)
                 {
-                    if(mesh->j_periodic)       diff[k][j+1][i] = diff[k][1][i];
-                    else if(mesh->jj_periodic) diff[k][j+1][i] = diff[k][my+1][i];
+                    if(mesh->j_periodic)       kt[k][j+1][i] = kt[k][1][i];
+                    else if(mesh->jj_periodic) kt[k][j+1][i] = kt[k][my+1][i];
                 }
                 else if (j==my-2)
                 {
-                    diff[k][j+1][i] = diff[k][j][i];
+                    kt[k][j+1][i] = kt[k][j][i];
                 }
 
                 // periodic boundary condition on k-left patch
                 if (mesh->boundaryNut.kLeft=="periodic" && k==1)
                 {
-                    if(mesh->k_periodic)       diff[k-1][j][i] = diff[mz-2][j][i];
-                    else if(mesh->kk_periodic) diff[k-1][j][i] = diff[-2][j][i];
+                    if(mesh->k_periodic)       kt[k-1][j][i] = kt[mz-2][j][i];
+                    else if(mesh->kk_periodic) kt[k-1][j][i] = kt[-2][j][i];
                 }
                 else if (k==1)
                 {
-                    diff[k-1][j][i] = diff[k][j][i];
+                    kt[k-1][j][i] = kt[k][j][i];
                 }
 
                 // periodic boundary condition on k-right patch
                 if (mesh->boundaryNut.kRight=="periodic" && k==mz-2)
                 {
-                  
-                    if(mesh->k_periodic)       diff[k+1][j][i] = diff[1][j][i];
-                    else if(mesh->kk_periodic) diff[k+1][j][i] = diff[mz+1][j][i];
+                    if(mesh->k_periodic)       kt[k+1][j][i] = kt[1][j][i];
+                    else if(mesh->kk_periodic) kt[k+1][j][i] = kt[mz+1][j][i];
                 }
                 else if (k==mz-2)
                 {
-                    diff[k+1][j][i] = diff[k][j][i];
+                    kt[k+1][j][i] = kt[k][j][i];
                 }
             }
         }
     }
 
-    DMDAVecRestoreArray(da, les->lDiff_t, &diff);
+    DMDAVecRestoreArray(da, les->lk_t, &kt);
     DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
     DMDAVecRestoreArray(da, mesh->lmeshTag, &meshTag);
 
-    // scatter difft from local to local
-    DMLocalToLocalBegin(da, les->lDiff_t, INSERT_VALUES, les->lDiff_t);
-    DMLocalToLocalEnd  (da, les->lDiff_t, INSERT_VALUES, les->lDiff_t);
+    // scatter nut from local to local
+    DMLocalToLocalBegin(da, les->lk_t, INSERT_VALUES, les->lk_t);
+    DMLocalToLocalEnd  (da, les->lk_t, INSERT_VALUES, les->lk_t);
 
     return(0);
 }
@@ -3241,6 +3240,17 @@ PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn)
     Cmpnts        ***jeta;
     Cmpnts        ***ucat;
 
+    Cmpnts        e1, e2, e3;                          // local wall normal co-ordinate system
+
+    //rotation tensor direction cosines
+    PetscReal        a11, a21, a31,
+                     a12, a22, a32,
+                     a13, a23, a33;
+
+    PetscReal       tau11, tau21, tau31,
+                    tau12, tau22, tau32,
+                    tau13, tau23, tau33;
+
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
@@ -3388,7 +3398,7 @@ PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn)
             (
                 UParallelMeanMag, dist, wm->roughness,
                 wm->gammaM, wm->kappa, qWall, wm->thetaRef,
-                frictionVel, phiM, L
+                frictionVel, phiM, L, k, j, i
             );
 
             // print information (debugging)
@@ -3465,6 +3475,13 @@ PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn)
                     // compute wall-parallel velocity
                     Cmpnts UcellParallel = nSub(Ucell, UcellNormal);
 
+                    //local co-ordinate system
+                    e1 = nUnit(UcellParallel);
+
+                    e3 = nSet(n);
+
+                    e2 = nCross(e3, e1);
+
                     PetscInt k_wm = k - zs;
                     PetscInt i_wm = i - xs;
                     // average velocity
@@ -3496,22 +3513,48 @@ PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn)
                         (
                             UParallelMeanMag, s, wm->roughness,
                             wm->gammaM, wm->kappa, qWall, wm->thetaRef,
-                            frictionVel, phiM, L
+                            frictionVel, phiM, L, k, j, i
                         );
                     }
+
+                    //create the transformation vector for rotation to global axis.
+                    a11 = e1.x; a12 = e2.x, a13 = e3.x;
+                    a21 = e1.y; a22 = e2.y, a23 = e3.y;
+                    a31 = e1.z; a32 = e2.z, a33 = e3.z;
+
+                    //transform it to original co-ordinate system
+                    tau11 = -2.0 * a11 * a13 * frictionVel*frictionVel;
+                    tau12 = -(a13 * a21 + a11 * a23) * frictionVel*frictionVel;
+                    tau13 = -(a13 * a31 + a11 * a33) * frictionVel*frictionVel;
+
+                    tau21 = -(a23 * a11 + a21 * a13) * frictionVel*frictionVel;
+                    tau22 = -2.0 * a23 * a21 * frictionVel*frictionVel;
+                    tau23 = -(a23 * a31 + a21 * a33) * frictionVel*frictionVel;
+
+                    tau31 = -(a33 * a11 + a31 * a13) * frictionVel*frictionVel;
+                    tau32 = -(a33 * a21 + a31 * a23) * frictionVel*frictionVel;
+                    tau33 = -2.0 * a33 * a31 * frictionVel*frictionVel;
 
                     if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
                     {
                         //printf("uFilt.x = %f, u.x = %f\n", ueqn->jLWM->uFilt.x[k_wm][i_wm], UcellParallel.x);
 
-                        // wall shear stress in cartesian coords
-                        PetscReal TauXZ = - frictionVel*frictionVel * (ueqn->jLWM->uFilt.x[k_wm][i_wm] / PetscMax(UParallelMeanMag, 1e-5));
-                        PetscReal TauYZ = - frictionVel*frictionVel * (ueqn->jLWM->uFilt.y[k_wm][i_wm] / PetscMax(UParallelMeanMag, 1e-5));
+                        if(mesh->meshFileType == "curvilinear")
+                        {
+                            ueqn->jLWM->tauWall.x[k_wm][i_wm] = (tau11* jeta[k][j-1][i].x + tau12 * jeta[k][j-1][i].y + tau13 * jeta[k][j-1][i].z);
+                            ueqn->jLWM->tauWall.y[k_wm][i_wm] = (tau21* jeta[k][j-1][i].x + tau22 * jeta[k][j-1][i].y + tau23 * jeta[k][j-1][i].z);
+                            ueqn->jLWM->tauWall.z[k_wm][i_wm] = (tau31* jeta[k][j-1][i].x + tau32 * jeta[k][j-1][i].y + tau33 * jeta[k][j-1][i].z);
+                        }
+                        else if(mesh->meshFileType == "cartesian")
+                        {
+                            PetscReal TauXZ = - frictionVel*frictionVel * (ueqn->jLWM->uFilt.x[k_wm][i_wm] / PetscMax(UParallelMeanMag, 1e-5));
+                            PetscReal TauYZ = - frictionVel*frictionVel * (ueqn->jLWM->uFilt.y[k_wm][i_wm] / PetscMax(UParallelMeanMag, 1e-5));
 
-                        // transform to contravariant coords
-                        ueqn->jLWM->tauWall.x[k_wm][i_wm] = jeta[k][j-1][i].z * TauXZ;
-                        ueqn->jLWM->tauWall.y[k_wm][i_wm] = jeta[k][j-1][i].z * TauYZ;
-                        ueqn->jLWM->tauWall.z[k_wm][i_wm] = jeta[k][j-1][i].x * TauXZ + jeta[k][j-1][i].y * TauYZ;
+                            // transform to contravariant coords
+                            ueqn->jLWM->tauWall.x[k_wm][i_wm] = jeta[k][j-1][i].z * TauXZ;
+                            ueqn->jLWM->tauWall.y[k_wm][i_wm] = jeta[k][j-1][i].z * TauYZ;
+                            ueqn->jLWM->tauWall.z[k_wm][i_wm] = jeta[k][j-1][i].x * TauXZ + jeta[k][j-1][i].y * TauYZ;
+                        }
                     }
                 }
             }
@@ -3627,7 +3670,7 @@ PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn)
             (
                 UParallelMeanMag, dist, wm->roughness,
                 wm->gammaM, wm->kappa, qWall, wm->thetaRef,
-                frictionVel, phiM, L
+                frictionVel, phiM, L, k, j, i
             );
             // print information (debugging)
             // PetscPrintf(PETSC_COMM_WORLD, "ShumannGrotzbach: uStar = %lf, <U_||> = %lf\n", frictionVel, UParallelMeanMag);
@@ -3735,7 +3778,7 @@ PetscErrorCode UpdateWallModelsU(ueqn_ *ueqn)
                         (
                             UParallelMeanMag, s, wm->roughness,
                             wm->gammaM, wm->kappa, qWall, wm->thetaRef,
-                            frictionVel, phiM, L
+                            frictionVel, phiM, L, k, j, i
                         );
                     }
 
@@ -3946,7 +3989,7 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
                 UParallelMeanMag, dist, wm->roughness,
                 wm->gammaM, wm->gammaH, wm->alphaH,
                 wm->thetaRef, deltaTheta, wm->kappa,
-                qWall, frictionVel, phiM, phiH, L
+                qWall, frictionVel, phiM, phiH, L, k, j, i
             );
 
             // print information (debugging)
@@ -4007,7 +4050,7 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
                             UParallelMeanMag, s, wm->roughness,
                             wm->gammaM, wm->gammaH, wm->alphaH,
                             wm->thetaRef, deltaTheta, wm->kappa,
-                            qWall, frictionVel, phiM, phiH, L
+                            qWall, frictionVel, phiM, phiH, L, k, j, i
                         );
                     }
 
@@ -4147,7 +4190,7 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
                 UParallelMeanMag, dist, wm->roughness,
                 wm->gammaM, wm->gammaH, wm->alphaH,
                 wm->thetaRef, deltaTheta, wm->kappa,
-                qWall, frictionVel, phiM, phiH, L
+                qWall, frictionVel, phiM, phiH, L, k, j, i
             );
 
             // print information (debugging)
@@ -4202,7 +4245,7 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
                             UParallelMeanMag, s, wm->roughness,
                             wm->gammaM, wm->gammaH, wm->alphaH,
                             wm->thetaRef, deltaTheta, wm->kappa,
-                            qWall, frictionVel, phiM, phiH, L
+                            qWall, frictionVel, phiM, phiH, L, k, j, i
                         );
                     }
 
@@ -4347,7 +4390,7 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
                 UParallelMeanMag, dist, wm->roughness,
                 wm->gammaM, wm->gammaH, wm->alphaH,
                 wm->thetaRef, deltaTheta, wm->kappa,
-                qWall, frictionVel, phiM, phiH, L
+                qWall, frictionVel, phiM, phiH, L, k, j, i
             );
 
             // print information (debugging)
@@ -4408,7 +4451,7 @@ PetscErrorCode UpdateWallModelsT(teqn_ *teqn)
                             UParallelMeanMag, s, wm->roughness,
                             wm->gammaM, wm->gammaH, wm->alphaH,
                             wm->thetaRef, deltaTheta, wm->kappa,
-                            qWall, frictionVel, phiM, phiH, L
+                            qWall, frictionVel, phiM, phiH, L, k, j, i
                         );
                     }
 
@@ -4483,7 +4526,14 @@ PetscErrorCode UpdateImmersedBCs(ibm_ *ibm)
                     ucy = (lucat[k][j][i].y + lucat[k][j][i+1].y) * 0.5;
                     ucz = (lucat[k][j][i].z + lucat[k][j][i+1].z) * 0.5;
 
-                    ucont[k][j][i].x = (ucx * icsi[k][j][i].x + ucy * icsi[k][j][i].y + ucz * icsi[k][j][i].z);
+                    if(ibm->wallShearOn)
+                    {
+                        ucont[k][j][i].x = 0.0;
+                    }
+                    else 
+                    {
+                        ucont[k][j][i].x = (ucx * icsi[k][j][i].x + ucy * icsi[k][j][i].y + ucz * icsi[k][j][i].z);
+                    }
                 }
 
                 if (isIBMFluidJFace(k, j, i, j+1, nvert))
@@ -4491,8 +4541,15 @@ PetscErrorCode UpdateImmersedBCs(ibm_ *ibm)
                     ucx = (lucat[k][j+1][i].x + lucat[k][j][i].x) * 0.5;
                     ucy = (lucat[k][j+1][i].y + lucat[k][j][i].y) * 0.5;
                     ucz = (lucat[k][j+1][i].z + lucat[k][j][i].z) * 0.5;
-
-                    ucont[k][j][i].y = (ucx * jeta[k][j][i].x + ucy * jeta[k][j][i].y + ucz * jeta[k][j][i].z);
+                    
+                    if(ibm->wallShearOn)
+                    {
+                        ucont[k][j][i].y = 0.0;
+                    }
+                    else
+                    {
+                        ucont[k][j][i].y = (ucx * jeta[k][j][i].x + ucy * jeta[k][j][i].y + ucz * jeta[k][j][i].z);
+                    }
                 }
 
                 if (isIBMFluidKFace(k, j, i, k+1, nvert))
@@ -4501,7 +4558,14 @@ PetscErrorCode UpdateImmersedBCs(ibm_ *ibm)
                     ucy = (lucat[k+1][j][i].y + lucat[k][j][i].y) * 0.5;
                     ucz = (lucat[k+1][j][i].z + lucat[k][j][i].z) * 0.5;
 
-                    ucont[k][j][i].z = (ucx * kzet[k][j][i].x + ucy * kzet[k][j][i].y + ucz * kzet[k][j][i].z);
+                    if(ibm->wallShearOn)
+                    {
+                        ucont[k][j][i].z = 0.0;
+                    }
+                    else
+                    {
+                        ucont[k][j][i].z = (ucx * kzet[k][j][i].x + ucy * kzet[k][j][i].y + ucz * kzet[k][j][i].z);
+                    }
                 }
 
                 if(isIBMSolidIFace(k, j, i, i+1, nvert))

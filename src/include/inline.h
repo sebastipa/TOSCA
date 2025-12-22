@@ -6,6 +6,7 @@
 
 #include "io.h"
 #include "ibm.h"
+#include <random>
 
 // DYNAMIC TIME STEPPING
 // ============================================================================================================= //
@@ -113,6 +114,162 @@ inline void matVecProduct(PetscReal **A, PetscReal *b, PetscReal *c, PetscInt nu
     }
 
     return;
+}
+
+static inline void zeroTensor(Tensor* T) {
+    T->xx = 0.0;
+    T->xy = 0.0;
+    T->xz = 0.0;
+    T->yx = 0.0;
+    T->yy = 0.0;
+    T->yz = 0.0;
+    T->zx = 0.0;
+    T->zy = 0.0;
+    T->zz = 0.0;
+}
+
+static inline Tensor symm(const Tensor T)
+{
+    Tensor S;
+    S.xx = T.xx;
+    S.xy = 0.5 * (T.xy + T.yx);
+    S.xz = 0.5 * (T.xz + T.zx);
+    S.yx = S.xy;
+    S.yy = T.yy;
+    S.yz = 0.5 * (T.yz + T.zy);
+    S.zx = S.xz;
+    S.zy = S.yz;
+    S.zz = T.zz;
+    return S;
+}
+
+static inline Tensor skewsymm(const Tensor T)
+{
+    Tensor K;
+    K.xx = 0.0;
+    K.xy = 0.5 * (T.xy - T.yx);
+    K.xz = 0.5 * (T.xz - T.zx);
+    K.yx = -K.xy;
+    K.yy = 0.0;
+    K.yz = 0.5 * (T.yz - T.zy);
+    K.zx = -K.xz;
+    K.zy = -K.yz;
+    K.zz = 0.0;
+    return K;
+}
+
+static inline Tensor dev(const Tensor T)
+{
+    Tensor D;
+    
+    PetscScalar tr = T.xx + T.yy + T.zz;
+    
+    PetscScalar oneThirdTr = tr / 3.0;
+    
+    D.xx = T.xx - oneThirdTr;
+    D.xy = T.xy;
+    D.xz = T.xz;
+    D.yx = T.yx;
+    D.yy = T.yy - oneThirdTr;
+    D.yz = T.yz;
+    D.zx = T.zx;
+    D.zy = T.zy;
+    D.zz = T.zz - oneThirdTr;
+    return D;
+}
+
+static inline PetscReal trace(const Tensor T)
+{
+    return T.xx + T.yy + T.zz;
+}
+//compute the trace of T^2
+static inline PetscReal traceSquare(const Tensor T)
+{
+    return T.xx * T.xx + T.yy * T.yy + T.zz * T.zz +
+        2.0 * (T.xy * T.yx + T.xz * T.zx + T.yz * T.zy);
+}
+
+
+static inline TensorInvariants invariants(const Tensor T)
+{
+    TensorInvariants inv;
+    
+    inv.I1 = trace(T);
+    
+    inv.I2 = 0.5 * (inv.I1 * inv.I1 - traceSquare(T));
+    
+    inv.I3 = T.xx * (T.yy * T.zz - T.yz * T.zy)
+        - T.xy * (T.yx * T.zz - T.yz * T.zx)
+        + T.xz * (T.yx * T.zy - T.yy * T.zx);
+    
+    return inv;
+}
+//computes the inner Product of Tensors
+static inline PetscReal tensorInnerProduct(const Tensor T)
+{
+    return (T.xx*T.xx + T.xy*T.xy + T.xz*T.xz +
+            T.yx*T.yx + T.yy*T.yy + T.yz*T.yz +
+            T.zx*T.zx + T.zy*T.zy + T.zz*T.zz);
+}
+
+// Computes the turbulence-model norm, defined as sqrt(2 * T_ij*T_ij).
+static inline PetscReal TensorMagnitude(const Tensor T)
+{
+    return PetscSqrtReal(2.0 * tensorInnerProduct(T));
+}
+
+static inline Tensor multTensor(const Tensor A, const Tensor B) {
+    Tensor C;
+    zeroTensor(&C);
+
+    C.xx = A.xx * B.xx + A.xy * B.yx + A.xz * B.zx;
+    C.xy = A.xx * B.xy + A.xy * B.yy + A.xz * B.zy;
+    C.xz = A.xx * B.xz + A.xy * B.yz + A.xz * B.zz;
+
+    C.yx = A.yx * B.xx + A.yy * B.yx + A.yz * B.zx;
+    C.yy = A.yx * B.xy + A.yy * B.yy + A.yz * B.zy;
+    C.yz = A.yx * B.xz + A.yy * B.yz + A.yz * B.zz;
+
+    C.zx = A.zx * B.xx + A.zy * B.yx + A.zz * B.zx;
+    C.zy = A.zx * B.xy + A.zy * B.yy + A.zz * B.zy;
+    C.zz = A.zx * B.xz + A.zy * B.yz + A.zz * B.zz;
+
+    return C;
+}
+
+static inline PetscReal doubleContract(const Tensor A, const Tensor B)
+{
+    // return sum_{i,j} [A_ij * B_ij]
+    return  A.xx * B.xx + A.xy * B.xy + A.xz * B.xz
+          + A.yx * B.yx + A.yy * B.yy + A.yz * B.yz
+          + A.zx * B.zx + A.zy * B.zy + A.zz * B.zz;
+}
+
+static inline Cmpnts multTensorVector(const Tensor T, const Cmpnts v)
+{
+    // Standard 3×3 matrix times 3×1 vector = 3×1 result
+    Cmpnts out;
+    out.x = T.xx*v.x + T.xy*v.y + T.xz*v.z;
+    out.y = T.yx*v.x + T.yy*v.y + T.yz*v.z;
+    out.z = T.zx*v.x + T.zy*v.y + T.zz*v.z;
+    return out;
+}
+
+// Computes the standard Frobenius norm of the tensor: sqrt(T_ij*T_ij)
+static inline PetscReal frobeniusNorm(const Tensor T)
+{
+    return PetscSqrtReal(tensorInnerProduct(T));
+}
+
+static inline Cmpnts vorticity(const Tensor T)
+{
+    Cmpnts omega;
+
+    omega.x = (T.zy - T.yz);
+    omega.y = (T.xz - T.zx);
+    omega.z = (T.yx - T.xy);
+
+    return omega;
 }
 
 //=============================================================================================================
@@ -455,6 +612,17 @@ inline PetscReal splineB2(PetscReal a)
              fabs(a) > 0.5)       return 1.0/8.0 * (2.0*fabs(a) - 3.0)*(2.0*fabs(a) - 3.0);
     else                          return 0.0;
 
+}
+
+// Computes the smallest angle difference between two angles (in radians), accounting for periodicity.
+// Inputs: a, b - angles in radians.
+// Returns: The smallest difference (a - b) in radians, adjusted to be within [-π, π].
+inline PetscReal angleDiff(PetscReal a, PetscReal b)
+{
+    PetscReal diff = a - b;
+    while (diff > M_PI) diff -= 2.0 * M_PI;
+    while (diff < -M_PI) diff += 2.0 * M_PI;
+    return diff;
 }
 
 // VECTOR ALGEBRA
@@ -2946,6 +3114,117 @@ inline void Compute_du_center
         *dudz = ( ucat[k+1][j][i].x - ucat[k-1][j][i].x ) * 0.5;
         *dvdz = ( ucat[k+1][j][i].y - ucat[k-1][j][i].y ) * 0.5;
         *dwdz = ( ucat[k+1][j][i].z - ucat[k-1][j][i].z ) * 0.5;
+    }
+
+    return;
+}
+
+//***************************************************************************************************************//
+
+inline void Compute_du_center4th
+(
+    mesh_ *mesh,
+    PetscInt i, PetscInt j, PetscInt k,  PetscInt mx, PetscInt my, PetscInt mz,
+    Cmpnts ***ucat, PetscReal ***nvert, PetscReal ***meshTag,
+    PetscReal *dudc, PetscReal *dvdc, PetscReal *dwdc,
+    PetscReal *dude, PetscReal *dvde, PetscReal *dwde,
+    PetscReal *dudz, PetscReal *dvdz, PetscReal *dwdz
+)
+{
+    //csi direction
+    if (isIBMSolidCell(k, j, i+1, nvert) || isZeroedCell(k, j, i+1, meshTag) || (!mesh->i_periodic &&  !mesh->ii_periodic && i==mx-2))
+    {
+        *dudc = ( ucat[k][j][i].x - ucat[k][j][i-1].x );
+        *dvdc = ( ucat[k][j][i].y - ucat[k][j][i-1].y );
+        *dwdc = ( ucat[k][j][i].z - ucat[k][j][i-1].z );
+    }
+    else if (isIBMSolidCell(k, j, i-1, nvert) || isZeroedCell(k, j, i-1, meshTag) || (!mesh->i_periodic &&  !mesh->ii_periodic && i==1))
+    {
+        *dudc = ( ucat[k][j][i+1].x - ucat[k][j][i].x );
+        *dvdc = ( ucat[k][j][i+1].y - ucat[k][j][i].y );
+        *dwdc = ( ucat[k][j][i+1].z - ucat[k][j][i].z );
+    }
+    else if((i==2 && !mesh->i_periodic &&  !mesh->ii_periodic) || (i==1 && (mesh->i_periodic || mesh->ii_periodic)) || (isIBMFluidIFace(k, j, i, i+1, nvert) || isInterpolatedIFace(k, j, i, i+1, meshTag)))
+    {
+        *dudc = ( ucat[k][j][i+1].x - ucat[k][j][i-1].x ) * 0.5;
+        *dvdc = ( ucat[k][j][i+1].y - ucat[k][j][i-1].y ) * 0.5;
+        *dwdc = ( ucat[k][j][i+1].z - ucat[k][j][i-1].z ) * 0.5;
+    }
+    else if((i==mx-3 && !mesh->i_periodic &&  !mesh->ii_periodic) || (i==mx-2 && (mesh->i_periodic || mesh->ii_periodic)) || (isIBMFluidIFace(k, j, i, i-1, nvert) || isInterpolatedIFace(k, j, i, i-1, meshTag)))
+    {
+        *dudc = ( ucat[k][j][i+1].x - ucat[k][j][i-1].x ) * 0.5;
+        *dvdc = ( ucat[k][j][i+1].y - ucat[k][j][i-1].y ) * 0.5;
+        *dwdc = ( ucat[k][j][i+1].z - ucat[k][j][i-1].z ) * 0.5;
+    }
+    else
+    {
+        *dudc = (-ucat[k][j][i+2].x + 8*ucat[k][j][i+1].x - 8*ucat[k][j][i-1].x + ucat[k][j][i-2].x) / 12.0;
+        *dvdc = (-ucat[k][j][i+2].y + 8*ucat[k][j][i+1].y - 8*ucat[k][j][i-1].y + ucat[k][j][i-2].y) / 12.0;
+        *dwdc = (-ucat[k][j][i+2].z + 8*ucat[k][j][i+1].z - 8*ucat[k][j][i-1].z + ucat[k][j][i-2].z) / 12.0;        
+    }
+
+    //eta direction
+    if (isIBMSolidCell(k, j+1, i, nvert) || isZeroedCell(k, j+1, i, meshTag) || (!mesh->j_periodic && !mesh->jj_periodic && j==my-2))
+    {
+        *dude = ( ucat[k][j][i].x - ucat[k][j-1][i].x );
+        *dvde = ( ucat[k][j][i].y - ucat[k][j-1][i].y );
+        *dwde = ( ucat[k][j][i].z - ucat[k][j-1][i].z );
+    }
+    else if (isIBMSolidCell(k, j-1, i, nvert) || isZeroedCell(k, j-1, i, meshTag) || (!mesh->j_periodic && !mesh->jj_periodic && j==1))
+    {
+        *dude = ( ucat[k][j+1][i].x - ucat[k][j][i].x );
+        *dvde = ( ucat[k][j+1][i].y - ucat[k][j][i].y );
+        *dwde = ( ucat[k][j+1][i].z - ucat[k][j][i].z );
+    }
+    else if((j==2 && !mesh->j_periodic && !mesh->jj_periodic) || (j==1 && (mesh->j_periodic || mesh->jj_periodic)) || (isIBMFluidJFace(k, j, i, j+1, nvert) || isInterpolatedJFace(k, j, i, j+1, meshTag)))
+    {
+        *dude = ( ucat[k][j+1][i].x - ucat[k][j-1][i].x ) * 0.5;
+        *dvde = ( ucat[k][j+1][i].y - ucat[k][j-1][i].y ) * 0.5;
+        *dwde = ( ucat[k][j+1][i].z - ucat[k][j-1][i].z ) * 0.5;
+    }
+    else if((j==my-3 && !mesh->j_periodic && !mesh->jj_periodic) || (j==my-2 && (mesh->j_periodic || mesh->jj_periodic)) || (isIBMFluidJFace(k, j, i, j-1, nvert) || isInterpolatedJFace(k, j, i, j-1, meshTag)))
+    {
+        *dude = ( ucat[k][j+1][i].x - ucat[k][j-1][i].x ) * 0.5;
+        *dvde = ( ucat[k][j+1][i].y - ucat[k][j-1][i].y ) * 0.5;
+        *dwde = ( ucat[k][j+1][i].z - ucat[k][j-1][i].z ) * 0.5;
+    }
+    else
+    {
+        *dude = (-ucat[k][j+2][i].x + 8*ucat[k][j+1][i].x - 8*ucat[k][j-1][i].x + ucat[k][j-2][i].x) / 12.0;
+        *dvde = (-ucat[k][j+2][i].y + 8*ucat[k][j+1][i].y - 8*ucat[k][j-1][i].y + ucat[k][j-2][i].y) / 12.0;
+        *dwde = (-ucat[k][j+2][i].z + 8*ucat[k][j+1][i].z - 8*ucat[k][j-1][i].z + ucat[k][j-2][i].z) / 12.0;
+    }
+
+    //zeta direction
+    if (isIBMSolidCell(k+1, j, i, nvert) || isZeroedCell(k+1, j, i, meshTag) || (!mesh->k_periodic && !mesh->kk_periodic && k==mz-2))
+    {
+        *dudz = ( ucat[k][j][i].x - ucat[k-1][j][i].x );
+        *dvdz = ( ucat[k][j][i].y - ucat[k-1][j][i].y );
+        *dwdz = ( ucat[k][j][i].z - ucat[k-1][j][i].z );
+    }
+    else if (isIBMSolidCell(k-1, j, i, nvert) || isZeroedCell(k-1, j, i, meshTag) || (!mesh->k_periodic && !mesh->kk_periodic && k==1))
+    {
+        *dudz = ( ucat[k+1][j][i].x - ucat[k][j][i].x );
+        *dvdz = ( ucat[k+1][j][i].y - ucat[k][j][i].y );
+        *dwdz = ( ucat[k+1][j][i].z - ucat[k][j][i].z );
+    }
+    else if((k==2 && !mesh->k_periodic && !mesh->kk_periodic) || (k==1 && (mesh->k_periodic || mesh->kk_periodic)) || (isIBMFluidKFace(k, j, i, k+1, nvert) || isInterpolatedKFace(k, j, i, k+1, meshTag)))
+    {
+        *dudz = ( ucat[k+1][j][i].x - ucat[k-1][j][i].x ) * 0.5;
+        *dvdz = ( ucat[k+1][j][i].y - ucat[k-1][j][i].y ) * 0.5;
+        *dwdz = ( ucat[k+1][j][i].z - ucat[k-1][j][i].z ) * 0.5;
+    }
+    else if((k==mz-3 && !mesh->k_periodic && !mesh->kk_periodic) || (k==mz-2 && (mesh->k_periodic || mesh->kk_periodic)) || (isIBMFluidKFace(k, j, i, k-1, nvert) || isInterpolatedKFace(k, j, i, k-1, meshTag)))
+    {
+        *dudz = ( ucat[k+1][j][i].x - ucat[k-1][j][i].x ) * 0.5;
+        *dvdz = ( ucat[k+1][j][i].y - ucat[k-1][j][i].y ) * 0.5;
+        *dwdz = ( ucat[k+1][j][i].z - ucat[k-1][j][i].z ) * 0.5;
+    }
+    else
+    {
+        *dudz = (-ucat[k+2][j][i].x + 8*ucat[k+1][j][i].x - 8*ucat[k-1][j][i].x + ucat[k-2][j][i].x) / 12.0;
+        *dvdz = (-ucat[k+2][j][i].y + 8*ucat[k+1][j][i].y - 8*ucat[k-1][j][i].y + ucat[k-2][j][i].y) / 12.0;
+        *dwdz = (-ucat[k+2][j][i].z + 8*ucat[k+1][j][i].z - 8*ucat[k-1][j][i].z + ucat[k-2][j][i].z) / 12.0;
     }
 
     return;

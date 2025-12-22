@@ -39,14 +39,13 @@ smearT 0.5
 coriolisActive 1
 controllerActive 1
 controllerActiveT 0
+controllerActivePrecursor  1
 controllerActivePrecursorT 0
-precursorControllerTypeMismatch 0
 
 controllerProperties
 {
-    # Velocity controller type (write->pressure/geostrphic/directProfileAssimilation, read->timeSeries/timeAverageSeries/timeHeightSeries)
     controllerAction read
-    controllerType timeAverageSeries
+    controllerType   timeAverageSeries
 
     # Velocity controller gain factor 
     relaxPI 0.7
@@ -60,15 +59,29 @@ controllerProperties
     # Velocity controller max height of influence 
     controllerMaxHeight 100000.0
     
-    # Start time for the given momentum source average (only controller type 'average')
-    controllerAvgStartTime 9000.0
-    
-    # Geostrophic height
-    hGeo 900
-    
-    # Geostrophic angle
-    alphaGeo 0
+    # Start time for the given momentum source average 
+    controllerAvgStartTime 9000.0 
+}
 
+controllerPropertiesPrecursor
+{
+    controllerAction read
+    controllerType   timeAverageSeries
+    
+    # Velocity controller gain factor 
+    relaxPI 0.7
+
+    # Velocity controller proportional over integral contribution ratio
+    alphaPI 0.9
+
+    # Velocity controller time filter
+    timeWindowPI 3600
+
+    # Velocity controller max height of influence
+    controllerMaxHeight 100000.0
+
+    # Start time for the given momentum source average 
+    controllerAvgStartTime 9000.0 
 }
 
 # Coriolis parameter: 7.272205217e-5 * sin(latitude)

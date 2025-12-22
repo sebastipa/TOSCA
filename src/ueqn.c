@@ -47,17 +47,34 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
     // read divergence scheme
     readDictWord("control.dat", "-divScheme", &(ueqn->divScheme));
 
-    if(     ueqn->divScheme == "centralUpwind")  ueqn->centralUpwindDiv  = 1;
-    else if(ueqn->divScheme == "centralUpwindW") ueqn->centralUpwindWDiv = 1;
-    else if(ueqn->divScheme == "central")        ueqn->centralDiv        = 1;
-    else if(ueqn->divScheme == "central4")       ueqn->central4Div       = 1;
-    else if(ueqn->divScheme == "weno3")          ueqn->weno3Div          = 1;
-    else if(ueqn->divScheme == "quickDiv")       ueqn->quickDiv          = 1;
-    
+    if      (ueqn->divScheme == "centralUpwind")   ueqn->centralUpwindDiv  = 1;
+    else if (ueqn->divScheme == "centralUpwindW")  ueqn->centralUpwindWDiv = 1;
+    else if (ueqn->divScheme == "central")         ueqn->centralDiv        = 1;
+    else if (ueqn->divScheme == "central4")        ueqn->central4Div       = 1;
+    else if (ueqn->divScheme == "weno3")           ueqn->weno3Div          = 1;
+    else if (ueqn->divScheme == "quickDiv")        ueqn->quickDiv          = 1;
+    else
+    {
+        char error[512];
+        sprintf(error,
+            "unknown divScheme %s for U equation, available schemes are\n"
+            "    1. centralUpwind\n"
+            "    2. centralUpwindW\n"
+            "    3. central\n"
+            "    4. central4\n"
+            "    5. weno3\n"
+            "    6. quickDiv",
+            ueqn->divScheme.c_str());
+        fatalErrorInFunction("InitializeUEqn", error);
+    }
+
+    PetscPrintf(PETSC_COMM_WORLD, "DivScheme: %s for U equation\n", ueqn->divScheme.c_str());
+
     if(ueqn->divScheme == "central4")
     {
         ueqn->hyperVisc = 1.0;
         PetscOptionsGetReal(PETSC_NULL, PETSC_NULL,  "-hyperVisc", &(ueqn->hyperVisc),   PETSC_NULL);
+        PetscPrintf(PETSC_COMM_WORLD, "Hyperviscosity parameter = %lf\n", ueqn->hyperVisc);
     }
 
     VecDuplicate(mesh->Cent, &(ueqn->Utmp));      VecSet(ueqn->Utmp,    0.0);
@@ -82,6 +99,11 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
 	VecDuplicate(mesh->lCent, &(ueqn->sourceU));  VecSet(ueqn->sourceU, 0.0);
 
     VecDuplicate(mesh->lAj, &(ueqn->lUstar));     VecSet(ueqn->lUstar,  0.0);
+    
+    if(ueqn->access->flags->isMeangradPForcingActive)
+    {
+        ueqn->meanGradP = nSetZero();
+    }
 
     if(ueqn->access->flags->isTeqnActive)
     {
@@ -102,8 +124,8 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
 
     if(ueqn->ddtScheme == "backwardEuler")
     {
-        ueqn->relExitTol        = 1e-30;
-        ueqn->absExitTol        = 1e-5;
+        ueqn->relExitTol = 1e-30;
+        ueqn->absExitTol = 1e-5;
 
         PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-relTolU",  &(ueqn->relExitTol), PETSC_NULL);
         PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-absTolU",  &(ueqn->absExitTol), PETSC_NULL);
@@ -115,21 +137,21 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
         // set the SNES evaluating function
         SNESSetFunction(ueqn->snesU, ueqn->Rhs, UeqnSNES, (void *)ueqn);
 
-        // create jacobian matrix
+        // create matrix-free Jacobian
         MatCreateSNESMF(ueqn->snesU, &(ueqn->JU));
         SNESSetJacobian(ueqn->snesU, ueqn->JU, ueqn->JU, MatMFFDComputeJacobian, (void *)ueqn);
 
         // set SNES solver type
-        // SNESSetType(ueqn->snesU, SNESNEWTONTR);          //SNESTR
-        SNESSetType(ueqn->snesU, SNESNEWTONLS);        //SNESLS is better for stiff PDEs such as the one including IB but slower
+        SNESSetType(ueqn->snesU, SNESNEWTONTR);          //SNESTR
+        // SNESSetType(ueqn->snesU, SNESNEWTONLS);        //SNESLS is better for stiff PDEs such as the one including IB but slower
 
         // set SNES solve and step failures
         SNESSetMaxLinearSolveFailures(ueqn->snesU,10000);
         SNESSetMaxNonlinearStepFailures(ueqn->snesU,10000);
-        SNESKSPSetUseEW(ueqn->snesU, PETSC_TRUE);
 
-        // set SNES Krylov Sub-Space parameters
-        SNESKSPSetParametersEW(ueqn->snesU,3,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);
+        // enable Eisenstat-Walker for adaptive KSP tolerances
+        SNESKSPSetUseEW(ueqn->snesU, PETSC_TRUE);
+        SNESKSPSetParametersEW(ueqn->snesU, 3, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT);
 
         // SNES tolerances
         // 2nd arg: absolute tolerance
@@ -139,24 +161,26 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
         // 6th arg: maximum function evaluations
         SNESSetTolerances(ueqn->snesU, ueqn->absExitTol, ueqn->relExitTol, 1e-30, 20, 1000);
 
+        // get KSP and PC
         SNESGetKSP(ueqn->snesU, &(ueqn->ksp));
-        KSPGetPC(ueqn->ksp,&(ueqn->pc));
+        KSPGetPC(ueqn->ksp, &(ueqn->pc));
 
-        // set KSP solver type
+        // set KSP type 
         KSPSetType(ueqn->ksp, KSPGMRES);
 
-        //KSPSetInitialGuessNonzero(ksp, PETSC_TRUE);    //2009.09.22 poor performance
-        //KSPSetInitialGuessKnoll(ksp, PETSC_TRUE);      //2009.09.22
-
-        //KSPFischerGuess itg;
-        //KSPFischerGuessCreate(ksp,1,100,&itg);
-        //KSPSetFischerGuess(ksp, itg);                  //2009.09.22
-
-        //KSPGMRESSetPreAllocateVectors(ksp);            --> crazy thing consumes memory
-
         PCSetType(ueqn->pc, PCNONE);
-        PetscReal rtol=ueqn->relExitTol, atol=ueqn->absExitTol, dtol=1e30;
+        PetscReal rtol = ueqn->relExitTol, atol = ueqn->absExitTol, dtol = 1e30;
         KSPSetTolerances(ueqn->ksp, rtol, atol, dtol, 1000);
+
+        // add nonlinear preconditioning for stiffness 
+        SNES npc;
+        SNESGetNPC(ueqn->snesU, &npc);
+        SNESSetType(npc, SNESNEWTONLS);  
+
+        // set modern line search (cubic backtracking for robustness)
+        SNESLineSearch linesearch;
+        SNESGetLineSearch(ueqn->snesU, &linesearch);
+        SNESLineSearchSetType(linesearch, SNESLINESEARCHBT);
     }
     else if(ueqn->ddtScheme == "forwardEuler" || ueqn->ddtScheme == "rungeKutta4")
     {
@@ -164,9 +188,9 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
     }
     else
     {
-         char error[512];
-         sprintf(error, "unknown ddtScheme %s for U equation, available schemes are\n    1. backwardEuler\n    2. forwardEuler\n    3. rungeKutta4", ueqn->ddtScheme.c_str());
-         fatalErrorInFunction("InitializeUEqn", error);
+        char error[512];
+        sprintf(error, "unknown ddtScheme %s for U equation, available schemes are\n    1. backwardEuler\n    2. forwardEuler\n    3. rungeKutta4", ueqn->ddtScheme.c_str());
+        fatalErrorInFunction("InitializeUEqn", error);
     }
 
     return(0);
@@ -525,30 +549,6 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                 {
                     applyGeoDamping = 1;
                 }
-
-                if(mesh->access->io->runTimeWrite)
-                {
-                    if(!rank)
-                    {
-                        word location = "./fields/" + mesh->meshName + "/" + getTimeName(clock);
-                        word fileName = location + "/geostrophicDampingInfo";
-
-                        FILE *fp=fopen(fileName.c_str(), "w");
-
-                        if(fp==NULL)
-                        {
-                            char error[512];
-                            sprintf(error, "cannot open file %s\n", fileName.c_str());
-                            fatalErrorInFunction("ABLInitialize",  error);
-                        }
-                        else
-                        {
-                            fprintf(fp, "filteredS \t\t(%.6e %.6e %.6e)\n", abl->geoDampAvgS.x, abl->geoDampAvgS.y, 0.0);
-                            fprintf(fp, "filteredDT\t\t %.5lf\n", abl->geoDampAvgDT);
-                            fclose(fp);
-                        }
-                    }
-                }
             }
 
             // write the uniform source term
@@ -598,8 +598,6 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
         else if(abl->controllerType=="geostrophic")
         {
             PetscReal     relax = abl->relax;
-            PetscReal     alpha = abl->alpha;
-            PetscReal     T     = abl->timeWindow;
 
             DMDAVecGetArray(da, mesh->lAj, &aj);
 
@@ -615,7 +613,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
             Cmpnts guMeanGeo1; guMeanGeo1.x = 0.0; guMeanGeo1.y = 0.0; guMeanGeo1.z = 0.0;
             Cmpnts guMeanGeo2; guMeanGeo2.x = 0.0; guMeanGeo2.y = 0.0; guMeanGeo2.z = 0.0;
 
-            for (k=zs; k<lze; k++)
+            for (k=lzs; k<lze; k++)
             {
                 for (j=lys; j<lye; j++)
                 {
@@ -682,56 +680,80 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
             uMeanGeo.z = guMeanGeo1.z * abl->levelWeightsGeo[0] + guMeanGeo2.z * abl->levelWeightsGeo[1];
 
             if(print) PetscPrintf(mesh->MESH_COMM, "Correcting source terms: wind height is %lf m, h1 = %lf m, h2 = %lf m\n", abl->hRef, abl->cellLevels[abl->closestLabels[0]-1], abl->cellLevels[abl->closestLabels[1]-1]);
-            if(print) PetscPrintf(mesh->MESH_COMM, "                         U at hRef: (%.3f %.3f %.3f) m/s, U at hGeo: (%.3f %.3f %.3f) m/s\n", uMean.x, uMean.y, uMean.z, uMeanGeo.x, uMeanGeo.y, uMeanGeo.z);
+            if(print) PetscPrintf(mesh->MESH_COMM, "                         U at hRef: (%.3f %.3f %.3f) m/s, U at hGeo: (%.3f %.3f %.3f)  = %0.3f m/s\n", uMean.x, uMean.y, uMean.z, uMeanGeo.x, uMeanGeo.y, uMeanGeo.z, nMag(uMeanGeo));
 
             // compute actual angles
-            PetscReal hubAngle    = std::atan(uMean.y/uMean.x);
-            PetscReal geoAngleNew = std::atan(uMeanGeo.y/uMeanGeo.x);
-
-            // compute filtered hub angle
-            abl->hubAngle = (1.0 - clock->dt / T) * abl->hubAngle + (clock->dt / T) * hubAngle;
-
-            // compute filtered geostrophic angle
-            abl->geoAngle = (1.0 - clock->dt / T) * abl->geoAngle + (clock->dt / T) * geoAngleNew;
-
-            if(print) PetscPrintf(mesh->MESH_COMM, "                         Alpha at hRef: %.3f deg, Alpha at hGeo: %.3f deg\n",abl->hubAngle/M_PI*180, abl->geoAngle/M_PI*180);
-
-            // compute the uniform source terms
-            abl->a.x = -2.0*abl->fc*nMag(abl->uGeoBar)*sin(abl->geoAngle);
-            abl->a.y =  2.0*abl->fc*nMag(abl->uGeoBar)*cos(abl->geoAngle);
-            abl->a.z =  0.0;
-
-            if(!relax)
+            PetscReal hubAngle    = std::atan2(uMean.y, uMean.x);
+            PetscReal geoAngleNew = std::atan2(uMeanGeo.y, uMeanGeo.x);
+            
+            if(abl->windAngleController)
             {
-                abl->b.x = 0.0;
-                abl->b.y = 0.0;
-                abl->b.z = 0.0;
-            }
-            else
-            {
-                // compute previous geostrophic angle and delta angle w.r.t actual
-                PetscReal geoAngleOld = std::atan(abl->uGeoBar.y/abl->uGeoBar.x);
-                PetscReal geoDelta    = geoAngleNew - geoAngleOld;
+                // compute the uniform source terms for geostrophic wind controller
+                abl->a.x = -2.0 * abl->fc * nMag(abl->uGeoBar) * sin(geoAngleNew);
+                abl->a.y = 2.0 * abl->fc * nMag(abl->uGeoBar) * cos(geoAngleNew);
+                abl->a.z = 0.0;
 
-                // compute rotation angle at hub height
-                PetscReal hubDelta = hubAngle;
-                PetscReal omega    = hubDelta / clock->dt;
+                // compute rotation speed at hub height (omega)
+                PetscReal omega = relax * angleDiff(hubAngle, abl->refHubAngle);
 
-                // time constant
-                PetscReal sigma    = clock->dt / 200; // filter hardcoded to 200s
-
-                // compute omega bar
-                abl->omegaBar    = sigma * omega + (1.0 - sigma) * abl->omegaBar;
-
-                // rotate geostrophic speed
-                Cmpnts uGeoBarTmp = nSetZero();
-                uGeoBarTmp.x = std::cos(geoDelta) * abl->uGeoBar.x - std::sin(geoDelta) * abl->uGeoBar.y;
-                uGeoBarTmp.y = std::sin(geoDelta) * abl->uGeoBar.x + std::cos(geoDelta) * abl->uGeoBar.y;
-                mSet(abl->uGeoBar, uGeoBarTmp);
-
-                abl->b.x =   relax*(abl->omegaBar + 1.0/T*(abl->hubAngle));
-                abl->b.y = - relax*(abl->omegaBar + 1.0/T*(abl->hubAngle));
+                abl->b.x =   omega;
+                abl->b.y = - omega;
                 abl->b.z =   0.0;
+            }
+            else 
+            {
+                // compute the uniform source terms for geostrophic wind controller
+                abl->a.x = -2.0 * abl->fc * abl->uGeoBar.y;
+                abl->a.y = 2.0 * abl->fc * abl->uGeoBar.x;
+                abl->a.z = 0.0;
+
+                abl->b = nSetZero();
+            }
+
+            PetscPrintf(mesh->MESH_COMM, "                         Alpha at hRef: %.5f deg, Alpha at hGeo: %.3f deg\n", hubAngle/M_PI*180, geoAngleNew/M_PI*180);
+
+            // write the uniform source term
+            if(!rank)
+            {
+                if(clock->it == clock->itStart)
+                {
+                    errno = 0;
+                    PetscInt dirRes = mkdir("./postProcessing", 0777);
+                    if(dirRes != 0 && errno != EEXIST)
+                    {
+                        char error[512];
+                        sprintf(error, "could not create postProcessing directory\n");
+                        fatalErrorInFunction("correctSourceTerm",  error);
+                    }
+                }
+
+                word fileName = "postProcessing/momentumSource_" + getStartTimeName(clock);
+                FILE *fp = fopen(fileName.c_str(), "a");
+
+                if(!fp)
+                {
+                    char error[512];
+                    sprintf(error, "cannot open file %s\n", fileName.c_str());
+                    fatalErrorInFunction("correctSourceTerm",  error);
+                }
+                else
+                {
+                    PetscInt width = -15;
+
+                    if(clock->it == clock->itStart)
+                    {
+                        word w1 = "time";
+                        word w2 = "source x [m/s2]";
+                        word w3 = "source y [m/s2]";
+                        word w4 = "source z [m/s2]";
+
+                        PetscFPrintf(mesh->MESH_COMM, fp, "%*s\t%*s\t%*s\t%*s\n", width, w1.c_str(), width, w2.c_str(), width, w3.c_str(), width, w4.c_str());
+                    }
+
+                    PetscFPrintf(mesh->MESH_COMM, fp, "%*.6f\t%*.5e\t%*.5e%*.5e\t\n", width, clock->time, width, abl->a.x, width, abl->a.y, width, abl->a.z);
+
+                    fclose(fp);
+                }
             }
         }
         else if (abl->controllerType=="geostrophicProfileAssimilation")
@@ -746,6 +768,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
             Cmpnts    *luMean = abl->luMean;
             Cmpnts    *guMean = abl->guMean;
 
+            //reset all fields to 0
             for(j=0; j<nlevels; j++)
             {
                 luMean[j] = nSetZero();
@@ -852,6 +875,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
 
             PetscReal ablHeight = abl->ablHt, scaleFactor;
 
+            // Step 1: Add the coriolis force + unsteady term into the pressure gradient source term
             for(j=0; j<nlevels; j++)
             {                
                 idxh1 = abl->velInterpIdx[j][0];
@@ -867,80 +891,134 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                 //interpolating in vertical direction 
                 uMeso[j] = nSum(nScale(wth1, uH1), nScale(wth2, uH2));
 
-                srcPA[j].x  =  - 2.0*abl->fc*uMeso[j].y;
-                srcPA[j].y  =    2.0*abl->fc*uMeso[j].x;
-                srcPA[j].z  =    0.0;
-            }
-
-            //if abl height is below the lowest mesoscale data point
-            if(ablHeight < abl->hV[0])
-            {   
-                i = 0;    
-                while(abl->cellLevels[i] < abl->hV[0])
+                if(clock->it == clock->itStart)
                 {
-                    i++;
+                    srcPA[j].x  =  - 2.0*abl->fc*uMeso[j].y;
+                    srcPA[j].y  =    2.0*abl->fc*uMeso[j].x;
+                    srcPA[j].z  =    0.0;
                 }
-
-                abl->lowestIndV = i;
-                abl->bottomSrcHtV = abl->hV[0];
-            }
-            // if abl height is in between the mesoscale data points
-            else if(ablHeight >= abl->hV[0])
-            {
-                i = 0;    
-
-                while(abl->cellLevels[i] < ablHeight)
+                else
                 {
-                    i++;
-                }   
-
-                abl->lowestIndV = i;
-                abl->bottomSrcHtV = ablHeight;
+                    srcPA[j].x  =  - 2.0*abl->fc*uMeso[j].y + (uMeso[j].x - abl->uGeoPrev[j].x)/PetscMax(clock->dt, 1e-8);
+                    srcPA[j].y  =    2.0*abl->fc*uMeso[j].x + (uMeso[j].y - abl->uGeoPrev[j].y)/PetscMax(clock->dt, 1e-8);
+                    srcPA[j].z  =    0.0;
+                }
             }
 
+            //save the previous mesoscale velocities 
             for(j=0; j<nlevels; j++)
             {
-                if(abl->cellLevels[j] < abl->bottomSrcHtV)
+                abl->uGeoPrev[j] = nSet(uMeso[j]);
+            }
+
+            //Step 2: use constant source term in the region where no mesoscale data is available 
+            i = 0;    
+            PetscInt lMesoIndv, hMesoIndV;
+            while(abl->cellLevels[i] < abl->hV[0])
+            {
+                i++;
+            }
+            lMesoIndv = i;
+
+            i = nlevels-1;    
+            while(abl->cellLevels[i] > abl->hV[abl->numhV - 1])
+            {
+                i--;
+            }
+            hMesoIndV = i;
+            
+            for(j=0; j<nlevels; j++)
+            {
+                if(abl->cellLevels[j] < abl->hV[0])
                 {
-                    srcPA[j].x = srcPA[abl->lowestIndV].x;
-                    srcPA[j].y = srcPA[abl->lowestIndV].y;
-                    srcPA[j].z = srcPA[abl->lowestIndV].z;
+                    srcPA[j].x = srcPA[lMesoIndv].x;
+                    srcPA[j].y = srcPA[lMesoIndv].y;
+                    srcPA[j].z = srcPA[lMesoIndv].z;
                 } 
 
                 if(abl->cellLevels[j] > abl->hV[abl->numhV - 1])
                 {
-                    srcPA[j].x = srcPA[abl->highestIndV].x;
-                    srcPA[j].y = srcPA[abl->highestIndV].y;
-                    srcPA[j].z = srcPA[abl->highestIndV].z;
+                    srcPA[j].x = srcPA[hMesoIndV].x;
+                    srcPA[j].y = srcPA[hMesoIndV].y;
+                    srcPA[j].z = srcPA[hMesoIndV].z;
                 }
             }
 
-            //now add the damping term 
-            PetscReal ablgeoDelta = 200;
+            // Step 3: add the frictional drag term 
+            PetscReal ablgeoDelta = 0.2 * ablHeight;
             PetscReal ablgeoDampTop = ablHeight + 0.5*ablgeoDelta;
 
-            for(j=0; j<nlevels; j++)
-            {                
-                idxh1 = abl->velInterpIdx[j][0];
-                idxh2 = abl->velInterpIdx[j][1];
+            PetscInt surfaceCell = 0;
+            for(l = 0; l < nlevels; l++)
+            {
+                if(abl->cellLevels[l] > 0)
+                {
+                    surfaceCell = l;
+                    break;
+                }
+            }
 
-                wth1  = abl->velInterpWts[j][0];
-                wth2  = abl->velInterpWts[j][1];
-
-                //interpolating in time
-                uH1 = nSum(nScale(w1, abl->uMeso[idxh1][idx_1]), nScale(w2, abl->uMeso[idxh1][idx_2]));
-                uH2 = nSum(nScale(w1, abl->uMeso[idxh2][idx_1]), nScale(w2, abl->uMeso[idxh2][idx_2]));
-
-                //interpolating in vertical direction 
-                uMeso[j] = nSum(nScale(wth1, uH1), nScale(wth2, uH2));
-
-                //ensure no damping within the boundary layer
+            for (int j = 0; j < nlevels; ++j)
+            {
+                //apply drag term only if below the ABL height
                 scaleFactor = scaleHyperTangTop(abl->cellLevels[j], ablgeoDampTop, ablgeoDelta);
 
-                srcPA[j].x +=  -scaleFactor * 2.0*(2.0*abl->fc)*alpha*(guMean[j].x - uMeso[j].x);
-                srcPA[j].y +=  -scaleFactor * 2.0*(2.0*abl->fc)*alpha*(guMean[j].y - uMeso[j].y);
-                srcPA[j].z =   0.0;
+                PetscReal dz;
+                if(j < surfaceCell)
+                {
+                    srcPA[j].x += 0;
+                    srcPA[j].y += 0;
+                    srcPA[j].z += 0;
+                }
+                else if(j == surfaceCell)
+                {
+                    dz = abl->cellLevels[j+1] - abl->cellLevels[j];
+                    srcPA[j].x += (1 - scaleFactor) * (abl->avgStress[j+1].x - abl->avgStress[j].x) / dz;
+                    srcPA[j].y += (1 - scaleFactor) * (abl->avgStress[j+1].y - abl->avgStress[j].y) / dz;
+                    srcPA[j].z =   0.0;
+                }
+                else if (j == nlevels - 1)
+                {
+                    dz = abl->cellLevels[j] - abl->cellLevels[j-1];
+                    srcPA[j].x += (1 - scaleFactor) * (abl->avgStress[j].x - abl->avgStress[j-1].x) / dz;
+                    srcPA[j].y += (1 - scaleFactor) * (abl->avgStress[j].y - abl->avgStress[j-1].y) / dz;
+                    srcPA[j].z =   0.0;
+                }
+                else
+                {
+                    dz = abl->cellLevels[j+1] - abl->cellLevels[j-1];
+                    srcPA[j].x += (1 - scaleFactor) * (abl->avgStress[j+1].x - abl->avgStress[j-1].x) / dz;
+                    srcPA[j].y += (1 - scaleFactor) * (abl->avgStress[j+1].y - abl->avgStress[j-1].y) / dz;
+                    srcPA[j].z =   0.0;
+                }
             }
+
+            // //now add the damping term 
+            // PetscReal ablgeoDelta = 200;
+            // PetscReal ablgeoDampTop = ablHeight + 0.5*ablgeoDelta;
+
+            // for(j=0; j<nlevels; j++)
+            // {                
+            //     idxh1 = abl->velInterpIdx[j][0];
+            //     idxh2 = abl->velInterpIdx[j][1];
+
+            //     wth1  = abl->velInterpWts[j][0];
+            //     wth2  = abl->velInterpWts[j][1];
+
+            //     //interpolating in time
+            //     uH1 = nSum(nScale(w1, abl->uMeso[idxh1][idx_1]), nScale(w2, abl->uMeso[idxh1][idx_2]));
+            //     uH2 = nSum(nScale(w1, abl->uMeso[idxh2][idx_1]), nScale(w2, abl->uMeso[idxh2][idx_2]));
+
+            //     //interpolating in vertical direction 
+            //     uMeso[j] = nSum(nScale(wth1, uH1), nScale(wth2, uH2));
+
+            //     //ensure no damping within the boundary layer
+            //     scaleFactor = scaleHyperTangTop(abl->cellLevels[j], ablgeoDampTop, ablgeoDelta);
+
+            //     srcPA[j].x +=  -scaleFactor * 2.0*(2.0*abl->fc)*alpha*(guMean[j].x - uMeso[j].x);
+            //     srcPA[j].y +=  -scaleFactor * 2.0*(2.0*abl->fc)*alpha*(guMean[j].y - uMeso[j].y);
+            //     srcPA[j].z =   0.0;
+            // }
 
             //write the source terms 
             if(!rank)
@@ -1136,7 +1214,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                 //interpolating in vertical direction 
                 uMeso[j] = nSum(nScale(wth1, uH1), nScale(wth2, uH2));
 
-                // PetscPrintf(PETSC_COMM_WORLD, "uDes = %lf %lf %lf, guMean = %lf %lf %lf, interpolated from %lf and %lf, wts = %lf %lf\n", uDes.x, uDes.y, uDes.z, guMean[j].x, guMean[j].y, guMean[j].z, abl->timeV[idx_1], abl->timeV[idx_2], w1, w2);
+                // PetscPrintf(PETSC_COMM_WORLD, "uDes = %lf %lf %lf, guMean = %lf %lf %lf, interpolated from %lf and %lf, wts = %lf %lf\n", uMeso[j].x, uMeso[j].y, uMeso[j].z, guMean[j].x, guMean[j].y, guMean[j].z, abl->timeV[idx_1], abl->timeV[idx_2], w1, w2);
 
                 // cumulate the error (integral part of the controller)
                 abl->cumulatedSourceHt[j].x = (1.0 - clock->dt / T) * abl->cumulatedSourceHt[j].x + (clock->dt / T) * (uMeso[j].x - guMean[j].x);
@@ -1336,8 +1414,8 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                 
                 for (j=0; j<nlevels; j++) 
                 {             
-                    if(abl->flType == "constantHeight" || abl->flType == "ablHeight")
-                    {
+                    // if(abl->flType == "constantHeight" || abl->flType == "ablHeight")
+                    // {
                         if(abl->cellLevels[j] < abl->bottomSrcHtV)
                         {
                             srcPA[j].x = srcPA[abl->lowestIndV].x;
@@ -1345,7 +1423,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                             srcPA[j].z = srcPA[abl->lowestIndV].z;
                         }
                     
-                    }
+                    // }
 
                     if(abl->cellLevels[j] > abl->hV[abl->numhV - 1])
                     {
@@ -1513,14 +1591,14 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
             double dtSource2 = std::max((abl->preCompSources[idx_2+1][0] - abl->preCompSources[idx_2][0]), 1e-5);
 
             // do not scale with time step
-            // s.x = w1 * abl->preCompSources[idx_1][1] + w2 * abl->preCompSources[idx_2][1];
-            // s.y = w1 * abl->preCompSources[idx_1][2] + w2 * abl->preCompSources[idx_2][2];
-            // s.z = w1 * abl->preCompSources[idx_1][3] + w2 * abl->preCompSources[idx_2][3];
+            s.x = w1 * abl->preCompSources[idx_1][1] + w2 * abl->preCompSources[idx_2][1];
+            s.y = w1 * abl->preCompSources[idx_1][2] + w2 * abl->preCompSources[idx_2][2];
+            s.z = w1 * abl->preCompSources[idx_1][3] + w2 * abl->preCompSources[idx_2][3];
 
             // scale with time step
-            s.x = (w1 * abl->preCompSources[idx_1][1] / dtSource1 + w2 * abl->preCompSources[idx_2][1] / dtSource2) * clock->dt;
-            s.y = (w1 * abl->preCompSources[idx_1][2] / dtSource1 + w2 * abl->preCompSources[idx_2][2] / dtSource2) * clock->dt;
-            s.z = (w1 * abl->preCompSources[idx_1][3] / dtSource1 + w2 * abl->preCompSources[idx_2][3] / dtSource2) * clock->dt;
+            // s.x = (w1 * abl->preCompSources[idx_1][1] / dtSource1 + w2 * abl->preCompSources[idx_2][1] / dtSource2) * clock->dt;
+            // s.y = (w1 * abl->preCompSources[idx_1][2] / dtSource1 + w2 * abl->preCompSources[idx_2][2] / dtSource2) * clock->dt;
+            // s.z = (w1 * abl->preCompSources[idx_1][3] / dtSource1 + w2 * abl->preCompSources[idx_2][3] / dtSource2) * clock->dt;
 
 
         }
@@ -1529,16 +1607,16 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
             // PetscPrintf(mesh->MESH_COMM, "Correcting source terms using source average from time %lf\n", abl->sourceAvgStartTime);
 
             // do not scale with dt
-            // s.x = abl->cumulatedSource.x;
-            // s.y = abl->cumulatedSource.y;
-            // s.z = abl->cumulatedSource.z;
+            s.x = abl->cumulatedSource.x;
+            s.y = abl->cumulatedSource.y;
+            s.z = abl->cumulatedSource.z;
 
             // scale with dt
-            PetscReal dtScale = clock->dt / abl->avgTimeStep;
+            //PetscReal dtScale = clock->dt / abl->avgTimeStep;
 
-            s.x = abl->cumulatedSource.x * dtScale;
-            s.y = abl->cumulatedSource.y * dtScale;
-            s.z = abl->cumulatedSource.z * dtScale;
+            // s.x = abl->cumulatedSource.x * dtScale;
+            // s.y = abl->cumulatedSource.y * dtScale;
+            // s.z = abl->cumulatedSource.z * dtScale;
         }
         else if(abl->controllerType=="timeHeightSeries")
         {
@@ -1594,6 +1672,19 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                 idx_1 = idx_tmp;
             }
 
+            // ensure time is bounded between idx_1 and idx_2 (necessary for non-uniform data)
+            if(abl->timeHtSources[idx_2][0][0] < clock->time)
+            {
+                idx_1 = idx_2;
+                idx_2 = idx_1 + 1;
+            }
+
+            if(abl->timeHtSources[idx_1][0][0] > clock->time)
+            {
+                idx_2 = idx_1;
+                idx_1 = idx_2 - 1;
+            }
+            
             // find interpolation weights
             PetscReal idx = (idx_2 - idx_1) / (abl->timeHtSources[idx_2][0][0] - abl->timeHtSources[idx_1][0][0]) * (clock->time - abl->timeHtSources[idx_1][0][0]) + idx_1;
             PetscReal w1 = (idx_2 - idx) / (idx_2 - idx_1);
@@ -1625,23 +1716,35 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                     uT1   = wth1 * abl->timeHtSources[idx_1][idxh1][1] + wth2 * abl->timeHtSources[idx_1][idxh2][1];
                     uT2   = wth1 * abl->timeHtSources[idx_2][idxh1][1] + wth2 * abl->timeHtSources[idx_2][idxh2][1];
 
-                    src[j].x = (w1 * uT1 / dtSource1 + w2 * uT2 / dtSource2) * clock->dt;
+                    // src[j].x = (w1 * uT1 / dtSource1 + w2 * uT2 / dtSource2) * clock->dt;
+
+                    src[j].x = w1 * uT1 + w2 * uT2;
 
                     uT1   = wth1 * abl->timeHtSources[idx_1][idxh1][2] + wth2 * abl->timeHtSources[idx_1][idxh2][2];
                     uT2   = wth1 * abl->timeHtSources[idx_2][idxh1][2] + wth2 * abl->timeHtSources[idx_2][idxh2][2];
 
-                    src[j].y = (w1 * uT1 / dtSource1 + w2 * uT2 / dtSource2) * clock->dt;
-
+                    // src[j].y = (w1 * uT1 / dtSource1 + w2 * uT2 / dtSource2) * clock->dt;
+                    src[j].y = w1 * uT1 + w2 * uT2;
+                    
                     uT1   = wth1 * abl->timeHtSources[idx_1][idxh1][3] + wth2 * abl->timeHtSources[idx_1][idxh2][3];
                     uT2   = wth1 * abl->timeHtSources[idx_2][idxh1][3] + wth2 * abl->timeHtSources[idx_2][idxh2][3];
 
-                    src[j].z = (w1 * uT1 / dtSource1 + w2 * uT2 / dtSource2) * clock->dt; 
+                    // src[j].z = (w1 * uT1 / dtSource1 + w2 * uT2 / dtSource2) * clock->dt; 
+                    src[j].z = w1 * uT1 + w2 * uT2;
                 }
                 else 
                 {
-                    src[j].x = (w1 * abl->timeHtSources[idx_1][j][1] / dtSource1 + w2 * abl->timeHtSources[idx_2][j][1] / dtSource2) * clock->dt;
-                    src[j].y = (w1 * abl->timeHtSources[idx_1][j][2] / dtSource1 + w2 * abl->timeHtSources[idx_2][j][2] / dtSource2) * clock->dt;
-                    src[j].z = (w1 * abl->timeHtSources[idx_1][j][3] / dtSource1 + w2 * abl->timeHtSources[idx_2][j][3] / dtSource2) * clock->dt; 
+                    // src[j].x = (w1 * abl->timeHtSources[idx_1][j][1] / dtSource1 + w2 * abl->timeHtSources[idx_2][j][1] / dtSource2) * clock->dt;
+                    // src[j].y = (w1 * abl->timeHtSources[idx_1][j][2] / dtSource1 + w2 * abl->timeHtSources[idx_2][j][2] / dtSource2) * clock->dt;
+                    // src[j].z = (w1 * abl->timeHtSources[idx_1][j][3] / dtSource1 + w2 * abl->timeHtSources[idx_2][j][3] / dtSource2) * clock->dt; 
+
+                    src[j].x = (w1 * abl->timeHtSources[idx_1][j][1] + w2 * abl->timeHtSources[idx_2][j][1] ) ;
+                    src[j].y = (w1 * abl->timeHtSources[idx_1][j][2] + w2 * abl->timeHtSources[idx_2][j][2] ) ;
+                    src[j].z = (w1 * abl->timeHtSources[idx_1][j][3] + w2 * abl->timeHtSources[idx_2][j][3] ) ; 
+
+                    // if(j%40 == 0)
+                    // PetscPrintf(mesh->MESH_COMM, "src at level %d, height %lf is %lf %lf dt = %lf %lf %lf, orig src = %lf %lf\n", j, abl->cellLevels[j], src[j].x, w1 * abl->timeHtSources[idx_1][j][1] + w2 * abl->timeHtSources[idx_2][j][1], dtSource1, dtSource2, clock->dt, abl->timeHtSources[idx_1][j][1], abl->timeHtSources[idx_2][j][1]);
+                    
                 } 
             }           
  
@@ -1657,6 +1760,10 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
     DMDAVecGetArray(fda, mesh->lCent, &cent);
 
     // update the source term
+    // source term made independent of simulation time step dt to prevent variation with time step changes 
+    // previously source term = deltaU / dt, now source term = alpha deltaU, where alpha is a constant with units of 1/s
+    // this prevents need for source term scaling in read mode based on the time step used when the source term was computed
+    // source term is scaled when multiplied by dt in the momentum equation assembly instead
     for (k=lzs; k<lze; k++)
     {
         for (j=lys; j<lye; j++)
@@ -1669,24 +1776,23 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                     {
                         if(abl->controllerType=="geostrophic")
                         {
-                            // multiply by dt for how TOSCA builds the source RHS
-                            source[k][j][i].x = (abl->a.x + abl->b.x*ucat[k][j][i].y) * clock->dt;
-                            source[k][j][i].y = (abl->a.y + abl->b.y*ucat[k][j][i].x) * clock->dt;
+                            source[k][j][i].x = abl->a.x + abl->b.x * ucat[k][j][i].y;
+                            
+                            source[k][j][i].y = abl->a.y + abl->b.y * ucat[k][j][i].x;
+                            
                             source[k][j][i].z = 0.0;
                         }
                         else if(abl->controllerType=="pressure")
                         {
                             if(applyGeoDamping)
                             {
-                                // multiply by dt for how TOSCA builds the source RHS (only geo damping)
-
                                 PetscReal  height = cent[k][j][i].z - mesh->grndLevel;
-                                source[k][j][i].x = s.x +
+                                source[k][j][i].x = (s.x +
                                                     scaleHyperTangTop   (height, abl->geoDampH, abl->geoDampDelta) *
-                                                    abl->geoDampC*abl->geoDampAlpha*(abl->geoDampUBar.x - abl->geoDampU[j-1].x) * clock->dt;
-                                source[k][j][i].y = s.y +
+                                                    abl->geoDampC*abl->geoDampAlpha*(abl->geoDampUBar.x - abl->geoDampU[j-1].x));
+                                source[k][j][i].y = (s.y +
                                                     scaleHyperTangTop   (height, abl->geoDampH, abl->geoDampDelta) *
-                                                    abl->geoDampC*abl->geoDampAlpha*(abl->geoDampUBar.y - abl->geoDampU[j-1].y) * clock->dt;
+                                                    abl->geoDampC*abl->geoDampAlpha*(abl->geoDampUBar.y - abl->geoDampU[j-1].y));
                                 source[k][j][i].z = 0.0;
                             }
                             else
@@ -1698,8 +1804,8 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                         }
                         else if(abl->controllerType=="geostrophicProfileAssimilation")
                         {
-                            source[k][j][i].x = abl->srcPA[j-1].x * clock->dt;
-                            source[k][j][i].y = abl->srcPA[j-1].y * clock->dt;
+                            source[k][j][i].x = abl->srcPA[j-1].x;
+                            source[k][j][i].y = abl->srcPA[j-1].y;
                             source[k][j][i].z = 0.0;
                         }
                         else if( (abl->controllerType=="directProfileAssimilation") || (abl->controllerType=="indirectProfileAssimilation") || (abl->controllerType=="waveletProfileAssimilation"))
@@ -3824,6 +3930,140 @@ PetscErrorCode CanopyForce(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
 //***************************************************************************************************************//
 
+PetscErrorCode meanGradPForcing(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
+{
+    mesh_         *mesh = ueqn->access->mesh;
+    DM             da   = mesh->da, fda = mesh->fda;
+    DMDALocalInfo  info = mesh->info;
+    PetscInt       xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt       ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt       zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt       mx   = info.mx, my = info.my, mz = info.mz;
+    
+    Cmpnts        ***rhs, ***ucat;
+    Cmpnts        ***icsi, ***jeta, ***kzet;
+    PetscReal     ***aj, ***nvert, ***meshTag, cellVol;
+    PetscReal      lSumUx = 0.0, lSumUy = 0.0, lSumUz = 0.0;
+    PetscReal      lVol   = 0.0;
+    PetscReal      gSumUx = 0.0, gSumUy = 0.0, gSumUz = 0.0, gVol = 0.0;
+    PetscReal      meanUx, meanUy, meanUz;
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k, l;
+    
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    DMDAVecGetArray(fda, mesh->lICsi,  &icsi);
+    DMDAVecGetArray(fda, mesh->lJEta,  &jeta);
+    DMDAVecGetArray(fda, mesh->lKZet,  &kzet);
+    DMDAVecGetArray(da,  mesh->lAj,    &aj); 
+
+    DMDAVecGetArray(fda, Rhs,          &rhs);
+    DMDAVecGetArray(fda, ueqn->lUcat,  &ucat);
+    DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+    DMDAVecGetArray(da,  mesh->lmeshTag, &meshTag);
+   
+    for (k = lzs; k < lze; k++)
+    {
+        for (j = lys; j < lye; j++)
+        {
+            for (i = lxs; i < lxe; i++)
+            {
+                if(isIBMCell(k,j,i,nvert) || isOversetCell(k,j,i,meshTag)) continue;
+
+                cellVol = 1.0 / aj[k][j][i];
+                lSumUx += ucat[k][j][i].x * cellVol;
+                lSumUy += ucat[k][j][i].y * cellVol;
+                lSumUz += ucat[k][j][i].z * cellVol;
+                lVol   += cellVol;
+            }
+        }
+    }
+    
+    MPI_Allreduce(&lSumUx, &gSumUx, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&lSumUy, &gSumUy, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&lSumUz, &gSumUz, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&lVol,   &gVol,   1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+    //volume averaged
+    meanUx = gSumUx / gVol;
+    meanUy = gSumUy / gVol;
+    meanUz = gSumUz / gVol;
+
+    Cmpnts meanU = nSetFromComponents(meanUx, meanUy, meanUz);
+    Cmpnts diffU = nSub(ueqn->uBulk, meanU);
+    
+    mSum(ueqn->meanGradP,diffU);
+     
+    //PetscPrintf(PETSC_COMM_WORLD,"Umean:  %.5lf  %.5lf %.5lf \n",meanU.x, meanU.y, meanU.z);
+    //PetscPrintf(PETSC_COMM_WORLD,"UBulk:  %.5lf  %.5lf %.5lf \n",ueqn->uBulk.x, ueqn->uBulk.y, ueqn->uBulk.z);
+    //PetscPrintf(PETSC_COMM_WORLD,"diffU:  %.5lf  %.5lf %.5lf \n",diffU.x, diffU.y, diffU.z);
+    // PetscPrintf(PETSC_COMM_WORLD,"meanGradP: %.5lf %.5lf %.5lf   \n",ueqn->meanGradP.x,ueqn->meanGradP.y,ueqn->meanGradP.z);
+    
+    for (k = lzs; k < lze; k++)
+    {
+        for (j = lys; j < lye; j++)
+        {
+            for (i = lxs; i < lxe; i++)
+            {
+                if(isFluidIFace(k, j, i, i+1, nvert) && isCalculatedIFace(k, j, i, i+1, meshTag))
+                {
+                    rhs[k][j][i].x 
+                    +=
+                    scale *
+                    (
+                        diffU.x * icsi[k][j][i].x +
+                        diffU.y * icsi[k][j][i].y +
+                        diffU.z * icsi[k][j][i].z
+                    );
+                }
+
+                if(isFluidJFace(k, j, i, j+1, nvert) && isCalculatedJFace(k, j, i, j+1, meshTag))
+                {
+
+                    rhs[k][j][i].y
+                    +=
+                    scale *
+                    (
+                        diffU.x * jeta[k][j][i].x +
+                        diffU.y * jeta[k][j][i].y +
+                        diffU.z * jeta[k][j][i].z
+                    );
+                }
+
+                if(isFluidKFace(k, j, i, k+1, nvert) && isCalculatedKFace(k, j, i, k+1, meshTag))
+                {
+
+                    rhs[k][j][i].z
+                    +=
+                    scale *
+                    (
+                        diffU.x * kzet[k][j][i].x +
+                        diffU.y * kzet[k][j][i].y +
+                        diffU.z * kzet[k][j][i].z
+                    );
+                }
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(fda, mesh->lICsi,  &icsi);
+    DMDAVecRestoreArray(fda, mesh->lJEta,  &jeta);
+    DMDAVecRestoreArray(fda, mesh->lKZet,  &kzet);
+    DMDAVecRestoreArray(da,  mesh->lAj,    &aj);
+
+    DMDAVecRestoreArray(fda, Rhs,          &rhs);
+    DMDAVecRestoreArray(fda, ueqn->lUcat,  &ucat);
+    DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da,  mesh->lmeshTag, &meshTag);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
 PetscErrorCode Buoyancy(ueqn_ *ueqn, PetscReal scale)
 {
     mesh_         *mesh  = ueqn->access->mesh;
@@ -5379,6 +5619,11 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     DMLocalToLocalBegin(fda, ueqn->lVisc3, INSERT_VALUES, ueqn->lVisc3);
     DMLocalToLocalEnd  (fda, ueqn->lVisc3, INSERT_VALUES, ueqn->lVisc3);
 
+    if(ueqn->access->flags->isLesActive && (les->model == BAMD || les->model == BV))
+    {
+        updateLESStructuralModelContravariantForm(les); 
+    }
+
     // ---------------------------------------------------------------------- //
     // FORM THE RIGHT HAND SIDE
     // ---------------------------------------------------------------------- //
@@ -5695,10 +5940,10 @@ PetscErrorCode UeqnSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr)
     // transform to cartesian
     contravariantToCartesian(ueqn);
 
-    if(ueqn->access->flags->isIBMActive)
-    {
-        UpdateImmersedBCs(ueqn->access->ibm);
-    }
+    // if(ueqn->access->flags->isIBMActive)
+    // {
+    //     UpdateImmersedBCs(ueqn->access->ibm);
+    // }
 
     if(ueqn->access->flags->isOversetActive)
     {
@@ -5776,11 +6021,7 @@ PetscErrorCode UeqnSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr)
         dampingSourceU(ueqn, Rhs, 1.0);
     }
 
-
-    // multiply for dt
-    VecScale(Rhs, dt);
-
-    // add driving source terms after as it is not scaled by 1/dt
+    // add driving source terms 
     if(ueqn->access->flags->isAblActive)
     {
         if(ueqn->access->abl->controllerActive)
@@ -5789,6 +6030,14 @@ PetscErrorCode UeqnSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr)
         }
     }
 
+    if(ueqn->access->flags->isMeangradPForcingActive)
+    {
+        meanGradPForcing(ueqn, Rhs, 1.0);
+    }
+
+    // multiply for dt
+    VecScale(Rhs, dt);
+    
     resetNonResolvedCellFaces(mesh, Rhs);
 
     // add time derivative term
@@ -5815,10 +6064,10 @@ PetscErrorCode FormExplicitRhsU(ueqn_ *ueqn)
     // transform to cartesian
     contravariantToCartesian(ueqn);
 
-    if(ueqn->access->flags->isIBMActive)
-    {
-        UpdateImmersedBCs(ueqn->access->ibm);
-    }
+    // if(ueqn->access->flags->isIBMActive)
+    // {
+    //     UpdateImmersedBCs(ueqn->access->ibm);
+    // }
 
     if(ueqn->access->flags->isOversetActive)
     {
@@ -5885,14 +6134,18 @@ PetscErrorCode FormExplicitRhsU(ueqn_ *ueqn)
         dampingSourceU(ueqn, ueqn->Rhs, 1.0);
     }
 
-    // source term is pre-scaled by dt, so here we have to divide it again since
-    // the rhs is not multiplied by dt in this function
+    // add driving source terms
     if(ueqn->access->flags->isAblActive)
     {
         if(ueqn->access->abl->controllerActive)
         {
-            sourceU(ueqn, ueqn->Rhs, 1.0 / clock->dt);
+            sourceU(ueqn, ueqn->Rhs, 1.0);
         }
+    }
+
+    if(ueqn->access->flags->isMeangradPForcingActive)
+    {
+        meanGradPForcing(ueqn, ueqn->Rhs, 1.0);
     }
 
     resetNonResolvedCellFaces(mesh, ueqn->Rhs);

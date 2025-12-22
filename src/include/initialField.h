@@ -1,6 +1,21 @@
 //! \file  initialField.h
 //! \brief initial field header file.
 
+#ifndef INITIALFIELD_H
+#define INITIALFIELD_H
+
+struct ModeData
+{
+    PetscReal   kappaM; 
+    PetscReal   khatx, khaty, khatz;
+    PetscReal   amp;
+    PetscReal   phi;
+    PetscReal   ktx, kty, ktz;
+    PetscReal   sx, sy, sz;
+};
+
+#endif
+
 // =============================================================================
 // FUNCTIONS
 // =============================================================================
@@ -42,6 +57,9 @@ PetscErrorCode SetUniformFieldT(teqn_ *teqn, PetscReal &tRef);
 
 //!< \brief set linear profile for the temperature
 PetscErrorCode SetLinearFieldT(teqn_ *teqn, PetscReal &tRef, PetscReal &tLapse);
+
+//!< \brief set const tRef + linear profile for the temperature above it like CNBL
+PetscErrorCode SetLinearCNBLFieldT(teqn_ *teqn, PetscReal &tRef, PetscReal &tLapse, PetscReal &hRef);
 
 //!< \brief set initial ABL flow T
 PetscErrorCode SetABLInitialFlowT(teqn_ *teqn);

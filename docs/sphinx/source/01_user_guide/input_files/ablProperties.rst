@@ -16,7 +16,7 @@ addition, it contains dictionaries that are required when additional flags are a
 only used for ABL flows. For example, the ``xDampingProperties`` dictionary is only read if ``-xDampingLayer`` is set to 1 in 
 the ``control.dat`` file.
 
-The folliwing table summarizes all entries and dictionaries available in the ``ABLProperties.dat``. A description of
+The following table summarizes all entries and dictionaries available in the ``ABLProperties.dat``. A description of
 entries specific to each dictionaries is given in the subsequent tables.
 
 .. table::
@@ -57,7 +57,8 @@ entries specific to each dictionaries is given in the subsequent tables.
                                                       at this height. It is also used by the
                                                       velocity controller when ``controllerType`` is set
                                                       to *pressure* inside the ``controllerProperties``
-                                                      dictionary.
+                                                      dictionary to set the reference height for the
+                                                      controller.
    ----------------------------------- -------------- --------------------------------------------------
    ``hInv``                            scalar         inversion layer height in m used to set
                                                       set the initial potential temperature condition
@@ -107,53 +108,19 @@ entries specific to each dictionaries is given in the subsequent tables.
    ----------------------------------- -------------- --------------------------------------------------
    ``controllerActive``                bool           Velocity controller activation flag. Requires
                                                       ``controllerProperties`` dictionary.
+   ----------------------------------- -------------- --------------------------------------------------                                                   
+   ``controllerActivePrecursor``       bool           Velocity controller activation flag. Similar to
+                                                      ``controllerActive``, but for the concurrent
+                                                      precursor simulation. Requires
+                                                      ``controllerPropertiesPrecursor`` dictionary.                                                      
    ----------------------------------- -------------- --------------------------------------------------
-   ``controllerActiveT``               bool           Temperature controller activation flag. The target
-                                                      laterally-averaged potential temperature profile
-                                                      that the controller aims at maintaining is the
-                                                      initial one. Requires
+   ``controllerActiveT``               bool           Temperature controller activation flag. Requires
                                                       ``controllerProperties`` dictionary.
    ----------------------------------- -------------- --------------------------------------------------
-   ``controllerActivePrecursorT``      bool           Temperature controller activation flag. Same as
+   ``controllerActivePrecursorT``      bool           Temperature controller activation flag. Similar to
                                                       ``controllerActiveT``, but for the concurrent
                                                       precursor simulation. Requires
-                                                      ``controllerProperties`` dictionary.
-   ----------------------------------- -------------- --------------------------------------------------
-   ``precursorControllerTypeMismatch`` bool           Requires ``xDampingLayer`` active in the 
-                                                      ``control.dat`` file, and ``uBarSelectionType`` 
-                                                      set to 3, corresponding to the concurrent precursor
-                                                      method, inside ``xDampingProperties`` dictionary.
-                                                      Should be activated if the concurrent precursor's
-                                                      velocity controller differs from the successor's. 
-                                                      For example, if precursor uses 
-                                                      ``controllerAction`` *write*, while successor 
-                                                      reads the momentum sources computed by the 
-                                                      precursor using ``controllerAction`` *read* and 
-                                                      ``controllerType`` *timeSeriesFromPrecursor* in 
-                                                      the ``controllerProperties`` dictionary.                                                       
-                                                      It requires the ``fringeControllerProperties``
-                                                      dictionary in order to specify the controller 
-                                                      parameters for the concurrent precursor domain.
-   ----------------------------------- -------------- --------------------------------------------------
-   ``controllerTypeT``                 string         Available types are:
-
-                                                      - *initial*
-                                                      - *directProfileAssimilation*
-                                                      - *indirectProfileAssimilation* 
-
-                                                      Type *initial* tries to 
-                                                      maintain the initial horizontally averaged 
-                                                      potential temperature profile. Types 
-                                                      *directProfileAssimilation* and 
-                                                      *indirectProfileAssimilation* calculate source 
-                                                      terms to follow a provided time-series of 
-                                                      potential temperature profile. They require 
-                                                      additional entries in the ``controllerProperties``
-                                                      subdictionary, i.e. ``relaxPI``, 
-                                                      ``lowestSrcHeight``, ``highestSrcHeight``.  
-                                                      
-                                                      Moreover, ``polynomialOrder`` is also required for 
-                                                      controller type *indirectProfileAssimilation*.
+                                                      ``controllerPropertiesPrecursor`` dictionary.                                                
    ----------------------------------- -------------- --------------------------------------------------
    ``perturbations``                   bool           Adds divergence-free sinusoidal perturbations to
                                                       triger turbulence in the initial condition when
@@ -172,7 +139,9 @@ entries specific to each dictionaries is given in the subsequent tables.
                                                          controllerProperties
                                                          {
                                                             controllerAction       string
+                                                            controllerActionT      string
                                                             controllerType         string
+                                                            controllerTypeT        string
                                                             relaxPI                scalar
                                                             alphaPI                scalar
                                                             timeWindowPI           scalar
@@ -186,20 +155,31 @@ entries specific to each dictionaries is given in the subsequent tables.
                                                             controllerAvgStartTime scalar
                                                             controllerMaxHeight    scalar
                                                          }
+                                                      
+                                                      Refer to test cases *NeutralABLTest*, 
+                                                      *GABLESStableABLTest*, 
+                                                      *IndirectProfileAssimilationTest* and 
+                                                      *WaveletProfileAssimilationTest* for specific 
+                                                      controller usage for the type *pressure*, 
+                                                      *geostrophic*, *indirectProfileAssimilation* and
+                                                      *waveletProfileAssimilation* respectively. 
    ----------------------------------- -------------- --------------------------------------------------
-   ``fringeControllerProperties``      dictionary     Contains inputs for precursor velocity controller. 
-                                                      Required when ``precursorControllerTypeMismatch``
-                                                      is set to 1. Usage is similar to 
-                                                      ``controllerProperties``
+   ``controllerPropertiesPrecursor``   dictionary     Contains inputs for precursor velocity and 
+                                                      temperature controller. Usage is similar to 
+                                                      ``controllerProperties`` but gives the flexibility
+                                                      to use different controllers in concurrent 
+                                                      precursor and successor simulation.  
 
                                                       Usage:
 
                                                       .. code-block:: C
 
-                                                         fringeControllerProperties
+                                                         controllerPropertiesPrecursor
                                                          {
                                                             controllerAction       string
+                                                            controllerActionT      string
                                                             controllerType         string
+                                                            controllerTypeT        string
                                                             relaxPI                scalar
                                                             alphaPI                scalar
                                                             timeWindowPI           scalar
@@ -395,8 +375,8 @@ entries specific to each dictionaries is given in the subsequent tables.
 
 The meaning of the entires required in the dictionaries listed in the above table are described in the following tables.
 
-controllerProperties & fringeControllerProperties
-*************************************************
+controllerProperties/controllerPropertiesPrecursor
+****************************************************
 
 .. table::
    :widths: 35, 20, 45
@@ -421,6 +401,14 @@ controllerProperties & fringeControllerProperties
                                                     *timeSeries*, *timeAverageSeries* and *timeHeightSeries* require ``controllerAction`` 
                                                     set to *read*.
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
+   ``controllerActionT``         string             can be set to *write* or *read*. The former writes the temperature source terms to 
+                                                    file. The latter reads these previously written source terms and directly applies 
+                                                    them with no feedback controlling action. This keyword has to be set in combination 
+                                                    with ``controllerTypeT``. Types *initial*, *directProfileAssimilation*, 
+                                                    *indirectProfileAssimilation* and *waveletProfileAssimilation* require 
+                                                    ``controllerActionT`` set to *write*, while *timeHeightSeries* requires 
+                                                    ``controllerActionT`` set to *read*.  
+   ----------------------------- ------------------ -------------------------------------------------------------------------------------
    ``controllerType``            string             Available types are: 
 
                                                     - *pressure* 
@@ -443,15 +431,14 @@ controllerProperties & fringeControllerProperties
                                                     oscillations of the geostrophic wind, since it is impossible to initialize the flow 
                                                     in geostrophic balance. In this case, one should either use ``geostrophicDamping`` 
                                                     or controller type *geostrophic*. The latter tries to attain
-                                                    a velocity ``uGeoMag`` at ``hGeo`` (which should be set above the boundary layer).  
-                                                    The wind field is then rotated such that the flow is aligned with the x-axis at  
-                                                    ``hRef``. Notably, at every restart the initial geostrophic wind angle ``alphaGeo`` 
-                                                    w.r.t. the x-axis **should be correctly set** (the user can take this info in the 
-                                                    last iteration of the previous run, printed on the log file). 
+                                                    a velocity ``uGeoMag`` at ``hGeo`` (which should be set above the boundary layer)
+                                                    and geostrophic wind angle ``alphaGeo``. This geostrophic wind angle at the 
+                                                    reference height is maintained at ``hGeo`` if the ``windAngleController`` is set to
+                                                    0, otherwise it is the initial geostrophic wind angle. ``windAngleController`` set 
+                                                    to 1 activates a wind angle controller which maintains the angle specified by 
+                                                    ``alphaHub`` at the reference height ``hRef``. An example can be found in 
+                                                    *tests/GABLESStableABLTest*.
                                                     
-                                                    The *pressure* type 
-                                                    controller is the preferred one and the most tested. 
-
                                                     TOSCA also features profile  
                                                     assimilation techniques, used to drive the flow using observation profiles. 
                                                     These can be set with controller types *directProfileAssimilation* or 
@@ -464,7 +451,26 @@ controllerProperties & fringeControllerProperties
                                                     Recently, the *waveletProfileAssimilation* controller type has been also 
                                                     introduced. To use this controller, please see the 
                                                     *tests/WaveletProfileAssimilationTest*. Note that it requires TOSCA to be compiled 
-                                                    with the USE_PYTHON flag set to 1.                                                                    
+                                                    with the USE_PYTHON flag set to 1.  
+   ----------------------------- ------------------ -------------------------------------------------------------------------------------
+   ``controllerTypeT``           string             Available types are:
+
+                                                    - *initial*
+                                                    - *directProfileAssimilation*
+                                                    - *indirectProfileAssimilation* 
+                                                    - *waveletProfileAssimilation*
+                                                    - *timeHeightSeries* 
+
+                                                    *initial*, *directProfileAssimilation*, *indirectProfileAssimilation* and 
+                                                    *waveletProfileAssimilation* are of type ``controllerActionT`` *write* while 
+                                                    *timeHeightSeries* is of type ``controllerActionT`` *read*. Type *initial* tries to 
+                                                    maintain the initial horizontally averaged potential temperature profile. Types 
+                                                    *directProfileAssimilation*, *indirectProfileAssimilation* and 
+                                                    *waveletProfileAssimilation* calculate source terms to follow a provided time-series 
+                                                    of potential temperature profile. They require additional entries in the 
+                                                    ``controllerProperties`` subdictionary, i.e. ``relaxPI``, ``lowestSrcHeight``, 
+                                                    ``highestSrcHeight``. Moreover, ``polynomialOrder`` is also required for controller 
+                                                    type *indirectProfileAssimilation*.                                                                                                                       
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
    ``alphaPI``                   scalar             proportional over integral controlling action used by all controllers characterized 
                                                     by a ``controllerAction`` of type *write*. A too low value makes the controller 
@@ -494,20 +500,21 @@ controllerProperties & fringeControllerProperties
    ``hGeo``                      scalar             height used to sample the geostrophic wind components if the controller is of type 
                                                     *geostrophic*, disregarded otherwise. 
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``alphaGeo``                  scalar             initial wind angle with respect to the x-axis at ``hGeo``. **This as to be set at 
-                                                    every restart of the simulation**. For the first run, one can initialize the wind 
-                                                    aligned with the x-axis and this parameter to zero. Then, the controller will start 
-                                                    to slowly rotate the wind. The wind angle at ``hGeo`` will be printed in the log file 
-                                                    and the user can set this parameter to the value obtained at the last iteration of 
-                                                    the previous run when restarting. Note, only for controller of type 
-                                                    *geostrophic*, disregarded otherwise. 
+   ``alphaGeo``                  scalar             initial wind angle in degrees with respect to the x-axis at ``hGeo``. Note, only for
+                                                    controller of type *geostrophic*, disregarded otherwise. 
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``uGeoMag``                   scalar             desired geostrophic wind magnitude is the controller is of type *geostrophic*, 
+   ``uGeoMag``                   scalar             desired geostrophic wind magnitude if the controller is of type *geostrophic*, 
                                                     disregarded otherwise.  At the first run, the initial flow should match this value 
                                                     at ``hGeo`` to avoid inertial oscillations. 
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
    ``controllerAvgStartTime``    scalar             time after which source terms are averaged before being applied. Used for controller 
                                                     type *timeAverageSeries*.
+   ----------------------------- ------------------ -------------------------------------------------------------------------------------
+   ``windAngleController``       bool               activates the wind angle controller to force flow at a given angle at reference
+                                                    height ``hRef``. The geostrophic wind is rotated accordingly. The rate of rotation is
+                                                    dependent on the proportianality constant set with ``relaxPI``. 
+   ----------------------------- ------------------ -------------------------------------------------------------------------------------
+   ``alphaHub``                  scalar             desired wind angle at the reference height ``hRef``.                                                
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
    ``avgSources``                bool               whether or not to filter the calculated source terms for controller types 
                                                     *directProfileAssimilation* and *indirectProfileAssimilation*. Requires 

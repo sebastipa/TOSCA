@@ -125,7 +125,7 @@ int main(int argc, char **argv)
                     CorrectSourceTermsT(domain[d].teqn, 1);
                 }
             }
-            
+
             // update wind turbines
             if(flags.isWindFarmActive)
             {
@@ -133,7 +133,14 @@ int main(int argc, char **argv)
             }
 
             // compute pressure gradient term
-            GradP(domain[d].peqn);
+            if(domain[d].ueqn->central4Div)
+            {
+                GradP4thOrder(domain[d].peqn);
+            }
+            else 
+            {
+                GradP(domain[d].peqn);
+            }
 
             // finish the y-damping layer processor mapping 
             if(flags.isYDampingActive)
@@ -153,8 +160,12 @@ int main(int argc, char **argv)
             // temperature step
             if(flags.isTeqnActive)
             {
-                UpdateWallModelsT(domain[d].teqn);
 
+                UpdateCsk(domain[d].les);
+                UpdatekT(domain[d].les);
+
+                UpdateWallModelsT(domain[d].teqn);
+                
                 SolveTEqn(domain[d].teqn);
             }
 
