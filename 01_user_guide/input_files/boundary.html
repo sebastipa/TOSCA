@@ -720,6 +720,23 @@ stratification.</p>
 </div>
 </td>
 </tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">linearCNBL</span></code></p></td>
+<td><p>Only available for <code class="docutils literal notranslate"><span class="pre">T</span></code>. Sets an initial temperature profile characterized
+by a constant temperature <em>tRef</em> from ground upto <em>hRef</em>, followed by a
+linear lapse rate <em>tLapse</em> along <code class="docutils literal notranslate"><span class="pre">j</span></code>. Used to prescribe an initial
+convective neutral boundary layer (CNBL) potential temperature
+stratification.</p>
+<p>Usage:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">linear</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="n">tRef</span><span class="w">   </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">tLapse</span><span class="w"> </span><span class="n">scalar</span>
+<span class="w">   </span><span class="n">hRef</span><span class="w">   </span><span class="n">scalar</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</td>
+</tr>
 </tbody>
 </table>
 </section>

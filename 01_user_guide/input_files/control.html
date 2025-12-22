@@ -207,11 +207,14 @@ the user wants to trigger a checkpoint write, followed by termination of the sim
 <li><p><em>dynamicLASI</em>: dynamic Smagorinsky scale-invariant with lagrangian averaging</p></li>
 <li><p><em>dynamicLASD</em>: dynamic Smagorinsky scale-dependent with lagrangian averaging</p></li>
 <li><p><em>dynamicPASD</em>: dynamic Smagorinsky scale-dependent with planar averaging</p></li>
+<li><p><em>vreman</em>: eddy viscosity based vreman model</p></li>
 <li><p><em>amd</em>: anisotropic minimum dissipation</p></li>
+<li><p><em>bardinaAMD</em>: mixed model - combines structural Bardina model with eddy viscosity based amd model</p></li>
+<li><p><em>bardinaVreman</em>: mixed model - combines structural Bardina model with Vreman model</p></li>
 </ul>
 <p>TOSCA has been extensively and most used adopting the <em>dynamicLASI</em> model for ABL and wind plant
 simulations. Other models have been recently added to the code and might perform better in some
-cases (especially <em>dynamicLASD</em> and <em>amd</em>).</p>
+cases (especially <em>dynamicLASD</em>, <em>amd</em> and the <em>bardinaAMD</em> models).</p>
 </td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-potentialT</span></code></p></td>
@@ -260,29 +263,34 @@ domain. If set to 2 is equivalent to 1, but the initial condition is read from t
 has to be continuously feed because the simulation cannot be really self-sustained in the concurrent
 precursor.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-kLeftRayleigh</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-precursorIBM</span></code></p></td>
+<td><p>Concurrent precursor <strong>has to</strong> be enabled with this flag. Set this flag to enable immersed boundary
+method (IBM) on for the concurrent precursor simulation. Useful if the precursor simulates a terrain
+that needs to be modeled with IBM.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-kLeftRayleigh</span></code></p></td>
 <td><p>Specifies if horizontal Rayleigh damping at <code class="docutils literal notranslate"><span class="pre">kLeft</span></code> boundary is present in the simulation.
 Requires additional input in <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> file if activated.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-kRightRayleigh</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-kRightRayleigh</span></code></p></td>
 <td><p>Specifies if horizontal Rayleigh damping at <code class="docutils literal notranslate"><span class="pre">kRight</span></code> boundary is present in the simulation.
 Requires additional input in <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> file if activated.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-canopy</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-canopy</span></code></p></td>
 <td><p>Specifies if wind farm canopy model is present in the simulation. Requires additional input in
 <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> file if activated.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-windplant</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-windplant</span></code></p></td>
 <td><p>Specifies if wind turbines are present in the simulation (set to 1) or not (set to 0). Requires
 turbine models definitions in <code class="docutils literal notranslate"><span class="pre">turbines</span></code> directory.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-inviscid</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-inviscid</span></code></p></td>
 <td><p>If set to 1, allows disabling viscous terms. Default value is 0.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-computeContinuity</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-computeContinuity</span></code></p></td>
 <td><p>Computes the divergence field within the entire domain and writes it to checkpoint files.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-pvCatalyst</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-pvCatalyst</span></code></p></td>
 <td><p>Enables <cite>ParaView-Catalyst</cite> off-screen rendering capabilities. Useful to create nice videos of very
 large simulations. More details are given in Sec. <a class="reference internal" href="../../tosca_installation.html#paraview-catalyst-section"><span class="std std-ref">Paraview-Catalyst2 OS-Rendering</span></a>.</p></td>
 </tr>
@@ -317,7 +325,8 @@ upwind-biased quadratic scheme, diffusive), <code class="docutils literal notran
 non-oscillatory scheme, diffusive), <code class="docutils literal notranslate"><span class="pre">centralUpwind</span></code> (vanLeer blending of central and quadratic
 scheme, to balance diffusion and dispersion), <code class="docutils literal notranslate"><span class="pre">centralUpwindW</span></code> (weighted version, for
 graded/non-uniform meshes), <code class="docutils literal notranslate"><span class="pre">central4</span></code> (high-order central scheme, add diffusion through
-<code class="docutils literal notranslate"><span class="pre">-hyperVisc</span></code> parameter, default value is 1 - no diffusion).)</p></td>
+<code class="docutils literal notranslate"><span class="pre">-hyperVisc</span></code> parameter, default value is 1 - no diffusion, diffusion value of 0.75-0.8
+is recommended, if set to 0, this scheme becomes a third order quick scheme).)</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-relTolU</span></code></p></td>
 <td><p>Requires <code class="docutils literal notranslate"><span class="pre">-dUdtScheme</span></code> set to <code class="docutils literal notranslate"><span class="pre">backwardEuler</span></code>, discarded otherwise. Allows to set the relative
@@ -374,8 +383,15 @@ the Newton method used to solve implicit discretized temperature equation, defau
 the Newton method used to solve implicit discretized temperature equation, default value 1e-5.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-max_cs</span></code></p></td>
-<td><p>Maximum value for the LES model <span class="math notranslate nohighlight">\(C_s\)</span> coefficient, default value is set to 0.5. Only used when
-<code class="docutils literal notranslate"><span class="pre">-les</span></code> is greater than 1.</p></td>
+<td><p>Maximum value for the LES model <span class="math notranslate nohighlight">\(C_s\)</span> coefficient, default value is set to 0.5.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-amd_cs</span></code></p></td>
+<td><p>Sets the amd model <span class="math notranslate nohighlight">\(C_s\)</span> coefficient, default value is set to 0.1. However, this value needs
+to be adjusted based on the LES model and the numerical discretization scheme. For second order
+<code class="docutils literal notranslate"><span class="pre">-divScheme</span></code> with <em>amd</em> model, recommended value is 0.3. For second order <code class="docutils literal notranslate"><span class="pre">-divScheme</span></code> with
+<em>bardinaAMD</em> model the recommended value is 0.212. For fourth order <code class="docutils literal notranslate"><span class="pre">-divScheme</span></code> like <em>central4</em>
+with <em>amd</em> model, recommended value is 0.212. For fourth order <code class="docutils literal notranslate"><span class="pre">-divScheme</span></code> like <em>central4</em> with
+<em>bardinaAMD</em> model the recommended value is 0.14.</p></td>
 </tr>
 </tbody>
 </table>
