@@ -2684,6 +2684,8 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
 
         if(abl->controllerActiveT)
         {
+            const char* controllerProp = "controllerPropertiesPrecursor";
+
             if(!(abl->access->flags->isTeqnActive))
             {
                 char error[512];
@@ -2698,11 +2700,9 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
                 fatalErrorInFunction("ABLInitialize",  error);
             }
             
-            readDictWord     ("ABLProperties.dat", "controllerTypeT",    &(abl->controllerTypeT));
-            readDictWord     ("ABLProperties.dat", "controllerActionT",    &(abl->controllerActionT));
+            readSubDictWord     ("ABLProperties.dat", controllerProp, "controllerTypeT",    &(abl->controllerTypeT));
+            readSubDictWord     ("ABLProperties.dat", controllerProp,  "controllerActionT",    &(abl->controllerActionT));
             
-            const char* controllerProp = "controllerPropertiesPrecursor";
-
             PetscPrintf(mesh->MESH_COMM, "   precursor temperature controller type: %s\n", abl->controllerTypeT.c_str());
             PetscPrintf(mesh->MESH_COMM, "   precursor temperature controller action: %s\n", abl->controllerActionT.c_str());
 

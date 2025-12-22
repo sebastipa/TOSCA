@@ -1062,8 +1062,8 @@ PetscErrorCode InitializeABL(abl_ *abl)
             fatalErrorInFunction("ABLInitialize",  error);
         }
 
-        readDictWord  ("ABLProperties.dat", "controllerActionT",   &(abl->controllerActionT));
-        readDictWord  ("ABLProperties.dat", "controllerTypeT",    &(abl->controllerTypeT));
+        readSubDictWord  ("ABLProperties.dat", "controllerProperties", "controllerActionT",   &(abl->controllerActionT));
+        readSubDictWord  ("ABLProperties.dat", "controllerProperties", "controllerTypeT",    &(abl->controllerTypeT));
 
         PetscPrintf(mesh->MESH_COMM, "   temperature controller type: %s\n", abl->controllerTypeT.c_str());
         PetscPrintf(mesh->MESH_COMM, "   temperature controller action: %s\n", abl->controllerActionT.c_str());
