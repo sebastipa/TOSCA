@@ -23,21 +23,21 @@ gInv 0.4
 # Potential temperature gradient on top of the inversion layer.
 gTop 0.01
 
+# Potential temperature gradient below the inversion layer.
 gABL 0.0
 
 # Von Karman Constant.
 vkConst 0.4
 
 # Rampanelli and Zardi temperature model parameter.
-smearT 1.0
+smearT 0.33
 
 # Activation flags
 coriolisActive 1
 controllerActive 1
 controllerActiveT 0
-controllerActivePrecursorT 0
 
-# velocity perturbations to trigger turbulence 
+# Velocity perturbations to trigger turbulence 
 perturbations 1
 
 # Coriolis parameter: 7.272205217e-5 * sin(latitude)
@@ -64,8 +64,7 @@ controllerProperties
     # Geostrophic Wind (should be constant)
     uGeoMag 8
 
-    # Geostrophic Wind angle (Initial geostrophic angle is wind
-    # angle controller is on) 
+    # Geostrophic Wind angle (Initial geostrophic angle is wind angle controller is on) 
     alphaGeo            0
 
     # Geostrophic height
@@ -86,4 +85,3 @@ zDampingProperties
     zDampingAlpha   0.0016
     zDampingAlsoXY  0 
 }    
-

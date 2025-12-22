@@ -32,18 +32,11 @@ vkConst 0.4
 # Rampanelli and Zardi temperature model parameter.
 smearT 0.5
 
-# Activate Coriolis force  
+# Activation flags 
 coriolisActive 1
-
-# Activate velocity controller 
 controllerActive 1
-
 controllerActivePrecursor 1
-
-# Activate temperature controller 
 controllerActiveT 0
-
-# Activate precursor temperature controller 
 controllerActivePrecursorT 0
 
 # Mismatch between successor and precursor controllers
@@ -51,9 +44,9 @@ precursorControllerTypeMismatch 0
 
 controllerProperties
 {
-    # Velocity controller parameters
+    # controller parameters
     controllerAction read
-    controllerType timeAverageSeries
+    controllerType   timeAverageSeries
 
     # Velocity controller gain factor 
     relaxPI 0.7
@@ -73,9 +66,9 @@ controllerProperties
 
 controllerPropertiesPrecursor
 {
-    # Velocity controller parameters
+    # controller parameters
     controllerAction read
-    controllerType timeAverageSeries
+    controllerType   timeAverageSeries
 
     # Velocity controller gain factor
     relaxPI 0.7

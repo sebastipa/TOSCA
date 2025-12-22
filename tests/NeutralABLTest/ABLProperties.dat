@@ -34,22 +34,16 @@ smearT 0.33
 
 # Activate Coriolis force 
 coriolisActive 1
-
-# Activate velocity controller 
 controllerActive 1
-
-# Activate temperature controller 
 controllerActiveT 1
-
-# Type of temperature controller 
-controllerTypeT   initial
-controllerActionT write
 
 controllerProperties
 {
-    # Velocity controller parameters
-    controllerAction write
-    controllerType pressure
+    # controller parameters
+    controllerAction  write
+    controllerActionT write
+    controllerType    pressure
+    controllerTypeT   initial
 
     # Velocity controller gain factor 
     relaxPI 0.7
