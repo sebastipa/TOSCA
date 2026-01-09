@@ -1,0 +1,27 @@
+# TOSCA Input file - keBudgets
+# ---------------------------------
+
+avgStartTime 50
+avgPeriod    100
+debug        0
+cartesian    1
+
+boxArray
+{
+    B1
+    (
+        boxCenter           (802.35 0 133.725)
+        sizeXYZ             (534.9 356.6 267.45)
+    )
+    B2
+    (
+        boxCenter           (1337.25 0 133.725)
+        sizeXYZ             (534.9 356.6 267.45)
+    )
+    B3
+    (
+        boxCenter           (1872.15 0 133.725)
+        sizeXYZ             (534.9 356.6 267.45)
+    )
+}
+
