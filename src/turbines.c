@@ -3358,6 +3358,9 @@ PetscErrorCode computeBladeForce(farm_ *farm)
     // simulation constants
     constants_ *constants = farm->access->constants;
 
+    // set physical time clock pointer
+    clock_ *clock = farm->access->clock;    
+
     // loop over each wind turbine
     for(t=0; t<farm->size; t++)
     {
@@ -3428,6 +3431,29 @@ PetscErrorCode computeBladeForce(farm_ *farm)
                             yb_hat = nCross(zb_hat, xb_hat);
                         }
 
+                        // Apply dynamic induction controller for individual helix pitch control
+                        PetscReal dicControlPitch = 0.0;
+
+                        if(wt->dipcControllerType != "none")
+                        {
+                            // Calculate azimuthal position of AD point in the rotor plane, 
+                            // with zero being aligned with the vertical axis
+                            PetscReal azim = std::atan2(r_p.z, r_p.y) - M_PI/2;
+
+                            // Calculate blade pitch change due to helical control. The helical
+                            // control modifies the blade pitch angle based on the azimuthal position. 
+                            // It must be converted to degrees for consistency with the other phi, twist,
+                            // and pitch angles. Direction of the helix rotation is 1.0 for ccw and -1.0 for cw.
+                            if(wt->dipcHelixDir == "cw") 
+                            {
+                                dicControlPitch = (wt->dipcHelixAmp*wt->deg2rad * std::sin(azim + (2.0*M_PI*wt->dipcHelixFreq*clock->time))) * wt->rad2deg;
+                            }
+                            else if(wt->dipcHelixDir == "ccw")
+                            {
+                                dicControlPitch = (wt->dipcHelixAmp*wt->deg2rad * std::sin(azim + (-2.0*M_PI*wt->dipcHelixFreq*clock->time))) * wt->rad2deg;
+                            }
+                        }                        
+
                         // transform the velocity in the bladed reference frame in
                         // order to compute the angle of attack. Radial (z) component
                         // is not considered
@@ -3435,7 +3461,7 @@ PetscErrorCode computeBladeForce(farm_ *farm)
                         PetscReal ub_y = nDot(wt->adm.U[p], yb_hat);
 
                         // compute angle of angle of attack in degrees: alpha = phi - twist - pitch
-                        wt->adm.alpha[p] = wt->rad2deg * std::atan2(ub_x, ub_y) - wt->adm.twist[p] - wt->collPitch * wt->rad2deg - wfControlPitch;
+                        wt->adm.alpha[p] = wt->rad2deg * std::atan2(ub_x, ub_y) - wt->adm.twist[p] - wt->collPitch * wt->rad2deg - wfControlPitch - dicControlPitch;
 
                         // The idea is to interpolate the aero coeffs for the computed
                         // angle of attack, but the airfoils are discrete in radius.
@@ -9178,6 +9204,9 @@ PetscErrorCode readTurbineProperties(windTurbine *wt, const char *dictName, cons
         // read pitch controller type
         readDictWord(dictName,   "pitchControllerType", &(wt->pitchControllerType));
 
+        // read dynamic induction controller type
+        readDictWord(dictName,   "dipcControllerType", &(wt->dipcControllerType));
+
         // read controllers input parameters
         if(wt->genControllerType   != "none") readGenControllerParameters(wt,   wt->genControllerType.c_str(), meshName.c_str());
         
@@ -9199,6 +9228,8 @@ PetscErrorCode readTurbineProperties(windTurbine *wt, const char *dictName, cons
                 readPitchControllerParameters(wt, wt->pitchControllerType.c_str(), meshName.c_str());
             }
         }
+
+        if(wt->dipcControllerType   != "none") readDipcControllerParameters(wt, wt->dipcControllerType.c_str(), meshName.c_str());
 
         // read airfoil types used in this turbine
         readAirfoilProperties(wt, dictName);
@@ -10750,6 +10781,21 @@ PetscErrorCode readWindFarmControlTable(windTurbine *wt)
     {
         std::vector<PetscReal> ().swap(table[t]);
     }
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode readDipcControllerParameters(windTurbine *wt, const char *dictName, const char *meshName)
+{
+    char path2dict[256];
+    sprintf(path2dict, "./turbines/%s/control/%s", meshName, dictName);
+
+    // controller parameters
+    readSubDictDouble(path2dict, "dipcControllerParameters","dipcHelixAmp",  &(wt->dipcHelixAmp));
+    readSubDictWord(  path2dict, "dipcControllerParameters","dipcHelixDir",  &(wt->dipcHelixDir));
+    readSubDictDouble(path2dict, "dipcControllerParameters","dipcHelixFreq", &(wt->dipcHelixFreq));
 
     return(0);
 }
