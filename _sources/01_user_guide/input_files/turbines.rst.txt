@@ -288,20 +288,10 @@ in the table below:
    ``useOpenFAST``                bool                whether or not this turbine model is coupled with OpenFAST. Notably, a 
                                                       given turbine model can also not be coupled with OpenFAST. 
                                                       Only required when ``USE_OPENFAST`` flag is set to 1 in the `makefile`, i.e. 
-                                                      TOSCA is compiled with OpenFAST support. When activated, the following 
-                                                      entries 
-
-                                                        - ``genControllerType``
-                                                        - ``pitchControllerType``
-                                                        - ``yawControllerType``
-
-                                                      and tables 
-
-                                                        - ``airfoils``
-                                                        - ``bladeData``
-                                                        - ``CtTable``
-
-                                                      are not required, as this data is gathered from OpenFAST.
+                                                      TOSCA is compiled with OpenFAST support. When activated, the entries 
+                                                      ``genControllerType``, ``pitchControllerType``, ``yawControllerType`` and 
+                                                      tables ``airfoils``, ``bladeData`` and ``CtTable`` are not required, as this 
+                                                      data is gathered from OpenFAST.
    ------------------------------ ------------------- ----------------------------------------------------------------------------
    ``debug``                      bool                debug switch. Prints turbine-level information and projection error. 
                                                       Deactivate for performance. 
@@ -311,17 +301,57 @@ in the table below:
                                                       directory and it will be described later. 
                                                       Only required when ``turbineModel`` is ``ALM`` or ``ADM``. Set to 
                                                       *none* to disable.  
+                                                      Set to *rpmControlCurve* to read a wind speed vs rpm curve from the file 
+                                                      ``turbines/control/rotorRpmCurve``. This curve will be used to set
+                                                      the optimal rotor speed as a function of the incoming wind speed, which 
+                                                      is sampled 2.5 diameters upstream of the rotor disk. The file containing 
+                                                      the curve should have the following format:
+                                                      
+                                                      .. code-block:: C
+                                                      
+                                                         rpmTable
+                                                         { 
+                                                             (scalar   scalar)
+                                                             (:        :     )
+                                                             (scalar   scalar)
+                                                         }
+                                                         
+                                                      where the first column is the wind speed in m/s and the second column is
+                                                      the rotor speed in rpm.
    ------------------------------ ------------------- ----------------------------------------------------------------------------
    ``pitchControllerType``        string              name of the file that contains the collective pitch control properties of  
                                                       this wind turbine type. Should be located inside the ``turbines/control`` 
                                                       directory and it will be described later.
                                                       Only required when ``turbineModel`` is ``ALM`` or ``ADM``. Set to 
-                                                      *none* to disable.  
+                                                      *none* to disable. 
+                                                      Set to *bladePitchCurve* to read a wind speed vs pitch angle curve from the  
+                                                      file ``turbines/control/bladePitchCurve``. This curve will be used to set
+                                                      the optimal pitch angle as a function of the incoming wind speed, which 
+                                                      is sampled 2.5 diameters upstream of the rotor disk. The file containing 
+                                                      the curve should have the following format:
+
+                                                      .. code-block:: C
+                                                       
+                                                            pitchTable
+                                                            { 
+                                                                (scalar   scalar)
+                                                                (:        :     )
+                                                                (scalar   scalar)
+                                                            }
+                                                             
+                                                      where the first column is the wind speed in m/s and the second column is
+                                                      the pitch angle in degrees. 
    ------------------------------ ------------------- ----------------------------------------------------------------------------
    ``yawControllerType``          string              name of the file that contains the yaw control properties of  
                                                       this wind turbine type. Should be located inside the ``turbines/control`` 
                                                       directory and it will be described later. Set to 
                                                       *none* to disable.  
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+   ``dipcControllerType``         string              name of the file that contains the collective dynamoc induction control 
+                                                      properties of this wind turbine type. Should be located inside the 
+                                                      ``turbines/control`` directory and it will be described later.
+                                                      Only required when ``turbineModel`` is ``ALM`` or ``ADM``. Set to 
+                                                      *none* to disable. 
    ------------------------------ ------------------- ----------------------------------------------------------------------------
    ``nRadPts``                    integer             number of radial points for the actuator model. Only required when 
                                                       ``turbineModel`` is ``ALM``, ``ADM`` or ``uniformADM``. 
@@ -537,8 +567,8 @@ control
 In order to complete the definition of a given wind turbine, information regarding individual turbine control should be 
 provided. While yaw control can be applied to any actuator model, angular velocity and pitch control are only available 
 for ``ALM`` and ``ADM``, as these feature a more detailed description of the wind turbine. The name of the turbine control 
-files that TOSCA will use for each specific wind turbine are defined with the entries ``genControllerType``, ``pitchControllerType``
-and ``yawControllerType``, detailed in the previous table. The general idea is that a given controller is entirely described in a file. 
+files that TOSCA will use for each specific wind turbine are defined with the entries ``genControllerType``, ``pitchControllerType``, 
+``yawControllerType`` and ``dipcControllerType``, detailed in the previous table. The general idea is that a given controller is entirely described in a file. 
 Hence, in most cases these entries will be equal if all three controllers are active on a given wind turbine. However, a single 
 turbine can be also controlled with different controllers, defined in different files. Moreover, as many different controllers 
 as desired by the user can be used within a given wind farm. The turbine control file should be contained inside the 
@@ -570,9 +600,11 @@ as desired by the user can be used within a given wind farm. The turbine control
    ``pitchControllerParameters``  dictionary          parameters defining the collective pitch controller. 
    ------------------------------ ------------------- ----------------------------------------------------------------------------
    ``yawControllerParameters``    dictionary          parameters defining the nacelle yaw controller. 
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+   ``dipcControllerParameters``   dictionary          parameters defining the dynamic induction controller.
    ============================== =================== ============================================================================
 
-Entries for the last three dictionaries are described in the following table
+Entries for the last four dictionaries are described in the following table
 
 .. table:: 
    :widths: 30, 20, 50
@@ -646,6 +678,16 @@ Entries for the last three dictionaries are described in the following table
    ------------------------------ ------------------- ----------------------------------------------------------------------------
    ``initialFlowAngle``           scalar              initial angle in deg between the incoming flow and the direction of the 
                                                       rotor plane with zero upTilt. 
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+    *dipcControllerParameters*
+   -------------------------------------------------------------------------------------------------------------------------------
+   ``dipcHelixAmp``               scalar              amplitude of the helicoidal perturbation in degrees added to the calculated 
+                                                      airfoil angle of attack.
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+   ``dipcHelixDir``               string              direction of the helicoidal perturbation as viewed from upstream. 
+                                                      Possible entries are *cw* (clockwise) and *ccw* (counter clockwise).
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+   ``dipcHelixFreq``              scalar              frequency of the helicoidal perturbation in Hz.
    ============================== =================== ============================================================================
 
 OpenFAST Coupling
