@@ -81,6 +81,15 @@ PetscErrorCode readAirfoilProperties(windTurbine *wt, const char *dictName);
 //! \brief Reads the blades aero properties used in the turbine (given in the bladeData subdict inside the file named as the wind turbine type)
 PetscErrorCode readBladeProperties(windTurbine *wt, const char *dictName, const PetscInt readThickness);
 
+//! \brief Reads the turbine Ct curve used in the turbine (given in the CtTable subdict inside the file named as the wind turbine type)
+PetscErrorCode readCtTable(windTurbine *wt, const char *dictName);
+
+//! \brief Reads the turbine blade pitch curve used in the turbine (given in the pitchTable subdict inside the file /turbines/control/bladePitchCurve)
+PetscErrorCode readPitchTable(windTurbine *wt, const char *dictName);
+
+//! \brief Reads the turbine rpm curve used in the turbine (given in the rpmTable subdict inside the file /turbines/control/rotorRpmCurve)
+PetscErrorCode readRpmTable(windTurbine *wt, const char *dictName);
+
 //! \brief Reads the tower properties used in the turbine (given in the towerData subdict inside the file named as the wind turbine)
 PetscErrorCode readTowerProperties(windTurbine *wt, const char *dictName);
 
@@ -101,6 +110,9 @@ PetscErrorCode readYawControllerParameters(windTurbine *wt, const char *dictName
 
 //! \brief Read wind farm controller table (1 header and time - value list)
 PetscErrorCode readWindFarmControlTable(windTurbine *wt);
+
+//! \brief Read discrete induction controller parameters
+PetscErrorCode readDipcControllerParameters(windTurbine *wt, const char *dictName, const char *meshName);
 
 //! \brief Check that the mesh is resolved around the turbine
 PetscErrorCode checkTurbineMesh(farm_ *farm);

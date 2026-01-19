@@ -443,8 +443,6 @@ typedef struct
     word             dipcHelixDir;   //!< dynamic individual pitch controller helical excitation direction. Can be "ccw" or "cw"
     PetscReal       dipcHelixFreq;   //!< dynamic individual pitch controller helical excitation frequency
 
-
-    // numerical parameters
     // numerical parameters and flags 
     PetscInt   turbineControlled;   //!< flag which tells if this proc controls this wind turbine
     cellIds     *controlledCells;   //!< labels of the background mesh cells influenced by this turbine in this processor
@@ -569,55 +567,4 @@ PetscErrorCode UpdateWindTurbines(farm_ *farm);
 //! \brief Compute max tip speed and activate CFL control flag
 PetscErrorCode computeMaxTipSpeed(farm_ *farm);
 
-#endif
-
-// Reading input files functions
-// -----------------------------------------------------------------------------
-
-//! \brief Read the farm_Properties file and fill the structs
-PetscErrorCode readFarmProperties(farm_ *farm);
-
-//! \brief Read the wind turbines inside the farm_Properties file
-PetscErrorCode readTurbineArray(farm_ *wf);
-
-//! \brief Fill the windTurbine struct reading in the file named as the wind turbine type
-PetscErrorCode readTurbineProperties(windTurbine *wt, const char *dictName, const word meshName, const word modelName, Cmpnts &base);
-
-//! \brief Reads the names of the airfoil used in the turbine (given in the airfoils subdict inside the file named as the wind turbine type)
-PetscErrorCode readAirfoilProperties(windTurbine *wt, const char *dictName);
-
-//! \brief Reads the blades aero properties used in the turbine (given in the bladeData subdict inside the file named as the wind turbine type)
-PetscErrorCode readBladeProperties(windTurbine *wt, const char *dictName, const PetscInt readThickness);
-
-//! \brief Reads the turbine Ct curve used in the turbine (given in the CtTable subdict inside the file named as the wind turbine type)
-PetscErrorCode readCtTable(windTurbine *wt, const char *dictName);
-
-//! \brief Reads the turbine blade pitch curve used in the turbine (given in the pitchTable subdict inside the file /turbines/control/bladePitchCurve)
-PetscErrorCode readPitchTable(windTurbine *wt, const char *dictName);
-
-//! \brief Reads the turbine rpm curve used in the turbine (given in the rpmTable subdict inside the file /turbines/control/rotorRpmCurve)
-PetscErrorCode readRpmTable(windTurbine *wt, const char *dictName);
-
-//! \brief Reads the tower properties used in the turbine (given in the towerData subdict inside the file named as the wind turbine)
-PetscErrorCode readTowerProperties(windTurbine *wt, const char *dictName);
-
-//! \brief Reads the nacelle properties used in the turbine (given in the nacelleData subdict inside the file named as the wind turbine)
-PetscErrorCode readNacelleProperties(windTurbine *wt, const char *dictName);
-
-//! \brief Reads the 2D airfoil tables given in the file named as the airfoil
-PetscErrorCode readAirfoilTable(foilInfo *af, const char *tableName);
-
-//! \brief Reads generator torque controller parameters
-PetscErrorCode readGenControllerParameters(windTurbine *wt, const char *dictName, const char *meshName);
-
-//! \brief Reads blade pitch controller parameters
-PetscErrorCode readPitchControllerParameters(windTurbine *wt, const char *dictName, const char *meshName);
-
-//! \brief Reads nacelle yaw controller parameters
-PetscErrorCode readYawControllerParameters(windTurbine *wt, const char *dictName, const char *meshName);
-
-//! \brief Read wind farm controller table (1 header and time - value list)
-PetscErrorCode readWindFarmControlTable(windTurbine *wt);
-
-//! \brief Read discrete induction controller parameters
-PetscErrorCode readDipcControllerParameters(windTurbine *wt, const char *dictName, const char *meshName);
+#endif 

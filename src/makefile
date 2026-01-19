@@ -12,7 +12,7 @@
 # User defined options 
 # ==================================================================================================================================== #
 USE_HDF5     ?= 1  # user must define HDF5_DIR in the shell environment
-USE_OPENFAST ?= 0  # user must define OPENFAST_DIR in the shell environment
+USE_OPENFAST ?= 1  # user must define OPENFAST_DIR in the shell environment
 USE_CATALYST ?= 0  # user must define CATALYST_DIR in the shell environment
 USE_PYTHON   ?= 0  # user must have python3 and pybind11 installed
 # ==================================================================================================================================== #
@@ -106,21 +106,13 @@ OBJS_TOSCA = $(OBJ_DIR)/main.o $(OBJ_DIR)/initialization.o $(OBJ_DIR)/io.o $(OBJ
              $(OBJ_DIR)/wallfunctions.o $(OBJ_DIR)/boundary.o $(OBJ_DIR)/mesh.o $(OBJ_DIR)/inflow.o \
              $(OBJ_DIR)/abl.o $(OBJ_DIR)/ueqn.o $(OBJ_DIR)/peqn.o $(OBJ_DIR)/les.o $(OBJ_DIR)/teqn.o \
              $(OBJ_DIR)/turbines.o $(OBJ_DIR)/initialField.o $(OBJ_DIR)/acquisition.o $(OBJ_DIR)/ibm.o \
-<<<<<<< HEAD
-             $(OBJ_DIR)/clock.o $(OBJ_DIR)/precursor.o $(OBJ_DIR)/ibmInput.o $(OBJ_DIR)/lesScalar.o
-=======
-             $(OBJ_DIR)/clock.o $(OBJ_DIR)/precursor.o $(OBJ_DIR)/ibmInput.o $(TURBINES_OBJS)
->>>>>>> b265293 (split turbine.c code in modules as it was too big to work with)
+             $(OBJ_DIR)/clock.o $(OBJ_DIR)/precursor.o $(OBJ_DIR)/ibmInput.o $(OBJ_DIR)/lesScalar.o $(TURBINES_OBJS)
 
 OBJS_PP    = $(OBJ_DIR)/tosca2PV.o $(OBJ_DIR)/initialization.o $(OBJ_DIR)/io.o $(OBJ_DIR)/wallfunctions.o \
              $(OBJ_DIR)/overset.o $(OBJ_DIR)/boundary.o $(OBJ_DIR)/mesh.o $(OBJ_DIR)/inflow.o \
              $(OBJ_DIR)/abl.o $(OBJ_DIR)/ueqn.o $(OBJ_DIR)/peqn.o $(OBJ_DIR)/les.o $(OBJ_DIR)/teqn.o \
              $(OBJ_DIR)/turbines.o $(OBJ_DIR)/initialField.o $(OBJ_DIR)/acquisition.o $(OBJ_DIR)/ibm.o \
-<<<<<<< HEAD
-             $(OBJ_DIR)/clock.o $(OBJ_DIR)/precursor.o $(OBJ_DIR)/ibmInput.o $(OBJ_DIR)/lesScalar.o
-=======
-             $(OBJ_DIR)/clock.o $(OBJ_DIR)/precursor.o $(OBJ_DIR)/ibmInput.o $(TURBINES_OBJS)
->>>>>>> b265293 (split turbine.c code in modules as it was too big to work with)
+             $(OBJ_DIR)/clock.o $(OBJ_DIR)/precursor.o $(OBJ_DIR)/ibmInput.o $(OBJ_DIR)/lesScalar.o $(TURBINES_OBJS)
 
 # Targets
 all: $(BUILD_DIR) tosca tosca2PV
