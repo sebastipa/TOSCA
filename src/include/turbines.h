@@ -429,6 +429,13 @@ typedef struct
     PetscReal   *wfControlValues;   //!< values of wind farm controller variables (changes based on turbine model)
     PetscInt     currentCloseIdx;   //!< save the current closest index at each iteration to speed up the interpolation search
 
+    // dynamic individual pitch controller
+    word       dipcControllerType;   //!< dynamic individual pitch controller (DIPC) type. If none blade pitch is controlled collectively by the pitch controller, else reads from control/dicControllerType
+    PetscReal        dipcHelixAmp;   //!< dynamic individual pitch controller helical pitch amplitude
+    word             dipcHelixDir;   //!< dynamic individual pitch controller helical excitation direction. Can be "ccw" or "cw"
+    PetscReal       dipcHelixFreq;   //!< dynamic individual pitch controller helical excitation frequency
+
+
     // numerical parameters
     cellIds     *controlledCells;   //!< labels of the background mesh cells influenced by this turbine in this processor
     PetscInt         nControlled;   //!< size of controlledCells
@@ -665,3 +672,6 @@ PetscErrorCode readYawControllerParameters(windTurbine *wt, const char *dictName
 
 //! \brief Read wind farm controller table (1 header and time - value list)
 PetscErrorCode readWindFarmControlTable(windTurbine *wt);
+
+//! \brief Read discrete induction controller parameters
+PetscErrorCode readDipcControllerParameters(windTurbine *wt, const char *dictName, const char *meshName);

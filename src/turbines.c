@@ -461,27 +461,30 @@ PetscErrorCode computeRotSpeed(farm_ *farm)
                     // set to zero, controller deactivated
                     wt->genOmega = 0.0;
                     wt->genPwr   = 0.0;
+                }
+                else if(wt->genControllerType == "rpmControlCurve")
+                {
+                    // set to zero, controller deactivated
+                    wt->genOmega = 0.0;
+                    wt->genPwr   = 0.0;
 
-                    if(wt->rpmControllerType == "rpmControlCurve")
+                    PetscReal Uref;
+
+                    if((*farm->turbineModels[t]) == "ADM")  Uref = wt->upPoints->Uref;
+                    else if((*farm->turbineModels[t]) == "ALM")  Uref = wt->upPoints->Uref;
+                    
+                    if(Uref == 0.0)
                     {
-                        PetscReal Uref;
+                        //initially dont change anything. use the initial rotor omega
+                    }
+                    else
+                    {
+                        PetscReal w[2];
+                        PetscInt  l[2];
+                        findInterpolationWeights(w, l, wt->rpmTbl.Uref, wt->rpmTbl.size, Uref);
 
-                        if((*farm->turbineModels[t]) == "ADM")  Uref = wt->upPoints->Uref;
-                        else if((*farm->turbineModels[t]) == "ALM")  Uref = wt->upPoints->Uref;
-                        
-                        if(Uref == 0.0)
-                        {
-                           //initially dont change anything. use the initial rotor omega
-                        }
-                        else
-                        {
-                            PetscReal w[2];
-                            PetscInt  l[2];
-                            findInterpolationWeights(w, l, wt->rpmTbl.Uref, wt->rpmTbl.size, Uref);
-
-                            // compute blade pitch based on pitch curve
-                            wt->rtrOmega = (w[0]*wt->rpmTbl.rpm[l[0]] + w[1]*wt->rpmTbl.rpm[l[1]]) * wt->rpm2RadSec;
-                        }
+                        // compute blade pitch based on pitch curve
+                        wt->rtrOmega = (w[0]*wt->rpmTbl.rpm[l[0]] + w[1]*wt->rpmTbl.rpm[l[1]]) * wt->rpm2RadSec;
                     }
                 }
                 else
@@ -647,6 +650,10 @@ PetscErrorCode controlGenSpeed(farm_ *farm)
                 // do not distinguish between ADM or ALM, this is a
                 // global wind turbine property
                 if(wt->genControllerType == "none")
+                {
+                    // do nothing
+                }
+                else if(wt->genControllerType == "rpmControlCurve")
                 {
                     // do nothing
                 }
@@ -3358,6 +3365,9 @@ PetscErrorCode computeBladeForce(farm_ *farm)
     // simulation constants
     constants_ *constants = farm->access->constants;
 
+    // set physical time clock pointer
+    clock_ *clock = farm->access->clock;    
+
     // loop over each wind turbine
     for(t=0; t<farm->size; t++)
     {
@@ -3428,6 +3438,29 @@ PetscErrorCode computeBladeForce(farm_ *farm)
                             yb_hat = nCross(zb_hat, xb_hat);
                         }
 
+                        // Apply dynamic induction controller for individual helix pitch control
+                        PetscReal dicControlPitch = 0.0;
+
+                        if(wt->dipcControllerType != "none")
+                        {
+                            // Calculate azimuthal position of AD point in the rotor plane, 
+                            // with zero being aligned with the vertical axis
+                            PetscReal azim = std::atan2(r_p.z, r_p.y) - M_PI/2;
+
+                            // Calculate blade pitch change due to helical control. The helical
+                            // control modifies the blade pitch angle based on the azimuthal position. 
+                            // It must be converted to degrees for consistency with the other phi, twist,
+                            // and pitch angles. Direction of the helix rotation is 1.0 for ccw and -1.0 for cw.
+                            if(wt->dipcHelixDir == "cw") 
+                            {
+                                dicControlPitch = (wt->dipcHelixAmp*wt->deg2rad * std::sin(azim + (2.0*M_PI*wt->dipcHelixFreq*clock->time))) * wt->rad2deg;
+                            }
+                            else if(wt->dipcHelixDir == "ccw")
+                            {
+                                dicControlPitch = (wt->dipcHelixAmp*wt->deg2rad * std::sin(azim + (-2.0*M_PI*wt->dipcHelixFreq*clock->time))) * wt->rad2deg;
+                            }
+                        }                        
+
                         // transform the velocity in the bladed reference frame in
                         // order to compute the angle of attack. Radial (z) component
                         // is not considered
@@ -3435,7 +3468,7 @@ PetscErrorCode computeBladeForce(farm_ *farm)
                         PetscReal ub_y = nDot(wt->adm.U[p], yb_hat);
 
                         // compute angle of angle of attack in degrees: alpha = phi - twist - pitch
-                        wt->adm.alpha[p] = wt->rad2deg * std::atan2(ub_x, ub_y) - wt->adm.twist[p] - wt->collPitch * wt->rad2deg - wfControlPitch;
+                        wt->adm.alpha[p] = wt->rad2deg * std::atan2(ub_x, ub_y) - wt->adm.twist[p] - wt->collPitch * wt->rad2deg - wfControlPitch - dicControlPitch;
 
                         // The idea is to interpolate the aero coeffs for the computed
                         // angle of attack, but the airfoils are discrete in radius.
@@ -3766,6 +3799,16 @@ PetscErrorCode computeBladeForce(farm_ *farm)
                             yb_hat = nCross(zb_hat, xb_hat);
                         }
 
+                        // Apply dynamic induction controller for individual helix pitch control
+                        PetscReal dicControlPitch = 0.0;
+
+                        if(wt->dipcControllerType != "none")
+                        {
+                            char warning[256];
+                            sprintf(warning, "Dynamic induction controller not implemented for ALM model. Ignoring controller.");
+                            warningInFunction("computeBladeForce", warning);
+                        }
+
                         // transform the velocity in the bladed reference frame in
                         // order to compute the angle of attack. Radial (z) component
                         // is not considered
@@ -4013,7 +4056,7 @@ PetscErrorCode computeBladeForce(farm_ *farm)
             if((*farm->turbineModels[t]) != "uniformADM" && (*farm->turbineModels[t]) != "AFM")
             {
                 // second test inside because this variable is not defined for UADM and AFM
-                if(wt->genControllerType != "none")
+                if(wt->genControllerType != "none" && wt->genControllerType != "rpmControlCurve")
                 {
                     wt->genPwr = wt->genTorque * (wt->rtrOmega * wt->gbxRatioG2R) * wt->genEff;
                 }
@@ -4535,7 +4578,7 @@ PetscErrorCode projectBladeForce(farm_ *farm)
                 if((*farm->turbineModels[t]) != "uniformADM" && (*farm->turbineModels[t]) != "AFM")
                 {
                     // second test inside because this variable is not defined for UADM
-                    if(wt->genControllerType != "none")
+                    if(wt->genControllerType != "none" && wt->genControllerType != "rpmControlCurve")
                     {
                         MPI_Reduce(&(wt->genPwr), &genPwr, 1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
                     }
@@ -4554,7 +4597,7 @@ PetscErrorCode projectBladeForce(farm_ *farm)
                     if((*farm->turbineModels[t]) != "uniformADM" && (*farm->turbineModels[t]) != "AFM")
                     {
                         // second test inside because this variable is not defined for UADM
-                        if(wt->genControllerType != "none")
+                        if(wt->genControllerType != "none" && wt->genControllerType != "rpmControlCurve")
                         {
                             genPwr  /= wt->nProcsTrb;
                         }
@@ -5229,7 +5272,7 @@ PetscErrorCode windTurbinesWrite(farm_ *farm)
                     {
                         fprintf(f, "%*s %*s %*s %*s %*s %*s %*s %*s %*s %*s ", width, w0.c_str(), width, w1.c_str(), width, w2.c_str(), width, w3.c_str(), width, w4.c_str(), width, w5.c_str(), width, w6.c_str(), width, w7.c_str(), width, w8.c_str(), width, w9.c_str());
 
-                        if(wt->genControllerType != "none")
+                        if(wt->genControllerType != "none" && wt->genControllerType != "rpmControlCurve")
                         {
                             fprintf(f, "%*s %*s %*s ", width, w10.c_str(), width, w11.c_str(), width, w12.c_str());
                         }
@@ -5253,7 +5296,7 @@ PetscErrorCode windTurbinesWrite(farm_ *farm)
                     {
                         fprintf(f, "%*s %*s %*s %*s %*s %*s %*s %*s %*s %*s %*s ", width, w0.c_str(), width, w1.c_str(), width, w2.c_str(), width, w3.c_str(), width, w4.c_str(), width, w5.c_str(), width, w6.c_str(), width, w7.c_str(), width, w8.c_str(), width, w9.c_str(), width, w16.c_str());
 
-                        if(wt->genControllerType != "none")
+                        if(wt->genControllerType != "none" && wt->genControllerType != "rpmControlCurve")
                         {
                             fprintf(f, "%*s %*s %*s ", width, w10.c_str(), width, w11.c_str(), width, w12.c_str());
                         }
@@ -5754,7 +5797,7 @@ PetscErrorCode windTurbinesWrite(farm_ *farm)
                     MPI_Reduce(&(wt->adm.rtrTorque),  &rtrTorque,     1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
                     MPI_Reduce(&(wt->rtrOmega),       &rtrOmega,      1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
 
-                    if(wt->genControllerType != "none")
+                    if(wt->genControllerType != "none" && wt->genControllerType != "rpmControlCurve")
                     {
                         MPI_Reduce(&(wt->genTorque),   &genTorque,       1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
                         MPI_Reduce(&(wt->genPwr),      &genPwr,          1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
@@ -5820,7 +5863,7 @@ PetscErrorCode windTurbinesWrite(farm_ *farm)
 
                     MPI_Reduce(&(wt->alm.azimuth),    &azimuth,      1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
 
-                    if(wt->genControllerType != "none")
+                    if(wt->genControllerType != "none" && wt->genControllerType != "rpmControlCurve")
                     {
                         MPI_Reduce(&(wt->genTorque),   &genTorque,       1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
                         MPI_Reduce(&(wt->genPwr),      &genPwr,          1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
@@ -5875,7 +5918,7 @@ PetscErrorCode windTurbinesWrite(farm_ *farm)
                         {
                             fprintf(f, "%*.4f %*.4f %*.4f %*.4f %*.4f %*.4f %*.4f %*.4f %*.4f %*.4f ", width, clock->time, width, rtrAvgMagU, width, rtrAvgUpMagU, width, rtrThrust, width, aeroPwr, width, ctInf, width, ctLoc, width, ctUp, width, rtrTorque, width, rtrOmega);
 
-                            if(wt->genControllerType != "none")
+                            if(wt->genControllerType != "none" && wt->genControllerType != "rpmControlCurve")
                             {
                                 fprintf(f, "%*.4f %*.4f %*.4f ", width, genTorque, width, genPwr, width, genOmega);
                             }
@@ -5899,7 +5942,7 @@ PetscErrorCode windTurbinesWrite(farm_ *farm)
                         {
                             fprintf(f, "%*.4f %*.4f %*.4f %*.4f %*.4f %*.4f %*.4f %*.4f %*.4f %*.4f %*.4f ", width, clock->time, width, rtrAvgMagU, width, rtrAvgUpMagU, width, rtrThrust, width, aeroPwr, width, ctInf, width, ctLoc, width, ctUp, width, rtrTorque, width, rtrOmega, width, azimuth);
 
-                            if(wt->genControllerType != "none")
+                            if(wt->genControllerType != "none" && wt->genControllerType != "rpmControlCurve")
                             {
                                 fprintf(f, "%*.4f %*.4f %*.4f ", width, genTorque, width, genPwr, width, genOmega);
                             }
@@ -6485,7 +6528,7 @@ PetscErrorCode windTurbinesWriteCheckpoint(farm_ *farm)
                             fprintf(f, "    omega_hat          (%lf %lf %lf)\n", wt->omega_hat.x, wt->omega_hat.y, wt->omega_hat.z);
                             fprintf(f, "    rtrOmega           %lf\n",         rtrOmega / wt->nProcsTrb);
 
-                            if(wt->genControllerType != "none")
+                            if(wt->genControllerType != "none" && wt->genControllerType != "rpmControlCurve")
                             {
                                 fprintf(f, "    rtrOmegaFilt       %lf\n",         rtrOmegaFilt / wt->nProcsTrb);
                                 fprintf(f, "    genTorque          %lf\n",         genTorque    / wt->nProcsTrb);
@@ -6568,7 +6611,7 @@ PetscErrorCode windTurbinesReadCheckpoint(farm_ *farm)
                 readSubDictVector(dictName, "turbineLevelProperties", "omega_hat", &(wt->omega_hat));
                 readSubDictDouble(dictName, "turbineLevelProperties", "rtrOmega", &(wt->rtrOmega));
 
-                if(wt->genControllerType != "none")
+                if(wt->genControllerType != "none" && wt->genControllerType != "rpmControlCurve")
                 {
                     readSubDictDouble(dictName, "turbineLevelProperties", "rtrOmegaFilt", &(wt->rtrOmegaFilt));
                     readSubDictDouble(dictName, "turbineLevelProperties", "genTorque", &(wt->genTorque));
@@ -9178,14 +9221,20 @@ PetscErrorCode readTurbineProperties(windTurbine *wt, const char *dictName, cons
         // read pitch controller type
         readDictWord(dictName,   "pitchControllerType", &(wt->pitchControllerType));
 
-        // read controllers input parameters
-        if(wt->genControllerType   != "none") readGenControllerParameters(wt,   wt->genControllerType.c_str(), meshName.c_str());
-        
-        if(wt->genControllerType   == "none")
-        {
-            readDictWord(dictName,   "rpmControllerType", &(wt->rpmControllerType));
+        // read dynamic induction controller type
+        readDictWord(dictName,   "dipcControllerType", &(wt->dipcControllerType));
 
-            if(wt->rpmControllerType   == "rpmControlCurve") readRpmTable(wt, "./turbines/control/rotorRpmCurve");
+        // read controllers input parameters
+        if(wt->genControllerType   != "none") 
+        {
+            if(wt->genControllerType == "rpmControlCurve")
+            {
+                readRpmTable(wt, "./turbines/control/rotorRpmCurve");
+            }
+            else 
+            {
+                readGenControllerParameters(wt,   wt->genControllerType.c_str(), meshName.c_str());
+            }
         }
 
         if(wt->pitchControllerType != "none") 
@@ -9199,6 +9248,8 @@ PetscErrorCode readTurbineProperties(windTurbine *wt, const char *dictName, cons
                 readPitchControllerParameters(wt, wt->pitchControllerType.c_str(), meshName.c_str());
             }
         }
+
+        if(wt->dipcControllerType   != "none") readDipcControllerParameters(wt, wt->dipcControllerType.c_str(), meshName.c_str());
 
         // read airfoil types used in this turbine
         readAirfoilProperties(wt, dictName);
@@ -10750,6 +10801,21 @@ PetscErrorCode readWindFarmControlTable(windTurbine *wt)
     {
         std::vector<PetscReal> ().swap(table[t]);
     }
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode readDipcControllerParameters(windTurbine *wt, const char *dictName, const char *meshName)
+{
+    char path2dict[256];
+    sprintf(path2dict, "./turbines/%s/control/%s", meshName, dictName);
+
+    // controller parameters
+    readSubDictDouble(path2dict, "dipcControllerParameters","dipcHelixAmp",  &(wt->dipcHelixAmp));
+    readSubDictWord(  path2dict, "dipcControllerParameters","dipcHelixDir",  &(wt->dipcHelixDir));
+    readSubDictDouble(path2dict, "dipcControllerParameters","dipcHelixFreq", &(wt->dipcHelixFreq));
 
     return(0);
 }

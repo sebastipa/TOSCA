@@ -1,0 +1,23 @@
+
+windFarmName            isolated
+arraySpecification      onebyone
+debug                   0
+
+writeSettings
+{
+    timeStart           0
+    intervalType        timeStep
+    timeInterval        5
+}
+
+turbineArray
+{
+    turbine0
+    (
+        turbineType         DTU10MW
+        turbineModel        ADM
+        baseLocation        (534.9 500.0 0.0)
+	windFarmController  0
+    )
+    
+}

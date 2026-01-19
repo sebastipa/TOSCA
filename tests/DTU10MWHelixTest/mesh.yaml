@@ -1,0 +1,66 @@
+#level0.yaml
+
+periodicity:
+   - "-iPeriodicType 2"
+  # - "-jPeriodicType 2"
+  # - "-kPeriodicType 2"
+
+
+x_direction:
+  - start: 0.0
+    end: 450
+    N: 33
+    R: 0.0
+    startWidth: 40
+    endWidth: 2.5
+    meshType: graded
+
+  - start: 450
+    end: 2500
+    N: 820
+    R: 1.0
+    startWidth: 2.5
+    endWidth: 2.5
+    meshType: uniform
+
+y_direction:
+  - start: 0.0
+    end: 300.0
+    N: 22
+    R: 0.0
+    startWidth: 40
+    endWidth: 2.5
+    meshType: graded
+ 
+  - start: 300.0
+    end: 700.0
+    N: 160
+    R: 1.0
+    startWidth: 2.5
+    endWidth: 2.5
+    meshType: uniform
+ 
+  - start: 700.0
+    end: 1000.0
+    N: 22
+    R: 0.0
+    startWidth: 2.5
+    endWidth: 40
+    meshType: graded
+ 
+z_direction:
+  - start: 0.0
+    end: 300.0
+    N: 120
+    R: 1.0
+    startWidth: 2.5
+    endWidth: 2.5
+    meshType: uniform
+
+  - start: 300.0
+    end: 600.0
+    N: 27
+    R: 0.0
+    startWidth: 2.5
+    endWidth: 30.0
+    meshType: graded

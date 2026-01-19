@@ -14,10 +14,10 @@ includeTower        0
 includeNacelle      0
 
 # Controllers 
-genControllerType   none
+genControllerType   rpmControlCurve 
 pitchControllerType bladePitchCurve
 yawControllerType   fiveRegionsNREL
-rpmControllerType   rpmControlCurve
+dipcControllerType  none
 
 # Actuator disk model parameters
 nBlades             3
