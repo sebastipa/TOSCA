@@ -56,6 +56,7 @@
 <li class="toctree-l4"><a class="reference internal" href="#windfarmproperties">windFarmProperties</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#turbinetypefile">turbineTypeFile</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#control">control</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#openfast-coupling">OpenFAST Coupling</a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="ibm.html"><cite>IBM</cite></a></li>
@@ -107,10 +108,16 @@ inside the <code class="docutils literal notranslate"><span class="pre">turbines
 <section id="windfarmproperties">
 <h2>windFarmProperties<a class="headerlink" href="#windfarmproperties" title="Link to this heading"></a></h2>
 <p>The structure of a wind farm definition in TOSCA works as
-follows. The list of all wind turbines present in the simulation is defined in the <code class="docutils literal notranslate"><span class="pre">windFarmProperties</span></code>
+follows. The list of all wind turbines present in the simulation is defined in the <cite>windFarmProperties</cite>
 file. Here, the user can define how frequently wind turbine variables are written to file, as well
 as the type, model, location and activation of global wind farm controller for each wind
-turbine in the list. Such file has the following syntax:</p>
+turbine in the list.</p>
+<p>If TOSCA is coupled with OpenFAST, i.e. the compilation flag <code class="docutils literal notranslate"><span class="pre">USE_OPENFAST</span></code> has been set to 1 in the <cite>makefile</cite>,
+the additional <code class="docutils literal notranslate"><span class="pre">fastSettings</span></code> dictionary is required in the <cite>windFarmProperties</cite> file. Notably, the <code class="docutils literal notranslate"><span class="pre">nFastSubSteps</span></code>
+entry defines the number of OpenFAST sub-iterations per TOSCA time step and should be consistent with the values provided in the
+OpenFAST input file and TOSCA <cite>control.dat</cite> file. Currently, OpenFAST coupling is only supported with the actuator line model and
+when using a fixed time step.</p>
+<p>The <cite>windFarmProperties</cite> file has in general the following syntax:</p>
 <div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="cp"># TOSCA Input file - Wind Farm Properties</span>
 <span class="cp"># -------------------------------------------</span>
 
@@ -123,6 +130,13 @@ turbine in the list. Such file has the following syntax:</p>
 <span class="w">    </span><span class="n">timeStart</span><span class="w">           </span><span class="n">scalar</span>
 <span class="w">    </span><span class="n">intervalType</span><span class="w">        </span><span class="n">string</span>
 <span class="w">    </span><span class="n">timeInterval</span><span class="w">        </span><span class="n">scalar</span>
+<span class="p">}</span>
+
+<span class="n">fastSettings</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">nFastSubSteps</span><span class="w">       </span><span class="n">integer</span>
+<span class="w">    </span><span class="n">timeInterval</span><span class="w">        </span><span class="n">scalar</span>
+<span class="w">    </span><span class="n">restart</span><span class="w">             </span><span class="kt">bool</span>
 <span class="p">}</span>
 
 <span class="n">turbineArray</span>
@@ -161,9 +175,9 @@ Notably, in this case the <code class="docutils literal notranslate"><span class
 step to land on multiples of the <code class="docutils literal notranslate"><span class="pre">timeInterval</span></code> specified by the user.</p>
 <p>Regarding the definition of the wind turbine list, this can be of arbitrary length. The name of each entry (e.g. <em>turbineID_1</em>, <em>turbineID_N</em>)
 is a string which must be specified by the user. This will be the name of the file where TOSCA will write each turbine’s acquisition data,
-and it will be saved in the <code class="docutils literal notranslate"><span class="pre">postProcessing/turbines/startTime</span></code> folder, which will be created at the start of the simulation.
+and it will be saved in the <code class="docutils literal notranslate"><span class="pre">postProcessing/turbines/startTime</span></code> directory, which will be created at the start of the simulation.
 At each simulation restart, the <code class="docutils literal notranslate"><span class="pre">startTime</span></code> will differ, so TOSCA will not overwrite the turbine data. In the follwing table,
-the entries required for each turbine in the <code class="docutils literal notranslate"><span class="pre">windFarmProperties</span></code> file are detailed.</p>
+the entries required for each turbine in the <cite>windFarmProperties</cite> file are detailed.</p>
 <table class="docutils align-center">
 <colgroup>
 <col style="width: 30.0%" />
@@ -230,7 +244,7 @@ clusters which might have different turbines and be controlled differently.</p>
 </section>
 <section id="turbinetypefile">
 <h2>turbineTypeFile<a class="headerlink" href="#turbinetypefile" title="Link to this heading"></a></h2>
-<p>The turbine type specification is contained in a file named as the <code class="docutils literal notranslate"><span class="pre">turbineType</span></code> entry in the <code class="docutils literal notranslate"><span class="pre">windFarmProperties</span></code> file. Its
+<p>The turbine type specification is contained in a file named as the <code class="docutils literal notranslate"><span class="pre">turbineType</span></code> entry in the <cite>windFarmProperties</cite> file. Its
 syntax is defined as follows</p>
 <div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="cp"># TOSCA Input file - Turbine Type File</span>
 <span class="cp"># -------------------------------------------</span>
@@ -249,6 +263,7 @@ syntax is defined as follows</p>
 <span class="n">rotationDir</span><span class="w">         </span><span class="n">string</span><span class="w">  </span><span class="c1">// for ALM and ADM only</span>
 <span class="n">includeTower</span><span class="w">        </span><span class="kt">bool</span>
 <span class="n">includeNacelle</span><span class="w">      </span><span class="kt">bool</span>
+<span class="n">useOpenFAST</span><span class="w">         </span><span class="kt">bool</span><span class="w">   </span><span class="c1">// required if compiled with OpenFAST support</span>
 <span class="n">debug</span><span class="w">               </span><span class="kt">bool</span>
 
 <span class="cp"># Controllers</span>
@@ -401,12 +416,37 @@ defined by looking at the wind turbine from upstream. Only required when
 <td><p>whether or not to model also the nacelle as an actuator point. Requires the
 <code class="docutils literal notranslate"><span class="pre">nacelleData</span></code> dictionary.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">debug</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">useOpenFAST</span></code></p></td>
+<td><p>bool</p></td>
+<td><p>whether or not this turbine model is coupled with OpenFAST. Notably, a
+given turbine model can also not be coupled with OpenFAST.
+Only required when <code class="docutils literal notranslate"><span class="pre">USE_OPENFAST</span></code> flag is set to 1 in the <cite>makefile</cite>, i.e.
+TOSCA is compiled with OpenFAST support. When activated, the following
+entries</p>
+<blockquote>
+<div><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">genControllerType</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pitchControllerType</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">yawControllerType</span></code></p></li>
+</ul>
+</div></blockquote>
+<p>and tables</p>
+<blockquote>
+<div><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">airfoils</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">bladeData</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">CtTable</span></code></p></li>
+</ul>
+</div></blockquote>
+<p>are not required, as this data is gathered from OpenFAST.</p>
+</td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">debug</span></code></p></td>
 <td><p>bool</p></td>
 <td><p>debug switch. Prints turbine-level information and projection error.
 Deactivate for performance.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">genControllerType</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">genControllerType</span></code></p></td>
 <td><p>string</p></td>
 <td><p>name of the file that contains the generator control properties of this
 wind turbine type. Should be located inside the <code class="docutils literal notranslate"><span class="pre">turbines/control</span></code>
@@ -414,7 +454,7 @@ directory and it will be described later.
 Only required when <code class="docutils literal notranslate"><span class="pre">turbineModel</span></code> is <code class="docutils literal notranslate"><span class="pre">ALM</span></code> or <code class="docutils literal notranslate"><span class="pre">ADM</span></code>. Set to
 <em>none</em> to disable.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">pitchControllerType</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">pitchControllerType</span></code></p></td>
 <td><p>string</p></td>
 <td><p>name of the file that contains the collective pitch control properties of
 this wind turbine type. Should be located inside the <code class="docutils literal notranslate"><span class="pre">turbines/control</span></code>
@@ -422,24 +462,24 @@ directory and it will be described later.
 Only required when <code class="docutils literal notranslate"><span class="pre">turbineModel</span></code> is <code class="docutils literal notranslate"><span class="pre">ALM</span></code> or <code class="docutils literal notranslate"><span class="pre">ADM</span></code>. Set to
 <em>none</em> to disable.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">yawControllerType</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">yawControllerType</span></code></p></td>
 <td><p>string</p></td>
 <td><p>name of the file that contains the yaw control properties of
 this wind turbine type. Should be located inside the <code class="docutils literal notranslate"><span class="pre">turbines/control</span></code>
 directory and it will be described later. Set to
 <em>none</em> to disable.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">nRadPts</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">nRadPts</span></code></p></td>
 <td><p>integer</p></td>
 <td><p>number of radial points for the actuator model. Only required when
 <code class="docutils literal notranslate"><span class="pre">turbineModel</span></code> is <code class="docutils literal notranslate"><span class="pre">ALM</span></code>, <code class="docutils literal notranslate"><span class="pre">ADM</span></code> or <code class="docutils literal notranslate"><span class="pre">uniformADM</span></code>.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">nAziPts</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">nAziPts</span></code></p></td>
 <td><p>integer</p></td>
 <td><p>number of azimuthal points for the actuator model. Only required when
 <code class="docutils literal notranslate"><span class="pre">turbineModel</span></code> is <code class="docutils literal notranslate"><span class="pre">ADM</span></code> or <code class="docutils literal notranslate"><span class="pre">uniformADM</span></code>.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Uref</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Uref</span></code></p></td>
 <td><p>scalar</p></td>
 <td><p>freestream velocity for this wind turbine in m/s. The meaning of this
 parameter depends on the chosen actuator model.</p>
@@ -454,7 +494,7 @@ it does not affect thrust computation.</p></li>
 </ul>
 </td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Ct</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Ct</span></code></p></td>
 <td><p>scalar</p></td>
 <td><p>thrust coefficient for this wind turbine. Only required when
 <code class="docutils literal notranslate"><span class="pre">turbineModel</span></code> is <code class="docutils literal notranslate"><span class="pre">uniformADM</span></code> or <code class="docutils literal notranslate"><span class="pre">AFM</span></code>. The meaning of this parameter
@@ -469,7 +509,7 @@ when using <em>rotorDisk</em> it should be the disk-based thrust coefficient.</p
 </ul>
 </td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CtType</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CtType</span></code></p></td>
 <td><p>string</p></td>
 <td><p>Ct type can be set to <em>constant</em> or <em>variable</em>.  Only required when
 <code class="docutils literal notranslate"><span class="pre">turbineModel</span></code> is <code class="docutils literal notranslate"><span class="pre">uniformADM</span></code> or <code class="docutils literal notranslate"><span class="pre">AFM</span></code>. <em>constant</em> type requires a
@@ -477,7 +517,7 @@ single thrust coefficient value. For <em>variable</em> type, a <code class="docu
 to be provided with the reference velocity and corresponding freestream
 thrust coefficient. This is regardless of <code class="docutils literal notranslate"><span class="pre">sampleType</span></code> used.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">projection</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">projection</span></code></p></td>
 <td><p>string</p></td>
 <td><p>body force projection type. Only required for <code class="docutils literal notranslate"><span class="pre">ALM</span></code> and <code class="docutils literal notranslate"><span class="pre">AFM</span></code> models.
 Entries specific to each model are described below.</p>
@@ -498,7 +538,7 @@ more validation, hence is suggested.</p></li>
 </dl>
 </td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">sampleType</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">sampleType</span></code></p></td>
 <td><p>string</p></td>
 <td><p>velocity sampling type. Only required for <code class="docutils literal notranslate"><span class="pre">ALM</span></code>, <code class="docutils literal notranslate"><span class="pre">uniformADM</span></code> and
 <code class="docutils literal notranslate"><span class="pre">AFM</span></code> models. Entries specific to each model are described below.</p>
@@ -531,61 +571,61 @@ factor, defined as <span class="math notranslate nohighlight">\(\frac{1 - \sqrt{
 </dl>
 </td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">epsilon</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">epsilon</span></code></p></td>
 <td><p>scalar</p></td>
 <td><p>standard deviation of the projection function in m for <code class="docutils literal notranslate"><span class="pre">ALM</span></code> (when
 <code class="docutils literal notranslate"><span class="pre">projection</span></code> is set to <em>isotropic</em>), <code class="docutils literal notranslate"><span class="pre">ADM</span></code> and <code class="docutils literal notranslate"><span class="pre">uniformADM</span></code>.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">epsilon_x</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">epsilon_x</span></code></p></td>
 <td><p>scalar</p></td>
 <td><p>standard deviation of the projection function in along x for <code class="docutils literal notranslate"><span class="pre">AFM</span></code>
 (when <code class="docutils literal notranslate"><span class="pre">projection</span></code> is set to <em>anisotropic</em>).</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">epsilon_y</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">epsilon_y</span></code></p></td>
 <td><p>scalar</p></td>
 <td><p>standard deviation of the projection function in along y for <code class="docutils literal notranslate"><span class="pre">AFM</span></code>
 (when <code class="docutils literal notranslate"><span class="pre">projection</span></code> is set to <em>anisotropic</em>).</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">epsilon_z</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">epsilon_z</span></code></p></td>
 <td><p>scalar</p></td>
 <td><p>standard deviation of the projection function in along z for <code class="docutils literal notranslate"><span class="pre">AFM</span></code>
 (when <code class="docutils literal notranslate"><span class="pre">projection</span></code> is set to <em>anisotropic</em>).</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">gaussexp_x</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">gaussexp_x</span></code></p></td>
 <td><p>scalar</p></td>
 <td><p>standard deviation of the projection function in along x for <code class="docutils literal notranslate"><span class="pre">AFM</span></code>
 (when <code class="docutils literal notranslate"><span class="pre">projection</span></code> is set to <em>gaussexp</em>).</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">gaussexp_r</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">gaussexp_r</span></code></p></td>
 <td><p>scalar</p></td>
 <td><p>radial helf-decay length in m of the exponential projection function for
 <code class="docutils literal notranslate"><span class="pre">AFM</span></code> model, when <code class="docutils literal notranslate"><span class="pre">projection</span></code> is set to <em>gaussexp</em>. Usually set equal
 to the turbine radius.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">gaussexp_f</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">gaussexp_f</span></code></p></td>
 <td><p>scalar</p></td>
 <td><p>smoothing parameter of the exponential projection function for <code class="docutils literal notranslate"><span class="pre">AFM</span></code>
 model, when <code class="docutils literal notranslate"><span class="pre">projection</span></code> is set to <em>gaussexp</em>.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">epsilonFactor_x</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">epsilonFactor_x</span></code></p></td>
 <td><p>scalar</p></td>
 <td><p>chord multiplication factor defining the standard deviation along the blade
 chord of the gaussian projection function for <code class="docutils literal notranslate"><span class="pre">ALM</span></code> when
 <code class="docutils literal notranslate"><span class="pre">projection</span></code> is set to <em>anisotropic</em>.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">epsilonFactor_y</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">epsilonFactor_y</span></code></p></td>
 <td><p>scalar</p></td>
 <td><p>thickness multiplication factor defining the standard deviation along the
 blade thickness of the gaussian projection function for <code class="docutils literal notranslate"><span class="pre">ALM</span></code> when
 <code class="docutils literal notranslate"><span class="pre">projection</span></code> is set to <em>anisotropic</em>.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">epsilonFactor_z</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">epsilonFactor_z</span></code></p></td>
 <td><p>scalar</p></td>
 <td><p><span class="math notranslate nohighlight">\(dr\)</span> multiplication factor defining the standard deviation along the
 blade radius of the gaussian projection function for <code class="docutils literal notranslate"><span class="pre">ALM</span></code> when
 <code class="docutils literal notranslate"><span class="pre">projection</span></code> is set to <em>anisotropic</em>.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">towerData</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">towerData</span></code></p></td>
 <td><p>dictionary</p></td>
 <td><p>Dictionary defining the parameters required to represent the tower as an
 actuator line. Usage:</p>
@@ -603,7 +643,7 @@ actuator line. Usage:</p>
 </div>
 </td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">nacelleData</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">nacelleData</span></code></p></td>
 <td><p>dictionary</p></td>
 <td><p>Dictionary defining the parameters required to represent the nacelle as an
 actuator point. Usage:</p>
@@ -617,7 +657,7 @@ actuator point. Usage:</p>
 </div>
 </td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">airfoils</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">airfoils</span></code></p></td>
 <td><p>table</p></td>
 <td><p>List of files storing the blade airfoil information. The list has an
 arbitrary length files named as the element of the list should be located
@@ -643,7 +683,7 @@ inside <code class="docutils literal notranslate"><span class="pre">turbines/air
 </div>
 </td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">bladeData</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">bladeData</span></code></p></td>
 <td><p>table</p></td>
 <td><p>List of properties for each blade radial station. The list has an arbitrary
 length and should store radial position, chord, twist and airfoil ID.
@@ -671,7 +711,7 @@ blade thickness is added to the list, before the airfoil ID. Usage:</p>
 <p>when using <code class="docutils literal notranslate"><span class="pre">ALM</span></code> with <code class="docutils literal notranslate"><span class="pre">projection</span></code> set to <em>anisotropic</em>.</p>
 </td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CtTable</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CtTable</span></code></p></td>
 <td><p>table</p></td>
 <td><p>Table of reference velocity and corresponding free stream veocity based
 thrust coefficient Ct. Usage:</p>
@@ -888,6 +928,24 @@ rotor plane with zero upTilt.</p></td>
 </tr>
 </tbody>
 </table>
+</section>
+<section id="openfast-coupling">
+<h2>OpenFAST Coupling<a class="headerlink" href="#openfast-coupling" title="Link to this heading"></a></h2>
+<p>When coupling TOSCA with OpenFAST, the user must provide an OpenFAST input file for each wind turbine listed in the
+<cite>windFarmProperties</cite> file. The OpenFAST input file is unique for each turbine and should be located inside
+the <code class="docutils literal notranslate"><span class="pre">turbines</span></code> directory. Moreover, it should be named as <code class="docutils literal notranslate"><span class="pre">&lt;turbineType&gt;.ID.fst</span></code>, where <code class="docutils literal notranslate"><span class="pre">&lt;turbineType&gt;</span></code> is the value of the
+<code class="docutils literal notranslate"><span class="pre">turbineType</span></code> entry in the <cite>windFarmProperties</cite> file, for the given wind turbine, and <code class="docutils literal notranslate"><span class="pre">ID</span></code> is the integer
+identifying each wind turbine in the list, starting from 0. Conversely, OpenFAST module files (such as AeroDyn, ElastoDyn etc.) can be shared among different
+wind turbines, and their path is specified within each of the OpenFAST input files.</p>
+<p>When a given turbine is coupled with OpenFAST, TOSCA’s outputs - for example rotor speed, rotor direction etc. - are derived from OpenFAST
+and not calculated by TOSCA. However, in order to integrate with previous TOSCA functionalities and workflows, turbine output data are still written
+to file by TOSCA, as if TOSCA was calculating them. These outputs are coincident with the OpenFAST outputs.</p>
+<p>Restart is also possible when coupling with OpenFAST. However, all or no turbines should be restarted by activating the global <code class="docutils literal notranslate"><span class="pre">restart</span></code> flag inside
+the <code class="docutils literal notranslate"><span class="pre">fastSettings</span></code> dictionary of the <cite>windFarmProperties</cite> file. When restarting, TOSCA will read the OpenFAST restart files named as
+<code class="docutils literal notranslate"><span class="pre">&lt;turbineType&gt;.ID.iteration.chkp</span></code>, located inside the <code class="docutils literal notranslate"><span class="pre">turbines</span></code> directory. The <code class="docutils literal notranslate"><span class="pre">iteration</span></code> number corresponds to the iteration number at which OpenFAST
+restart is performed. These files are created by OpenFAST according to the settings specified in the OpenFAST input file.</p>
+<p>To familiarize with TOSCA-OpenFAST coupling, the <code class="docutils literal notranslate"><span class="pre">tests/NREL5MWOpenFastTest</span></code> is provided as an example case in this repository and consisting of the
+<code class="docutils literal notranslate"><span class="pre">tests/NREL5MWTest</span></code> example case, with the required modifications to feature OpenFAST coupling.</p>
 </section>
 </section>
 
