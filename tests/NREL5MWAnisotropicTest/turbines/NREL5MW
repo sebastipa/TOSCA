@@ -17,6 +17,7 @@ includeNacelle      1
 genControllerType   fiveRegionsNREL
 pitchControllerType fiveRegionsNREL
 yawControllerType   fiveRegionsNREL
+dipcControllerType  none
 
 # Actuator disk model parameters
 nBlades             3
