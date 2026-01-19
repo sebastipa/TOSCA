@@ -164,6 +164,27 @@ into the master branch after approval. In order to do so, please use the followi
 9. To stay up-to-date after the modifications have been merged, rebase your local master with the your new commits by first checking out in your local master branch with ``git checkout master`` and then rebase with ``git pull --rebase origin master``.
 10. Delete your local branch as it is not useful anymore with ``git branch --delete -d your-branch-name`` and use the master until you want to make new changes.
 
+.. _openfast-section:
+
+OpenFAST Coupling
+-----------------
+
+TOSCA can be coupled with OpenFAST to perform fluid-structure interaction simulations of wind turbines. OpenFAST coupling can be 
+activated by setting the ``USE_OPENFAST`` flag to 1 in the TOSCA makefile. In addition, the user should define the ``OPENFAST_DIR`` environment variable 
+to point to the OpenFAST installation directory (this can be set for example in the ``.bashrc`` file). 
+
+To compile OpenFAST from source, please follow the instructions on the official `OpenFAST repository <https://openfast.readthedocs.io/en/main/source/install/index.html#compile-from-source>`_.
+
+OpenFAST input files underwent consistent changes during the various releases. TOSCA has been tested with OpenFAST v4.x.x (or later) and the example case
+`tests/NREL5MWOpenFastTest` provided in this repository is currently compatible with the latest OpenFAST release. An index of all OpenFAST input files changes in relation 
+to each OpenFAST releases can be found `here <https://openfast.readthedocs.io/en/main/source/user/api_change.html>`_.
+
+TOSCA's interface with OpenFAST is flexible, as it allows the user to couple with OpenFAST all, a subset or none of the wind 
+turbines included in the simulation. Currently, TOSCA only allows to couple the actuator line model with OpenFAST, but the 
+current implementation can be easily extended to other actuator models (and it is planned for future releases).
+
+Information on how to setup TOSCA-OpenFAST coupled simulations can be found in the :ref:`turbine section <turbines-section>` of the TOSCA User Guide.
+
 .. _paraview-catalyst-section:
 
 Paraview-Catalyst2 OS-Rendering

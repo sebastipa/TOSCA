@@ -11,10 +11,18 @@ windFarmProperties
 ******************
 
 The structure of a wind farm definition in TOSCA works as
-follows. The list of all wind turbines present in the simulation is defined in the ``windFarmProperties``
+follows. The list of all wind turbines present in the simulation is defined in the `windFarmProperties`
 file. Here, the user can define how frequently wind turbine variables are written to file, as well
 as the type, model, location and activation of global wind farm controller for each wind 
-turbine in the list. Such file has the following syntax:
+turbine in the list. 
+
+If TOSCA is coupled with OpenFAST, i.e. the compilation flag ``USE_OPENFAST`` has been set to 1 in the `makefile`,
+the additional ``fastSettings`` dictionary is required in the `windFarmProperties` file. Notably, the ``nFastSubSteps``
+entry defines the number of OpenFAST sub-iterations per TOSCA time step and should be consistent with the values provided in the
+OpenFAST input file and TOSCA `control.dat` file. Currently, OpenFAST coupling is only supported with the actuator line model and 
+when using a fixed time step.
+
+The `windFarmProperties` file has in general the following syntax:
 
 .. code-block:: C
 
@@ -30,6 +38,13 @@ turbine in the list. Such file has the following syntax:
        timeStart           scalar
        intervalType        string
        timeInterval        scalar
+   }
+
+   fastSettings
+   {
+       nFastSubSteps       integer
+       timeInterval        scalar
+       restart             bool
    }
 
    turbineArray
@@ -68,9 +83,9 @@ step to land on multiples of the ``timeInterval`` specified by the user.
 
 Regarding the definition of the wind turbine list, this can be of arbitrary length. The name of each entry (e.g. *turbineID_1*, *turbineID_N*) 
 is a string which must be specified by the user. This will be the name of the file where TOSCA will write each turbine's acquisition data,
-and it will be saved in the ``postProcessing/turbines/startTime`` folder, which will be created at the start of the simulation. 
+and it will be saved in the ``postProcessing/turbines/startTime`` directory, which will be created at the start of the simulation. 
 At each simulation restart, the ``startTime`` will differ, so TOSCA will not overwrite the turbine data. In the follwing table,
-the entries required for each turbine in the ``windFarmProperties`` file are detailed. 
+the entries required for each turbine in the `windFarmProperties` file are detailed. 
 
 .. table:: 
    :widths: 30, 20, 50
@@ -125,7 +140,7 @@ clusters which might have different turbines and be controlled differently.
 turbineTypeFile 
 ***************
 
-The turbine type specification is contained in a file named as the ``turbineType`` entry in the ``windFarmProperties`` file. Its 
+The turbine type specification is contained in a file named as the ``turbineType`` entry in the `windFarmProperties` file. Its 
 syntax is defined as follows
  
 .. code-block:: C
@@ -147,6 +162,7 @@ syntax is defined as follows
    rotationDir         string  // for ALM and ADM only 
    includeTower        bool
    includeNacelle      bool
+   useOpenFAST         bool   // required if compiled with OpenFAST support
    debug               bool
 
    # Controllers 
@@ -268,6 +284,24 @@ in the table below:
    ------------------------------ ------------------- ----------------------------------------------------------------------------
    ``includeNacelle``             bool                whether or not to model also the nacelle as an actuator point. Requires the 
                                                       ``nacelleData`` dictionary. 
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+   ``useOpenFAST``                bool                whether or not this turbine model is coupled with OpenFAST. Notably, a 
+                                                      given turbine model can also not be coupled with OpenFAST. 
+                                                      Only required when ``USE_OPENFAST`` flag is set to 1 in the `makefile`, i.e. 
+                                                      TOSCA is compiled with OpenFAST support. When activated, the following 
+                                                      entries 
+
+                                                        - ``genControllerType``
+                                                        - ``pitchControllerType``
+                                                        - ``yawControllerType``
+
+                                                      and tables 
+
+                                                        - ``airfoils``
+                                                        - ``bladeData``
+                                                        - ``CtTable``
+
+                                                      are not required, as this data is gathered from OpenFAST.
    ------------------------------ ------------------- ----------------------------------------------------------------------------
    ``debug``                      bool                debug switch. Prints turbine-level information and projection error. 
                                                       Deactivate for performance. 
@@ -614,8 +648,27 @@ Entries for the last three dictionaries are described in the following table
                                                       rotor plane with zero upTilt. 
    ============================== =================== ============================================================================
 
+OpenFAST Coupling
+*****************
 
+When coupling TOSCA with OpenFAST, the user must provide an OpenFAST input file for each wind turbine listed in the 
+`windFarmProperties` file. The OpenFAST input file is unique for each turbine and should be located inside
+the ``turbines`` directory. Moreover, it should be named as ``<turbineType>.ID.fst``, where ``<turbineType>`` is the value of the 
+``turbineType`` entry in the `windFarmProperties` file, for the given wind turbine, and ``ID`` is the integer 
+identifying each wind turbine in the list, starting from 0. Conversely, OpenFAST module files (such as AeroDyn, ElastoDyn etc.) can be shared among different 
+wind turbines, and their path is specified within each of the OpenFAST input files. 
 
+When a given turbine is coupled with OpenFAST, TOSCA's outputs - for example rotor speed, rotor direction etc. - are derived from OpenFAST 
+and not calculated by TOSCA. However, in order to integrate with previous TOSCA functionalities and workflows, turbine output data are still written 
+to file by TOSCA, as if TOSCA was calculating them. These outputs are coincident with the OpenFAST outputs.
+
+Restart is also possible when coupling with OpenFAST. However, all or no turbines should be restarted by activating the global ``restart`` flag inside 
+the ``fastSettings`` dictionary of the `windFarmProperties` file. When restarting, TOSCA will read the OpenFAST restart files named as 
+``<turbineType>.ID.iteration.chkp``, located inside the ``turbines`` directory. The ``iteration`` number corresponds to the iteration number at which OpenFAST 
+restart is performed. These files are created by OpenFAST according to the settings specified in the OpenFAST input file.
+
+To familiarize with TOSCA-OpenFAST coupling, the ``tests/NREL5MWOpenFastTest`` is provided as an example case in this repository and consisting of the 
+``tests/NREL5MWTest`` example case, with the required modifications to feature OpenFAST coupling.
 
 
 

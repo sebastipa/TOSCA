@@ -47,6 +47,7 @@
 <ul class="current">
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Installation</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#contribute-to-the-tosca-project">Contribute to the TOSCA Project</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#openfast-coupling">OpenFAST Coupling</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#paraview-catalyst2-os-rendering">Paraview-Catalyst2 OS-Rendering</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#usage">Usage</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#id1">Installation</a></li>
@@ -229,6 +230,20 @@ into the master branch after approval. In order to do so, please use the followi
 <li><p>To stay up-to-date after the modifications have been merged, rebase your local master with the your new commits by first checking out in your local master branch with <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">checkout</span> <span class="pre">master</span></code> and then rebase with <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">pull</span> <span class="pre">--rebase</span> <span class="pre">origin</span> <span class="pre">master</span></code>.</p></li>
 <li><p>Delete your local branch as it is not useful anymore with <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">branch</span> <span class="pre">--delete</span> <span class="pre">-d</span> <span class="pre">your-branch-name</span></code> and use the master until you want to make new changes.</p></li>
 </ol>
+</section>
+<section id="openfast-coupling">
+<span id="openfast-section"></span><h2>OpenFAST Coupling<a class="headerlink" href="#openfast-coupling" title="Link to this heading"></a></h2>
+<p>TOSCA can be coupled with OpenFAST to perform fluid-structure interaction simulations of wind turbines. OpenFAST coupling can be
+activated by setting the <code class="docutils literal notranslate"><span class="pre">USE_OPENFAST</span></code> flag to 1 in the TOSCA makefile. In addition, the user should define the <code class="docutils literal notranslate"><span class="pre">OPENFAST_DIR</span></code> environment variable
+to point to the OpenFAST installation directory (this can be set for example in the <code class="docutils literal notranslate"><span class="pre">.bashrc</span></code> file).</p>
+<p>To compile OpenFAST from source, please follow the instructions on the official <a class="reference external" href="https://openfast.readthedocs.io/en/main/source/install/index.html#compile-from-source">OpenFAST repository</a>.</p>
+<p>OpenFAST input files underwent consistent changes during the various releases. TOSCA has been tested with OpenFAST v4.x.x (or later) and the example case
+<cite>tests/NREL5MWOpenFastTest</cite> provided in this repository is currently compatible with the latest OpenFAST release. An index of all OpenFAST input files changes in relation
+to each OpenFAST releases can be found <a class="reference external" href="https://openfast.readthedocs.io/en/main/source/user/api_change.html">here</a>.</p>
+<p>TOSCA’s interface with OpenFAST is flexible, as it allows the user to couple with OpenFAST all, a subset or none of the wind
+turbines included in the simulation. Currently, TOSCA only allows to couple the actuator line model with OpenFAST, but the
+current implementation can be easily extended to other actuator models (and it is planned for future releases).</p>
+<p>Information on how to setup TOSCA-OpenFAST coupled simulations can be found in the <a class="reference internal" href="01_user_guide/input_files/turbines.html#turbines-section"><span class="std std-ref">turbine section</span></a> of the TOSCA User Guide.</p>
 </section>
 <section id="paraview-catalyst2-os-rendering">
 <span id="paraview-catalyst-section"></span><h2>Paraview-Catalyst2 OS-Rendering<a class="headerlink" href="#paraview-catalyst2-os-rendering" title="Link to this heading"></a></h2>
