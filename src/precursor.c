@@ -2715,20 +2715,22 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
                     abl->tDes[l] = 0.0;
                 }
 
-                    if(abl->controllerTypeT=="indirectProfileAssimilation" || abl->controllerTypeT=="directProfileAssimilation" || abl->controllerTypeT=="waveletProfileAssimilation")
-                    {  
-                        // read proportional controller relaxation factor (same as the velocity one)
-                        readSubDictDouble("ABLProperties.dat", controllerProp, "relaxPI",          &(abl->relax));
-                        readSubDictWord  ("ABLProperties.dat", controllerProp, "lowerLayerForcingTypeT",   &(abl->flTypeT));
+                if(abl->controllerTypeT=="initial")
+                {
+                    readSubDictDouble("ABLProperties.dat", controllerProp, "relaxPI",          &(abl->relax));
+                }
+                else if(abl->controllerTypeT=="indirectProfileAssimilation" || abl->controllerTypeT=="directProfileAssimilation" || abl->controllerTypeT=="waveletProfileAssimilation")
+                {  
+                    // read proportional controller relaxation factor (same as the velocity one)
+                    readSubDictDouble("ABLProperties.dat", controllerProp, "relaxPI",          &(abl->relax));
+                    readSubDictWord  ("ABLProperties.dat", controllerProp, "lowerLayerForcingTypeT",   &(abl->flTypeT));
 
-                        PetscPrintf(mesh->MESH_COMM, "   controller type temperature: %s\n", abl->controllerTypeT.c_str());
-
-                        if(abl->flTypeT == "constantHeight")
-                        {
-                            readSubDictDouble("ABLProperties.dat", controllerProp, "lowestSrcHeight",  &(abl->lowestSrcHt));
-                        }
-                        else if(abl->flTypeT == "mesoDataHeight")
-                        {
+                    if(abl->flTypeT == "constantHeight")
+                    {
+                        readSubDictDouble("ABLProperties.dat", controllerProp, "lowestSrcHeight",  &(abl->lowestSrcHt));
+                    }
+                    else if(abl->flTypeT == "mesoDataHeight")
+                    {
 
                     }
                     else
@@ -2739,13 +2741,12 @@ PetscErrorCode ABLInitializePrecursor(domain_ *domain)
                     } 
 
                     readMesoScaleTemperatureData(abl);
-
                     findTemperatureInterpolationWeights(abl);
                 }
 
-                    if(abl->controllerTypeT=="indirectProfileAssimilation")
-                    {
-                        readSubDictInt   ("ABLProperties.dat", controllerProp, "polynomialOrderT",   &(abl->polyOrderT));
+                if(abl->controllerTypeT=="indirectProfileAssimilation")
+                {
+                    readSubDictInt   ("ABLProperties.dat", controllerProp, "polynomialOrderT",   &(abl->polyOrderT));
 
                     //precompute the polynomial coefficient matrix using least square regression method.
                     computeLSqPolynomialCoefficientMatrixT(abl); 
