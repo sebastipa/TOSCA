@@ -12,7 +12,7 @@
 # User defined options 
 # ==================================================================================================================================== #
 USE_HDF5     ?= 1  # user must define HDF5_DIR in the shell environment
-USE_OPENFAST ?= 1  # user must define OPENFAST_DIR in the shell environment
+USE_OPENFAST ?= 0  # user must define OPENFAST_DIR in the shell environment
 USE_CATALYST ?= 0  # user must define CATALYST_DIR in the shell environment
 USE_PYTHON   ?= 0  # user must have python3 and pybind11 installed
 # ==================================================================================================================================== #

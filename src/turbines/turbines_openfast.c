@@ -4,7 +4,7 @@
 
 #if USE_OPENFAST
 
-PetscErrorCode initOpenFAST(farm_ *farm)
+PetscErrorCode initOpenFAST(farm_ *farm)  
 {
     PetscInt nT = farm->size, nOpenFAST = 0;
     
@@ -281,6 +281,11 @@ PetscErrorCode initOpenFAST(farm_ *farm)
             }
         }
     }
+    else 
+    {
+        // no turbines coupled to OpenFAST
+        farm->FAST = NULL;
+    }
     
     return(0);
 }
@@ -289,25 +294,28 @@ PetscErrorCode initOpenFAST(farm_ *farm)
 
 PetscErrorCode stepZeroOpenFAST(farm_ *farm)
 {
-    // find which rotor point this processor controls 
-    findControlledPointsRotorOpenFAST(farm);
-
-    // find which tower point this processor controls 
-    findControlledPointsTowerOpenFAST(farm);
-
-    // compute and send velocities to openfast 
-    computeWindVectorsRotorOpenFAST(farm);
-
-    // compute and send tower velocities to openfast 
-    computeWindVectorsTowerOpenFAST(farm);
-
-    // do initial step at time zero
-    if (farm->FAST->isTimeZero())
+    if(farm->nOpenFAST)
     {
-        farm->FAST->solution0();
-    }
+        // find which rotor point this processor controls 
+        findControlledPointsRotorOpenFAST(farm);
 
-    getDataFromOpenFAST(farm);
+        // find which tower point this processor controls 
+        findControlledPointsTowerOpenFAST(farm);
+
+        // compute and send velocities to openfast 
+        computeWindVectorsRotorOpenFAST(farm);
+
+        // compute and send tower velocities to openfast 
+        computeWindVectorsTowerOpenFAST(farm);
+
+        // do initial step at time zero
+        if(farm->FAST->isTimeZero())
+        {
+            farm->FAST->solution0();
+        }
+
+        getDataFromOpenFAST(farm);
+    }
 
     return(0);
 }
@@ -316,19 +324,22 @@ PetscErrorCode stepZeroOpenFAST(farm_ *farm)
 
 PetscErrorCode stepOpenFAST(farm_ *farm)
 {
-    PetscInt nT = farm->size;
-
-    PetscMPIInt   rank;
-    MPI_Comm_rank(farm->fi.comm, &rank);
-
-    // do OpenFAST time stepping 
-    for (PetscInt n = 0; n < farm->nFastSubSteps; n++)
+    if(farm->nOpenFAST)
     {
-        bool writeFilesOF = true;
-        farm->FAST->step(writeFilesOF);
-    }
+        PetscInt nT = farm->size;
 
-    getDataFromOpenFAST(farm);
+        PetscMPIInt   rank;
+        MPI_Comm_rank(farm->fi.comm, &rank);
+
+        // do OpenFAST time stepping 
+        for (PetscInt n = 0; n < farm->nFastSubSteps; n++)
+        {
+            bool writeFilesOF = true;
+            farm->FAST->step(writeFilesOF);
+        }
+
+        getDataFromOpenFAST(farm);
+    }
 
     return(0);
 }
@@ -476,13 +487,15 @@ PetscErrorCode getGlobParamsOpenFAST(windTurbine *wt, const word actuatorModel)
     wt->collPitch /= (PetscReal)wt->nBlades;
 
     // compute aerodynamic loads: thrust, torque, power
-    PetscReal gThrust   = 0.0;
-    PetscReal gTorque   = 0.0;
-    PetscReal gAeroPwr  = 0.0;
+    PetscReal gThrust      = 0.0;
+    PetscReal gTorque      = 0.0;
+    PetscReal gAeroPwr     = 0.0;
 
     PetscReal gThrustFAST  = 0.0;
     PetscReal gTorqueFAST  = 0.0;
     PetscReal gAeroPwrFAST = 0.0;
+
+    PetscReal yawAngleOld  = wt->yawAngle;
 
     if(rank == thisTurbRank)
     {
@@ -545,38 +558,101 @@ PetscErrorCode getGlobParamsOpenFAST(windTurbine *wt, const word actuatorModel)
     }
     wt->yawError       = wt->flowAngle - wt->yawAngle;
 
-    PetscReal allowedAngle = 1.0;
-    PetscReal rotationSign;
-    if(wt->yawError > 1.0*allowedAngle)       rotationSign =  1.0;
-    else if(wt->yawError < -1.0*allowedAngle) rotationSign = -1.0;
-    else                                      rotationSign =  0.0;
-
-    PetscReal yawRotAngle = fabs(wt->yawError);
-
+    // delta yaw angle
+    PetscReal deltaYawAngle = fabs(wt->yawAngle - yawAngleOld);
+    
     // rotate upsampling points 
-    if (yawRotAngle > allowedAngle)
+    if(deltaYawAngle > 1.0)
     {
+        // re-compute upsampling point positions
         upSampling *upPoints = wt->upPoints;
 
-        // rotate center
-        mSub(upPoints->center, wt->twrTop);
-        mRot(wt->twrDir, upPoints->center, yawRotAngle);
-        mSum(upPoints->center, wt->twrTop);
+        // hard-coded number of points for upsampling
+        PetscInt nAzimuth = 12;
+        PetscInt nRadial  = 12;
 
-        // number of points in the sample mesh
-        PetscInt npts_t = upPoints->nPoints;
+        // set the rotor reference frame
+        // x from nacelle back to cone,
+        // y on the rotor at zero azimuth,
+        // z as the right hand rule
+        // (do not rotate with uptilt)
+        Cmpnts xr_hat = nUnit(wt->rtrDir);
+        Cmpnts yr_hat = nUnit(wt->twrDir);
+        Cmpnts zr_hat = nCross(xr_hat, yr_hat);
 
-        // loop over the sample mesh points
-        for(PetscInt p=0; p<npts_t; p++)
+        // set the upstream sample distance
+        Cmpnts upDist = nScale(2.5*2.0*wt->rTip, xr_hat);
+
+        // set the sampling rotor center
+        Cmpnts center = wt->rotCenter;
+        mSum(center, upDist);
+        upPoints->center = center;
+
+        // set the hub radius vector
+        Cmpnts rHub = nScale(wt->rHub, yr_hat);
+
+        // radial mesh cell size size
+        PetscReal drval = (wt->rTip - wt->rHub) / (nRadial - 1);
+
+        // delta angle in radiants
+        PetscReal daval = 2 * M_PI / nAzimuth;
+
+        // area of the circular crown from hub to tip radius
+        PetscReal bladeSweptAreaNoHub = M_PI * (wt->rTip*wt->rTip - wt->rHub*wt->rHub);
+
+        // hub area
+        PetscReal hubFrontArea = M_PI * wt->rHub * wt->rHub;
+
+        // hub area distribution coeff
+        PetscReal hCoeff = hubFrontArea / bladeSweptAreaNoHub;
+
+        // points counter
+        PetscInt    pi = 0;
+
+        // varying variables
+        PetscReal dr, crownArea, r = wt->rHub;
+
+        for(PetscInt ri=0; ri<nRadial; ri++)
         {
-            mSub(upPoints->points[p], wt->twrTop);
-            mRot(wt->twrDir, upPoints->points[p], yawRotAngle);
-            mSum(upPoints->points[p], wt->twrTop);
-        }
-    }
+            // delta radius (beware start and end points)
+            if(ri==0 || ri==nRadial-1) dr = drval / 2;
+            else dr = drval;
 
-    // always trigger processor point search 
-    wt->trbMoved = 1;
+            // compute r+dr crown area
+            crownArea = M_PI * ((r+dr)*(r+dr) - r*r);
+
+            // this station vector radius
+            Cmpnts rvec = nScale(drval*ri, yr_hat);
+
+            // add the initial hub radius
+            mSum(rvec, rHub);
+
+            for(PetscInt ai=0; ai<nAzimuth; ai++)
+            {
+                // set cell area
+                upPoints->dA[pi] = (1.0 + hCoeff) * crownArea / nAzimuth;
+
+                // new mesh point
+                Cmpnts point = nSet(rvec);
+
+                // rotate the point
+                mRot(xr_hat, point, daval*ai);
+
+                // add the rotor center vector from origin
+                mSum(point, center);
+
+                // set the point value
+                mSet(upPoints->points[pi], point);
+
+                pi++;
+            }
+
+            r += dr;
+        }
+
+        // always trigger processor point search 
+        wt->trbMoved = 1;
+    }
 
     // print
     if(rank == thisTurbRank && wt->dbg)
@@ -604,6 +680,7 @@ PetscErrorCode getGlobParamsOpenFAST(windTurbine *wt, const word actuatorModel)
         printf(" - gTorqueFAST : %f (kNm)  from OpenFAST\n", gTorqueFAST/1.0e3);
         printf(" - gAeroPwr    : %f (MW)   \n", gAeroPwr/1.0e6);
         printf(" - gAeroPwrFAST: %f (MW)  from OpenFAST\n", gAeroPwrFAST/1.0e6);
+        printf(" - turb. moved : %ld\n", wt->trbMoved);
     }
 
     // write actuator model specific data 
@@ -611,7 +688,6 @@ PetscErrorCode getGlobParamsOpenFAST(windTurbine *wt, const word actuatorModel)
     {
         wt->adm.rtrThrust = gThrustFAST;
         wt->adm.aeroPwr  = gAeroPwrFAST;
-
         wt->adm.rtrTorque = gTorqueFAST;
     }
     else if(actuatorModel == "uniformADM")
@@ -917,6 +993,9 @@ PetscErrorCode getForcePtsTwrOpenFAST(windTurbine *wt)
 
 PetscErrorCode mapOFDisplToActPts(farm_ *farm)
 {
+    // skip if no turbines use OpenFAST
+    if(!farm->nOpenFAST) return(0);
+
     // turbine and mesh point indices
     PetscInt t, p;
 
@@ -924,7 +1003,7 @@ PetscErrorCode mapOFDisplToActPts(farm_ *farm)
     {
         windTurbine *wt = farm->wt[t];
 
-        if(wt->useOpenFAST && wt->turbineControlled)
+        if(wt->turbineControlled && wt->useOpenFAST)
         {
             windTurbine *wt = farm->wt[t];
 
@@ -953,7 +1032,7 @@ PetscErrorCode mapOFDisplToActPts(farm_ *farm)
         }
 
         // map tower displacements
-        if(wt->includeTwr)
+        if(wt->includeTwr && wt->useOpenFAST)
         {
             if(wt->twr.nControlled)
             {
@@ -973,6 +1052,9 @@ PetscErrorCode mapOFDisplToActPts(farm_ *farm)
 
 PetscErrorCode mapOFForcesToActPts(farm_ *farm)
 {
+    // skip if no turbines use OpenFAST
+    if(!farm->nOpenFAST) return(0);
+
     // turbine and mesh point indices
     PetscInt t, p;
 
@@ -983,7 +1065,7 @@ PetscErrorCode mapOFForcesToActPts(farm_ *farm)
     {
         windTurbine *wt = farm->wt[t];
 
-        if(wt->useOpenFAST && wt->turbineControlled)
+        if(wt->turbineControlled && wt->useOpenFAST)
         {
             windTurbine *wt = farm->wt[t];
 
@@ -1012,7 +1094,7 @@ PetscErrorCode mapOFForcesToActPts(farm_ *farm)
         }
 
         // map tower displacements
-        if(wt->includeTwr)
+        if(wt->includeTwr && wt->useOpenFAST)
         {
             if(wt->twr.nControlled)
             {
@@ -1033,6 +1115,9 @@ PetscErrorCode mapOFForcesToActPts(farm_ *farm)
 
 PetscErrorCode findControlledPointsRotorOpenFAST(farm_ *farm)
 {
+    // skip if no turbines use OpenFAST
+    if(!farm->nOpenFAST) return(0);
+
     mesh_            *mesh = farm->access->mesh;
     DM               da = mesh->da, fda = mesh->fda;
     DMDALocalInfo    info = mesh->info;
@@ -1072,7 +1157,7 @@ PetscErrorCode findControlledPointsRotorOpenFAST(farm_ *farm)
         windTurbine *wt = farm->wt[t];
 
         // DO VELOCITY POINTS
-        if(wt->turbineControlled)
+        if(wt->turbineControlled && wt->useOpenFAST)
         {
             // number of velocity points
             PetscInt npts_t = wt->nBlades*wt->nBladeVelPtsOF;
@@ -1165,7 +1250,7 @@ PetscErrorCode findControlledPointsRotorOpenFAST(farm_ *farm)
         }
 
         // DO FORCE POINTS
-        if(wt->turbineControlled)
+        if(wt->turbineControlled && wt->useOpenFAST)
         {
             // number of velocity points
             PetscInt npts_t = wt->nBlades*wt->nBladeForcePtsOF;
@@ -1267,6 +1352,9 @@ PetscErrorCode findControlledPointsRotorOpenFAST(farm_ *farm)
 
 PetscErrorCode findControlledPointsTowerOpenFAST(farm_ *farm)
 {
+    // skip if no turbines use OpenFAST
+    if(!farm->nOpenFAST) return(0);
+
     mesh_            *mesh = farm->access->mesh;
     DM               da = mesh->da, fda = mesh->fda;
     DMDALocalInfo    info = mesh->info;
@@ -1305,7 +1393,7 @@ PetscErrorCode findControlledPointsTowerOpenFAST(farm_ *farm)
     {
         windTurbine *wt = farm->wt[t];
 
-        if(wt->includeTwr)
+        if(wt->includeTwr && wt->useOpenFAST)
         {
             // DO VELOCITY POINTS
             if(wt->twr.nControlled)
@@ -1504,6 +1592,9 @@ PetscErrorCode findControlledPointsTowerOpenFAST(farm_ *farm)
 
 PetscErrorCode computeWindVectorsRotorOpenFAST(farm_ *farm)
 {
+    // skip if no turbines use OpenFAST
+    if(!farm->nOpenFAST) return(0);
+
     clock_           *clock = farm->access->clock;
     mesh_            *mesh  = farm->access->mesh;
     ueqn_            *ueqn  = farm->access->ueqn;
@@ -1536,7 +1627,7 @@ PetscErrorCode computeWindVectorsRotorOpenFAST(farm_ *farm)
         windTurbine *wt = farm->wt[t];
 
         // test if this processor controls this turbine
-        if(wt->turbineControlled)
+        if(wt->turbineControlled && wt->useOpenFAST)
         {
             // number of points in the sample mesh
             PetscInt npts_t = wt->nBlades*wt->nBladeVelPtsOF;
@@ -1692,6 +1783,9 @@ PetscErrorCode computeWindVectorsRotorOpenFAST(farm_ *farm)
 
 PetscErrorCode computeWindVectorsTowerOpenFAST(farm_ *farm)
 {
+    // skip if no turbines use OpenFAST
+    if(!farm->nOpenFAST) return(0);
+
     clock_           *clock = farm->access->clock;
     mesh_            *mesh  = farm->access->mesh;
     ueqn_            *ueqn  = farm->access->ueqn;
@@ -1724,7 +1818,7 @@ PetscErrorCode computeWindVectorsTowerOpenFAST(farm_ *farm)
         windTurbine *wt = farm->wt[t];
 
         // test if tower is modeled in this turbine
-        if(wt->includeTwr)
+        if(wt->includeTwr && wt->useOpenFAST)
         {
             // test if this processor controls this tower
             if(wt->twr.nControlled)
@@ -1811,10 +1905,11 @@ PetscErrorCode computeWindVectorsTowerOpenFAST(farm_ *farm)
 
 PetscErrorCode computeBladeForceOpenFAST(farm_ *farm)
 {
-    mesh_            *mesh = farm->access->mesh;
+    // skip if no turbines use OpenFAST
+    if(!farm->nOpenFAST) return(0);
 
-    // turbine and AD mesh point indices
-    PetscInt t, p;
+    PetscInt         t, p;
+    mesh_            *mesh = farm->access->mesh;
 
     PetscMPIInt      nprocs; MPI_Comm_size(mesh->MESH_COMM, &nprocs);
     PetscMPIInt      rank;   MPI_Comm_rank(mesh->MESH_COMM, &rank);
@@ -1828,7 +1923,7 @@ PetscErrorCode computeBladeForceOpenFAST(farm_ *farm)
         std::vector<Cmpnts> lForceVals(wt->nBlades*wt->nBladeForcePtsOF);
 
         // test if this processor controls this turbine
-        if(wt->turbineControlled)
+        if(wt->turbineControlled && wt->useOpenFAST)
         {
             // get data from OpenFAST 
             if(rank == wt->writerRank)
@@ -1860,10 +1955,11 @@ PetscErrorCode computeBladeForceOpenFAST(farm_ *farm)
 
 PetscErrorCode computeTowerForceOpenFAST(farm_ *farm)
 {
-    mesh_            *mesh = farm->access->mesh;
+    // skip if no turbines use OpenFAST
+    if(!farm->nOpenFAST) return(0);
 
-    // turbine and AD mesh point indices
-    PetscInt t, p;
+    PetscInt         t, p;
+    mesh_            *mesh = farm->access->mesh;
 
     PetscMPIInt      nprocs; MPI_Comm_size(mesh->MESH_COMM, &nprocs);
     PetscMPIInt      rank;   MPI_Comm_rank(mesh->MESH_COMM, &rank);
@@ -1873,12 +1969,12 @@ PetscErrorCode computeTowerForceOpenFAST(farm_ *farm)
     {
         windTurbine *wt = farm->wt[t];
 
-        // local vectors 
-        std::vector<Cmpnts> lForceVals(wt->nBlades*wt->nBladeForcePtsOF);
-
         // test if tower is modeled in this turbine
-        if(wt->includeTwr)
+        if(wt->includeTwr && wt->useOpenFAST)
         {
+            // local vectors 
+            std::vector<Cmpnts> lForceVals(wt->nBlades*wt->nBladeForcePtsOF);
+
             // test if this processor controls this tower
             if(wt->twr.nControlled)
             {
@@ -1904,6 +2000,8 @@ PetscErrorCode computeTowerForceOpenFAST(farm_ *farm)
                 // scatter to all ransk of this communicator 
                 MPI_Allreduce(&(lForceVals[0]), &(wt->forceValsTwr[0]), wt->nTwrForcePtsOF*3, MPIU_REAL, MPIU_SUM, wt->twr.TWR_COMM);
             }
+
+            std::vector<Cmpnts> ().swap(lForceVals);
         }
     }
 

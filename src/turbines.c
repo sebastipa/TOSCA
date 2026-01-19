@@ -46,13 +46,18 @@ PetscErrorCode UpdateWindTurbines(farm_ *farm)
 
     if(!farm->dbg) PetscPrintf(mesh->MESH_COMM,"Updating wind turbines, ");
 
-    
+    // -------------------------------------------------------------
+    // 1. SOLVE DYNAMICS
+    // -------------------------------------------------------------
+
 #if USE_OPENFAST
 
+    // Turbines using OpenFAST
+
     // -------------------------------------------------------------
-    // 1. FIND POINT-PROCESSOR OWNERSHIP AND SAMPLE WIND 
-    //    (this is done at OpenFAST velocity and force points,
-    //     not at TOSCA's actuator points)
+    // Find point-processor ownership and sample wind (old positions)
+    // (this is done at OpenFAST velocity and force points, not at 
+    // TOSCA's actuator points)
     // -------------------------------------------------------------
 
     findControlledPointsRotorOpenFAST(farm); 
@@ -62,52 +67,22 @@ PetscErrorCode UpdateWindTurbines(farm_ *farm)
     computeWindVectorsTowerOpenFAST(farm); 
 
     // -------------------------------------------------------------
-    // 3. MOVE WIND TURBINES 
+    // Advance OpenFAST and map back the displacements to TOSCA
     // -------------------------------------------------------------
 
-    // solve for rotor dynamics and structure in OpenFAST
+    // solve for rotor dynamics and structure in OpenFAST, this will recompute:
+    // 1. all turbine parameters and write TOSCA turbine file (matching OpenFAST)
+    // 2. new positions of force and velocity points
+    // 3. new position of upsampling points in case of yaw motion
     stepOpenFAST(farm); 
 
     // map OpenFAST force points displacements to TOSCA's actuator points 
     mapOFDisplToActPts(farm);
 
-    // -------------------------------------------------------------
-    // 4. COMPUTE POINT-PROCESSOR OWNERSHIP AFTER MOTION
-    //    (this is done at TOSCA's actuator points)
-    // -------------------------------------------------------------
+    // !!! need to rotate the sampling rig as well here!!!
+#endif
 
-    // find which actuator points this processor controls (also finds closest cell)
-    findControlledPointsRotor(farm);
-    findControlledPointsTower(farm);
-    findControlledPointsNacelle(farm);
-    findControlledPointsSample(farm); 
-
-    // -------------------------------------------------------------
-    // 5. SAMPLE WIND (at TOSCA's actuator points)
-    // -------------------------------------------------------------
-
-    // compute wind velocity 
-    computeWindVectorsRotor(farm); 
-    computeWindVectorsTower(farm);
-    computeWindVectorsNacelle(farm); 
-    computeWindVectorsSample(farm); 
-
-    // -------------------------------------------------------------
-    // 6. COMPUTE FORCE 
-    //    (this is first put into force point values, then mapped 
-    //     to TOSCA's actuator points)
-    // -------------------------------------------------------------
-    
-    // compute aerodynamic forces 
-    computeBladeForceOpenFAST(farm); 
-    computeTowerForceOpenFAST(farm); 
-    mapOFForcesToActPts(farm);
-
-#else 
-
-    // -------------------------------------------------------------
-    // 1. MOVE WIND TURBINES
-    // -------------------------------------------------------------
+    // Turbines not using OpenFAST
 
     // solve rotor dynamics and compute rot speeds
     computeRotSpeed(farm);
@@ -126,36 +101,50 @@ PetscErrorCode UpdateWindTurbines(farm_ *farm)
 
     // -------------------------------------------------------------
     // 2. COMPUTE POINT-PROCESSOR OWNERSHIP AFTER MOTION
+    //    (this is done at TOSCA's actuator points)
     // -------------------------------------------------------------
 
     // find which actuator points this processor controls (also finds closest cell)
     findControlledPointsRotor(farm);
     findControlledPointsTower(farm);
     findControlledPointsNacelle(farm);
-    findControlledPointsSample(farm);
+    findControlledPointsSample(farm); 
 
     // -------------------------------------------------------------
-    // 3. SAMPLE WIND
+    // 3. SAMPLE WIND (at TOSCA's actuator points)
     // -------------------------------------------------------------
 
     // compute wind velocity 
-    computeWindVectorsRotor(farm);
+    computeWindVectorsRotor(farm); 
     computeWindVectorsTower(farm);
-    computeWindVectorsNacelle(farm);
-    computeWindVectorsSample(farm);
+    computeWindVectorsNacelle(farm); 
+    computeWindVectorsSample(farm); 
 
     // -------------------------------------------------------------
-    // 4. COMPUTE FORCE
+    // 4. COMPUTE FORCE 
     // -------------------------------------------------------------
-    
+
+#if USE_OPENFAST
+
+    // Turbines using OpenFAST
+
     // compute aerodynamic forces 
-    computeBladeForce(farm);
-    computeTowerForce(farm);
+    computeBladeForceOpenFAST(farm); 
+    computeTowerForceOpenFAST(farm); 
+
+    // map forces to TOSCA actuator points
+    mapOFForcesToActPts(farm);
 
 #endif
 
+    // Turbines not using OpenFAST
+
+    // compute aerodynamic forces  
+    computeBladeForce(farm);
+    computeTowerForce(farm);
+
     // -------------------------------------------------------------
-    // PROJECT FORCE 
+    // 5. PROJECT FORCES
     // -------------------------------------------------------------
 
     // project aerodynamic forces 
@@ -164,7 +153,7 @@ PetscErrorCode UpdateWindTurbines(farm_ *farm)
     projectNacelleForce(farm); 
 
     // -------------------------------------------------------------
-    // TRANSFORMATION & WRITING
+    // 6. TRANSFORMATION & WRITING
     // -------------------------------------------------------------
 
     // transform forces from cartesian to contravariant

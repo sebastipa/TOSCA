@@ -35,7 +35,7 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm)
         windTurbine *wt = farm->wt[t];
 
         // test if this processor controls this turbine
-        if(wt->turbineControlled)
+        if(wt->turbineControlled && !wt->useOpenFAST)
         {
             // actuator disk model
             if((*farm->turbineModels[t]) == "ADM")
@@ -874,7 +874,7 @@ PetscErrorCode computeWindVectorsTower(farm_ *farm)
         windTurbine *wt = farm->wt[t];
 
         // test if tower is modeled in this turbine
-        if(wt->includeTwr)
+        if(wt->includeTwr && !wt->useOpenFAST)
         {
             // test if this processor controls this tower
             if(wt->twr.nControlled)
@@ -974,7 +974,7 @@ PetscErrorCode computeWindVectorsNacelle(farm_ *farm)
         windTurbine *wt = farm->wt[t];
 
         // test if nacelle is modeled in this turbine
-        if(wt->includeNacelle)
+        if(wt->includeNacelle && !wt->useOpenFAST)
         {
             // test if this processor controls this nacelle
             if(wt->nac.nControlled)
@@ -1091,7 +1091,7 @@ PetscErrorCode computeWindVectorsSample(farm_ *farm)
         upSampling *upPoints = farm->wt[t]->upPoints;
 
         // test if this processor controls this rig
-        if(upPoints->thisRigControlled)
+        if(upPoints->thisRigControlled && !farm->wt[t]->useOpenFAST)
         {
             // number of points in the sample mesh
             PetscInt npts_t = upPoints->nPoints;

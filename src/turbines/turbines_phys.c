@@ -21,7 +21,7 @@ PetscErrorCode computeRotSpeed(farm_ *farm)
         if((*farm->turbineModels[t]) == "ALM" || (*farm->turbineModels[t]) == "ADM")
         {
             // test if this processor controls this turbine
-            if(wt->turbineControlled)
+            if(wt->turbineControlled && !wt->useOpenFAST)
             {
                 // do not distinguish between ADM or ALM, this is a
                 // global wind turbine property
@@ -189,7 +189,7 @@ PetscErrorCode controlGenSpeed(farm_ *farm)
         if((*farm->turbineModels[t]) == "ALM" || (*farm->turbineModels[t]) == "ADM")
         {
             // test if this processor controls this turbine
-            if(wt->turbineControlled)
+            if(wt->turbineControlled && !wt->useOpenFAST)
             {
                 // do not distinguish between ADM or ALM, this is a
                 // global wind turbine property
@@ -296,7 +296,7 @@ PetscErrorCode controlBldPitch(farm_ *farm)
         if((*farm->turbineModels[t]) != "uniformADM" && (*farm->turbineModels[t]) != "AFM")
         {
             // test if this processor controls this turbine
-            if(wt->turbineControlled)
+            if(wt->turbineControlled && !wt->useOpenFAST) 
             {
                 // do not distinguish between ADM or ALM, this is a
                 // global wind turbine property
@@ -385,7 +385,8 @@ PetscErrorCode controlNacYaw(farm_ *farm)
     {
         windTurbine *wt = farm->wt[t];
 
-        if(wt->yawControllerType != "none")
+        // test if this turbine has yaw control (either via TOSCA yaw controller or OpenFAST)
+        if(wt->yawControllerType != "none" || wt->useOpenFAST)
         {
             nYawed++;
         }
@@ -432,8 +433,11 @@ PetscErrorCode controlNacYaw(farm_ *farm)
             upSampling* upPoints = farm->wt[t]->upPoints;
 
             // test if this turbine has yaw control
-            if(wt->yawControllerType != "none")
+            if(wt->yawControllerType != "none" && !wt->useOpenFAST)
             {
+                // re-initialize moved flag if yaw control is active
+                wt->trbMoved = 0; 
+
                 // test if this processor controls this turbine
                 if(upPoints->thisRigControlled)
                 {
@@ -632,7 +636,7 @@ PetscErrorCode controlNacYaw(farm_ *farm)
             windTurbine *wt = farm->wt[t];
 
             // test if this turbine has yaw control
-            if(wt->yawControllerType != "none")
+            if(wt->yawControllerType != "none" && !wt->useOpenFAST)
             {
                 // true yaw value that the turbine should have
                 PetscReal ltrueYaw = 0.0, gtrueYaw = 0.0;
@@ -769,7 +773,7 @@ PetscErrorCode windFarmControl(farm_ *farm)
         windTurbine *wt = farm->wt[t];
 
         // test if this processor controls this turbine
-        if(wt->turbineControlled)
+        if(wt->turbineControlled && !wt->useOpenFAST)
         {
             if(farm->farmControlActive[t])
             {

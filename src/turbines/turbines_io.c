@@ -1759,30 +1759,52 @@ PetscErrorCode meshADM(windTurbine *wt)
                 // set interpolation weights
                 wt->adm.iw[pi][0] = w1;
                 wt->adm.iw[pi][1] = w2;
+
+                // set the rotor solidity (only depends on radius)
+                wt->adm.solidity[pi] = (PetscReal)wt->nBlades / (PetscReal)wt->adm.nAzimuth;
+
+                // new mesh point
+                Cmpnts point = nSet(rvec);
+
+                // rotate the point
+                mRot(wt->rtrAxis, point, daval*ai);
+
+                // add the rotor center vector from origin
+                mSum(point, wt->rotCenter);
+
+                // set the point value
+                mSet(wt->adm.points[pi], point);
+
+                // set the dr value (uniform for now)
+                wt->adm.dr[pi] = dr;
+
+                pi++;
             }
         }
-
-        for(PetscInt ai=0; ai<wt->adm.nAzimuth; ai++)
+        else
         {
-            // set the rotor solidity (only depends on radius)
-            wt->adm.solidity[pi] = (PetscReal)wt->nBlades / (PetscReal)wt->adm.nAzimuth;
+            for(PetscInt ai=0; ai<wt->adm.nAzimuth; ai++)
+            {
+                // set the rotor solidity (only depends on radius)
+                wt->adm.solidity[pi] = (PetscReal)wt->nBlades / (PetscReal)wt->adm.nAzimuth;
 
-            // new mesh point
-            Cmpnts point = nSet(rvec);
+                // new mesh point
+                Cmpnts point = nSet(rvec);
 
-            // rotate the point
-            mRot(wt->rtrAxis, point, daval*ai);
+                // rotate the point
+                mRot(wt->rtrAxis, point, daval*ai);
 
-            // add the rotor center vector from origin
-            mSum(point, wt->rotCenter);
+                // add the rotor center vector from origin
+                mSum(point, wt->rotCenter);
 
-            // set the point value
-            mSet(wt->adm.points[pi], point);
+                // set the point value
+                mSet(wt->adm.points[pi], point);
 
-            // set the dr value (uniform for now)
-            wt->adm.dr[pi] = dr;
+                // set the dr value (uniform for now)
+                wt->adm.dr[pi] = dr;
 
-            pi++;
+                pi++;
+            }
         }
     }
 
@@ -2169,30 +2191,52 @@ PetscErrorCode meshALM(windTurbine *wt)
                 // set interpolation weights
                 wt->alm.iw[pi][0] = w1;
                 wt->alm.iw[pi][1] = w2;
+
+                // set the rotor solidity (it is one for the ALM)
+                wt->alm.solidity[pi] = 1.0;
+
+                // new mesh point
+                Cmpnts point = nSet(rvec);
+
+                // rotate the point
+                mRot(wt->rtrAxis, point, daval*ai);
+
+                // add the rotor center vector from origin
+                mSum(point, wt->rotCenter);
+
+                // set the point value
+                mSet(wt->alm.points[pi], point);
+
+                // set the dr value (uniform for now)
+                wt->alm.dr[pi] = dr;
+
+                pi++;
             }
         }
-
-        for(PetscInt ai=0; ai<wt->alm.nAzimuth; ai++)
+        else 
         {
-            // set the rotor solidity (it is one for the ALM)
-            wt->alm.solidity[pi] = 1.0;
+            for(PetscInt ai=0; ai<wt->alm.nAzimuth; ai++)
+            {
+                // set the rotor solidity (it is one for the ALM)
+                wt->alm.solidity[pi] = 1.0;
 
-            // new mesh point
-            Cmpnts point = nSet(rvec);
+                // new mesh point
+                Cmpnts point = nSet(rvec);
 
-            // rotate the point
-            mRot(wt->rtrAxis, point, daval*ai);
+                // rotate the point
+                mRot(wt->rtrAxis, point, daval*ai);
 
-            // add the rotor center vector from origin
-            mSum(point, wt->rotCenter);
+                // add the rotor center vector from origin
+                mSum(point, wt->rotCenter);
 
-            // set the point value
-            mSet(wt->alm.points[pi], point);
+                // set the point value
+                mSet(wt->alm.points[pi], point);
 
-            // set the dr value (uniform for now)
-            wt->alm.dr[pi] = dr;
+                // set the dr value (uniform for now)
+                wt->alm.dr[pi] = dr;
 
-            pi++;
+                pi++;
+            }
         }
     }
 
@@ -3557,9 +3601,7 @@ PetscErrorCode readTurbineProperties(windTurbine *wt, const char *dictName, cons
         readNacelleProperties(wt, dictName);
     }
 
-    // set tower moved parameter to 1 at initialization
-    // this makes sure all models do the first cell to point search
-    // ALM always does the search as blades are rotating
+    // set moved parameter to 1, for OpenFAST turbines this is never zeroed so search always happens (for uniformADM and ADM using OpenFAST)
     wt->trbMoved   = 1;
 
     return(0);
