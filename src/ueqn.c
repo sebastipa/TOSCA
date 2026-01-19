@@ -535,7 +535,7 @@ PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
                 }
 
                 // filter geostrophic wind
-                Cmpnts    Sc      = nSetFromComponents(s.x, s.y, 0.0);
+                Cmpnts    Sc      = nSetFromComponents(s.x*clock->dt, s.y*clock->dt, 0.0);
                 PetscReal m1      = (1.0 - clock->dt/abl->geoDampWindow),
                         m2      = clock->dt/abl->geoDampWindow;
                 abl->geoDampAvgDT = m1 * abl->geoDampAvgDT + m2 * clock->dt;
