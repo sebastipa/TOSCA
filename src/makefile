@@ -5,19 +5,22 @@
 # 3. PETSc     (we suggest compiling from source, see User-Guide at https://sebastipa.github.io/TOSCA/tosca_installation.html)
 # 4. HDF5      (we suggest using the PETSc automatic installation)
 # 5. HYPRE     (we suggest using the PETSc automatic installation)
-# 6. Catalyst2 (optional, see User-Guide at https://sebastipa.github.io/TOSCA/tosca_installation.html#paraview-catalyst2-os-rendering)
+# 6. OpenFAST  (optional, see User-Guide at https://sebastipa.github.io/TOSCA/tosca_installation.html#openfast-coupling)
+# 7. Catalyst2 (optional, see User-Guide at https://sebastipa.github.io/TOSCA/tosca_installation.html#paraview-catalyst2-os-rendering)
 # ==================================================================================================================================== #
 
 # User defined options 
 # ==================================================================================================================================== #
-USE_HDF5     ?= 1
-USE_CATALYST ?= 0
-USE_PYTHON   ?= 0
+USE_HDF5     ?= 1  # user must define HDF5_DIR in the shell environment
+USE_OPENFAST ?= 0  # user must define OPENFAST_DIR in the shell environment
+USE_CATALYST ?= 0  # user must define CATALYST_DIR in the shell environment
+USE_PYTHON   ?= 0  # user must have python3 and pybind11 installed
 # ==================================================================================================================================== #
 
 # Environment variables should be defined in the shell before running make
 HDF5       = ${HDF5_DIR}
 CATALYST   = ${CATALYST_DIR}
+OPENFAST   = ${OPENFAST_DIR}
 
 # Compiler and flags
 CC         = mpicxx
@@ -27,7 +30,7 @@ LDFLAGS    = -L$(PETSC_DIR)/$(PETSC_ARCH)/lib
 LIBS       = -lpthread -lrt -ldl -lstdc++ -lpetsc -lf2cblas -lf2clapack -lHYPRE 
 
 # HDF5 support
-ifeq ($(USE_HDF5), 1)
+ifeq ($(strip $(USE_HDF5)), 1)
 CPPFLAGS  += -DUSE_HDF5=1
 LDFLAGS   += -L$(HDF5)/lib
 INC_FLAGS += -I$(HDF5)/include
@@ -36,8 +39,35 @@ else
 CPPFLAGS  += -DUSE_HDF5=0
 endif
 
+# OpenFAST support
+ifeq ($(strip $(USE_OPENFAST)), 1)
+CPPFLAGS  += -DUSE_OPENFAST=1
+INC_FLAGS += -I${OPENFAST}/include
+LDFLAGS   += -L${OPENFAST}/lib
+LIBS      += -laerodynlib \
+			 -lbeamdynlib \
+			 -lelastodynlib \
+			 -lextptfm_mckflib \
+			 -lfeamlib \
+			 -lhydrodynlib \
+			 -licedynlib \
+			 -licefloelib \
+			 -lifwlib \
+			 -lmoordynlib \
+			 -lnwtclibs \
+			 -lopenfastcpplib \
+			 -lopenfastlib \
+			 -lopenfast_postlib \
+			 -lopenfast_prelib \
+			 -lorcaflexlib \
+			 -lservodynlib \
+			 -lsubdynlib 
+else
+CPPFLAGS  += -DUSE_OPENFAST=0
+endif
+
 # Catalyst support
-ifeq ($(USE_CATALYST), 1)
+ifeq ($(strip $(USE_CATALYST)), 1)
 CPPFLAGS  += -DUSE_CATALYST=1
 LDFLAGS   += -L$(CATALYST)/lib
 INC_FLAGS += -I$(CATALYST)/include/catalyst-2.0
@@ -47,7 +77,7 @@ CPPFLAGS  += -DUSE_CATALYST=0
 endif
 
 # Python support
-ifeq ($(USE_PYTHON), 1)
+ifeq ($(strip $(USE_PYTHON)), 1)
 CPPFLAGS  += -DUSE_PYTHON=1
 CFLAGS    += $(shell python3 -m pybind11 --includes)
 LDFLAGS   += $(shell python3-config --ldflags)
@@ -65,18 +95,24 @@ BUILD_DIR  = build
 SRC_DIR    = .
 OBJ_DIR    = $(BUILD_DIR)
 
+# Turbines module
+TURBINES_DIR := turbines
+TURBINES_SRCS := $(wildcard $(SRC_DIR)/$(TURBINES_DIR)/*.c)
+TURBINES_OBJS := $(patsubst $(SRC_DIR)/$(TURBINES_DIR)/%.c, $(OBJ_DIR)/$(TURBINES_DIR)/%.o, $(TURBINES_SRCS))
+
+
 # Object files
 OBJS_TOSCA = $(OBJ_DIR)/main.o $(OBJ_DIR)/initialization.o $(OBJ_DIR)/io.o $(OBJ_DIR)/overset.o \
              $(OBJ_DIR)/wallfunctions.o $(OBJ_DIR)/boundary.o $(OBJ_DIR)/mesh.o $(OBJ_DIR)/inflow.o \
              $(OBJ_DIR)/abl.o $(OBJ_DIR)/ueqn.o $(OBJ_DIR)/peqn.o $(OBJ_DIR)/les.o $(OBJ_DIR)/teqn.o \
              $(OBJ_DIR)/turbines.o $(OBJ_DIR)/initialField.o $(OBJ_DIR)/acquisition.o $(OBJ_DIR)/ibm.o \
-             $(OBJ_DIR)/clock.o $(OBJ_DIR)/precursor.o $(OBJ_DIR)/ibmInput.o $(OBJ_DIR)/lesScalar.o
+             $(OBJ_DIR)/clock.o $(OBJ_DIR)/precursor.o $(OBJ_DIR)/ibmInput.o $(OBJ_DIR)/lesScalar.o $(TURBINES_OBJS)
 
 OBJS_PP    = $(OBJ_DIR)/tosca2PV.o $(OBJ_DIR)/initialization.o $(OBJ_DIR)/io.o $(OBJ_DIR)/wallfunctions.o \
              $(OBJ_DIR)/overset.o $(OBJ_DIR)/boundary.o $(OBJ_DIR)/mesh.o $(OBJ_DIR)/inflow.o \
              $(OBJ_DIR)/abl.o $(OBJ_DIR)/ueqn.o $(OBJ_DIR)/peqn.o $(OBJ_DIR)/les.o $(OBJ_DIR)/teqn.o \
              $(OBJ_DIR)/turbines.o $(OBJ_DIR)/initialField.o $(OBJ_DIR)/acquisition.o $(OBJ_DIR)/ibm.o \
-             $(OBJ_DIR)/clock.o $(OBJ_DIR)/precursor.o $(OBJ_DIR)/ibmInput.o $(OBJ_DIR)/lesScalar.o
+             $(OBJ_DIR)/clock.o $(OBJ_DIR)/precursor.o $(OBJ_DIR)/ibmInput.o $(OBJ_DIR)/lesScalar.o $(TURBINES_OBJS)
 
 # Targets
 all: $(BUILD_DIR) tosca tosca2PV
@@ -89,7 +125,7 @@ tosca2PV: $(OBJS_PP)
 
 # Pattern rule for object files
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
-	@mkdir -p $(OBJ_DIR)
+	@mkdir -p $(dir $@)
 	$(CC) -c $< -o $@ $(CFLAGS) $(CPPFLAGS)
 
 # Clean targets

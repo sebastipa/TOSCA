@@ -1,0 +1,48 @@
+# TOSCA Input file - Turbine Properties
+# -------------------------------------------
+
+# Global wind turbine parameters
+rTip                63.0
+rHub                1.5
+hTower              90.0
+overHang            5.01910
+precone             0.0
+towerDir            (0.0 0.0 1.0)
+rotorDir            (0.0 1.0 0.0)
+upTilt              0
+includeTower        1
+includeNacelle      1
+useOpenFAST         1
+debug               0
+
+# Actuator disk model parameters
+nBlades             3
+rotationDir         cw
+nRadPts             10
+nAziPts             50
+epsilon             8.0
+initialOmega        10.41
+projection          isotropic
+sampleType          rotorDisk
+
+# Uniform actuator disk parameters
+Ct                  0.783
+#sampleType          rotorUpstream
+Uref                9.0
+
+# Tower properties 
+towerData
+{
+    Cd              0.8
+    epsilon         12.0
+    nLinPts         10
+    rBase           3
+    rTop            1.5
+}
+
+# Nacelle properties
+nacelleData
+{
+    Cd              4
+    epsilon         12
+}

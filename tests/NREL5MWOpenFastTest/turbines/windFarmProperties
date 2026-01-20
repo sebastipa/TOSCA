@@ -1,0 +1,34 @@
+# TOSCA Input file - Wind Farm Properties
+# -------------------------------------------
+
+windFarmName            isolated
+
+arraySpecification      onebyone
+
+debug                   0
+
+fastSettings
+{
+    nFastSubSteps           4
+    timeInterval            1000
+    restart                 0
+}
+
+
+writeSettings
+{
+    timeStart           0.0
+    intervalType        timeStep
+    timeInterval        1
+}
+
+turbineArray
+{
+    A1
+    (
+        turbineType         NREL5MW
+        turbineModel        ALM
+        baseLocation        (0.0 0.0 -90.0)
+        windFarmController  0
+    )
+}
