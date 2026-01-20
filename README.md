@@ -30,28 +30,26 @@ This can be found both inside `docs/` (*ReferenceManual.pdf*), or opened as a we
 
 ## Reporting Bugs
 
-For bugs, questions and to request modification to the TOSCA code, please open an issue GitHub. You can 
+For bugs, questions and to request modification to the TOSCA code, please open an issue on GitHub. You can 
 also contribute to the TOSCA code as explained [here](https://sebastipa.github.io/TOSCA/tosca_installation.html#contribute-to-the-tosca-project).
 For different matters, please contact sebastiano.stipa@vki.ac.be or aajay100@mail.ubc.ca. 
 
-## Publications
+## How to Cite 
 
-The following is a list of publication where TOSCA has been used. For referencing the TOSCA code please use the first publication on the list. 
+The TOSCA code can be cited using the following articles. For generic citations, please use the first article in the list while the
+remaining articles can be used to cite specific features of the TOSCA code. 
 
  - [TOSCA – an open-source, finite-volume, large-eddy simulation (LES) environment for wind farm flows](https://wes.copernicus.org/articles/9/297/2024/). 
  - [The actuator farm model for large eddy simulation (LES) of wind-farm-induced atmospheric gravity waves and farm–farm interaction](https://wes.copernicus.org/articles/9/2301/2024/wes-9-2301-2024.html).
- - [The multi-scale coupled model: a new framework capturing wind farm–atmosphere interaction and global blockage effects](https://wes.copernicus.org/articles/9/1123/2024/wes-9-1123-2024.html).
  - [A large-eddy simulation (LES) model for wind-farm-induced atmospheric gravity wave effects inside conventionally neutral boundary layers](https://wes.copernicus.org/articles/9/1647/2024/).
- - [A shear stress parametrization for arbitrary wind farms in conventionally neutral boundary layers](https://www.cambridge.org/core/journals/journal-of-fluid-mechanics/article/shear-stress-parametrization-for-arbitrary-wind-farms-in-conventionally-neutral-boundary-layers/C0A9582A21C2C9907685D8C63B0565A6).
- - [Recommendations on setup in simulating atmospheric gravity waves under conventionally neutral boundary layer conditions](https://iopscience.iop.org/article/10.1088/1742-6596/2767/9/092042).
- - [Active Cluster Wake Mixing](https://iopscience.iop.org/article/10.1088/1742-6596/2767/9/092052).
+ - [Mixed subgrid-scale models in generalized curvilinear coordinates for large-eddy simulations of heterogeneous turbulent flows](https://www.sciencedirect.com/science/article/pii/S0021999125008368?via%3Dihub).
 
 ## Recent Highlights/Additions
 
+ - OpenFAST coupling 
  - Direct/Indirect profile assimilation techniques to drive LES with observations/mesoscale models
- - New scale-dependent LES model
- - New stability dependent wall model for IBM
- - IBM also for concurrent precursor (to model terrain features)
+ - New LES models
+ - New IBM wall models
  - Lateral fringe region.
 
 ## Executables
@@ -61,8 +59,7 @@ The following is a list of publication where TOSCA has been used. For referencin
 
 ## Future Implementations:
 
- - Actuator model coupling with OpenFAST
  - Coupling with the Weather Research and Forecasting Model
  - Multiphase capabilities 
 
-Credits & Copyright: Sebastiano Stipa - Arjun Ajay - Mohammad Hadi - The University of British Columbia
+Credits & Copyright: Sebastiano Stipa - Arjun Ajay - Mohammad Hadi - Joshua Brinkerhoff - The University of British Columbia

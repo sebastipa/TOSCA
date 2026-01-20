@@ -1,0 +1,170 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Getting Started &mdash; TOSCA dev documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="_static/custom.css?v=23c79765" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=3ce10a4d"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Installation" href="tosca_installation.html" />
+    <link rel="prev" title="Welcome the official documentation of TOSCA" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            TOSCA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tosca_installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tosca_user_guide.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tosca_examples.html">Example Cases</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tosca_applications.html">TOSCA Applications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tosca_theory_guide.html">Theory Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tosca_versions.html">Versions</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">TOSCA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Getting Started</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/tosca_getting_started.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="getting-started">
+<span id="getting-started-section"></span><h1>Getting Started<a class="headerlink" href="#getting-started" title="Link to this heading"></a></h1>
+<p>TOSCA is designed to run on massive supercomputers with thousands of cores, thanks to
+its excellent parallel strong scaling efficiency. Nevertheless, some small test cases, which
+should run on most personal computers, are provided to allow users to familiarize with the
+code and its capabilities.</p>
+<p>One should keep in mind that TOSCA uses <strong>generalized curvilinear coordinates</strong>, so that all
+kinds of structured meshes can be handled (cartesian and deformed). From a mathematical
+point of view, this allows us to use a <em>cartesian-like</em> discretization approach in the curvilinear
+space. Loosely speaking, curvilinear directions can be defined depending on how mesh cells
+are indexed in the loops, i.e. through i,j,k indexing. It is clear from the figure below that,
+unless the mesh is cartesian, it is impossible to refer to boundary patches in terms of their caresian
+coordinates. As a consequence, frequently in this document we will speak in terms of curvilinear
+directions (k,j,i, or <span class="math notranslate nohighlight">\(\xi\)</span>, <span class="math notranslate nohighlight">\(\eta\)</span>, <span class="math notranslate nohighlight">\(\zeta\)</span>) rather than cartesian coordinates.</p>
+<p>When ABL capabilities are activated in TOSCA, a cartesian (optionally stretched) mesh must be used,
+where z is the vertical direction, y is the spanwise direction and x is the streamwise direction. When
+this is the case, the following convention is adopted for relating curvilinear to cartesian
+directions: k (or <span class="math notranslate nohighlight">\(\zeta\)</span>) direction corresponds to x, j (or <span class="math notranslate nohighlight">\(\eta\)</span>) direction
+corresponds to z and i (or <span class="math notranslate nohighlight">\(\xi\)</span>) direction corresponds to y. This must be kept
+in mind when applying boundary conditions, as boundaries are referred to as <em>iLeft</em>, <em>iRight</em>,
+<em>jLeft</em>, <em>jRight</em>, <em>kLeft</em> and <em>kRight</em>, as shown in the figure below.</p>
+<a class="reference internal image-reference" href="_images/tosca-grids.jpg"><img alt="_images/tosca-grids.jpg" src="_images/tosca-grids.jpg" style="width: 100%;" />
+</a>
+<br><p>This is explained in more detail in Sec. <a class="reference internal" href="01_user_guide/spatial_mesh.html#spatial-mesh-section"><span class="std std-ref">Spatial Mesh</span></a>. For the sake of
+brevity, here it sufficies to know that any mesh provided to TOSCA, either cartesian (
+through the <em>.xyz</em> format) or curvilinear (through the <em>.grid</em> format), is always internally
+defined in curvilinear space and so should be the boundary conditions.</p>
+<p>TOSCA automatically handles this transformation if a <em>.xyz</em> file format is used, and
+only the k,j,i = x,z,y convention has to be kept in mind in order to know which boundary is
+the wall and so on. Conversely, when the mesh is deformed, a unique relationship between the two set of
+coordinates doesn’t exist anymore, and curvilinear coordinates are assigned depending on
+how the mesh file has been created. In particular TOSCA always uses nested loops with k,j,i
+ordering to index mesh cells. As a consequence, to yield the situation displayed on the right
+of the above figure, the <em>.grid</em> file should store all points with j=1 first, then j=2 and so on. To further
+clarify this concept, consider the case where a cartesian mesh is provided trough the <em>.grid</em>
+format. To retain TOSCA’s convention in this case, the file should be created indexing the
+points with a nested loop with x,z,y ordering. In this case, as the file is read from TOSCA,
+coordinates are stored in the k,j,i directions.</p>
+<p>An <strong>example cartesian mesh</strong> is provided in Sec. <a class="reference internal" href="01_user_guide/spatial_mesh.html#spatial-mesh-section"><span class="std std-ref">Spatial Mesh</span></a>, both in the <em>.grid</em> and <em>.xyz</em> formats.
+Notably, the user only needs to know which boundary is which, consequently
+being able to apply boundary condition the way he intends to. Not respecting the convention doesn’t have an
+impact on the code behavior if ABL is de-activated (<code class="docutils literal notranslate"><span class="pre">-abl</span></code> flag set to 0 or omitted in the <em>control.dat</em> file).</p>
+<p>After <strong>installing</strong> the code as described in Sec. <a class="reference internal" href="tosca_installation.html#installation-section"><span class="std std-ref">Installation</span></a>, the user is advised to run one of the
+provided <strong>example cases</strong> available in the <em>tests</em> directory. Some of them are described in Sec. <a class="reference internal" href="tosca_examples.html#examples-section"><span class="std std-ref">Example Cases</span></a>,
+and we advise to run them in the order they are described to get familiar with TOSCA’s workflow.</p>
+<p>Instructions on how to <strong>run</strong> TOSCA simulations and <strong>visualize</strong> binary results in ParaView are provided in both Sec. <a class="reference internal" href="01_user_guide/execution.html#execution-section"><span class="std std-ref">Execution</span></a>,
+as well as in the described and provided example cases.</p>
+<p>TOSCA <strong>input files</strong> are described in detail in Sec. <a class="reference internal" href="01_user_guide/input_files.html#input-files-section"><span class="std std-ref">Input Files</span></a>, where their format is presented,
+along with a description of all possible entries. TOSCA’s data <strong>acquisition system</strong> is described in Sec.
+<a class="reference internal" href="01_user_guide/acquisition.html#acquisition-section"><span class="std std-ref">Data Acquisition System</span></a>, where the user can find all the information needed to extract different outputs from TOSCA simulations.
+A description of TOSCA’s <strong>overset mesh</strong> capabilities is provided in Sec. <a class="reference internal" href="01_user_guide/overset.html#overset-section"><span class="std std-ref">2-Way Nesting (Overset Mesh)</span></a>, and some examples are given in
+the <em>tests</em> directory.</p>
+<p>The <strong>theory</strong> behind TOSCA’s numerical methods is described in Sec. <a class="reference internal" href="tosca_theory_guide.html#theory-section"><span class="std std-ref">Theory Guide</span></a>, while a general overview
+of all <strong>applications</strong> where TOSCA can be used is provided in Sec. <a class="reference internal" href="tosca_applications.html#applications-section"><span class="std std-ref">TOSCA Applications</span></a> (these sections are still under development).</p>
+<p><strong>General information</strong> on how to get support, report bugs and contribute to the TOSCA code development is provided in the
+<a class="reference external" href="./index.html">Main Page</a> of this documentation.</p>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="Welcome the official documentation of TOSCA" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="tosca_installation.html" class="btn btn-neutral float-right" title="Installation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Sebastiano Stipa, Arjun Ajay, Joshua Brinkerhoff.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

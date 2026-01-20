@@ -45,7 +45,8 @@ To contribute to the TOSCA code, please see :ref:`contribute_subsection`.
 Publications
 ============
 
-The following is a list of publication where TOSCA has been used. For referencing the TOSCA code please use the first publication on the list. 
+The following is a list of publication where TOSCA has been used. To cite the TOSCA code in general, please use the first publication on the list, while refer to the corresponding publication
+for specific features of the code. 
 
 - `TOSCA – an open-source, finite-volume, large-eddy simulation (LES) environment for wind farm flows <https://wes.copernicus.org/articles/9/297/2024/>`_
 - `The actuator farm model for large eddy simulation (LES) of wind-farm-induced atmospheric gravity waves and farm–farm interaction <https://wes.copernicus.org/articles/9/2301/2024/wes-9-2301-2024.html>`_
@@ -57,8 +58,8 @@ The following is a list of publication where TOSCA has been used. For referencin
 - `Mixed subgrid-scale models in generalized curvilinear coordinates for large-eddy simulations of heterogeneous turbulent flows <https://www.sciencedirect.com/science/article/pii/S0021999125008368?via%3Dihub>`_
 - `Development of Profile Assimilation Methods for Data-Driven Large Eddy Simulations <https://www.researchgate.net/publication/398034215_Development_of_Profile_Assimilation_Methods_for_Data-Driven_Large_Eddy_Simulations>`_
 
-Contributing Authors
-====================
+Authors
+=======
 
 This user guide is being developed by Sebastiano Stipa. The TOSCA code is under active development by the following authors:
 
@@ -67,11 +68,11 @@ This user guide is being developed by Sebastiano Stipa. The TOSCA code is under 
 - Jagdeep Singh (University of British Columbia)
 - Joshua Brinkerhoff (University of British Columbia)
 
-.. toctree::
+.. toctree::  
    :hidden:
    :maxdepth: 1
-   :caption: Contents:
    
+   tosca_getting_started.rst
    tosca_installation.rst
    tosca_user_guide.rst
    tosca_examples.rst

@@ -44,8 +44,8 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
-<ul class="current">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="tosca_getting_started.html">Getting Started</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tosca_installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tosca_user_guide.html">User Guide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tosca_examples.html">Example Cases</a></li>
@@ -88,7 +88,7 @@
            <div itemprop="articleBody">
              
   <section id="theory-guide">
-<h1>Theory Guide<a class="headerlink" href="#theory-guide" title="Link to this heading"></a></h1>
+<span id="theory-section"></span><h1>Theory Guide<a class="headerlink" href="#theory-guide" title="Link to this heading"></a></h1>
 <p>TOSCA is a finite-volume code, formulated in generalized curvilinear coordinates, allowing it to take as input also non-Cartesian structured meshes. The present section is organized as follows. The governing equations in Cartesian coordinates are reported in Sec. <a class="reference internal" href="04_theory_guide/governing_equations.html#gov-equations-section"><span class="std std-ref">Governing Equations</span></a>, while actuator models used to represent wind turbines in the domain are described in Sec. <a class="reference internal" href="04_theory_guide/turbine_models.html#turbine-models-section"><span class="std std-ref">Turbine Models</span></a>.</p>
 <p>TOSCA’s numerical method, the governing equations in curvilinear coordinates that we actually solve, and a brief overview of generalized curvilinear coordinates are reported in Sec. <a class="reference internal" href="04_theory_guide/numerics.html#numerics-section"><span class="std std-ref">Numerical Method &amp; Curvilinear Coordinates</span></a>, while the LES turbulence model in the curvilinear frame is detailed in Sec. <a class="reference internal" href="04_theory_guide/turbulence_models.html#sgs-model-section"><span class="std std-ref">Sub-grid Scale Model</span></a>.</p>
 <p>An overview of TOSCA’s parallel efficiency is given in Sec. <a class="reference internal" href="04_theory_guide/parallel_efficiency.html#parallel-eff-section"><span class="std std-ref">Parallel Efficiency</span></a>, where we analyze the time per iteration with increasing number of nodes and mesh elements on the Niagara high-performance computer at the SciNet HPC Consortium. In addition, TOSCA has been used to run finite wind farm simulations on the whole Niagara cluster (2024 nodes, 40 cores per node) and on all Cascade nodes of the UBC-ARC Sockeye cluster, demonstrating its capability to handle massively-parallel computations.</p>
