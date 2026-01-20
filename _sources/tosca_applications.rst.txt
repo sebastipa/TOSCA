@@ -1,3 +1,5 @@
+.. _applications_section: 
+
 TOSCA Applications
 ====================
 
