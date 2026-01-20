@@ -1,8 +1,8 @@
 Versions 
 ========
 
-Development
------------
+master
+------
 
 The **master** branch is the latest stable development branch of TOSCA. New working features that are tested to a certain extent are merged into this branch.
 For ongoing development and testing, please refer to the respective branches based on the specific feature of interest. Cloning the TOSCA repository will 
@@ -12,7 +12,19 @@ The documentation for the **master** branch, which is updated alongside the intr
 `TOSCA Stable Development Documentation <https://sebastipa.github.io/TOSCA/index.html>`_. We save snapshots of the documentation for each release, which can 
 be found below.     
 
+New working features since release (V1.2.0):  
+ - OpenFAST coupling support 
+ - Added additional test case NREL5MWOpenFastTest to demonstrate OpenFAST coupling.
+
+V1.2.0
+------
+
+This is release 1.2.0 of TOSCA. An image of the original documentation is 
+available at `TOSCA v1.2.0 Documentation <https://sebastipa.github.io/TOSCA/versions/1.2.0/index.html>`_
+
 New working features since release (V1.1.0):  
+ - Added dynamic induction control for actuator disk model. 
+ - Added additional test case DTU10MWHelixTest to demonstrate dynamic induction helix control.
  - Added integral damping for `geostrophic` ABL controller. 
  - Added geostrophic profile assimilation method for micro- to meso-scale coupling.
  - Code refactoring: added lesScalar.c to handle eddy diffusivity SGS models.
@@ -23,10 +35,12 @@ New working features since release (V1.1.0):
  - Added 4th-order gradient scheme. 
  - Removed IBM half-edge structure when using IBM bodies that are not fully closed. 
  - Added variable turbine Ct based on a Ct vs Uref lookup table. (only for AFM and Uniform ADM). 
+ - Added necessary files in NREL5MWTest to run with Ct vs Uref lookup table.
+ - Added lookup table for RPM vs Uref and pitch vs Uref controller (only for ALM and ADM models).
+ - Added additional test case GE2p8MWTest to use the pitch vs Uref and RPM vs Uref lookup tables. 
  - Added additional fields as output when using geostrophic profile assimilation. 
  - Added possibility to read temperature sources when using `timeHeightSeries` in temperature controller. 
  - Updated concurrent-precusror method to include latest meso- to micro-scale coupling implementation. 
- - Changed NREL5MW test case to use variable Ct based on lookup table. 
  - Added additional test case ChannelFlowRe395Test (channel flow at Re = 395).
  - Added control action `read` or `write` also for temperature controller. 
  - Updated and extended documentation to incorporate new changes & features.
