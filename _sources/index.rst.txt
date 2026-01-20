@@ -49,6 +49,8 @@ The following is a list of publication where TOSCA has been used. For referencin
 - `A shear stress parametrization for arbitrary wind farms in conventionally neutral boundary layers <https://www.cambridge.org/core/journals/journal-of-fluid-mechanics/article/shear-stress-parametrization-for-arbitrary-wind-farms-in-conventionally-neutral-boundary-layers/C0A9582A21C2C9907685D8C63B0565A6>`_
 - `Recommendations on setup in simulating atmospheric gravity waves under conventionally neutral boundary layer conditions <https://iopscience.iop.org/article/10.1088/1742-6596/2767/9/092042>`_
 - `Active Cluster Wake Mixing <https://iopscience.iop.org/article/10.1088/1742-6596/2767/9/092052>`_
+- `Mixed subgrid-scale models in generalized curvilinear coordinates for large-eddy simulations of heterogeneous turbulent flows <https://www.sciencedirect.com/science/article/pii/S0021999125008368?via%3Dihub>`_
+- `Development of Profile Assimilation Methods for Data-Driven Large Eddy Simulations <https://www.researchgate.net/publication/398034215_Development_of_Profile_Assimilation_Methods_for_Data-Driven_Large_Eddy_Simulations>`_
 
 Contributing Authors
 ====================

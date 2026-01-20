@@ -46,7 +46,7 @@ New working features since release (V1.1.0):
  - Updated and extended documentation to incorporate new changes & features.
 
 Bug fixes: 
-- Fields are only written within the `writeFields()` function now in order to avoid problem with temporary file names while writing is in progress.
+ - Fields are only written within the `writeFields()` function now in order to avoid problem with temporary file names while writing is in progress.
 
 
 V1.1.0
