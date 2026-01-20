@@ -29,14 +29,26 @@ jobs:
         # master branch: just build documentation 
         cd docs/sphinx
         make html
-        if [[ $GITHUB_REF == refs/heads/release-v* ]]; then
-          # get version from branch name
-          version=${GITHUB_REF#refs/heads/release-v}
-          # create versioned directory
-          mkdir -p build/html/versions/$version
-          # Copy only content, exclude versions directory
-          cp -r build/html/[^v]* build/html/versions/$version/
+        ref="$GITHUB_REF"
+
+        # Case 1: branch release-vX.Y.Z
+        if [[ "$ref" == refs/heads/release-v* ]]; then
+            version="${ref#refs/heads/release-v}"
+        
+        # Case 2: tag vX.Y.Z (GitHub UI release)
+        elif [[ "$ref" == refs/tags/v* ]]; then
+            version="${ref#refs/tags/v}"
+            
+        else
+            version=""
         fi
+        
+        if [[ -n "$version" ]]; then
+            echo "Detected version: $version"
+            mkdir -p build/html/versions/$version
+            cp -r build/html/[^v]* build/html/versions/$version/
+        fi
+
 
     - name: Deploy to GitHub Pages
       uses: peaceiris/actions-gh-pages@v3
