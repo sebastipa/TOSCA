@@ -1091,7 +1091,7 @@ PetscErrorCode computeWindVectorsSample(farm_ *farm)
         upSampling *upPoints = farm->wt[t]->upPoints;
 
         // test if this processor controls this rig
-        if(upPoints->thisRigControlled && !farm->wt[t]->useOpenFAST)
+        if(upPoints->thisRigControlled)
         {
             // number of points in the sample mesh
             PetscInt npts_t = upPoints->nPoints;

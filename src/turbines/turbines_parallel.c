@@ -1337,7 +1337,7 @@ PetscErrorCode findControlledPointsSample(farm_ *farm)
         upSampling *upPoints = farm->wt[t]->upPoints;
 
         // test if this processor controls this rig
-        if(upPoints->thisRigControlled && farm->wt[t]->trbMoved && !farm->wt[t]->useOpenFAST)
+        if(upPoints->thisRigControlled && farm->wt[t]->trbMoved)
         {
             // number of points in the sampling mesh
             PetscInt npts_t = upPoints->nPoints;

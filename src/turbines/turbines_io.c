@@ -3643,8 +3643,9 @@ PetscErrorCode readTurbineProperties(windTurbine *wt, const char *dictName, cons
             readDictInt(dictName,    "nBlades",     &(wt->nBlades));
             readDictWord(dictName,   "rotationDir", &(wt->rotDir));
 
-            wt->genControllerType   = "none";
-            wt->pitchControllerType = "none";
+            wt->genControllerType   = "openfast";
+            wt->pitchControllerType = "openfast";
+            wt->dipcControllerType  = "openfast";
             wt->rtrOmega            = 0.0;
 
             // set empty airfoil properties
@@ -3661,7 +3662,7 @@ PetscErrorCode readTurbineProperties(windTurbine *wt, const char *dictName, cons
             wt->blade.foilIds   = NULL;
         }
 
-        wt->yawControllerType   = "none";
+        wt->yawControllerType   = "openfast";
     }
 
     if(wt->includeTwr)

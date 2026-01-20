@@ -21,91 +21,99 @@ PetscErrorCode computeRotSpeed(farm_ *farm)
         if((*farm->turbineModels[t]) == "ALM" || (*farm->turbineModels[t]) == "ADM")
         {
             // test if this processor controls this turbine
-            if(wt->turbineControlled && !wt->useOpenFAST)
+            if(wt->turbineControlled)
             {
-                // do not distinguish between ADM or ALM, this is a
-                // global wind turbine property
-                if(wt->genControllerType == "none")
+                if(!wt->useOpenFAST)
                 {
-                    // set to zero, controller deactivated
-                    wt->genOmega = 0.0;
-                    wt->genPwr   = 0.0;
-                }
-                else if(wt->genControllerType == "rpmControlCurve")
-                {
-                    // set to zero, controller deactivated
-                    wt->genOmega = 0.0;
-                    wt->genPwr   = 0.0;
-
-                    PetscReal Uref;
-
-                    if((*farm->turbineModels[t]) == "ADM")  Uref = wt->upPoints->Uref;
-                    else if((*farm->turbineModels[t]) == "ALM")  Uref = wt->upPoints->Uref;
-                    
-                    if(Uref == 0.0)
+                    // do not distinguish between ADM or ALM, this is a
+                    // global wind turbine property
+                    if(wt->genControllerType == "none")
                     {
-                        //initially dont change anything. use the initial rotor omega
+                        // set to zero, controller deactivated
+                        wt->genOmega = 0.0;
+                        wt->genPwr   = 0.0;
+                    }
+                    else if(wt->genControllerType == "rpmControlCurve")
+                    {
+                        // set to zero, controller deactivated
+                        wt->genOmega = 0.0;
+                        wt->genPwr   = 0.0;
+
+                        PetscReal Uref;
+
+                        if((*farm->turbineModels[t]) == "ADM")  Uref = wt->upPoints->Uref;
+                        else if((*farm->turbineModels[t]) == "ALM")  Uref = wt->upPoints->Uref;
+                        
+                        if(Uref == 0.0)
+                        {
+                            //initially dont change anything. use the initial rotor omega
+                        }
+                        else
+                        {
+                            PetscReal w[2];
+                            PetscInt  l[2];
+                            findInterpolationWeights(w, l, wt->rpmTbl.Uref, wt->rpmTbl.size, Uref);
+
+                            // compute blade pitch based on pitch curve
+                            wt->rtrOmega = (w[0]*wt->rpmTbl.rpm[l[0]] + w[1]*wt->rpmTbl.rpm[l[1]]) * wt->rpm2RadSec;
+                        }
                     }
                     else
                     {
-                        PetscReal w[2];
-                        PetscInt  l[2];
-                        findInterpolationWeights(w, l, wt->rpmTbl.Uref, wt->rpmTbl.size, Uref);
+                        PetscReal rtrTorque;
 
-                        // compute blade pitch based on pitch curve
-                        wt->rtrOmega = (w[0]*wt->rpmTbl.rpm[l[0]] + w[1]*wt->rpmTbl.rpm[l[1]]) * wt->rpm2RadSec;
-                    }
-                }
-                else
-                {
-                    PetscReal rtrTorque;
+                        if((*farm->turbineModels[t]) == "ADM")
+                        {
+                            rtrTorque = wt->adm.rtrTorque;
+                        }
+                        else if((*farm->turbineModels[t]) == "ALM")
+                        {
+                            rtrTorque = wt->alm.rtrTorque;
+                        }
 
-                    if((*farm->turbineModels[t]) == "ADM")
-                    {
-                        rtrTorque = wt->adm.rtrTorque;
-                    }
-                    else if((*farm->turbineModels[t]) == "ALM")
-                    {
-                        rtrTorque = wt->alm.rtrTorque;
-                    }
-
-                    // solve rotor dynamics and update rotor speed
-                    wt->rtrOmega
-                    +=
-                    (clock->dt / wt->driveTrainInertia) *
-                    (
-                        wt->gbxEff * rtrTorque -
-                        wt->gbxRatioG2R * wt->genTorque
-                    );
-
-                    // limit rotational speed if applicable
-                    if(wt->rtrSpdLimiter)
-                    {
+                        // solve rotor dynamics and update rotor speed
                         wt->rtrOmega
-                        =
-                        PetscMin
+                        +=
+                        (clock->dt / wt->driveTrainInertia) *
                         (
-                            PetscMax(0.0, wt->rtrOmega),
-                            wt->ratedRotorSpd
+                            wt->gbxEff * rtrTorque -
+                            wt->gbxRatioG2R * wt->genTorque
                         );
+
+                        // limit rotational speed if applicable
+                        if(wt->rtrSpdLimiter)
+                        {
+                            wt->rtrOmega
+                            =
+                            PetscMin
+                            (
+                                PetscMax(0.0, wt->rtrOmega),
+                                wt->ratedRotorSpd
+                            );
+                        }
+
+                        // simulate acquisition system of turbine velocity and
+                        // signal filtering: 1-pole low pass recursive filter
+                        PetscReal a = std::exp(-clock->dt * wt->rtrSpdFilterFreq);
+
+                        wt->rtrOmegaFilt = (1-a)*wt->rtrOmega + a*wt->rtrOmegaFilt;
+
+                        // compute the generator speed (rpm) with the filtered rotor speed
+                        wt->genOmega = wt->rtrOmegaFilt * wt->gbxRatioG2R;
                     }
 
-                    // simulate acquisition system of turbine velocity and
-                    // signal filtering: 1-pole low pass recursive filter
-                    PetscReal a = std::exp(-clock->dt * wt->rtrSpdFilterFreq);
-
-                    wt->rtrOmegaFilt = (1-a)*wt->rtrOmega + a*wt->rtrOmegaFilt;
-
-                    // compute the generator speed (rpm) with the filtered rotor speed
-                    wt->genOmega = wt->rtrOmegaFilt * wt->gbxRatioG2R;
+                    // rotate points if turbine model is ALM
+                    if((*farm->turbineModels[t]) == "ALM")
+                    {
+                        PetscReal angle        = clock->dt * wt->rtrOmega;
+                        PetscInt updateAzimuth = 1;
+                        rotateBlades(wt, angle, updateAzimuth);
+                    }
                 }
-
-                // rotate points if turbine model is ALM
-                if((*farm->turbineModels[t]) == "ALM")
+                else 
                 {
-                    PetscReal angle        = clock->dt * wt->rtrOmega;
-                    PetscInt updateAzimuth = 1;
-                    rotateBlades(wt, angle, updateAzimuth);
+                    // do nothing, OpenFAST will provide rotor and generator speeds.
+                    // this is only needed to avoid zeroing the values below
                 }
             }
             else
