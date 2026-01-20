@@ -31,6 +31,31 @@ PetscErrorCode computeRotSpeed(farm_ *farm)
                     wt->genOmega = 0.0;
                     wt->genPwr   = 0.0;
                 }
+                else if(wt->genControllerType == "rpmControlCurve")
+                {
+                    // set to zero, controller deactivated
+                    wt->genOmega = 0.0;
+                    wt->genPwr   = 0.0;
+
+                    PetscReal Uref;
+
+                    if((*farm->turbineModels[t]) == "ADM")  Uref = wt->upPoints->Uref;
+                    else if((*farm->turbineModels[t]) == "ALM")  Uref = wt->upPoints->Uref;
+                    
+                    if(Uref == 0.0)
+                    {
+                        //initially dont change anything. use the initial rotor omega
+                    }
+                    else
+                    {
+                        PetscReal w[2];
+                        PetscInt  l[2];
+                        findInterpolationWeights(w, l, wt->rpmTbl.Uref, wt->rpmTbl.size, Uref);
+
+                        // compute blade pitch based on pitch curve
+                        wt->rtrOmega = (w[0]*wt->rpmTbl.rpm[l[0]] + w[1]*wt->rpmTbl.rpm[l[1]]) * wt->rpm2RadSec;
+                    }
+                }
                 else
                 {
                     PetscReal rtrTorque;
@@ -197,6 +222,10 @@ PetscErrorCode controlGenSpeed(farm_ *farm)
                 {
                     // do nothing
                 }
+                else if(wt->genControllerType == "rpmControlCurve")
+                {
+                    // do nothing
+                }
                 else
                 {
                     PetscReal commGenTq = wt->genTorque;
@@ -307,46 +336,72 @@ PetscErrorCode controlBldPitch(farm_ *farm)
                 }
                 else
                 {
-                    // compute gain scheduling
-                    PetscReal G = 1.0 / (1.0 + wt->collPitch / wt->pitchS2R);
+                    if((wt->pitchControllerType == "bladePitchCurve"))
+                    {   
+                        PetscReal Uref;
 
-                    // save old PID error
-                    PetscReal errPID_old = wt->errPID;
+                        if((*farm->turbineModels[t]) == "ADM")  Uref = wt->upPoints->Uref;
+                        else if((*farm->turbineModels[t]) == "ALM")  Uref = wt->upPoints->Uref;
+                        
+                        if(Uref == 0.0)
+                        {
+                            wt->collPitch = 0.0;
+                        }
+                        else
+                        {
+                            PetscReal w[2];
+                            PetscInt  l[2];
+                            findInterpolationWeights(w, l, wt->pitchTbl.Uref, wt->pitchTbl.size, Uref);
 
-                    // activation above rated speed is ensured by pitch saturation
-                    wt->errPID = wt->rtrOmega - wt->ratedRotorSpd;
-
-                    // cumulate integral PID error
-                    wt->intErrPID    += wt->errPID * clock->dt;
-
-                    // compute derivative PID error
-                    PetscReal derErrPID  = (wt->errPID - errPID_old) / PetscMax(clock->dt, 1e-5);
-
-                    // saturate the integrated PID error based on pitch min/max
-                    PetscReal intMinErr  = wt->pitchMin / (G * wt->pitchKI);
-                    PetscReal intMaxErr  = wt->pitchMax / (G * wt->pitchKI);
-                    wt->intErrPID     = PetscMin(PetscMax(wt->intErrPID, intMinErr), intMaxErr);
-
-                    // compute PID contributions
-                    PetscReal pitchP     = G * wt->pitchKP * wt->errPID;
-                    PetscReal pitchI     = G * wt->pitchKI * wt->intErrPID;
-                    PetscReal pitchD     = G * wt->pitchKD * derErrPID;
-
-                    // compute commanded pitch
-                    PetscReal pitchComm  = pitchP + pitchI + pitchD;
-
-                    // saturate pitch based on pitch min/max
-                    pitchComm = PetscMin(PetscMax(pitchComm, wt->pitchMin), wt->pitchMax);
-
-                    // add single blade components for specific control systems
-                    // (not implemented)
-
-                    if(wt->dbg && rank == wt->writerRank)
-                    {
-                        printf("Turbine %s: commPitch = %.3f deg, commPitchRate = %.3f deg/s, rotorSpeed = %.3f rpm\n", (*farm->turbineIds[t]).c_str(), wt->collPitch*wt->rad2deg, (pitchComm-wt->collPitch)*wt->rad2deg/clock->dt, wt->rtrOmega/wt->rpm2RadSec);
+                            // compute blade pitch based on pitch curve
+                            wt->collPitch = (w[0]*wt->pitchTbl.pitch[l[0]] + w[1]*wt->pitchTbl.pitch[l[1]]) * wt->deg2rad;
+                            wt->intErrPID = 0.0;
+                            wt->errPID    = 0.0;
+                        }
                     }
+                    else
+                    {
+                        // compute gain scheduling
+                        PetscReal G = 1.0 / (1.0 + wt->collPitch / wt->pitchS2R);
 
-                    wt->collPitch = pitchComm;
+                        // save old PID error
+                        PetscReal errPID_old = wt->errPID;
+
+                        // activation above rated speed is ensured by pitch saturation
+                        wt->errPID = wt->rtrOmega - wt->ratedRotorSpd;
+
+                        // cumulate integral PID error
+                        wt->intErrPID    += wt->errPID * clock->dt;
+
+                        // compute derivative PID error
+                        PetscReal derErrPID  = (wt->errPID - errPID_old) / PetscMax(clock->dt, 1e-5);
+
+                        // saturate the integrated PID error based on pitch min/max
+                        PetscReal intMinErr  = wt->pitchMin / (G * wt->pitchKI);
+                        PetscReal intMaxErr  = wt->pitchMax / (G * wt->pitchKI);
+                        wt->intErrPID     = PetscMin(PetscMax(wt->intErrPID, intMinErr), intMaxErr);
+
+                        // compute PID contributions
+                        PetscReal pitchP     = G * wt->pitchKP * wt->errPID;
+                        PetscReal pitchI     = G * wt->pitchKI * wt->intErrPID;
+                        PetscReal pitchD     = G * wt->pitchKD * derErrPID;
+
+                        // compute commanded pitch
+                        PetscReal pitchComm  = pitchP + pitchI + pitchD;
+
+                        // saturate pitch based on pitch min/max
+                        pitchComm = PetscMin(PetscMax(pitchComm, wt->pitchMin), wt->pitchMax);
+
+                        // add single blade components for specific control systems
+                        // (not implemented)
+
+                        if(wt->dbg && rank == wt->writerRank)
+                        {
+                            printf("Turbine %s: commPitch = %.3f deg, commPitchRate = %.3f deg/s, rotorSpeed = %.3f rpm\n", (*farm->turbineIds[t]).c_str(), wt->collPitch*wt->rad2deg, (pitchComm-wt->collPitch)*wt->rad2deg/clock->dt, wt->rtrOmega/wt->rpm2RadSec);
+                        }
+
+                        wt->collPitch = pitchComm;
+                    }
                 }
             }
             else

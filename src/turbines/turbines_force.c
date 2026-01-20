@@ -10,6 +10,9 @@ PetscErrorCode computeBladeForce(farm_ *farm)
     // simulation constants
     constants_ *constants = farm->access->constants;
 
+    // set physical time clock pointer
+    clock_ *clock = farm->access->clock;
+
     // loop over each wind turbine
     for(t=0; t<farm->size; t++)
     {
@@ -79,6 +82,29 @@ PetscErrorCode computeBladeForce(farm_ *farm)
                             xb_hat = nScale(-1.0, rtrAxis);
                             yb_hat = nCross(zb_hat, xb_hat);
                         }
+
+                        // Apply dynamic induction controller for individual helix pitch control
+                        PetscReal dicControlPitch = 0.0;
+
+                        if(wt->dipcControllerType != "none")
+                        {
+                            // Calculate azimuthal position of AD point in the rotor plane, 
+                            // with zero being aligned with the vertical axis
+                            PetscReal azim = std::atan2(r_p.z, r_p.y) - M_PI/2;
+
+                            // Calculate blade pitch change due to helical control. The helical
+                            // control modifies the blade pitch angle based on the azimuthal position. 
+                            // It must be converted to degrees for consistency with the other phi, twist,
+                            // and pitch angles. Direction of the helix rotation is 1.0 for ccw and -1.0 for cw.
+                            if(wt->dipcHelixDir == "cw") 
+                            {
+                                dicControlPitch = (wt->dipcHelixAmp*wt->deg2rad * std::sin(azim + (2.0*M_PI*wt->dipcHelixFreq*clock->time))) * wt->rad2deg;
+                            }
+                            else if(wt->dipcHelixDir == "ccw")
+                            {
+                                dicControlPitch = (wt->dipcHelixAmp*wt->deg2rad * std::sin(azim + (-2.0*M_PI*wt->dipcHelixFreq*clock->time))) * wt->rad2deg;
+                            }
+                        }  
 
                         // transform the velocity in the bladed reference frame in
                         // order to compute the angle of attack. Radial (z) component
@@ -192,32 +218,126 @@ PetscErrorCode computeBladeForce(farm_ *farm)
             // uniform actuator disk model
             else if((*farm->turbineModels[t]) == "uniformADM")
             {
-                // get thrust coefficient
-                PetscReal Ct_t = wt->uadm.Ct;
+                // get thrust coefficient and axial induction
+                PetscReal Ct_t, Uref, a_t;
 
-                // apply wind farm controller
-                if(farm->farmControlActive[t])
+                if(wt->ctType == "constant")
                 {
-                    Ct_t += wt->wfControlCt;
+                    Ct_t = wt->uadm.Ct;
+
+                    // apply wind farm controller
+                    if(farm->farmControlActive[t])
+                    {
+                        Ct_t += wt->wfControlCt;
+                    }
+
+                    // get induction factor
+                    a_t = wt->uadm.axiInd;
+
+                    if(wt->uadm.sampleType == "rotorUpstream")
+                    {
+                        Uref = wt->upPoints->Uref;
+                    }
+                    else if(wt->uadm.sampleType == "givenVelocity")
+                    {
+                        Uref = wt->uadm.Uref;
+                    }
+                    else if(wt->uadm.sampleType == "rotorDisk")
+                    {
+                        Uref = wt->uadm.rtrAvgMagU;
+                    }
                 }
-
-                // get induction factor
-                PetscReal a_t = wt->uadm.axiInd;
-
-                // get reference velocity
-                PetscReal Uref;
-
-                if(wt->uadm.sampleType == "rotorUpstream")
+                else if(wt->ctType == "variable")
                 {
-                    Uref = wt->upPoints->Uref;
-                }
-                else if(wt->uadm.sampleType == "givenVelocity")
-                {
-                    Uref = wt->uadm.Uref;
-                }
-                else if(wt->uadm.sampleType == "rotorDisk")
-                {
-                    Uref = wt->uadm.rtrAvgMagU;
+                    if(wt->uadm.sampleType == "rotorUpstream")
+                    {
+                        Uref = wt->upPoints->Uref;
+
+                        PetscReal w[2];
+                        PetscInt  l[2];
+                        
+                        findInterpolationWeights(w, l, wt->ctTbl.Uref, wt->ctTbl.size, Uref);
+                        Ct_t = w[0]*wt->ctTbl.Ct[l[0]] + w[1]*wt->ctTbl.Ct[l[1]];
+
+                        if (Ct_t > 1.0) 
+                        {
+                            a_t = 0.5;
+                            fprintf(stderr, "Warning: Ct > 1 (%f), using a=0.5\n", Ct_t);
+                        }
+                        else if (Ct_t < 0.0) 
+                        {
+                            a_t = 0.0;
+                        } 
+                        else 
+                        {
+                            a_t = 0.5 * (1.0 - sqrt(1.0 - Ct_t));
+                        }
+                    }
+                    else if(wt->uadm.sampleType == "rotorDisk")
+                    {
+                        //intial guess
+                        Uref = wt->uadm.rtrAvgMagU / (2.0 / 3.0);  
+
+                        PetscReal tol      = 0.001;  // Tolerance for disk average velocity in m/s
+                        PetscInt  maxIter  = 100;
+                        PetscInt  iter     = 0;
+                        PetscReal prevUref = 0.0;
+
+                        while (iter < maxIter) 
+                        {
+                            PetscReal w[2];
+                            PetscInt  l[2];
+                            
+                            findInterpolationWeights(w, l, wt->ctTbl.Uref, wt->ctTbl.size, Uref);
+                            Ct_t = w[0]*wt->ctTbl.Ct[l[0]] + w[1]*wt->ctTbl.Ct[l[1]];
+
+                            if (Ct_t > 1.0) 
+                            {
+                                a_t = 0.5;
+                                fprintf(stderr, "Warning: Ct > 1 (%f), using a=0.5\n", Ct_t);
+                            }
+                            else if (Ct_t < 0.0) 
+                            {
+                                a_t = 0.0;
+                            } 
+                            else 
+                            {
+                                a_t = 0.5 * (1.0 - sqrt(1.0 - Ct_t));
+                            }
+
+                            PetscReal UDiskCalc = Uref * (1.0 - a_t);
+
+                            if (fabs(UDiskCalc - wt->uadm.rtrAvgMagU) < tol) break;
+
+                            // Update Uref
+                            PetscReal newUref;
+                            if (fabs(1.0 - a_t) > 1e-6) 
+                            {
+                                newUref = wt->uadm.rtrAvgMagU / (1.0 - a_t);
+                            } 
+                            else 
+                            {
+                                newUref = Uref;  
+                            }
+
+                            // relaxation 
+                            Uref = 0.8 * newUref + 0.2 * Uref;
+
+                            if (fabs(Uref - prevUref) < 1e-6) break;
+
+                            prevUref = Uref;
+
+                            iter++;
+                        }
+
+                    }
+                    // given velocity sampling type not required for variable Ct
+                    
+                    // apply wind farm controller
+                    if(farm->farmControlActive[t])
+                    {
+                        Ct_t += wt->wfControlCt;
+                    }
                 }
 
                 // cumulate rotor thrust at this time step
@@ -243,7 +363,26 @@ PetscErrorCode computeBladeForce(farm_ *farm)
                 }
 
                 // aerodynamic power
-                wt->uadm.aeroPwr = wt->uadm.rtrThrust * (1-a_t) * Uref;
+                if(wt->ctType == "constant")
+                {
+                    wt->uadm.aeroPwr   = wt->uadm.rtrThrust * (1-a_t) * Uref;
+                }
+                else if(wt->ctType == "variable")
+                {
+                    if(wt->variableCp)
+                    {
+                        PetscReal w[2], Cp;
+                        PetscInt  l[2];
+                        
+                        findInterpolationWeights(w, l, wt->ctTbl.Uref, wt->ctTbl.size, Uref);
+                        Cp = w[0]*wt->ctTbl.Cp[l[0]] + w[1]*wt->ctTbl.Cp[l[1]];
+                        wt->uadm.aeroPwr   = 0.5 * Uref * Uref * Uref * M_PI * wt->rTip * wt->rTip * Cp *  constants->rho;
+                    }
+                    else
+                    {
+                        wt->uadm.aeroPwr   = wt->uadm.rtrThrust * (1-a_t) * Uref;
+                    }
+                }
             }
             // actuator line model
             else if((*farm->turbineModels[t]) == "ALM")
@@ -303,6 +442,16 @@ PetscErrorCode computeBladeForce(farm_ *farm)
                                      mScale(-1.0, zb_hat);
                             xb_hat = nScale(-1.0, rtrAxis);
                             yb_hat = nCross(zb_hat, xb_hat);
+                        }
+
+                        // Apply dynamic induction controller for individual helix pitch control
+                        PetscReal dicControlPitch = 0.0;
+
+                        if(wt->dipcControllerType != "none")
+                        {
+                            char warning[256];
+                            sprintf(warning, "Dynamic induction controller not implemented for ALM model. Ignoring controller.");
+                            warningInFunction("computeBladeForce", warning);
                         }
 
                         // transform the velocity in the bladed reference frame in
@@ -417,36 +566,105 @@ PetscErrorCode computeBladeForce(farm_ *farm)
             }
             else if((*farm->turbineModels[t]) == "AFM")
             {
-                PetscReal a_t, Uref, bMag, Ct_t = wt->afm.Ct;
+                PetscReal a_t, Uref, bMag, Ct_t;
 
-                if(farm->farmControlActive[t])
+                if(wt->ctType == "constant")
                 {
-                    Ct_t += wt->wfControlCt;
+                    Ct_t = wt->afm.Ct;
+
+                    if(farm->farmControlActive[t])
+                    {
+                        Ct_t += wt->wfControlCt;
+                    }
+
+                    // reference velocity is extrapolated using induction coefficient - Ct relation
+                    if(wt->afm.sampleType == "momentumTheory")
+                    {
+                        // compute induction factor
+                        a_t     = (1.0 - std::sqrt(1.0 - Ct_t)) / 2.0;
+
+                        // compute freestream velocity
+                        Uref  = nMag(wt->afm.U) / (1.0 - a_t);
+
+                        // compute body force
+                        bMag = 0.5 * Uref * Uref * M_PI * wt->rTip * wt->rTip * Ct_t;
+                    }
+                    // disk based Ct is used
+                    else if(wt->afm.sampleType == "rotorDisk" || wt->afm.sampleType == "integral")
+                    {
+                        // compute freestream velocity
+                        Uref  = nMag(wt->afm.U);
+
+                        // compute body force
+                        bMag = 0.5 * Uref * Uref * M_PI * wt->rTip * wt->rTip * Ct_t;
+
+                        // compute induction factor (zero so that power is correct bcs Uref is already at disk)
+                        a_t = 0.0;
+                    }
                 }
+                else if(wt->ctType == "variable")
+                {   
+                    //intial guess
+                    Uref = nMag(wt->afm.U) / (2.0 / 3.0);  
 
-                // reference velocity is extrapolated using induction coefficient - Ct relation
-                if(wt->afm.sampleType == "momentumTheory")
-                {
-                    // compute induction factor
-                    a_t     = (1.0 - std::sqrt(1.0 - Ct_t)) / 2.0;
+                    PetscReal tol      = 0.001;  // Tolerance for disk average velocity in m/s
+                    PetscInt  maxIter  = 100;
+                    PetscInt  iter     = 0;
+                    PetscReal prevUref = 0.0;
 
-                    // compute freestream velocity
-                    Uref  = nMag(wt->afm.U) / (1.0 - a_t);
+                    while (iter < maxIter) 
+                    {
+                        PetscReal w[2];
+                        PetscInt  l[2];
+                        
+                        findInterpolationWeights(w, l, wt->ctTbl.Uref, wt->ctTbl.size, Uref);
+                        Ct_t = w[0]*wt->ctTbl.Ct[l[0]] + w[1]*wt->ctTbl.Ct[l[1]];
 
-                    // compute body force
+                        if (Ct_t > 1.0) 
+                        {
+                            a_t = 0.5;
+                            fprintf(stderr, "Warning: Ct > 1 (%f), using a=0.5\n", Ct_t);
+                        }
+                        else if (Ct_t < 0.0) 
+                        {
+                            a_t = 0.0;
+                        } 
+                        else 
+                        {
+                            a_t = 0.5 * (1.0 - sqrt(1.0 - Ct_t));
+                        }
+
+                        PetscReal UDiskCalc = Uref * (1.0 - a_t);
+
+                        if (fabs(UDiskCalc - nMag(wt->afm.U)) < tol) break;
+
+                        // Update Uref
+                        PetscReal newUref;
+                        if (fabs(1.0 - a_t) > 1e-6) 
+                        {
+                            newUref = nMag(wt->afm.U) / (1.0 - a_t);
+                        } 
+                        else 
+                        {
+                            newUref = Uref;  
+                        }
+
+                        // relaxation 
+                        Uref = 0.8 * newUref + 0.2 * Uref;
+
+                        if (fabs(Uref - prevUref) < 1e-6) break;
+
+                        prevUref = Uref;
+
+                        iter++;
+                    }
+
+                    if(farm->farmControlActive[t])
+                    {
+                        Ct_t += wt->wfControlCt;
+                    }
+
                     bMag = 0.5 * Uref * Uref * M_PI * wt->rTip * wt->rTip * Ct_t;
-                }
-                // disk based Ct is used
-                else if(wt->afm.sampleType == "rotorDisk" || wt->afm.sampleType == "integral")
-                {
-                    // compute freestream velocity
-                    Uref  = nMag(wt->afm.U);
-
-                    // compute body force
-                    bMag = 0.5 * Uref * Uref * M_PI * wt->rTip * wt->rTip * Ct_t;
-
-                    // compute induction factor (zero so that power is correct bcs Uref is already at disk)
-                    a_t = 0.0;
                 }
 
                 wt->afm.B = nScale(bMag, wt->rtrAxis);
@@ -455,14 +673,35 @@ PetscErrorCode computeBladeForce(farm_ *farm)
                 wt->afm.rtrThrust = bMag * constants->rho;
 
                 // aerodynamic power
-                wt->afm.aeroPwr   = wt->afm.rtrThrust * (1-a_t) * Uref;
+                if(wt->ctType == "constant")
+                {
+                    wt->afm.aeroPwr   = wt->afm.rtrThrust * (1-a_t) * Uref;
+                }
+                else if(wt->ctType == "variable")
+                {
+                    if(wt->variableCp)
+                    {
+                        PetscReal w[2], Cp;
+                        PetscInt  l[2];
+                        
+                        findInterpolationWeights(w, l, wt->ctTbl.Uref, wt->ctTbl.size, Uref);
+                        Cp = w[0]*wt->ctTbl.Cp[l[0]] + w[1]*wt->ctTbl.Cp[l[1]];
+                        wt->afm.aeroPwr   = 0.5 * Uref * Uref * Uref * M_PI * wt->rTip * wt->rTip * Cp *  constants->rho;
+
+                        if(wt->dbg) PetscPrintf(PETSC_COMM_SELF, "Uref = %lf, Uturbine = %lf, Ct = %lf, Cp = %lf, a = %lf, Power = %lf MW, Thrust = %lf KW\n", Uref, nMag(wt->afm.U), Ct_t, Cp, a_t, wt->afm.aeroPwr/1.0e6, wt->afm.rtrThrust/1.0e3);
+                    }
+                    else
+                    {
+                        wt->afm.aeroPwr   = wt->afm.rtrThrust * (1-a_t) * Uref;
+                    }
+                }
             }
 
             // electric power (only for AD/AL models)
             if((*farm->turbineModels[t]) != "uniformADM" && (*farm->turbineModels[t]) != "AFM")
             {
                 // second test inside because this variable is not defined for UADM and AFM
-                if(wt->genControllerType != "none")
+                if(wt->genControllerType != "none" && wt->genControllerType != "rpmControlCurve")
                 {
                     wt->genPwr = wt->genTorque * (wt->rtrOmega * wt->gbxRatioG2R) * wt->genEff;
                 }
@@ -984,7 +1223,7 @@ PetscErrorCode projectBladeForce(farm_ *farm)
                 if((*farm->turbineModels[t]) != "uniformADM" && (*farm->turbineModels[t]) != "AFM")
                 {
                     // second test inside because this variable is not defined for UADM
-                    if(wt->genControllerType != "none")
+                    if(wt->genControllerType != "none" && wt->genControllerType != "rpmControlCurve")
                     {
                         MPI_Reduce(&(wt->genPwr), &genPwr, 1, MPIU_REAL, MPIU_SUM, 0, wt->TRB_COMM);
                     }
@@ -1003,7 +1242,7 @@ PetscErrorCode projectBladeForce(farm_ *farm)
                     if((*farm->turbineModels[t]) != "uniformADM" && (*farm->turbineModels[t]) != "AFM")
                     {
                         // second test inside because this variable is not defined for UADM
-                        if(wt->genControllerType != "none")
+                        if(wt->genControllerType != "none" && wt->genControllerType != "rpmControlCurve")
                         {
                             genPwr  /= wt->nProcsTrb;
                         }
