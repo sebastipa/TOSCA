@@ -29,7 +29,12 @@ wind farm control problems. TOSCA is currently developed at the `Computational F
 We kindly ask you to *please* fill up our `user survey <https://docs.google.com/forms/d/e/1FAIpQLSfUGtlHbCPfSI4-CO4bC9D4YsjcHis3Tu7UPTJeYqiB7BgCXA/viewform?usp=header>`_ , 
 which allows us to keep track of new TOSCA users around the world.
 
-`This link <https://github.com/sebastipa/TOSCA>`_ brings you back to the official repository of TOSCA. The code is open-source and licensed under the BSD 2-Clause Simplified License.
+`This link <https://github.com/sebastipa/TOSCA>`_ brings you back to the official repository of TOSCA. 
+
+License
+=======
+
+The code is open-source and licensed under the BSD 2-Clause Simplified License.
 
 Reporting Bugs, Issues & Contributing
 =====================================
