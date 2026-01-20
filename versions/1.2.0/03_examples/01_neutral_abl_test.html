@@ -1,0 +1,358 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Neutral ABL Example &mdash; TOSCA 1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=23c79765" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=f2a433a1"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="NREL 5MW Example - Uniform Flow" href="02_nrel5mw_test.html" />
+    <link rel="prev" title="Example Cases" href="../tosca_examples.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            TOSCA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../tosca_installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tosca_user_guide.html">User Guide</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../tosca_examples.html">Example Cases</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Neutral ABL Example</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#checking-the-case">Checking the case</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#turbulence-spinup-phase">Turbulence spinup phase</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#data-acquisition-phase">Data acquisition phase</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#creating-the-inflow-database">Creating the inflow database</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="02_nrel5mw_test.html">NREL 5MW Example - Uniform Flow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="03_successor_periodized_test.html">Wind Farm Successor Example - Inlet/Outlet</a></li>
+<li class="toctree-l2"><a class="reference internal" href="04_successor_periodized_fringe_test.html">Wind Farm Successor Example - Concurrent Precursor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="05_successor_overset_test.html">Wind Farm Successor Example - Overset Mesh</a></li>
+<li class="toctree-l2"><a class="reference internal" href="06_sphere_flow_test.html">Sphere Flow Static IBM Example</a></li>
+<li class="toctree-l2"><a class="reference internal" href="07_rotating_cylinder_test.html">Rotating Cylinder Dynamic IBM Example</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tosca_applications.html">Primary Applications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tosca_theory_guide.html">Theory Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tosca_versions.html">Versions</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">TOSCA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../tosca_examples.html">Example Cases</a></li>
+      <li class="breadcrumb-item active">Neutral ABL Example</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/03_examples/01_neutral_abl_test.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="neutral-abl-example">
+<span id="examples-neutral-abl-test"></span><h1>Neutral ABL Example<a class="headerlink" href="#neutral-abl-example" title="Link to this heading"></a></h1>
+<p>The <em>tests/NeutralABLTest</em> example case shows how to simulate a conventionally neutral atmospheric boundary
+layer (CNBL) in TOSCA. CNBLs are characterized by a strong capping inversion layer of
+thickness <span class="math notranslate nohighlight">\(\Delta h\)</span>, across which a potential temperature jump <span class="math notranslate nohighlight">\(\Delta \theta\)</span>
+is observed. Stratification is neutral below the inversion layer, while it is
+characterized by a linear lapse rate <span class="math notranslate nohighlight">\(\gamma\)</span> aloft.</p>
+<p>These types of flows are simulated using lateral periodic boundary conditions,
+while the flow driven by a large-scale driving pressure gradient imposed using TOSCA’s
+velocity controller. In this example, the pressure controller is used, which controls
+the large-scale horizontal pressure gradient in order to obtain a wind speed of 8 m/s at
+the height of 90 m.</p>
+<p>The flow is initialized using a logarithmic profile below the inversion height <span class="math notranslate nohighlight">\(H\)</span>,
+and a uniform wind above. As the simulation progressess, turbulence is created and starts
+developing inside the flow domain. To accelerate this process, spanwise fluctuations can be
+imposed in the initial flow to anticipate turbulence onset.</p>
+<p>All the above aspects can be controlled from the <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> file
+(see Sec. <a class="reference internal" href="../01_user_guide/input_files/ablProperties.html#ablproperties-section"><span class="std std-ref">ABLProperties.dat</span></a> for a detailed description of all entries).
+In particular, entries controlling the initial temperature and velocity profile are defined by
+the following parameters:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uRef<span class="w">    </span><span class="m">8</span>.0<span class="w">    </span><span class="c1"># wind speed at hRef in m/s</span>
+hRef<span class="w">    </span><span class="m">90</span>.0<span class="w">   </span><span class="c1"># reference height in m</span>
+tRef<span class="w">    </span><span class="m">300</span>.0<span class="w">  </span><span class="c1"># ground potential temperature in K</span>
+hRough<span class="w">  </span><span class="m">0</span>.003<span class="w">  </span><span class="c1"># equivalent roughness length in m</span>
+hInv<span class="w">    </span><span class="m">750</span>.0<span class="w">  </span><span class="c1"># height of the inversion center in m</span>
+dInv<span class="w">    </span><span class="m">100</span>.0<span class="w">  </span><span class="c1"># width of the inversion center in m</span>
+gInv<span class="w">    </span><span class="m">5</span>.0<span class="w">    </span><span class="c1"># potential temperature jump in K across inversion</span>
+gTop<span class="w">    </span><span class="m">0</span>.003<span class="w">  </span><span class="c1"># gradient of the linear lapse rate above inversion in K/m</span>
+gABL<span class="w">    </span><span class="m">0</span>.0<span class="w">    </span><span class="c1"># gradient of the linear lapse rate below inversion in K/m (zero for neutral)</span>
+vkConst<span class="w"> </span><span class="m">0</span>.4<span class="w">    </span><span class="c1"># value of the Von Karman constant</span>
+smearT<span class="w">  </span><span class="m">0</span>.33<span class="w">   </span><span class="c1"># defines the smearing of the initial potential temperature profile</span>
+</pre></div>
+</div>
+<p>Then, the following flags are set in order to activate the velocity controller, the temperature controller
+(which maintains constant the horizontally averaged potential temperature profile, preventing the inversion
+layer to displace upwards), the Coriolis force and the initial flow perturbations in the velocity field:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>controllerActive<span class="w">  </span><span class="m">1</span><span class="w">               </span><span class="c1"># activates velocity controller</span>
+controllerActiveT<span class="w"> </span><span class="m">1</span><span class="w">               </span><span class="c1"># activates temperature controller</span>
+controllerTypeT<span class="w">   </span>initial<span class="w">         </span><span class="c1"># target temperature is the initial temperature</span>
+coriolisActive<span class="w">    </span><span class="m">1</span><span class="w">               </span><span class="c1"># activates Coriolis force</span>
+fCoriolis<span class="w">         </span><span class="m">5</span>.156303966e-5<span class="w">  </span><span class="c1"># 2 times the Coriolis parameter</span>
+perturbations<span class="w">     </span><span class="m">1</span><span class="w">               </span><span class="c1"># flow perturbations</span>
+</pre></div>
+</div>
+<p>Notably, the <code class="docutils literal notranslate"><span class="pre">fCoriolis</span></code> should be set to <span class="math notranslate nohighlight">\(7.272205217\cdot 10^{-5} \sin(\phi)\)</span> (2 times the Coriolis parameter),
+where <span class="math notranslate nohighlight">\(\phi\)</span> is the latitude. This is a TOSCA convention and other codes do the multiplication by 2 internally.
+Finally, the parameters defining the velocity controller must be specified in the <em>controllerProperties</em> dictionary, namely</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>controllerProperties
+<span class="o">{</span>
+<span class="w">    </span>controllerAction<span class="w">     </span>write<span class="w">    </span><span class="c1"># controller writes the momentumSource inside</span>
+<span class="w">                                  </span><span class="c1"># postProcessing/</span>
+<span class="w">    </span>controllerType<span class="w">       </span>pressure<span class="w"> </span><span class="c1"># controller tries to maintain uRef at hRef</span>
+<span class="w">    </span>relaxPI<span class="w">              </span><span class="m">0</span>.7<span class="w">      </span><span class="c1"># proportional gain</span>
+<span class="w">    </span>alphaPI<span class="w">              </span><span class="m">0</span>.9<span class="w">      </span><span class="c1"># proportional over integral ratio</span>
+<span class="w">    </span>timeWindowPI<span class="w">         </span><span class="m">3600</span><span class="w">     </span><span class="c1"># time constant of the controller low-pass filter</span>
+<span class="w">    </span>geostrophicDamping<span class="w">   </span><span class="m">1</span><span class="w">        </span><span class="c1"># only for pressure controller, eliminates inertial</span>
+<span class="w">                                  </span><span class="c1"># oscillations</span>
+<span class="w">    </span>geoDampingAlpha<span class="w">      </span><span class="m">1</span>.0<span class="w">      </span><span class="c1"># alpha 1 corresponds to critical damping</span>
+<span class="w">    </span>geoDampingStartTime<span class="w">  </span><span class="m">5000</span><span class="w">     </span><span class="c1"># should start damping after turbulence has developed</span>
+<span class="w">    </span>geoDampingTimeWindow<span class="w"> </span><span class="m">4500</span><span class="w">     </span><span class="c1"># should be large (ideally one inertial oscillation)</span>
+<span class="w">    </span>controllerMaxHeight<span class="w">  </span><span class="m">100000</span>.0<span class="w"> </span><span class="c1"># the controller is applied in the entire domain</span>
+<span class="o">}</span>
+</pre></div>
+</div>
+<p>In order to tell TOSCA to initialize the flow using the parameters defined within the <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code> file, the
+<code class="docutils literal notranslate"><span class="pre">internalField</span></code> keyword inside the boundary condition files <code class="docutils literal notranslate"><span class="pre">boundary/U</span></code>, <code class="docutils literal notranslate"><span class="pre">boundary/T</span></code> and <code class="docutils literal notranslate"><span class="pre">boundary/nut</span></code>
+should be set to <em>ABLFlow</em>. More details regarding the optimal setup for these types of simulations in the context of
+larger cases can be found <a class="reference external" href="https://wes.copernicus.org/articles/9/297/2024/">here</a> .</p>
+<section id="checking-the-case">
+<h2>Checking the case<a class="headerlink" href="#checking-the-case" title="Link to this heading"></a></h2>
+<p>In order to check that everything is correct, we run TOSCA for just one second and check the resulting fields in <em>ParaView</em>.
+In order to do so, the following entries should be edited in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>-startFrom<span class="w">                 </span>startTime
+-startTime<span class="w">                 </span><span class="m">0</span>
+-endTime<span class="w">                   </span><span class="m">1</span>
+-adjustTimeStep<span class="w">            </span><span class="m">0</span>
+-timeStep<span class="w">                  </span><span class="m">0</span>.5
+
+-timeInterval<span class="w">              </span><span class="m">1</span>
+
+-sections<span class="w">                  </span><span class="m">0</span>
+</pre></div>
+</div>
+<p>This will stop the simulation after 2 iterations of 0.5 s each (i.e. 1 s of simulation).
+Notably, the flow sections are also deactivated, as two seconds of simulation will not produce any with the specific settings
+defined in the <code class="docutils literal notranslate"><span class="pre">sampling</span></code> directory of this example case.
+Once TOSCA executables <code class="docutils literal notranslate"><span class="pre">tosca</span></code> and <code class="docutils literal notranslate"><span class="pre">tosca2PV</span></code> are copied inside the case directory, TOSCA can be run in serial using</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./tosca
+</pre></div>
+</div>
+<p>or in parallel (using 4 processors) with</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>mpirun<span class="w"> </span>-np<span class="w"> </span><span class="m">4</span><span class="w"> </span>./tosca
+</pre></div>
+</div>
+<p>Once the initial test completes, the user should first check that the entry <code class="docutils literal notranslate"><span class="pre">-postProcessFields</span></code> is active in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code>
+file, then run</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./tosca2PV
+</pre></div>
+</div>
+<p>The last executable creates an new <code class="docutils literal notranslate"><span class="pre">XMF</span></code> directory in which the solution fields are stored in <em>.hdf</em> format. The
+log file gives information about what fields are written, and should look as follows:</p>
+<a class="reference internal image-reference" href="../_images/neutral_abl_test_log_1.png"><img alt="../_images/neutral_abl_test_log_1.png" src="../_images/neutral_abl_test_log_1.png" style="width: 100%;" />
+</a>
+<br><p>In order to visualize the data, the user should navigate inside the <code class="docutils literal notranslate"><span class="pre">XMF</span></code> directory and open the <em>.xmf</em> file e.g. using <em>ParaView</em>.
+The following image shows the result of this operation. In particular, velocity and potential temperature fields are depicted on
+the left and right panels, respectively.</p>
+<a class="reference internal image-reference" href="../_images/neutral_abl_test_initial_field.png"><img alt="../_images/neutral_abl_test_initial_field.png" src="../_images/neutral_abl_test_initial_field.png" style="width: 100%;" />
+</a>
+<br></section>
+<section id="turbulence-spinup-phase">
+<h2>Turbulence spinup phase<a class="headerlink" href="#turbulence-spinup-phase" title="Link to this heading"></a></h2>
+<p>Now the actual simulation can be started. In particular, the turbilence spinup phase should be first carried out.
+This is required to reach statistical independence of the turbulent fluctuations and, although it does not produce any
+meaningful data, it is required before one can start to gather flow statistics and sampling sections.
+To this end, the following parameters should be edited in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>-startFrom<span class="w">                 </span>startTime
+-startTime<span class="w">                 </span><span class="m">0</span>
+-endTime<span class="w">                   </span><span class="m">10000</span>
+-adjustTimeStep<span class="w">            </span><span class="m">1</span>
+
+-timeInterval<span class="w">              </span><span class="m">500</span>
+
+-sections<span class="w">                  </span><span class="m">0</span>
+-probes<span class="w">                    </span><span class="m">0</span>
+-averageABL<span class="w">                </span><span class="m">1</span>
+-average3LM<span class="w">                </span><span class="m">0</span>
+-avgABLPeriod<span class="w">              </span><span class="m">10</span>
+-avgABLStartTime<span class="w">           </span><span class="m">0</span>
+
+-averaging<span class="w">                 </span><span class="m">0</span>
+-avgPeriod<span class="w">                 </span><span class="m">50</span>
+-avgStartTime<span class="w">              </span><span class="m">1000</span>
+</pre></div>
+</div>
+<p>After launching <code class="docutils literal notranslate"><span class="pre">tosca</span></code>, the simulation will restart from time 0, and run for 10000 s. The time step will be adjusted based on
+the CFL value and in order to average ABL fields every 10 s. The user can notice that every 500 s a new time directory is created
+inside the <code class="docutils literal notranslate"><span class="pre">fields</span></code> directory. Here, checkpoint files are saved for post processing or simulation restart.
+Moreover, ABL averages (planar averages of different flow quantities at every height) are stored every 10 s inside the
+<code class="docutils literal notranslate"><span class="pre">postProcessing/averaging/&lt;startTime&gt;</span></code> directory. The figure below shows the velocity (left) and temperature fields (right)
+at the end of the spinup phase.</p>
+<a class="reference internal image-reference" href="../_images/neutral_abl_test_spinup_field.png"><img alt="../_images/neutral_abl_test_spinup_field.png" src="../_images/neutral_abl_test_spinup_field.png" style="width: 100%;" />
+</a>
+<br></section>
+<section id="data-acquisition-phase">
+<h2>Data acquisition phase<a class="headerlink" href="#data-acquisition-phase" title="Link to this heading"></a></h2>
+<p>At this point, the simulation can be restarted from 10000 s and flow statistics can be gathered. Usually, precursor simulations are
+used to save flow sections of velocity, temperature and effective viscosity at each time step, which are then assembled into an
+inflow database and later used as inlet boundary condition for a subsequent simulation, e.g. with wind turbines.
+If this is the case, or if the user simply desires to visualize flow planes, sampling planes should be activated in the
+<code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file by setting the <code class="docutils literal notranslate"><span class="pre">-sections</span></code> flag to 1. Saving sections is also useful for large cases, when the domain is too
+large to be visualized in its entirety as it does not fit in the available RAM memory of a laptop (or even a single
+supercomputer node).</p>
+<p>When sampling planes are later used as inlet boundary conditions, this will happen in TOSCA at the <code class="docutils literal notranslate"><span class="pre">kLeft</span></code> boundary, as it is the
+only boundary that features special inlet functions (see Sec. <a class="reference internal" href="../01_user_guide/input_files/boundary.html#inlet-functions-subsubsection"><span class="std std-ref">Inlet Functions</span></a> for details). Hence, the settings
+of <em>kSections</em> have to be such that these are written with the highest possible frequency to reduce the error of their interpolation
+in time when used as inflow. Hence, the <code class="docutils literal notranslate"><span class="pre">sampling/surfaces/kSections</span></code> file is usually defined with the following syntax:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>surfaceNumber<span class="w"> </span><span class="m">1</span><span class="w">         </span><span class="c1"># one k-surface</span>
+timeStart<span class="w">     </span><span class="m">10000</span><span class="w">     </span><span class="c1"># acquisition starts at 10000</span>
+intervalType<span class="w">  </span>timeStep<span class="w">  </span><span class="c1"># writes every timeInterval iterations</span>
+timeInterval<span class="w">  </span><span class="m">1</span><span class="w">         </span><span class="c1"># writes every iteration</span>
+coordinates<span class="w">   </span><span class="m">10</span>.0<span class="w">      </span><span class="c1"># plane located at x = 10 m</span>
+</pre></div>
+</div>
+<p>Conversely, sections used for visualization (usually <em>iSections</em> and <em>jSections</em>, but also <em>kSections</em> can be visualized) are
+sampled less frequently. For example, a possible syntax for the <code class="docutils literal notranslate"><span class="pre">sampling/surfaces/jSections</span></code> file is given below.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>surfaceNumber<span class="w"> </span><span class="m">2</span><span class="w">               </span><span class="c1"># two j-surface</span>
+timeStart<span class="w">     </span><span class="m">1000</span><span class="w">            </span><span class="c1"># acquisition starts at 10000</span>
+intervalType<span class="w">  </span>adjustableTime<span class="w">  </span><span class="c1"># writes every timeInterval seconds</span>
+timeInterval<span class="w">  </span><span class="m">10</span><span class="w">              </span><span class="c1"># writes every 10 seconds</span>
+coordinates<span class="w">   </span><span class="m">90</span>.0<span class="w">  </span><span class="m">500</span>.0<span class="w">     </span><span class="c1"># flow section at hub and inversion heights</span>
+</pre></div>
+</div>
+<p>In is important now to tell TOSCA to read the saved checkpoint file at the latest time, otherwise it will re-initialize the flow using
+the input parameters defined in <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code>. To this end, and in order to terminate the simulation at 12000 s, the
+<code class="docutils literal notranslate"><span class="pre">control.dat</span></code> can be edited as follows:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>-startFrom<span class="w">    </span>latestTime<span class="w">      </span><span class="c1"># reads the latest time inside the fields directory</span>
+-endTime<span class="w">      </span><span class="m">12000</span><span class="w">           </span><span class="c1"># simulate 2000 more s with data acquisition</span>
+</pre></div>
+</div>
+<p>In addition, the <code class="docutils literal notranslate"><span class="pre">internalField</span></code> entry in the boundary files has to be changed to <code class="docutils literal notranslate"><span class="pre">readField</span></code> (in all <code class="docutils literal notranslate"><span class="pre">U</span></code>, <code class="docutils literal notranslate"><span class="pre">p</span></code> and
+<code class="docutils literal notranslate"><span class="pre">nut</span></code> files). The simulation is now set up for restart, and subsequent restarts will not require
+further editing until the final time is reached. Finally, 3D field averaging and the sampling sections are activated by setting</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>-sections<span class="w">                  </span><span class="m">1</span>
+-averageABL<span class="w">                </span><span class="m">1</span>
+-avgABLPeriod<span class="w">              </span><span class="m">10</span>
+-avgABLStartTime<span class="w">           </span><span class="m">0</span>
+
+-averaging<span class="w">                 </span><span class="m">1</span>
+-avgPeriod<span class="w">                 </span><span class="m">5</span>
+-avgStartTime<span class="w">              </span><span class="m">10000</span>
+</pre></div>
+</div>
+<p>in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file. Once TOSCA is submitted, the user can verify from the log file (see below) that <em>kSections</em> are stored
+every iteration inside the <code class="docutils literal notranslate"><span class="pre">postProcessing/kSurfaces/k-ID</span></code> directory, where <code class="docutils literal notranslate"><span class="pre">k-ID</span></code> corresponds to the k-index of the
+plane of cells intercepts by the sampling surface . Notably, the name of each section file corresponds to the time at which
+the section has been taken, where the number of decimal places can be controlled with the <code class="docutils literal notranslate"><span class="pre">-timePrecision</span></code> keyword in the
+<code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file.</p>
+<a class="reference internal image-reference" href="../_images/neutral_abl_test_log_2.png"><img alt="../_images/neutral_abl_test_log_2.png" src="../_images/neutral_abl_test_log_2.png" style="width: 100%;" />
+</a>
+<br><p>Once that the simulation completes, all data except from the 3D fields
+are stored inside the <code class="docutils literal notranslate"><span class="pre">postProcessing</span></code> directory. In particular, <em>iSections</em>, <em>jSections</em>, <em>kSections</em> and ABL averages at
+different levels are stored in the here, while 3D field averages and checkpoint variables are located in the corresponding
+checkpoint time inside the <code class="docutils literal notranslate"><span class="pre">fields</span></code> directory. As this test case is small, the user can decide to
+visualize them in e.g. <em>ParaView</em> by running <code class="docutils literal notranslate"><span class="pre">tosca2PV</span></code>. For large simulations, these files are usually
+kept for hypotetically restarting the simulation at a later phase, if needed. However, 3D field averages can be sliced after the
+simulation using TOSCA’s post processor <code class="docutils literal notranslate"><span class="pre">tosca2PV</span></code>. This is done by leaving both the <code class="docutils literal notranslate"><span class="pre">-averaging</span></code> and the <code class="docutils literal notranslate"><span class="pre">-sections</span></code> flags
+activated <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file, prompting the code to re-read the definition of the sampling sections and then slice the average fields.</p>
+<p>Currently, no additional sections can be added <em>a-posteriori</em> if instantaneous sections (generated during the simulations) are found inside the <code class="docutils literal notranslate"><span class="pre">postProcessing</span></code> directory.
+In order force <code class="docutils literal notranslate"><span class="pre">tosca2PV</span></code> to re-read the section definitions inside <code class="docutils literal notranslate"><span class="pre">sampling</span></code> (i.e. after adding more sections) and re-slice the 3D
+average fields, it is sufficient to rename the directories <code class="docutils literal notranslate"><span class="pre">postProcessing/iSurfaces</span></code>, <code class="docutils literal notranslate"><span class="pre">postProcessing/jSurfaces</span></code> or
+<code class="docutils literal notranslate"><span class="pre">postProcessing/kSurfaces</span></code> to something else, depending if <code class="docutils literal notranslate"><span class="pre">sampling/surfaces/iSections</span></code>, <code class="docutils literal notranslate"><span class="pre">sampling/surfaces/jSections</span></code> or
+<code class="docutils literal notranslate"><span class="pre">sampling/surfaces/kSections</span></code> have been edited, respectively. This procedure is identified in TOSCA as on-the-fly section
+re-acquisition, and it is printed in the terminal (or the log file) when running <code class="docutils literal notranslate"><span class="pre">tosca2PV</span></code>.</p>
+<p>Regarding the data contained in the <code class="docutils literal notranslate"><span class="pre">postProcessing</span></code> directory - except from sections, which are read using <code class="docutils literal notranslate"><span class="pre">tosca2PV</span></code> - this is
+usually post processed using <em>ad-hoc</em> Python or Matlab scripts.</p>
+</section>
+<section id="creating-the-inflow-database">
+<h2>Creating the inflow database<a class="headerlink" href="#creating-the-inflow-database" title="Link to this heading"></a></h2>
+<p>In order to create an inflow database that can be later used by TOSCA, the workflow is the following.</p>
+<ol class="arabic simple">
+<li><p>Create a directory named <code class="docutils literal notranslate"><span class="pre">inflowDatabase</span></code>.</p></li>
+<li><p>Copy the directories <code class="docutils literal notranslate"><span class="pre">U</span></code>, <code class="docutils literal notranslate"><span class="pre">T</span></code> (if present) and <code class="docutils literal notranslate"><span class="pre">nut</span></code>, contained inside the directory <code class="docutils literal notranslate"><span class="pre">postProcessing/kSurfaces/k-ID/</span></code>, where the <em>k-ID</em> corresponds to the <em>kSurface</em> selected for sampling the inflow data, inside the <code class="docutils literal notranslate"><span class="pre">inflowDatabase</span></code> directory.</p></li>
+<li><p>Create a new file named <code class="docutils literal notranslate"><span class="pre">momentumSource</span></code> inside the <code class="docutils literal notranslate"><span class="pre">inflowDatabase</span></code> directory. Then copy the content of each <code class="docutils literal notranslate"><span class="pre">postProcessing/momentumSource_&lt;startTime&gt;</span></code> file inside the <code class="docutils literal notranslate"><span class="pre">momentumSource</span></code> file, eliminating the overlapping portion of each source file’s time history (as if source files were tiled together).</p></li>
+<li><p>Copy the <code class="docutils literal notranslate"><span class="pre">mesh.xyz</span></code> file inside the <code class="docutils literal notranslate"><span class="pre">inflowDatabase</span></code> directory, renaming it <code class="docutils literal notranslate"><span class="pre">inflowMesh.xyz</span></code>. In this file, eliminate the lines <em>-iPeriodicType</em>, <em>-jPeriodicType</em> and <em>-kPeriodicType</em>, if present.</p></li>
+</ol>
+<p>The <code class="docutils literal notranslate"><span class="pre">inflowDatabase</span></code> is now a standalone inflow database that can be used as inlet boundary condition for several different
+successor simulations.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../tosca_examples.html" class="btn btn-neutral float-left" title="Example Cases" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="02_nrel5mw_test.html" class="btn btn-neutral float-right" title="NREL 5MW Example - Uniform Flow" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Sebastiano Stipa, Arjun Ajay, Joshua Brinkerhoff.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

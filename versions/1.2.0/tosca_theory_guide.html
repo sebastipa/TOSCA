@@ -1,0 +1,139 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Theory Guide &mdash; TOSCA dev documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="_static/custom.css?v=23c79765" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=3ce10a4d"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Governing Equations" href="04_theory_guide/governing_equations.html" />
+    <link rel="prev" title="Turbulence" href="03_applications/turbulence.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            TOSCA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="tosca_installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tosca_user_guide.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tosca_examples.html">Example Cases</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tosca_applications.html">TOSCA Applications</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Theory Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="04_theory_guide/governing_equations.html">Governing Equations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="04_theory_guide/numerics.html">Numerical Method &amp; Curvilinear Coordinates</a></li>
+<li class="toctree-l2"><a class="reference internal" href="04_theory_guide/parallel_efficiency.html">Parallel Efficiency</a></li>
+<li class="toctree-l2"><a class="reference internal" href="04_theory_guide/turbulence_models.html">Sub-grid Scale Model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="04_theory_guide/flow_controllers.html">Controllers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="04_theory_guide/precursor.html">Precursor, Fringe Regions &amp; Damping Layers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="04_theory_guide/turbine_models.html">Turbine Models</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="tosca_versions.html">Versions</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">TOSCA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Theory Guide</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/tosca_theory_guide.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="theory-guide">
+<h1>Theory Guide<a class="headerlink" href="#theory-guide" title="Link to this heading"></a></h1>
+<p>TOSCA is a finite-volume code, formulated in generalized curvilinear coordinates, allowing it to take as input also non-Cartesian structured meshes. The present section is organized as follows. The governing equations in Cartesian coordinates are reported in Sec. <a class="reference internal" href="04_theory_guide/governing_equations.html#gov-equations-section"><span class="std std-ref">Governing Equations</span></a>, while actuator models used to represent wind turbines in the domain are described in Sec. <a class="reference internal" href="04_theory_guide/turbine_models.html#turbine-models-section"><span class="std std-ref">Turbine Models</span></a>.</p>
+<p>TOSCA’s numerical method, the governing equations in curvilinear coordinates that we actually solve, and a brief overview of generalized curvilinear coordinates are reported in Sec. <a class="reference internal" href="04_theory_guide/numerics.html#numerics-section"><span class="std std-ref">Numerical Method &amp; Curvilinear Coordinates</span></a>, while the LES turbulence model in the curvilinear frame is detailed in Sec. <a class="reference internal" href="04_theory_guide/turbulence_models.html#sgs-model-section"><span class="std std-ref">Sub-grid Scale Model</span></a>.</p>
+<p>An overview of TOSCA’s parallel efficiency is given in Sec. <a class="reference internal" href="04_theory_guide/parallel_efficiency.html#parallel-eff-section"><span class="std std-ref">Parallel Efficiency</span></a>, where we analyze the time per iteration with increasing number of nodes and mesh elements on the Niagara high-performance computer at the SciNet HPC Consortium. In addition, TOSCA has been used to run finite wind farm simulations on the whole Niagara cluster (2024 nodes, 40 cores per node) and on all Cascade nodes of the UBC-ARC Sockeye cluster, demonstrating its capability to handle massively-parallel computations.</p>
+<p>In order to run ABL simulations, we developed a novel methodology, described in Sec. <a class="reference internal" href="04_theory_guide/flow_controllers.html#controllers-section"><span class="std std-ref">Controllers</span></a>, that enforces a desired hub-height wind speed while simultaneously avoiding inertial oscillations produced by the Coriolis force above the boundary layer. In addition, the disagreement exists between different CFD codes in predicting the final mean potential temperature profile inside the boundary layer, we developed a mean temperature controller which maintains a prescribed average potential temperature profile, harmonizing the comparison of simulation results produced with different codes in future studies. Finally, Sec. <a class="reference internal" href="04_theory_guide/precursor.html#precursor-section"><span class="std std-ref">Precursor, Fringe Regions &amp; Damping Layers</span></a> details TOSCA’s hybrid off-line/concurrent precursor methodology, which saves computational resources when performing the turbulence initialization in the precursor phase.</p>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="04_theory_guide/governing_equations.html">Governing Equations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="04_theory_guide/numerics.html">Numerical Method &amp; Curvilinear Coordinates</a></li>
+<li class="toctree-l1"><a class="reference internal" href="04_theory_guide/parallel_efficiency.html">Parallel Efficiency</a></li>
+<li class="toctree-l1"><a class="reference internal" href="04_theory_guide/turbulence_models.html">Sub-grid Scale Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="04_theory_guide/flow_controllers.html">Controllers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="04_theory_guide/precursor.html">Precursor, Fringe Regions &amp; Damping Layers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="04_theory_guide/turbine_models.html">Turbine Models</a></li>
+</ul>
+</div>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="03_applications/turbulence.html" class="btn btn-neutral float-left" title="Turbulence" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="04_theory_guide/governing_equations.html" class="btn btn-neutral float-right" title="Governing Equations" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Sebastiano Stipa, Arjun Ajay, Joshua Brinkerhoff.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

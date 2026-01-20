@@ -1,0 +1,301 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>2-Way Nesting (Overset Mesh) &mdash; TOSCA dev documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=23c79765" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=3ce10a4d"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Data Acquisition System" href="acquisition.html" />
+    <link rel="prev" title="Spatial Mesh" href="spatial_mesh.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            TOSCA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../tosca_installation.html">Installation</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../tosca_user_guide.html">User Guide</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="input_files.html">Input Files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="spatial_mesh.html">Spatial Mesh</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">2-Way Nesting (Overset Mesh)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#oversetinput-dat"><cite>oversetInput.dat</cite></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#hole-object-files"><cite>Hole Object Files</cite></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="acquisition.html">Data Acquisition System</a></li>
+<li class="toctree-l2"><a class="reference internal" href="execution.html">Execution</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tosca_examples.html">Example Cases</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tosca_applications.html">TOSCA Applications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tosca_theory_guide.html">Theory Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tosca_versions.html">Versions</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">TOSCA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../tosca_user_guide.html">User Guide</a></li>
+      <li class="breadcrumb-item active">2-Way Nesting (Overset Mesh)</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/01_user_guide/overset.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="way-nesting-overset-mesh">
+<span id="overset-section"></span><h1>2-Way Nesting (Overset Mesh)<a class="headerlink" href="#way-nesting-overset-mesh" title="Link to this heading"></a></h1>
+<p>Overset mesh (also known as grid nesting) allows to introduce refinement levels within TOSCA. In this technique, a finer mesh is immersed inside the original
+background mesh. Boundary conditions for the finer mesh are interpolated from the background mesh, while cells in the background mesh
+are blanked when they overlap with the finer mesh. This “hole” in the background mesh is treated as an IBM body (see <a class="reference internal" href="input_files/ibm.html#ibm-section"><span class="std std-ref">IBM</span></a>),
+where the solution at the IBM fluid cells is interpolated from the finer mesh. In order to understand how the overset mesh method works
+in TOSCA, it is worth mentioning some nomenclature used in relation to the following figure:</p>
+<a class="reference internal image-reference" href="../_images/overset-mesh-method.png"><img alt="../_images/overset-mesh-method.png" src="../_images/overset-mesh-method.png" style="width: 100%;" />
+</a>
+<br><p>A parent domain is a domain that fully contains another domain, usually characterized by a finer mesh, referred to as the child domain.
+Since the parent encloses the child, a hole can be created, a few cells inwardly offset from the child, where parent domain cells are not
+solved. This is referred to as the parent hole, which is treated as an IBM body. Hole interface cells are IBM fluid cells where the solution is
+interpolated from the child domain. Vice versa, the solution is interpolated from the parent domain at the child boundary cells. The offset
+between the hole and the child domain is required in order to use centered interpolation stencils when interpolating from the parent to the child
+domain. Finally, donor and acceptor cells are those cells that provide and receive the interpolaton data, respectively. Parent and child domains
+have both donor and acceptor cells, depending if the interpolation is from parent to child or vice versa. Regarding the interpolation, when this
+goes from parent to child (coarse to fine), a tri-linear scheme is used. Conversely, when going from child to parent (fine to coarse), a tri-linear
+scheme would make the interpolated value too local if the parent to child grid ratio is too large. For this reason, TOSCA introduces a
+tri-linear averaged interpolation, where cell corners are first tri-linearly interpolated and then averaged to yield the cell value, as shown
+in the figure above.</p>
+<p>In order to activate the overset mesh method in TOSCA, the first thing to do is to activate the <code class="docutils literal notranslate"><span class="pre">-overset</span></code> flag in the <em>control.dat</em> file.
+This prompts TOSCA to read the <em>oversetInput.dat</em> file, located inside the <em>overset</em> directory. This file contains entires that are
+used to define multiple domains and their mutual hierarchy. When overset is active, TOSCA’s case structure changes slightly, as one extra level
+of directory is added. In fact, assuming that two domains are defined, named <em>background</em> and <em>overset</em>, the minimal case structure becomes:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>case_directory
+├──<span class="w"> </span>control.dat
+├──<span class="w"> </span>background.xyz
+├──<span class="w"> </span>overset.xyz
+├──<span class="w"> </span>boundary
+│<span class="w">   </span>├──<span class="w"> </span>background
+│<span class="w">   </span>│<span class="w">   </span>├──<span class="w"> </span>U
+│<span class="w">   </span>│<span class="w">   </span>└──<span class="w"> </span>nut
+│<span class="w">   </span>└──<span class="w"> </span>overset
+│<span class="w">       </span>├──<span class="w"> </span>U
+│<span class="w">       </span>└──<span class="w"> </span>nut
+├──<span class="w"> </span>overset
+│<span class="w">   </span>└──<span class="w"> </span>oversetInput.dat
+└──<span class="w"> </span>IBM
+<span class="w">    </span>└──<span class="w"> </span>hole
+</pre></div>
+</div>
+<p>Notably, additional domains can be defined, which will change the directory structure accordingly. There should be a hole body for each child domain,
+and as many mesh files and boundary sub-directories as many domains are defined. Finally, a parent domain can have multiple child domains,
+but a child domain can only have one parent domain.</p>
+<section id="oversetinput-dat">
+<h2><cite>oversetInput.dat</cite><a class="headerlink" href="#oversetinput-dat" title="Link to this heading"></a></h2>
+<p>The <em>oversetInput.dat</em> file defines the hierarchy of the domains, their mesh files and their hole bodies. We show below the syntax of the file
+for the example provided in the TOSCA repository inside <em>tests/multiDomainOverset</em>. In this example, four domains are defined. An outer
+domain, with two child domains, and an additional child domain in one of the previous child domains.</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="cp"># TOSCA Input file - Overset Input Properties</span>
+<span class="cp"># -------------------------------------------</span>
+
+<span class="n">MeshTotal</span><span class="w">         </span><span class="mi">4</span><span class="w">         </span><span class="c1">// integer, total number of meshes</span>
+<span class="n">numHoleObjects</span><span class="w">    </span><span class="mi">3</span><span class="w">         </span><span class="c1">// integer, number of hole objects</span>
+<span class="n">dynamicOverset</span><span class="w">    </span><span class="mi">0</span><span class="w">         </span><span class="c1">// (not supported yet) 1 if the overset mesh is moving</span>
+<span class="n">interpolationType</span><span class="w"> </span><span class="n">trilinear</span><span class="w"> </span><span class="c1">// only type of supported interpolation with the</span>
+<span class="w">                            </span><span class="c1">// latest two-way coupled overset method</span>
+
+<span class="n">Mesh0</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">name</span><span class="w">       </span><span class="n">outer</span><span class="w"> </span><span class="c1">// string, name of the domain</span>
+<span class="w">    </span><span class="n">parentMesh</span><span class="w"> </span><span class="p">(</span><span class="mi">-1</span><span class="p">)</span><span class="w">  </span><span class="c1">// integer, -1 if parent is the background domain</span>
+<span class="w">    </span><span class="n">childMesh</span><span class="w">  </span><span class="p">(</span><span class="mi">1</span><span class="w"> </span><span class="mi">3</span><span class="p">)</span><span class="w"> </span><span class="c1">// list of child meshes, -1 if no child</span>
+<span class="w">    </span><span class="n">windPlant</span><span class="w">  </span><span class="mi">0</span><span class="w">     </span><span class="c1">// 1 if the domain contains wind turbines</span>
+<span class="w">    </span><span class="n">ibm</span><span class="w">        </span><span class="mi">0</span><span class="w">     </span><span class="c1">// 1 if the domain contains an IBM body</span>
+<span class="p">}</span>
+
+<span class="n">Mesh1</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">name</span><span class="w">       </span><span class="n">inner1</span><span class="w"> </span><span class="c1">// string, name of the domain</span>
+<span class="w">    </span><span class="n">parentMesh</span><span class="w"> </span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="w">    </span><span class="c1">// integer, -1 if parent is the background domain</span>
+<span class="w">    </span><span class="n">childMesh</span><span class="w">  </span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="w">    </span><span class="c1">// list of child meshes, -1 if no child</span>
+<span class="w">    </span><span class="n">windPlant</span><span class="w">  </span><span class="mi">0</span><span class="w">      </span><span class="c1">// 1 if the domain contains wind turbines</span>
+<span class="w">    </span><span class="n">ibm</span><span class="w">        </span><span class="mi">0</span><span class="w">      </span><span class="c1">// 1 if the domain contains an IBM body</span>
+<span class="p">}</span>
+
+<span class="n">Mesh2</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">name</span><span class="w">       </span><span class="n">inner2</span><span class="w"> </span><span class="c1">// string, name of the domain</span>
+<span class="w">    </span><span class="n">parentMesh</span><span class="w"> </span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="w">    </span><span class="c1">// integer, -1 if parent is the background domain</span>
+<span class="w">    </span><span class="n">childMesh</span><span class="w">  </span><span class="p">(</span><span class="mi">-1</span><span class="p">)</span><span class="w">   </span><span class="c1">// list of child meshes, -1 if no child</span>
+<span class="w">    </span><span class="n">windPlant</span><span class="w">  </span><span class="mi">0</span><span class="w">      </span><span class="c1">// 1 if the domain contains wind turbines</span>
+<span class="w">    </span><span class="n">ibm</span><span class="w">        </span><span class="mi">1</span><span class="w">      </span><span class="c1">// 0 if the domain doesn&#39;t contain an IBM body</span>
+<span class="p">}</span>
+
+<span class="n">Mesh3</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">name</span><span class="w">       </span><span class="n">inner3</span><span class="w"> </span><span class="c1">// string, name of the domain</span>
+<span class="w">    </span><span class="n">parentMesh</span><span class="w"> </span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="w">    </span><span class="c1">// integer, -1 if parent is the background domain</span>
+<span class="w">    </span><span class="n">childMesh</span><span class="w">  </span><span class="p">(</span><span class="mi">-1</span><span class="p">)</span><span class="w">   </span><span class="c1">// list of child meshes, -1 if no child</span>
+<span class="w">    </span><span class="n">windPlant</span><span class="w">  </span><span class="mi">0</span><span class="w">      </span><span class="c1">// 1 if the domain contains wind turbines</span>
+<span class="w">    </span><span class="n">ibm</span><span class="w">        </span><span class="mi">0</span><span class="w">      </span><span class="c1">// 1 if the domain contains an IBM body</span>
+<span class="p">}</span>
+
+<span class="n">holeObject0</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">bodyNamr</span><span class="w">        </span><span class="n">outerHole1</span><span class="w">    </span><span class="c1">// string, name of the hole body</span>
+<span class="w">    </span><span class="n">ownerMesh</span><span class="w">       </span><span class="mi">0</span><span class="w">             </span><span class="c1">// integer, index of the parent domain</span>
+<span class="w">    </span><span class="n">donorMesh</span><span class="w">       </span><span class="mi">1</span><span class="w">             </span><span class="c1">// integer, index of the child domain</span>
+<span class="w">    </span><span class="n">bodyType</span><span class="w">        </span><span class="n">closedBody</span><span class="w">    </span><span class="c1">// string, see IBM</span>
+<span class="w">    </span><span class="n">fileType</span><span class="w">        </span><span class="n">ucd</span><span class="w">           </span><span class="c1">// string, see IBM</span>
+<span class="w">    </span><span class="n">baseLocation</span><span class="w">    </span><span class="p">(</span><span class="mf">0.0</span><span class="w"> </span><span class="mf">0.0</span><span class="w"> </span><span class="mf">0.0</span><span class="p">)</span><span class="w"> </span><span class="c1">// vector, see IBM</span>
+<span class="w">    </span><span class="n">searchCellRatio</span><span class="w"> </span><span class="mi">3</span><span class="w">             </span><span class="c1">// integer, see IBM</span>
+<span class="p">}</span>
+
+<span class="n">holeObject1</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">bodyNamr</span><span class="w">        </span><span class="n">outerHole2</span><span class="w">    </span><span class="c1">// string, name of the hole body</span>
+<span class="w">    </span><span class="n">ownerMesh</span><span class="w">       </span><span class="mi">0</span><span class="w">             </span><span class="c1">// integer, index of the parent domain</span>
+<span class="w">    </span><span class="n">donorMesh</span><span class="w">       </span><span class="mi">3</span><span class="w">             </span><span class="c1">// integer, index of the child domain</span>
+<span class="w">    </span><span class="n">bodyType</span><span class="w">        </span><span class="n">closedBody</span><span class="w">    </span><span class="c1">// string, see IBM</span>
+<span class="w">    </span><span class="n">fileType</span><span class="w">        </span><span class="n">ucd</span><span class="w">           </span><span class="c1">// string, see IBM</span>
+<span class="w">    </span><span class="n">baseLocation</span><span class="w">    </span><span class="p">(</span><span class="mf">0.0</span><span class="w"> </span><span class="mf">0.0</span><span class="w"> </span><span class="mf">0.0</span><span class="p">)</span><span class="w"> </span><span class="c1">// vector, see IBM</span>
+<span class="w">    </span><span class="n">searchCellRatio</span><span class="w"> </span><span class="mi">3</span><span class="w">             </span><span class="c1">// integer, see IBM</span>
+<span class="p">}</span>
+
+<span class="n">holeObject2</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">bodyNamr</span><span class="w">        </span><span class="n">outerHole3</span><span class="w">    </span><span class="c1">// string, name of the hole body</span>
+<span class="w">    </span><span class="n">ownerMesh</span><span class="w">       </span><span class="mi">1</span><span class="w">             </span><span class="c1">// integer, index of the parent domain</span>
+<span class="w">    </span><span class="n">donorMesh</span><span class="w">       </span><span class="mi">2</span><span class="w">             </span><span class="c1">// integer, index of the child domain</span>
+<span class="w">    </span><span class="n">bodyType</span><span class="w">        </span><span class="n">closedBody</span><span class="w">    </span><span class="c1">// string, see IBM</span>
+<span class="w">    </span><span class="n">fileType</span><span class="w">        </span><span class="n">ucd</span><span class="w">           </span><span class="c1">// string, see IBM</span>
+<span class="w">    </span><span class="n">baseLocation</span><span class="w">    </span><span class="p">(</span><span class="mf">0.0</span><span class="w"> </span><span class="mf">0.0</span><span class="w"> </span><span class="mf">0.0</span><span class="p">)</span><span class="w"> </span><span class="c1">// vector, see IBM</span>
+<span class="w">    </span><span class="n">searchCellRatio</span><span class="w"> </span><span class="mi">3</span><span class="w">             </span><span class="c1">// integer, see IBM</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Notably, the name of the mesh objects should be the name of the mesh files without the extension. For example, if the mesh file is
+<em>background.xyz</em>, the name of the mesh in the <em>oversetInput.dat</em> file should be <em>background</em>. The same applies to the hole bodies, as
+they will be looked for inside the <em>IBM</em> directory. Currently, wind turbines can be defined inside more than one overset domain, as
+TOSCA expects domain-specific directories <em>turbines/meshName</em> for each domain, where the file structure described in <a class="reference internal" href="input_files/turbines.html#turbines-section"><span class="std std-ref">turbines</span></a>
+should be followed. This is not true for the IBM, as TOSCA does not make this distinction. Hence, IBM can only be activated in one domain and
+the directory structure described in <a class="reference internal" href="input_files/ibm.html#ibm-section"><span class="std std-ref">IBM</span></a> should be followed (with the addition of the hole objects).</p>
+<p>Boundary conditions for the overset mesh are defined in the same way as for a normal simulation, except that the boundary condition files should
+be placed inside the <em>boundary/meshName</em> sub-directory, as they are domain-specific. For child domains, at the boundaries where one wants to
+interpolate from the parent domain, the boundary condition should be set to <em>oversetInterpolate</em>. Notably, not all boundaries always have to be
+interpolated from the parent domain. For example, if the bottom boundary of the child domain is a wall, the boundary condition should be set to
+<em>noSlip</em>, or a wall model should be used. Interpolation at the hole interface cells is done automatically by TOSCA, so no boundary condition
+is needed for those cells.</p>
+</section>
+<section id="hole-object-files">
+<h2><cite>Hole Object Files</cite><a class="headerlink" href="#hole-object-files" title="Link to this heading"></a></h2>
+<p>The hole object files should be provided in the same format as the IBM body files (see <a class="reference internal" href="input_files/ibm.html#ibm-section"><span class="std std-ref">IBM</span></a>). Being simple cuboids, these files are
+pretty easy to generate and an advanced mesher is not required. In fact, a simple python script could be used to generate a minimal hole object file
+having 2 triangles per face. The following shows an example of a hole object file that can be used for overset simulations in TOSCA. The user can
+adapt the coordinates of the 8 points in order to define its own hole for its specific case. Notably, it is important that the hole object has an inward offset
+of at least 3 parent domain cells (or more) from the child domain bounds, in order to allow for a centered interpolation stencil. This is not checked by TOSCA, and errors to comply
+with this requirement will lead to a crash during initialization.</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="cp"># UCD Geometry file crated by custom python script</span>
+<span class="cp">#</span>
+<span class="cp">#</span>
+<span class="mi">8</span><span class="w"> </span><span class="mi">12</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="mi">0</span>
+<span class="mi">1</span><span class="w"> </span><span class="mf">-6.83333e+02</span><span class="w"> </span><span class="mf">-4.33333e+02</span><span class="w"> </span><span class="mf">0.00000e+00</span>
+<span class="mi">2</span><span class="w">  </span><span class="mf">6.83333e+02</span><span class="w"> </span><span class="mf">-4.33333e+02</span><span class="w"> </span><span class="mf">0.00000e+00</span>
+<span class="mi">3</span><span class="w">  </span><span class="mf">6.83333e+02</span><span class="w">  </span><span class="mf">1.13333e+03</span><span class="w"> </span><span class="mf">0.00000e+00</span>
+<span class="mi">4</span><span class="w"> </span><span class="mf">-6.83333e+02</span><span class="w">  </span><span class="mf">1.13333e+03</span><span class="w"> </span><span class="mf">0.00000e+00</span>
+<span class="mi">5</span><span class="w"> </span><span class="mf">-6.83333e+02</span><span class="w"> </span><span class="mf">-4.33333e+02</span><span class="w"> </span><span class="mf">1.20000e+02</span>
+<span class="mi">6</span><span class="w">  </span><span class="mf">6.83333e+02</span><span class="w"> </span><span class="mf">-4.33333e+02</span><span class="w"> </span><span class="mf">1.20000e+02</span>
+<span class="mi">7</span><span class="w">  </span><span class="mf">6.83333e+02</span><span class="w">  </span><span class="mf">1.13333e+03</span><span class="w"> </span><span class="mf">1.20000e+02</span>
+<span class="mi">8</span><span class="w"> </span><span class="mf">-6.83333e+02</span><span class="w">  </span><span class="mf">1.13333e+03</span><span class="w"> </span><span class="mf">1.20000e+02</span>
+<span class="mi">1</span><span class="w">  </span><span class="mi">0</span><span class="w"> </span><span class="n">tri</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="mi">3</span>
+<span class="mi">2</span><span class="w">  </span><span class="mi">0</span><span class="w"> </span><span class="n">tri</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="mi">3</span><span class="w"> </span><span class="mi">4</span>
+<span class="mi">3</span><span class="w">  </span><span class="mi">0</span><span class="w"> </span><span class="n">tri</span><span class="w"> </span><span class="mi">5</span><span class="w"> </span><span class="mi">6</span><span class="w"> </span><span class="mi">7</span>
+<span class="mi">4</span><span class="w">  </span><span class="mi">0</span><span class="w"> </span><span class="n">tri</span><span class="w"> </span><span class="mi">5</span><span class="w"> </span><span class="mi">7</span><span class="w"> </span><span class="mi">8</span>
+<span class="mi">5</span><span class="w">  </span><span class="mi">0</span><span class="w"> </span><span class="n">tri</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="mi">6</span>
+<span class="mi">6</span><span class="w">  </span><span class="mi">0</span><span class="w"> </span><span class="n">tri</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="mi">6</span><span class="w"> </span><span class="mi">5</span>
+<span class="mi">7</span><span class="w">  </span><span class="mi">0</span><span class="w"> </span><span class="n">tri</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="mi">3</span><span class="w"> </span><span class="mi">7</span>
+<span class="mi">8</span><span class="w">  </span><span class="mi">0</span><span class="w"> </span><span class="n">tri</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="mi">7</span><span class="w"> </span><span class="mi">6</span>
+<span class="mi">9</span><span class="w">  </span><span class="mi">0</span><span class="w"> </span><span class="n">tri</span><span class="w"> </span><span class="mi">3</span><span class="w"> </span><span class="mi">4</span><span class="w"> </span><span class="mi">8</span>
+<span class="mi">10</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">tri</span><span class="w"> </span><span class="mi">3</span><span class="w"> </span><span class="mi">8</span><span class="w"> </span><span class="mi">7</span>
+<span class="mi">11</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">tri</span><span class="w"> </span><span class="mi">4</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="mi">5</span>
+<span class="mi">12</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">tri</span><span class="w"> </span><span class="mi">4</span><span class="w"> </span><span class="mi">5</span><span class="w"> </span><span class="mi">8</span>
+</pre></div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="spatial_mesh.html" class="btn btn-neutral float-left" title="Spatial Mesh" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="acquisition.html" class="btn btn-neutral float-right" title="Data Acquisition System" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Sebastiano Stipa, Arjun Ajay, Joshua Brinkerhoff.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

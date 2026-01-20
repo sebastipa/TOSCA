@@ -1,0 +1,39 @@
+.rst-content .math {
+    text-align: left;
+}
+.rst-content .eqno {
+    float: right;
+}
+
+/* Ensure custom styles override ReadTheDocs for good text wrapping in tables */
+
+.rst-content table {
+    width: 100%;
+    table-layout: fixed; /* Force consistent column widths */
+    border-collapse: collapse;
+}
+
+.rst-content th, .rst-content td {
+    white-space: normal !important; /* Ensure text wrapping */
+    overflow-wrap: break-word; /* Reliable text breaking */
+    word-wrap: break-word; /* Older browsers fallback */
+    word-break: break-word; /* Break long words */
+    padding: 5px; /* Optional for better readability */
+    text-align: left; /* Optional for aesthetics */
+}
+
+/* Handle inline code inside tables */
+.rst-content table code {
+    white-space: pre-wrap !important; /* Preserve formatting but allow wrapping */
+    word-break: break-word !important; /* Force wrapping of long inline code */
+    overflow-wrap: break-word !important; /* Ensure breaking of unbreakable strings */
+}
+
+/* Handle preformatted text */
+.rst-content pre {
+    white-space: pre-wrap !important; /* Allow preformatted text to wrap */
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
+}
+
+
