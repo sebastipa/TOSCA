@@ -2875,7 +2875,9 @@ PetscErrorCode writeFarmALMesh(farm_ *farm)
                 for(PetscInt b=0; b<3; b++)
                 {
                     Cmpnts bldTip_b  = nRot(farm->wt[t]->omega_hat, bldTip,  angle*farm->wt[t]->deg2rad);
+                                       mSum(bldTip_b, farm->base[t]);
                     Cmpnts bldRoot_b = nRot(farm->wt[t]->omega_hat, bldRoot, angle*farm->wt[t]->deg2rad);
+                                       mSum(bldRoot_b, farm->base[t]);
 
                     PetscFPrintf(mesh->MESH_COMM, f, "%*d %*.7f %*.7f %*.7f\n", width, point_id, width, bldTip_b.x, width, bldTip_b.y, width, bldTip_b.z);
                     point_id++;
