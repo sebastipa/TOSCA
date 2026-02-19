@@ -2780,8 +2780,7 @@ PetscErrorCode writeFarmTwrMesh(farm_ *farm)
         for(PetscInt t=0; t<farm->size; t++)
         {
             // set tower top point
-            Cmpnts towerPt  = nScale(farm->wt[t]->hTwr, farm->wt[t]->twrDir);
-                              mSum(towerPt, farm->base[t]);
+            Cmpnts towerPt  = farm->wt[t]->twrTop;
 
             // set tower base point
             Cmpnts basePt   = nSet(farm->base[t]);
