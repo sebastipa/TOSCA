@@ -419,7 +419,7 @@ PetscErrorCode getGlobParamsOpenFAST(windTurbine *wt, const word actuatorModel)
     // update twrTop  
     Cmpnts overH  = nScale(wt->ovrHang, wt->rtrDir);
     wt->twrTop    = nSub(wt->rotCenter, overH);
-    wt->twrDir    = nUnit(nSub(wt->rotCenter, wt->base));
+    wt->twrDir    = nUnit(nSub(wt->twrTop, wt->base)); 
 
     // get omega hat as vector product between old and new position of last blade force point (tip of blade 3)
     Cmpnts rOld  = nSub(wt->forcePtBladeOld, wt->rotCenter);

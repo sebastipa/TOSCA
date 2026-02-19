@@ -327,7 +327,7 @@ typedef struct
     word             **foilNames;   //!< (AD/AL) array of pointers of size(n-foils in turbine) to airfoil names
     foilInfo             **foils;   //!< (AD/AL) array of pointers of size(n-foils in turbine) to each airfoil's info
     bladeAeroInfo          blade;   //!< (AD/AL) blade properties
-    Cmpnts             omega_hat;   //!< (AD/AL) turbine angular velocity unit vector (directed as rtrAxis, pointed according to rotDir)
+    Cmpnts             omega_hat;   //!< (AD/AL) turbine angular velocity unit vector (pointed according right hand rule w.r.t rotDir)
     PetscReal           rtrOmega;   //!< (AD/AL) turbine angular velocity in rad/sec
 
     anemometer              WDAS;   //!< wind data acquisition system (nacelle mounted anemometer)
