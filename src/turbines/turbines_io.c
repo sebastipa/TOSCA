@@ -2863,21 +2863,33 @@ PetscErrorCode writeFarmALMesh(farm_ *farm)
 
             for(PetscInt t=0; t<farm->size; t++)
             {
+
+                windTurbine *wt = farm->wt[t];
+
                 // define tip/root blade points in reference (vertical) configuration
-                Cmpnts bldTip  = nScale(farm->wt[t]->rTip, farm->wt[t]->twrDir);
-                Cmpnts bldRoot = nScale(farm->wt[t]->rHub, farm->wt[t]->twrDir);
+                Cmpnts bldTip  = nScale(wt->rTip,   wt->twrDir);
+                Cmpnts bldRoot = nScale(wt->rHub,   wt->twrDir);
+                Cmpnts upTilt  = nCross(wt->rtrDir, wt->twrDir);
+
+                // rotate by uptilt 
+                mRot(upTilt, bldTip,  wt->upTilt*wt->deg2rad);
+                mRot(upTilt, bldRoot, wt->upTilt*wt->deg2rad);
+
+                // rotate by precone 
+                mRot(upTilt, bldTip,  wt->precone*wt->deg2rad);
+                mRot(upTilt, bldRoot, wt->precone*wt->deg2rad);
 
                 Cmpnts *points;
                 PetscMalloc(6*sizeof(Cmpnts), &points);
 
-                PetscReal angle = farm->wt[t]->alm.azimuth;
+                PetscReal angle = wt->alm.azimuth;
 
                 for(PetscInt b=0; b<3; b++)
                 {
-                    Cmpnts bldTip_b  = nRot(farm->wt[t]->omega_hat, bldTip,  angle*farm->wt[t]->deg2rad);
-                                       mSum(bldTip_b, farm->wt[t]->rotCenter);
-                    Cmpnts bldRoot_b = nRot(farm->wt[t]->omega_hat, bldRoot, angle*farm->wt[t]->deg2rad);
-                                       mSum(bldRoot_b, farm->wt[t]->rotCenter);
+                    Cmpnts bldTip_b  = nRot(wt->omega_hat, bldTip,  angle*wt->deg2rad);
+                                       mSum(bldTip_b, wt->rotCenter);
+                    Cmpnts bldRoot_b = nRot(wt->omega_hat, bldRoot, angle*wt->deg2rad);
+                                       mSum(bldRoot_b, wt->rotCenter);
 
                     PetscFPrintf(mesh->MESH_COMM, f, "%*d %*.7f %*.7f %*.7f\n", width, point_id, width, bldTip_b.x, width, bldTip_b.y, width, bldTip_b.z);
                     point_id++;
