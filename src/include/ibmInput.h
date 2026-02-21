@@ -20,6 +20,9 @@ PetscErrorCode readIBMBodyFileASCII(ibmObject *ibmBody);
 //! \brief read the ibm mesh in ucd format
 PetscErrorCode readIBMBodyFileUCD(ibmObject *ibmBody);
 
+//! \brief read the ibm mesh in stl format
+PetscErrorCode readIBMBodyFileSTL(ibmObject *ibmBody);
+
 //! \brief read the ibm mesh in ucd2 format (without 0 tri entries)
 PetscErrorCode readIBMBodyFileUCD2(ibmObject *ibmBody);
 
