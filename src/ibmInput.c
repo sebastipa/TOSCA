@@ -356,13 +356,16 @@ PetscErrorCode readIBMObjectMesh(ibm_ *ibm, PetscInt b)
         {
             readIBMBodyFileUCD2(ibmBody);
         }
+        else if(ibmBody->fileType == "stl")
+        {
+            readIBMBodyFileSTL(ibmBody);
+        }
         else
         {
             char error[530];
-            sprintf(error, "wrong ibm file type. Use ucd, ucd2, ascii, inp or grd\n");
+            sprintf(error, "wrong ibm file type. Use ucd, ucd2, ascii, inp, stl or grd\n");
             fatalErrorInFunction("readIBMObjectMesh",  error);
         }
-
     }
 
     // reset the co-ordinates if the angular position is read
@@ -2181,6 +2184,232 @@ PetscErrorCode writeSTLFile(ibm_ *ibm, PetscInt b)
             }
         }
     }
+
+    return 0;
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode readIBMBodyFileSTL(ibmObject *ibmBody)
+{
+
+    PetscPrintf(PETSC_COMM_WORLD, "     Reading IBM body: %s\n", ibmBody->bodyName.c_str());
+
+    char ibmFile[256];
+    sprintf(ibmFile, "./IBM/%s", ibmBody->bodyName.c_str());
+
+    FILE *fd;
+    PetscInt  readError; char* charError;
+
+    // pointer to the mesh object of the current body
+    ibmMesh *ibMesh = ibmBody->ibMsh;
+
+    // open the ibm object file in read mode
+    fd = fopen(ibmFile, "r");
+
+    if(fd == NULL)
+    {
+      char error[530];
+      sprintf(error, "cannot open file %s\n", ibmFile);
+      fatalErrorInFunction("readIBMBodyFileSTL",  error);
+    }
+
+    // local variables to read file variables
+    PetscInt         nodes = 0;                          // number of ib nodes
+    PetscInt         elem = 0;                           // number of elements
+    char             string[128];                    // temporary string variable
+
+    // First pass: count the number of elements
+    while (fscanf(fd, "%s", string) == 1)
+    {
+        if (strcmp(string, "facet") == 0)
+        {
+            elem++;
+        }
+        else if (strcmp(string, "endsolid") == 0)
+        {
+            break;
+        }
+    }
+
+    if (elem == 0)
+    {
+      char error[512];
+      sprintf(error, "no facets found in STL file %s\n", ibmFile);
+      fatalErrorInFunction("readIBMBodyFileSTL",  error);
+    }
+
+    // Rewind file for second pass
+    rewind(fd);
+
+    PetscReal epsilon = 1e-8;  // Tolerance for comparing floats
+
+    Cmpnts      *vertices = PETSC_NULL;
+    PetscInt    maxVert = 0;
+
+    PetscInt    *tempID1, *tempID2, *tempID3;
+    PetscMalloc(elem * sizeof(PetscInt), &tempID1);
+    PetscMalloc(elem * sizeof(PetscInt), &tempID2);
+    PetscMalloc(elem * sizeof(PetscInt), &tempID3);
+
+    PetscInt elemId = 0;
+
+    // Skip "solid" and name
+    readError = fscanf(fd, "%s", string);
+    if (readError != 1 || strcmp(string, "solid") != 0)
+    {
+      char error[512];
+      sprintf(error, "invalid STL format: missing 'solid' in %s\n", ibmFile);
+      fatalErrorInFunction("readIBMBodyFileSTL",  error);
+    }
+    readError = fscanf(fd, "%s", string);  // Read the solid name, ignore it
+
+    while (1)
+    {
+        readError = fscanf(fd, "%s", string);
+        if (readError != 1)
+        {
+          char error[512];
+          sprintf(error, "unexpected end of file in %s\n", ibmFile);
+          fatalErrorInFunction("readIBMBodyFileSTL",  error);
+        }
+
+        if (strcmp(string, "endsolid") == 0)
+        {
+            break;  // End of mesh
+        }
+
+        if (strcmp(string, "facet") != 0)
+        {
+          char error[512];
+          sprintf(error, "expected 'facet', got '%s' in %s\n", string, ibmFile);
+          fatalErrorInFunction("readIBMBodyFileSTL",  error);
+        }
+
+        // Read "normal" and ignore normals for this purpose
+        readError = fscanf(fd, "%s", string);  // "normal"
+        PetscReal nx, ny, nz;
+        readError = fscanf(fd, "%le %le %le", &nx, &ny, &nz);
+
+        // Read "outer loop"
+        readError = fscanf(fd, "%s", string);  // "outer"
+        readError = fscanf(fd, "%s", string);  // "loop"
+
+        // Read three vertices and find/create unique node indices
+        PetscInt ids[3];
+        for (PetscInt j = 0; j < 3; j++)
+        {
+            readError = fscanf(fd, "%s", string);  // "vertex"
+            PetscReal x, y, z;
+            readError = fscanf(fd, "%le %le %le", &x, &y, &z);
+            if (readError != 3)
+            {
+              char error[512];
+              sprintf(error, "error reading vertex in %s\n", ibmFile);
+              fatalErrorInFunction("readIBMBodyFileSTL",  error);
+            }
+
+            // Check if vertex already exists
+            PetscInt found = -1;
+            for (PetscInt i = 0; i < nodes; i++)
+            {
+                if (fabs(vertices[i].x - x) < epsilon &&
+                    fabs(vertices[i].y - y) < epsilon &&
+                    fabs(vertices[i].z - z) < epsilon)
+                {
+                    found = i;
+                    break;
+                }
+            }
+
+            if (found == -1)
+            {
+                // Add new vertex
+                if (nodes == maxVert)
+                {
+                    maxVert = maxVert ? maxVert * 2 : 1024;
+                    Cmpnts *newVert;
+                    PetscMalloc(maxVert * sizeof(Cmpnts), &newVert);
+                    if (nodes > 0)
+                    {
+                        memcpy(newVert, vertices, nodes * sizeof(Cmpnts));
+                        PetscFree(vertices);
+                    }
+                    vertices = newVert;
+                }
+                vertices[nodes].x = x;
+                vertices[nodes].y = y;
+                vertices[nodes].z = z;
+                found = nodes;
+                nodes++;
+            }
+
+            ids[j] = found;
+        }
+
+        // Read "endloop" and "endfacet"
+        readError = fscanf(fd, "%s", string);  // "endloop"
+        readError = fscanf(fd, "%s", string);  // "endfacet"
+
+        // Add element connectivity
+        tempID1[elemId] = ids[0];  // 0-based indexing
+        tempID2[elemId] = ids[1];
+        tempID3[elemId] = ids[2];
+        elemId++;
+    }
+
+    // Assign to ibMesh
+    ibMesh->nodes = nodes;
+    ibMesh->elems = elem;
+
+    if(nodes == 0)
+    {
+      char error[512];
+      sprintf(error, "nodes = 0. check the STL file %s\n", ibmFile);
+      fatalErrorInFunction("readIBMBodyFileSTL",  error);
+    }
+
+    // allocate memory for the x, y and z co-ordinates of the nodes
+    PetscMalloc(nodes * sizeof(Cmpnts), &(ibMesh->nCoor));
+
+    // allocate memory for the node velocity
+    PetscMalloc(nodes * sizeof(Cmpnts), &(ibMesh->nU));
+    PetscMalloc(nodes * sizeof(Cmpnts), &(ibMesh->nUPrev));
+
+    // copy the node co-ordinates from temporary array and initialize the node velocity to 0
+    for(PetscInt i = 0; i < nodes; i++)
+    {
+        ibMesh->nCoor[i].x = vertices[i].x;
+        ibMesh->nCoor[i].y = vertices[i].y;
+        ibMesh->nCoor[i].z = vertices[i].z;
+
+        // translate the body based on the based location
+        mSum(ibMesh->nCoor[i], ibmBody->baseLocation);
+
+        // initialize node velocity to 0
+        mSetValue(ibMesh->nU[i], 0.0);
+        mSetValue(ibMesh->nUPrev[i], 0.0);
+    }
+
+    // allocate memory for the pointer to nodes (n1, n2 and n3) of an element
+    PetscMalloc(elem * sizeof(PetscInt), &(ibMesh->nID1));
+    PetscMalloc(elem * sizeof(PetscInt), &(ibMesh->nID2));
+    PetscMalloc(elem * sizeof(PetscInt), &(ibMesh->nID3));
+
+    // copy the nodes that form the 3 vertices of an element
+    for(PetscInt i = 0; i < elem; i++)
+    {
+        ibMesh->nID1[i] = tempID1[i];
+        ibMesh->nID2[i] = tempID2[i];
+        ibMesh->nID3[i] = tempID3[i];
+    }
+
+    PetscFree(vertices);
+    PetscFree(tempID1);
+    PetscFree(tempID2);
+    PetscFree(tempID3);
+
+    if ( fd != NULL ) fclose(fd);
 
     return 0;
 }
