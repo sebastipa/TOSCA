@@ -20,7 +20,7 @@ at this point using trilinear or triangular interpolation from the surrounding c
 considering the velocity of the IBM body. For wall models, theoretical laws are used, while for slip and no-slip BCs a linear interpolation 
 is employed. Optionally, one can also use two fictitious ghost points, which lead to a quadratic interpolation instead.
 
-The body surface mesh is read from an UCD file, which is a standard format for surface meshes (this format can be generated e.g. by PointWise). 
+The body surface mesh is read from an STL (only for closed bodies) or an UCD file. The latter is a standard format for surface meshes and it can be generated e.g. using PointWise. 
 Notably, to read the UCD file in ParaView, the extension must be changed to *.inp*. Finally, in TOSCA only the name of the file should be specified,
 thereby dropping the extension. Below is an example of a UCD file for a cuboid, where each face is split in two triangles: 
 
@@ -159,10 +159,11 @@ Static IBM
    ------------------------------ ------------------- ----------------------------------------------------------------------------
    ``numSurfaces``                integer             Number of surfaces that make up the body. Only required for `surfaceBody`.  
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   ``fileType``                   string or           Can be *ucd*, *grd*, *ascii*, *inp* or *ucd2* for `closedBody`. Can be   
-                                  vector of string    *ucd*, *grd*, *inp* or *ucd2* for `surfaceBody`. For `closedBody`, this is 
-                                                      a single string, while for `surfaceBody` this is a vector of strings, .e.g 
-                                                      (*ucd* *grd* *inp*). The size of the vector must be equal to `numSurfaces`.
+   ``fileType``                   string or           Can be *ucd*, *stl*, *grd*, *ascii*, *inp* or *ucd2* for `closedBody`. Can    
+                                  vector of string    be *ucd*, *grd*, *inp* or *ucd2* for `surfaceBody`. For `closedBody`, this 
+                                                      is a single string, while for `surfaceBody` this is a vector of strings,  
+                                                      e.g (*ucd* *grd* *inp*). The size of the vector must be equal 
+                                                      to `numSurfaces`.
    ------------------------------ ------------------- ----------------------------------------------------------------------------
    ``surfaceNames``               vector of string    Names of the surface files that make up a body. This is a vecotor whose 
                                                       elements are the names of the files. The size of the vector must be equal to
