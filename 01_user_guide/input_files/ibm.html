@@ -114,7 +114,7 @@ ghost point on the surface normal (pointing outward) through the center of the f
 at this point using trilinear or triangular interpolation from the surrounding cells. This is then used to apply the boundary condition at the fluid cell, also
 considering the velocity of the IBM body. For wall models, theoretical laws are used, while for slip and no-slip BCs a linear interpolation
 is employed. Optionally, one can also use two fictitious ghost points, which lead to a quadratic interpolation instead.</p>
-<p>The body surface mesh is read from an UCD file, which is a standard format for surface meshes (this format can be generated e.g. by PointWise).
+<p>The body surface mesh is read from an STL (only for closed bodies) or an UCD file. The latter is a standard format for surface meshes and it can be generated e.g. using PointWise.
 Notably, to read the UCD file in ParaView, the extension must be changed to <em>.inp</em>. Finally, in TOSCA only the name of the file should be specified,
 thereby dropping the extension. Below is an example of a UCD file for a cuboid, where each face is split in two triangles:</p>
 <div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="cp"># UCD Geometry file crated by custom python script</span>
@@ -295,10 +295,11 @@ is one or more open surfaces, and additional entries are required.</p></td>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">fileType</span></code></p></td>
 <td><p>string or
 vector of string</p></td>
-<td><p>Can be <em>ucd</em>, <em>grd</em>, <em>ascii</em>, <em>inp</em> or <em>ucd2</em> for <cite>closedBody</cite>. Can be
-<em>ucd</em>, <em>grd</em>, <em>inp</em> or <em>ucd2</em> for <cite>surfaceBody</cite>. For <cite>closedBody</cite>, this is
-a single string, while for <cite>surfaceBody</cite> this is a vector of strings, .e.g
-(<em>ucd</em> <em>grd</em> <em>inp</em>). The size of the vector must be equal to <cite>numSurfaces</cite>.</p></td>
+<td><p>Can be <em>ucd</em>, <em>stl</em>, <em>grd</em>, <em>ascii</em>, <em>inp</em> or <em>ucd2</em> for <cite>closedBody</cite>. Can
+be <em>ucd</em>, <em>grd</em>, <em>inp</em> or <em>ucd2</em> for <cite>surfaceBody</cite>. For <cite>closedBody</cite>, this
+is a single string, while for <cite>surfaceBody</cite> this is a vector of strings,
+e.g (<em>ucd</em> <em>grd</em> <em>inp</em>). The size of the vector must be equal
+to <cite>numSurfaces</cite>.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">surfaceNames</span></code></p></td>
 <td><p>vector of string</p></td>
