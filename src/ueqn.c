@@ -5005,7 +5005,9 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
         nuDY = 1.0;
     }
 
-    // i direction
+    // FUSED LOOP: i/j/k direction faces computed in a single pass for improved cache reuse.
+    // Each cell's ucat, ucont, nvert etc. are loaded once and all 3 face contributions
+    // (div1/visc1, div2/visc2, div3/visc3) are computed before moving to the next cell.
     for (k=zs; k<ze; k++)
     {
         for (j=ys; j<ye; j++)
@@ -5013,578 +5015,561 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
             for (i=xs; i<xe; i++)
             {
                 if(i==mx-1 || j==my-1 || k==mz-1) continue;
-                if(j==0 || k==0) continue;
 
-                // get 1/V at the i-face
-                PetscReal ajc = iaj[k][j][i];
-
-                // get face normals
-                csi0 = icsi[k][j][i].x, csi1 = icsi[k][j][i].y, csi2 = icsi[k][j][i].z;
-                eta0 = ieta[k][j][i].x, eta1 = ieta[k][j][i].y, eta2 = ieta[k][j][i].z;
-                zet0 = izet[k][j][i].x, zet1 = izet[k][j][i].y, zet2 = izet[k][j][i].z;
-
-                // compute cartesian velocity derivatives w.r.t. curvilinear coords
-                Compute_du_i (mesh, i, j, k, mx, my, mz, ucat, nvert, meshTag, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
-
-                // compute metric tensor - WARNING: there is a factor of 1/J^2 if using face area vectors
-                //                                  must multiply for ajc in viscous term!!!
-                g11 = csi0 * csi0 + csi1 * csi1 + csi2 * csi2;
-                g21 = eta0 * csi0 + eta1 * csi1 + eta2 * csi2;
-                g31 = zet0 * csi0 + zet1 * csi1 + zet2 * csi2;
-
-                // compute cartesian velocity derivatives w.r.t. cartesian coords
-                r11 = dudc * csi0 + dude * eta0 + dudz * zet0;    //du_dx / J -> another factor of / J is added in the viscous term
-                r21 = dvdc * csi0 + dvde * eta0 + dvdz * zet0;    //dv_dx / J -> another factor of / J is added in the viscous term
-                r31 = dwdc * csi0 + dwde * eta0 + dwdz * zet0;    //dw_dx / J -> another factor of / J is added in the viscous term
-
-                r12 = dudc * csi1 + dude * eta1 + dudz * zet1;
-                r22 = dvdc * csi1 + dvde * eta1 + dvdz * zet1;
-                r32 = dwdc * csi1 + dwde * eta1 + dwdz * zet1;
-
-                r13 = dudc * csi2 + dude * eta2 + dudz * zet2;
-                r23 = dvdc * csi2 + dvde * eta2 + dvdz * zet2;
-                r33 = dwdc * csi2 + dwde * eta2 + dwdz * zet2;
-
-                PetscInt    iL, iR;
-                PetscReal denom;
-                getFace2Cell4StencilCsi(mesh, k, j, i, mx, &iL, &iR, &denom, nvert, meshTag);
-
-                // test: inviscid flow or weno3Div
-                if(ueqn->inviscid || ueqn->weno3Div)
+                // ── i-face (skip ghost layers j==0 or k==0) ──────────────────
+                if(j!=0 && k!=0)
                 {
-                    div1[k][j][i] = nScale
-                    (
-                        - ucont[k][j][i].x,
-                        weno3Vec
-                        (
-                            ucat[k][j][iL], ucat[k][j][i], ucat[k][j][i+1], ucat[k][j][iR],
-                            ucont[k][j][i].x
-                        )
-                    );
-                }
-                else
-                {
-                    // central scheme
-                    if(ueqn->centralDiv)
-                    {
-                        // ucat is interpolated at the face
-                        div1[k][j][i] = nScale
-                        (
-                            - ucont[k][j][i].x,
-                            centralVec
-                            (
-                                ucat[k][j][i], ucat[k][j][i+1]
-                            )
-                        );
-                    }
-                    else if(ueqn->central4Div)
-                    {
-                        
-                        div1[k][j][i] = nScale
-                        (
-                            - ucont[k][j][i].x,
-                            centralVec4thCsi(mesh, k, j, i, mx, nvert, meshTag, ucat, ucont[k][j][i].x, ueqn->hyperVisc)
-                        );
-                    }
-                    else if(ueqn->centralUpwindDiv)
-                    {
-                        div1[k][j][i] = nScale
-                        (
-                            - ucont[k][j][i].x,
-                            centralUpwindVec
-                            (
-                                ucat[k][j][iL], ucat[k][j][i], ucat[k][j][i+1], ucat[k][j][iR],
-                                ucont[k][j][i].x, limiter[k][j][i].x
-                            )
-                        );
-                    }
-                    else if(ueqn->centralUpwindWDiv)
-                    {
-                        // compute cell widths
-                        PetscReal d0 = 1.0 / (aj[k][j][iL ] * nMag(csi[k][j][iL ]));
-                        PetscReal d1 = 1.0 / (aj[k][j][i  ] * nMag(csi[k][j][i  ]));
-                        PetscReal d2 = 1.0 / (aj[k][j][i+1] * nMag(csi[k][j][i+1]));
-                        PetscReal d3 = 1.0 / (aj[k][j][iR ] * nMag(csi[k][j][iR ]));
+                    // get 1/V at the i-face
+                    PetscReal ajc = iaj[k][j][i];
 
-                        div1[k][j][i] = nScale
-                        (
-                            - ucont[k][j][i].x,
-                            wCentralUpwindVec
-                            (
-                                ucat[k][j][iL], ucat[k][j][i], ucat[k][j][i+1], ucat[k][j][iR],
-                                d0, d1, d2, d3,
-                                ucont[k][j][i].x, limiter[k][j][i].x
-                            )
-                        );
-                    }
-                    // quickDiv scheme (3rd order upwind)
-                    else if(ueqn->quickDiv)
+                    // get face normals
+                    csi0 = icsi[k][j][i].x, csi1 = icsi[k][j][i].y, csi2 = icsi[k][j][i].z;
+                    eta0 = ieta[k][j][i].x, eta1 = ieta[k][j][i].y, eta2 = ieta[k][j][i].z;
+                    zet0 = izet[k][j][i].x, zet1 = izet[k][j][i].y, zet2 = izet[k][j][i].z;
+
+                    // compute cartesian velocity derivatives w.r.t. curvilinear coords
+                    Compute_du_i (mesh, i, j, k, mx, my, mz, ucat, nvert, meshTag, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
+
+                    // compute metric tensor - WARNING: there is a factor of 1/J^2 if using face area vectors
+                    //                                  must multiply for ajc in viscous term!!!
+                    g11 = csi0 * csi0 + csi1 * csi1 + csi2 * csi2;
+                    g21 = eta0 * csi0 + eta1 * csi1 + eta2 * csi2;
+                    g31 = zet0 * csi0 + zet1 * csi1 + zet2 * csi2;
+
+                    // compute cartesian velocity derivatives w.r.t. cartesian coords
+                    r11 = dudc * csi0 + dude * eta0 + dudz * zet0;    //du_dx / J -> another factor of / J is added in the viscous term
+                    r21 = dvdc * csi0 + dvde * eta0 + dvdz * zet0;    //dv_dx / J -> another factor of / J is added in the viscous term
+                    r31 = dwdc * csi0 + dwde * eta0 + dwdz * zet0;    //dw_dx / J -> another factor of / J is added in the viscous term
+
+                    r12 = dudc * csi1 + dude * eta1 + dudz * zet1;
+                    r22 = dvdc * csi1 + dvde * eta1 + dvdz * zet1;
+                    r32 = dwdc * csi1 + dwde * eta1 + dwdz * zet1;
+
+                    r13 = dudc * csi2 + dude * eta2 + dudz * zet2;
+                    r23 = dvdc * csi2 + dvde * eta2 + dvdz * zet2;
+                    r33 = dwdc * csi2 + dwde * eta2 + dwdz * zet2;
+
+                    PetscInt    iL, iR;
+                    PetscReal denom;
+                    getFace2Cell4StencilCsi(mesh, k, j, i, mx, &iL, &iR, &denom, nvert, meshTag);
+
+                    // test: inviscid flow or weno3Div
+                    if(ueqn->inviscid || ueqn->weno3Div)
                     {
                         div1[k][j][i] = nScale
                         (
                             - ucont[k][j][i].x,
-                            quadraticUpwindVec
+                            weno3Vec
                             (
                                 ucat[k][j][iL], ucat[k][j][i], ucat[k][j][i+1], ucat[k][j][iR],
                                 ucont[k][j][i].x
                             )
                         );
                     }
-                }
-
-                PetscReal nuEff, nu = cst->nu, nut;
-
-                // viscous terms
-                if
-                (
-                    ueqn->access->flags->isLesActive
-                )
-                {
-
-                    nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k][j][i+1]);
-
-                    // wall model i-left patch
-                    if
-                    (
-                            (mesh->boundaryU.iLeft=="velocityWallFunction"  && i==0) ||
-                            (mesh->boundaryU.iRight=="velocityWallFunction" && i==mx-2)
-                    )
-                    {
-                        visc1[k][j][i].x = - ueqn->iLWM->tauWall.x[k-zs][j-ys];
-                        visc1[k][j][i].y = - ueqn->iLWM->tauWall.y[k-zs][j-ys];
-                        visc1[k][j][i].z = - ueqn->iLWM->tauWall.z[k-zs][j-ys];
-
-                        nuEff = nu;
-                    }
-                    // slip boundary condition on U (set nuEff to 0)
-                    else if
-                    (
-                        (mesh->boundaryU.iLeft =="slip" && i==0   ) ||
-                        (mesh->boundaryU.iRight=="slip" && i==mx-2)
-                    )
-                    {
-                        nuEff = 0.0;
-                    }
                     else
                     {
-                        nuEff = nu + nut;
+                        // central scheme
+                        if(ueqn->centralDiv)
+                        {
+                            // ucat is interpolated at the face
+                            div1[k][j][i] = nScale
+                            (
+                                - ucont[k][j][i].x,
+                                centralVec
+                                (
+                                    ucat[k][j][i], ucat[k][j][i+1]
+                                )
+                            );
+                        }
+                        else if(ueqn->central4Div)
+                        {
+                            
+                            div1[k][j][i] = nScale
+                            (
+                                - ucont[k][j][i].x,
+                                centralVec4thCsi(mesh, k, j, i, mx, nvert, meshTag, ucat, ucont[k][j][i].x, ueqn->hyperVisc)
+                            );
+                        }
+                        else if(ueqn->centralUpwindDiv)
+                        {
+                            div1[k][j][i] = nScale
+                            (
+                                - ucont[k][j][i].x,
+                                centralUpwindVec
+                                (
+                                    ucat[k][j][iL], ucat[k][j][i], ucat[k][j][i+1], ucat[k][j][iR],
+                                    ucont[k][j][i].x, limiter[k][j][i].x
+                                )
+                            );
+                        }
+                        else if(ueqn->centralUpwindWDiv)
+                        {
+                            // compute cell widths
+                            PetscReal d0 = 1.0 / (aj[k][j][iL ] * nMag(csi[k][j][iL ]));
+                            PetscReal d1 = 1.0 / (aj[k][j][i  ] * nMag(csi[k][j][i  ]));
+                            PetscReal d2 = 1.0 / (aj[k][j][i+1] * nMag(csi[k][j][i+1]));
+                            PetscReal d3 = 1.0 / (aj[k][j][iR ] * nMag(csi[k][j][iR ]));
+
+                            div1[k][j][i] = nScale
+                            (
+                                - ucont[k][j][i].x,
+                                wCentralUpwindVec
+                                (
+                                    ucat[k][j][iL], ucat[k][j][i], ucat[k][j][i+1], ucat[k][j][iR],
+                                    d0, d1, d2, d3,
+                                    ucont[k][j][i].x, limiter[k][j][i].x
+                                )
+                            );
+                        }
+                        // quickDiv scheme (3rd order upwind)
+                        else if(ueqn->quickDiv)
+                        {
+                            div1[k][j][i] = nScale
+                            (
+                                - ucont[k][j][i].x,
+                                quadraticUpwindVec
+                                (
+                                    ucat[k][j][iL], ucat[k][j][i], ucat[k][j][i+1], ucat[k][j][iR],
+                                    ucont[k][j][i].x
+                                )
+                            );
+                        }
                     }
 
-                    if(isIBMFluidIFace(k, j, i, i+1, nvert))
-                    {
-                        if(ueqn->access->ibm->wallShearOn)
-                        {
-                            if(isIBMFluidCell(k, j, i, nvert))
-                            {
-                                visc1[k][j][i] = nSet(viscIBM1[k][j][i]);
-                            }
-                            else if(isIBMFluidCell(k, j, i+1, nvert))
-                            {
-                                visc1[k][j][i] = nSet(viscIBM1[k][j][i+1]);
-                            }
+                    PetscReal nuEff, nu = cst->nu, nut;
 
-                            nuEff = 0;
+                    // viscous terms
+                    if
+                    (
+                        ueqn->access->flags->isLesActive
+                    )
+                    {
+
+                        nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k][j][i+1]);
+
+                        // wall model i-left patch
+                        if
+                        (
+                                (mesh->boundaryU.iLeft=="velocityWallFunction"  && i==0) ||
+                                (mesh->boundaryU.iRight=="velocityWallFunction" && i==mx-2)
+                        )
+                        {
+                            visc1[k][j][i].x = - ueqn->iLWM->tauWall.x[k-zs][j-ys];
+                            visc1[k][j][i].y = - ueqn->iLWM->tauWall.y[k-zs][j-ys];
+                            visc1[k][j][i].z = - ueqn->iLWM->tauWall.z[k-zs][j-ys];
+
+                            nuEff = nu;
+                        }
+                        // slip boundary condition on U (set nuEff to 0)
+                        else if
+                        (
+                            (mesh->boundaryU.iLeft =="slip" && i==0   ) ||
+                            (mesh->boundaryU.iRight=="slip" && i==mx-2)
+                        )
+                        {
+                            nuEff = 0.0;
                         }
                         else
                         {
                             nuEff = nu + nut;
                         }
 
+                        if(isIBMFluidIFace(k, j, i, i+1, nvert))
+                        {
+                            if(ueqn->access->ibm->wallShearOn)
+                            {
+                                if(isIBMFluidCell(k, j, i, nvert))
+                                {
+                                    visc1[k][j][i] = nSet(viscIBM1[k][j][i]);
+                                }
+                                else if(isIBMFluidCell(k, j, i+1, nvert))
+                                {
+                                    visc1[k][j][i] = nSet(viscIBM1[k][j][i+1]);
+                                }
+
+                                nuEff = 0;
+                            }
+                            else
+                            {
+                                nuEff = nu + nut;
+                            }
+
+                        }
                     }
+                    else
+                    {
+                        nuEff = nu;
+                    }
+
+                    // note: 1/J is the original term, here terms arrive already with a factor of 1/J^2 so actually we multiply for J (ajc)
+                    visc1[k][j][i].x += (g11 * dudc + g21 * dude + g31 * dudz + r11 * csi0 + r21 * csi1 + r31 * csi2) * ajc * (nuEff);
+                    visc1[k][j][i].y += (g11 * dvdc + g21 * dvde + g31 * dvdz + r12 * csi0 + r22 * csi1 + r32 * csi2) * ajc * (nuEff);
+                    visc1[k][j][i].z += (g11 * dwdc + g21 * dwde + g31 * dwdz + r13 * csi0 + r23 * csi1 + r33 * csi2) * ajc * (nuEff);
                 }
-                else
+
+                // ── j-face (skip ghost layers i==0 or k==0) ──────────────────
+                if(i!=0 && k!=0)
                 {
-                    nuEff = nu;
-                }
+                    // get 1/V at the j-face
+                    PetscReal ajc = jaj[k][j][i];
 
-                // note: 1/J is the original term, here terms arrive already with a factor of 1/J^2 so actually we multiply for J (ajc)
-                visc1[k][j][i].x += (g11 * dudc + g21 * dude + g31 * dudz + r11 * csi0 + r21 * csi1 + r31 * csi2) * ajc * (nuEff);
-                visc1[k][j][i].y += (g11 * dvdc + g21 * dvde + g31 * dvdz + r12 * csi0 + r22 * csi1 + r32 * csi2) * ajc * (nuEff);
-                visc1[k][j][i].z += (g11 * dwdc + g21 * dwde + g31 * dwdz + r13 * csi0 + r23 * csi1 + r33 * csi2) * ajc * (nuEff);
-            }
-        }
-    }
+                    // get face normals
+                    csi0 = jcsi[k][j][i].x, csi1 = jcsi[k][j][i].y, csi2 = jcsi[k][j][i].z;
+                    eta0 = jeta[k][j][i].x, eta1 = jeta[k][j][i].y, eta2 = jeta[k][j][i].z;
+                    zet0 = jzet[k][j][i].x, zet1 = jzet[k][j][i].y, zet2 = jzet[k][j][i].z;
 
-    // j direction
-    for (k=zs; k<ze; k++)
-    {
-        for (j=ys; j<ye; j++)
-        {
-            for (i=xs; i<xe; i++)
-            {
-                if(i==mx-1 || j==my-1 || k==mz-1) continue;
-                if(i==0 || k==0) continue;
+                    // compute cartesian velocity derivatives w.r.t. curvilinear coords
+                    Compute_du_j (mesh, i, j, k, mx, my, mz, ucat, nvert, meshTag, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
 
-                // get 1/V at the j-face
-                PetscReal ajc = jaj[k][j][i];
+                    // compute metric tensor
+                    g11 = csi0 * eta0 + csi1 * eta1 + csi2 * eta2;
+                    g21 = eta0 * eta0 + eta1 * eta1 + eta2 * eta2;
+                    g31 = zet0 * eta0 + zet1 * eta1 + zet2 * eta2;
 
-                // get face normals
-                csi0 = jcsi[k][j][i].x, csi1 = jcsi[k][j][i].y, csi2 = jcsi[k][j][i].z;
-                eta0 = jeta[k][j][i].x, eta1 = jeta[k][j][i].y, eta2 = jeta[k][j][i].z;
-                zet0 = jzet[k][j][i].x, zet1 = jzet[k][j][i].y, zet2 = jzet[k][j][i].z;
+                    // compute cartesian velocity derivatives w.r.t. cartesian coords
+                    r11 = dudc * csi0 + dude * eta0 + dudz * zet0;
+                    r21 = dvdc * csi0 + dvde * eta0 + dvdz * zet0;
+                    r31 = dwdc * csi0 + dwde * eta0 + dwdz * zet0;
 
-                // compute cartesian velocity derivatives w.r.t. curvilinear coords
-                Compute_du_j (mesh, i, j, k, mx, my, mz, ucat, nvert, meshTag, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
+                    r12 = dudc * csi1 + dude * eta1 + dudz * zet1;
+                    r22 = dvdc * csi1 + dvde * eta1 + dvdz * zet1;
+                    r32 = dwdc * csi1 + dwde * eta1 + dwdz * zet1;
 
-                // compute metric tensor
-                g11 = csi0 * eta0 + csi1 * eta1 + csi2 * eta2;
-                g21 = eta0 * eta0 + eta1 * eta1 + eta2 * eta2;
-                g31 = zet0 * eta0 + zet1 * eta1 + zet2 * eta2;
+                    r13 = dudc * csi2 + dude * eta2 + dudz * zet2;
+                    r23 = dvdc * csi2 + dvde * eta2 + dvdz * zet2;
+                    r33 = dwdc * csi2 + dwde * eta2 + dwdz * zet2;
 
-                // compute cartesian velocity derivatives w.r.t. cartesian coords
-                r11 = dudc * csi0 + dude * eta0 + dudz * zet0;
-                r21 = dvdc * csi0 + dvde * eta0 + dvdz * zet0;
-                r31 = dwdc * csi0 + dwde * eta0 + dwdz * zet0;
+                    PetscInt    jL, jR;
+                    PetscReal denom;
+                    getFace2Cell4StencilEta(mesh, k, j, i, my, &jL, &jR, &denom, nvert, meshTag);
 
-                r12 = dudc * csi1 + dude * eta1 + dudz * zet1;
-                r22 = dvdc * csi1 + dvde * eta1 + dvdz * zet1;
-                r32 = dwdc * csi1 + dwde * eta1 + dwdz * zet1;
-
-                r13 = dudc * csi2 + dude * eta2 + dudz * zet2;
-                r23 = dvdc * csi2 + dvde * eta2 + dvdz * zet2;
-                r33 = dwdc * csi2 + dwde * eta2 + dwdz * zet2;
-
-                PetscInt    jL, jR;
-                PetscReal denom;
-                getFace2Cell4StencilEta(mesh, k, j, i, my, &jL, &jR, &denom, nvert, meshTag);
-
-                // test: inviscid flow or weno3Div
-                if( ueqn->inviscid || ueqn->weno3Div)
-                {
-                    div2[k][j][i] = nScale
-                    (
-                        - ucont[k][j][i].y,
-                        weno3Vec
-                        (
-                            ucat[k][jL][i], ucat[k][j][i], ucat[k][j+1][i], ucat[k][jR][i],
-                            ucont[k][j][i].y
-                        )
-                    );
-                }
-                else
-                {
-                    // second order divergence scheme
-                    if(ueqn->centralDiv)
+                    // test: inviscid flow or weno3Div
+                    if( ueqn->inviscid || ueqn->weno3Div)
                     {
                         div2[k][j][i] = nScale
                         (
                             - ucont[k][j][i].y,
-                            centralVec
-                            (
-                                ucat[k][j][i], ucat[k][j+1][i]
-                            )
-                        );
-                    }
-                    else if(ueqn->central4Div)
-                    {
-                        
-                        div2[k][j][i] = nScale
-                        (
-                            - ucont[k][j][i].y,
-                            centralVec4thEta(mesh, k, j, i, my, nvert, meshTag, ucat, ucont[k][j][i].y, ueqn->hyperVisc)
-                        );
-                    }
-                    else if(ueqn->centralUpwindDiv)
-                    {
-                        div2[k][j][i] = nScale
-                        (
-                            - ucont[k][j][i].y,
-                            centralUpwindVec
-                            (
-                                ucat[k][jL][i], ucat[k][j][i], ucat[k][j+1][i], ucat[k][jR][i],
-                                ucont[k][j][i].y, limiter[k][j][i].y
-                            )
-                        );
-                    }
-                    else if(ueqn->centralUpwindWDiv)
-                    {
-                        // compute cell widths
-                        PetscReal d0 = 1.0 / (aj[k][jL ][i] * nMag(eta[k][jL ][i]));
-                        PetscReal d1 = 1.0 / (aj[k][j  ][i] * nMag(eta[k][j  ][i]));
-                        PetscReal d2 = 1.0 / (aj[k][j+1][i] * nMag(eta[k][j+1][i]));
-                        PetscReal d3 = 1.0 / (aj[k][jR ][i] * nMag(eta[k][jR ][i]));
-
-                        div2[k][j][i] = nScale
-                        (
-                            - ucont[k][j][i].y,
-                            wCentralUpwindVec
-                            (
-                                ucat[k][jL][i], ucat[k][j][i], ucat[k][j+1][i], ucat[k][jR][i],
-                                d0, d1, d2, d3,
-                                ucont[k][j][i].y, limiter[k][j][i].y
-                            )
-                        );
-                    }
-                    // quickDiv scheme (3rd order upwind)
-                    else if(ueqn->quickDiv)
-                    {
-                        div2[k][j][i] = nScale
-                        (
-                            - ucont[k][j][i].y,
-                            quadraticUpwindVec
+                            weno3Vec
                             (
                                 ucat[k][jL][i], ucat[k][j][i], ucat[k][j+1][i], ucat[k][jR][i],
                                 ucont[k][j][i].y
                             )
                         );
                     }
-                }
-
-                PetscReal nuEff, nu = cst->nu, nut;
-
-                if
-                (
-                    ueqn->access->flags->isLesActive
-                )
-                {
-
-                    nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k][j+1][i]);
-
-                    // wall model j-left patch
-                    if
-                    (
-                            (mesh->boundaryU.jLeft=="velocityWallFunction" && j==0) ||
-                            (mesh->boundaryU.jRight=="velocityWallFunction" && j==my-2)
-                    )
-                    {
-                        visc2[k][j][i].x = - ueqn->jLWM->tauWall.x[k-zs][i-xs];
-                        visc2[k][j][i].y = - ueqn->jLWM->tauWall.y[k-zs][i-xs];
-                        visc2[k][j][i].z = - ueqn->jLWM->tauWall.z[k-zs][i-xs];
-
-                        nuEff = nu;
-                    }
-                    // slip boundary condition on U (set nuEff to 0)
-                    else if
-                    (
-                        (mesh->boundaryU.jLeft =="slip" && j==0   ) ||
-                        (mesh->boundaryU.jRight=="slip" && j==my-2)
-                    )
-                    {
-                        nuEff = 0.0;
-                    }
                     else
                     {
-                        nuEff = nu + nut;
+                        // second order divergence scheme
+                        if(ueqn->centralDiv)
+                        {
+                            div2[k][j][i] = nScale
+                            (
+                                - ucont[k][j][i].y,
+                                centralVec
+                                (
+                                    ucat[k][j][i], ucat[k][j+1][i]
+                                )
+                            );
+                        }
+                        else if(ueqn->central4Div)
+                        {
+                            
+                            div2[k][j][i] = nScale
+                            (
+                                - ucont[k][j][i].y,
+                                centralVec4thEta(mesh, k, j, i, my, nvert, meshTag, ucat, ucont[k][j][i].y, ueqn->hyperVisc)
+                            );
+                        }
+                        else if(ueqn->centralUpwindDiv)
+                        {
+                            div2[k][j][i] = nScale
+                            (
+                                - ucont[k][j][i].y,
+                                centralUpwindVec
+                                (
+                                    ucat[k][jL][i], ucat[k][j][i], ucat[k][j+1][i], ucat[k][jR][i],
+                                    ucont[k][j][i].y, limiter[k][j][i].y
+                                )
+                            );
+                        }
+                        else if(ueqn->centralUpwindWDiv)
+                        {
+                            // compute cell widths
+                            PetscReal d0 = 1.0 / (aj[k][jL ][i] * nMag(eta[k][jL ][i]));
+                            PetscReal d1 = 1.0 / (aj[k][j  ][i] * nMag(eta[k][j  ][i]));
+                            PetscReal d2 = 1.0 / (aj[k][j+1][i] * nMag(eta[k][j+1][i]));
+                            PetscReal d3 = 1.0 / (aj[k][jR ][i] * nMag(eta[k][jR ][i]));
+
+                            div2[k][j][i] = nScale
+                            (
+                                - ucont[k][j][i].y,
+                                wCentralUpwindVec
+                                (
+                                    ucat[k][jL][i], ucat[k][j][i], ucat[k][j+1][i], ucat[k][jR][i],
+                                    d0, d1, d2, d3,
+                                    ucont[k][j][i].y, limiter[k][j][i].y
+                                )
+                            );
+                        }
+                        // quickDiv scheme (3rd order upwind)
+                        else if(ueqn->quickDiv)
+                        {
+                            div2[k][j][i] = nScale
+                            (
+                                - ucont[k][j][i].y,
+                                quadraticUpwindVec
+                                (
+                                    ucat[k][jL][i], ucat[k][j][i], ucat[k][j+1][i], ucat[k][jR][i],
+                                    ucont[k][j][i].y
+                                )
+                            );
+                        }
                     }
 
-                    if(isIBMFluidJFace(k, j, i, j+1, nvert))
-                    {
-                        if(ueqn->access->ibm->wallShearOn)
-                        {
+                    PetscReal nuEff, nu = cst->nu, nut;
 
-                            if(isIBMFluidCell(k, j, i, nvert))
-                            {
-                                visc2[k][j][i] = nSet(viscIBM2[k][j][i]);
-                            }
-                            else if(isIBMFluidCell(k, j+1, i, nvert))
-                            {
-                                visc2[k][j][i] = nSet(viscIBM2[k][j+1][i]);
-                            }
-                           
-                            nuEff = 0;
+                    if
+                    (
+                        ueqn->access->flags->isLesActive
+                    )
+                    {
+
+                        nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k][j+1][i]);
+
+                        // wall model j-left patch
+                        if
+                        (
+                                (mesh->boundaryU.jLeft=="velocityWallFunction" && j==0) ||
+                                (mesh->boundaryU.jRight=="velocityWallFunction" && j==my-2)
+                        )
+                        {
+                            visc2[k][j][i].x = - ueqn->jLWM->tauWall.x[k-zs][i-xs];
+                            visc2[k][j][i].y = - ueqn->jLWM->tauWall.y[k-zs][i-xs];
+                            visc2[k][j][i].z = - ueqn->jLWM->tauWall.z[k-zs][i-xs];
+
+                            nuEff = nu;
+                        }
+                        // slip boundary condition on U (set nuEff to 0)
+                        else if
+                        (
+                            (mesh->boundaryU.jLeft =="slip" && j==0   ) ||
+                            (mesh->boundaryU.jRight=="slip" && j==my-2)
+                        )
+                        {
+                            nuEff = 0.0;
                         }
                         else
                         {
                             nuEff = nu + nut;
                         }
 
+                        if(isIBMFluidJFace(k, j, i, j+1, nvert))
+                        {
+                            if(ueqn->access->ibm->wallShearOn)
+                            {
+
+                                if(isIBMFluidCell(k, j, i, nvert))
+                                {
+                                    visc2[k][j][i] = nSet(viscIBM2[k][j][i]);
+                                }
+                                else if(isIBMFluidCell(k, j+1, i, nvert))
+                                {
+                                    visc2[k][j][i] = nSet(viscIBM2[k][j+1][i]);
+                                }
+                               
+                                nuEff = 0;
+                            }
+                            else
+                            {
+                                nuEff = nu + nut;
+                            }
+
+                        }
                     }
+                    else
+                    {
+                        nuEff = nu;
+                    }
+
+                    // note: 1/J is the original term, here terms arrive already with a factor of 1/J^2 so actually we multiply for J (ajc)
+                    visc2[k][j][i].x += (g11 * dudc + g21 * dude + g31 * dudz + r11 * eta0 + r21 * eta1 + r31 * eta2) * ajc * (nuEff);
+                    visc2[k][j][i].y += (g11 * dvdc + g21 * dvde + g31 * dvdz + r12 * eta0 + r22 * eta1 + r32 * eta2) * ajc * (nuEff);
+                    visc2[k][j][i].z += (g11 * dwdc + g21 * dwde + g31 * dwdz + r13 * eta0 + r23 * eta1 + r33 * eta2) * ajc * (nuEff);
                 }
-                else
+
+                // ── k-face (skip ghost layers i==0 or j==0) ──────────────────
+                if(i!=0 && j!=0)
                 {
-                    nuEff = nu;
-                }
+                    // get 1/V at the k-face
+                    PetscReal ajc = kaj[k][j][i];
 
-                // note: 1/J is the original term, here terms arrive already with a factor of 1/J^2 so actually we multiply for J (ajc)
-                visc2[k][j][i].x += (g11 * dudc + g21 * dude + g31 * dudz + r11 * eta0 + r21 * eta1 + r31 * eta2) * ajc * (nuEff);
-                visc2[k][j][i].y += (g11 * dvdc + g21 * dvde + g31 * dvdz + r12 * eta0 + r22 * eta1 + r32 * eta2) * ajc * (nuEff);
-                visc2[k][j][i].z += (g11 * dwdc + g21 * dwde + g31 * dwdz + r13 * eta0 + r23 * eta1 + r33 * eta2) * ajc * (nuEff);
+                    // get face normals
+                    csi0 = kcsi[k][j][i].x, csi1 = kcsi[k][j][i].y, csi2 = kcsi[k][j][i].z;
+                    eta0 = keta[k][j][i].x, eta1 = keta[k][j][i].y, eta2 = keta[k][j][i].z;
+                    zet0 = kzet[k][j][i].x, zet1 = kzet[k][j][i].y, zet2 = kzet[k][j][i].z;
 
-            }
-        }
-    }
+                    // compute cartesian velocity derivatives w.r.t. curvilinear coords
+                    Compute_du_k (mesh, i, j, k, mx, my, mz, ucat, nvert, meshTag, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
 
-    // k direction faces are from 0 to mz-2
-    for (k=zs; k<ze; k++)
-    {
-        for (j=ys; j<ye; j++)
-        {
-            for (i=xs; i<xe; i++)
-            {
-                if(i==mx-1 || j==my-1 || k==mz-1) continue;
-                if(i==0 || j==0) continue;
+                    // compute metric tensor
+                    g11 = csi0 * zet0 + csi1 * zet1 + csi2 * zet2;
+                    g21 = eta0 * zet0 + eta1 * zet1 + eta2 * zet2;
+                    g31 = zet0 * zet0 + zet1 * zet1 + zet2 * zet2;
 
-                // get 1/V at the j-face
-                PetscReal ajc = kaj[k][j][i];
+                    // compute cartesian velocity derivatives w.r.t. cartesian coords
+                    r11 = dudc * csi0 + dude * eta0 + dudz * zet0;
+                    r21 = dvdc * csi0 + dvde * eta0 + dvdz * zet0;
+                    r31 = dwdc * csi0 + dwde * eta0 + dwdz * zet0;
 
-                // get face normals
-                csi0 = kcsi[k][j][i].x, csi1 = kcsi[k][j][i].y, csi2 = kcsi[k][j][i].z;
-                eta0 = keta[k][j][i].x, eta1 = keta[k][j][i].y, eta2 = keta[k][j][i].z;
-                zet0 = kzet[k][j][i].x, zet1 = kzet[k][j][i].y, zet2 = kzet[k][j][i].z;
+                    r12 = dudc * csi1 + dude * eta1 + dudz * zet1;
+                    r22 = dvdc * csi1 + dvde * eta1 + dvdz * zet1;
+                    r32 = dwdc * csi1 + dwde * eta1 + dwdz * zet1;
 
-                // compute cartesian velocity derivatives w.r.t. curvilinear coords
-                Compute_du_k (mesh, i, j, k, mx, my, mz, ucat, nvert, meshTag, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
+                    r13 = dudc * csi2 + dude * eta2 + dudz * zet2;
+                    r23 = dvdc * csi2 + dvde * eta2 + dvdz * zet2;
+                    r33 = dwdc * csi2 + dwde * eta2 + dwdz * zet2;
 
-                // compute metric tensor
-                g11 = csi0 * zet0 + csi1 * zet1 + csi2 * zet2;
-                g21 = eta0 * zet0 + eta1 * zet1 + eta2 * zet2;
-                g31 = zet0 * zet0 + zet1 * zet1 + zet2 * zet2;
+                    PetscInt    kL, kR;
+                    PetscReal denom;
+                    getFace2Cell4StencilZet(mesh, k, j, i, mz, &kL, &kR, &denom, nvert, meshTag);
 
-                // compute cartesian velocity derivatives w.r.t. cartesian coords
-                r11 = dudc * csi0 + dude * eta0 + dudz * zet0;
-                r21 = dvdc * csi0 + dvde * eta0 + dvdz * zet0;
-                r31 = dwdc * csi0 + dwde * eta0 + dwdz * zet0;
-
-                r12 = dudc * csi1 + dude * eta1 + dudz * zet1;
-                r22 = dvdc * csi1 + dvde * eta1 + dvdz * zet1;
-                r32 = dwdc * csi1 + dwde * eta1 + dwdz * zet1;
-
-                r13 = dudc * csi2 + dude * eta2 + dudz * zet2;
-                r23 = dvdc * csi2 + dvde * eta2 + dvdz * zet2;
-                r33 = dwdc * csi2 + dwde * eta2 + dwdz * zet2;
-
-                PetscInt    kL, kR;
-                PetscReal denom;
-                getFace2Cell4StencilZet(mesh, k, j, i, mz, &kL, &kR, &denom, nvert, meshTag);
-
-                // inviscid flow or weno3Div
-                if(ueqn->inviscid || ueqn->weno3Div)
-                {
-                    div3[k][j][i] = nScale
-                    (
-                        - ucont[k][j][i].z,
-                        weno3Vec
-                        (
-                            ucat[kL][j][i], ucat[k][j][i], ucat[k+1][j][i], ucat[kR][j][i],
-                            ucont[k][j][i].z
-                        )
-                    );
-                }
-                else
-                {
-                    // second order divergence scheme
-                    if(ueqn->centralDiv)
-                    {
-                        // ucat is interpolated at the face
-                        div3[k][j][i] = nScale
-                        (
-                            - ucont[k][j][i].z,
-                            centralVec
-                            (
-                                ucat[k][j][i], ucat[k+1][j][i]
-                            )
-                        );
-                    }
-                    else if(ueqn->central4Div)
-                    {
-                        
-                        div3[k][j][i] = nScale
-                        (
-                            - ucont[k][j][i].z,
-                            centralVec4thZet(mesh, k, j, i, mz, nvert, meshTag, ucat, ucont[k][j][i].z, ueqn->hyperVisc)
-                        );
-                    }
-                    else if(ueqn->centralUpwindDiv)
+                    // inviscid flow or weno3Div
+                    if(ueqn->inviscid || ueqn->weno3Div)
                     {
                         div3[k][j][i] = nScale
                         (
                             - ucont[k][j][i].z,
-                            centralUpwindVec
-                            (
-                                ucat[kL][j][i], ucat[k][j][i], ucat[k+1][j][i], ucat[kR][j][i],
-                                ucont[k][j][i].z, limiter[k][j][i].z
-                            )
-                        );
-                    }
-                    else if(ueqn->centralUpwindWDiv)
-                    {
-                        // compute cell widths
-                        PetscReal d0 = 1.0 / (aj[kL ][j][i] * nMag(zet[kL ][j][i]));
-                        PetscReal d1 = 1.0 / (aj[k  ][j][i] * nMag(zet[k  ][j][i]));
-                        PetscReal d2 = 1.0 / (aj[k+1][j][i] * nMag(zet[k+1][j][i]));
-                        PetscReal d3 = 1.0 / (aj[kR ][j][i] * nMag(zet[kR ][j][i]));
-
-                        div3[k][j][i] = nScale
-                        (
-                            - ucont[k][j][i].z,
-                            wCentralUpwindVec
-                            (
-                                ucat[kL][j][i], ucat[k][j][i], ucat[k+1][j][i], ucat[kR][j][i],
-                                d0, d1, d2, d3,
-                                ucont[k][j][i].z, limiter[k][j][i].z
-                            )
-                        );
-                    }
-                    // quickDiv scheme (3rd order upwind)
-                    else if(ueqn->quickDiv)
-                    {
-                        div3[k][j][i] = nScale
-                        (
-                            - ucont[k][j][i].z,
-                            quadraticUpwindVec
+                            weno3Vec
                             (
                                 ucat[kL][j][i], ucat[k][j][i], ucat[k+1][j][i], ucat[kR][j][i],
                                 ucont[k][j][i].z
                             )
                         );
                     }
-                }
-
-                PetscReal nuEff, nu = cst->nu, nut;
-
-                if
-                (
-                    ueqn->access->flags->isLesActive
-                )
-                {
-                    nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k+1][j][i]);
-
-                    // slip boundary condition on U (set nuEff to 0)
-                    if
-                    (
-                        (mesh->boundaryU.kLeft =="slip" && k==0   ) ||
-                        (mesh->boundaryU.kRight=="slip" && k==mz-2)
-                    )
-                    {
-                        nuEff = 0.0;
-                    }
                     else
                     {
-                        nuEff = nu + nut;
+                        // second order divergence scheme
+                        if(ueqn->centralDiv)
+                        {
+                            // ucat is interpolated at the face
+                            div3[k][j][i] = nScale
+                            (
+                                - ucont[k][j][i].z,
+                                centralVec
+                                (
+                                    ucat[k][j][i], ucat[k+1][j][i]
+                                )
+                            );
+                        }
+                        else if(ueqn->central4Div)
+                        {
+                            
+                            div3[k][j][i] = nScale
+                            (
+                                - ucont[k][j][i].z,
+                                centralVec4thZet(mesh, k, j, i, mz, nvert, meshTag, ucat, ucont[k][j][i].z, ueqn->hyperVisc)
+                            );
+                        }
+                        else if(ueqn->centralUpwindDiv)
+                        {
+                            div3[k][j][i] = nScale
+                            (
+                                - ucont[k][j][i].z,
+                                centralUpwindVec
+                                (
+                                    ucat[kL][j][i], ucat[k][j][i], ucat[k+1][j][i], ucat[kR][j][i],
+                                    ucont[k][j][i].z, limiter[k][j][i].z
+                                )
+                            );
+                        }
+                        else if(ueqn->centralUpwindWDiv)
+                        {
+                            // compute cell widths
+                            PetscReal d0 = 1.0 / (aj[kL ][j][i] * nMag(zet[kL ][j][i]));
+                            PetscReal d1 = 1.0 / (aj[k  ][j][i] * nMag(zet[k  ][j][i]));
+                            PetscReal d2 = 1.0 / (aj[k+1][j][i] * nMag(zet[k+1][j][i]));
+                            PetscReal d3 = 1.0 / (aj[kR ][j][i] * nMag(zet[kR ][j][i]));
+
+                            div3[k][j][i] = nScale
+                            (
+                                - ucont[k][j][i].z,
+                                wCentralUpwindVec
+                                (
+                                    ucat[kL][j][i], ucat[k][j][i], ucat[k+1][j][i], ucat[kR][j][i],
+                                    d0, d1, d2, d3,
+                                    ucont[k][j][i].z, limiter[k][j][i].z
+                                )
+                            );
+                        }
+                        // quickDiv scheme (3rd order upwind)
+                        else if(ueqn->quickDiv)
+                        {
+                            div3[k][j][i] = nScale
+                            (
+                                - ucont[k][j][i].z,
+                                quadraticUpwindVec
+                                (
+                                    ucat[kL][j][i], ucat[k][j][i], ucat[k+1][j][i], ucat[kR][j][i],
+                                    ucont[k][j][i].z
+                                )
+                            );
+                        }
                     }
 
-                    if(isIBMFluidKFace(k, j, i, k+1, nvert))
-                    {
-                        if(ueqn->access->ibm->wallShearOn)
-                        {
-                            if(isIBMFluidCell(k, j, i, nvert))
-                            {
-                                visc3[k][j][i] = nSet(viscIBM3[k][j][i]);
-                            }
-                            else if(isIBMFluidCell(k+1, j, i, nvert))
-                            {
-                                visc3[k][j][i] = nSet(viscIBM3[k+1][j][i]);
-                            }
+                    PetscReal nuEff, nu = cst->nu, nut;
 
-                            nuEff = 0;
+                    if
+                    (
+                        ueqn->access->flags->isLesActive
+                    )
+                    {
+                        nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k+1][j][i]);
+
+                        // slip boundary condition on U (set nuEff to 0)
+                        if
+                        (
+                            (mesh->boundaryU.kLeft =="slip" && k==0   ) ||
+                            (mesh->boundaryU.kRight=="slip" && k==mz-2)
+                        )
+                        {
+                            nuEff = 0.0;
                         }
                         else
                         {
                             nuEff = nu + nut;
                         }
 
+                        if(isIBMFluidKFace(k, j, i, k+1, nvert))
+                        {
+                            if(ueqn->access->ibm->wallShearOn)
+                            {
+                                if(isIBMFluidCell(k, j, i, nvert))
+                                {
+                                    visc3[k][j][i] = nSet(viscIBM3[k][j][i]);
+                                }
+                                else if(isIBMFluidCell(k+1, j, i, nvert))
+                                {
+                                    visc3[k][j][i] = nSet(viscIBM3[k+1][j][i]);
+                                }
+
+                                nuEff = 0;
+                            }
+                            else
+                            {
+                                nuEff = nu + nut;
+                            }
+
+                        }
                     }
-                }
-                else
-                {
-                    nuEff = nu;
-                }
+                    else
+                    {
+                        nuEff = nu;
+                    }
 
-                // note: 1/J is the original term, here terms arrive already with a factor of 1/J^2 so actually we multiply for J (ajc)
-                visc3[k][j][i].x += (g11 * dudc + g21 * dude + g31 * dudz + r11 * zet0 + r21 * zet1 + r31 * zet2) * ajc * (nuEff);
-                visc3[k][j][i].y += (g11 * dvdc + g21 * dvde + g31 * dvdz + r12 * zet0 + r22 * zet1 + r32 * zet2) * ajc * (nuEff);
-                visc3[k][j][i].z += (g11 * dwdc + g21 * dwde + g31 * dwdz + r13 * zet0 + r23 * zet1 + r33 * zet2) * ajc * (nuEff);
-
+                    // note: 1/J is the original term, here terms arrive already with a factor of 1/J^2 so actually we multiply for J (ajc)
+                    visc3[k][j][i].x += (g11 * dudc + g21 * dude + g31 * dudz + r11 * zet0 + r21 * zet1 + r31 * zet2) * ajc * (nuEff);
+                    visc3[k][j][i].y += (g11 * dvdc + g21 * dvde + g31 * dvdz + r12 * zet0 + r22 * zet1 + r32 * zet2) * ajc * (nuEff);
+                    visc3[k][j][i].z += (g11 * dwdc + g21 * dwde + g31 * dwdz + r13 * zet0 + r23 * zet1 + r33 * zet2) * ajc * (nuEff);
+                }
             }
         }
     }
@@ -5594,13 +5579,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     DMDAVecRestoreArray(fda, ueqn->lDiv2, &div2);
     DMDAVecRestoreArray(fda, ueqn->lDiv3, &div3);
 
-    DMLocalToLocalBegin(fda, ueqn->lDiv1, INSERT_VALUES, ueqn->lDiv1);
-    DMLocalToLocalEnd  (fda, ueqn->lDiv1, INSERT_VALUES, ueqn->lDiv1);
-    DMLocalToLocalBegin(fda, ueqn->lDiv2, INSERT_VALUES, ueqn->lDiv2);
-    DMLocalToLocalEnd  (fda, ueqn->lDiv2, INSERT_VALUES, ueqn->lDiv2);
-    DMLocalToLocalBegin(fda, ueqn->lDiv3, INSERT_VALUES, ueqn->lDiv3);
-    DMLocalToLocalEnd  (fda, ueqn->lDiv3, INSERT_VALUES, ueqn->lDiv3);
-
+    // restore all arrays before posting scatters so all 6 can be pipelined
     DMDAVecRestoreArray(fda, ueqn->lVisc1, &visc1);
     DMDAVecRestoreArray(fda, ueqn->lVisc2, &visc2);
     DMDAVecRestoreArray(fda, ueqn->lVisc3, &visc3);
@@ -5612,11 +5591,20 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
         DMDAVecRestoreArray(fda, ueqn->lViscIBM3, &viscIBM3);
     }
 
+    // pipeline all 6 scatters: post every Begin before waiting on any End
+    // so that MPI can overlap all communications simultaneously
+    DMLocalToLocalBegin(fda, ueqn->lDiv1,  INSERT_VALUES, ueqn->lDiv1);
+    DMLocalToLocalBegin(fda, ueqn->lDiv2,  INSERT_VALUES, ueqn->lDiv2);
+    DMLocalToLocalBegin(fda, ueqn->lDiv3,  INSERT_VALUES, ueqn->lDiv3);
     DMLocalToLocalBegin(fda, ueqn->lVisc1, INSERT_VALUES, ueqn->lVisc1);
-    DMLocalToLocalEnd  (fda, ueqn->lVisc1, INSERT_VALUES, ueqn->lVisc1);
     DMLocalToLocalBegin(fda, ueqn->lVisc2, INSERT_VALUES, ueqn->lVisc2);
-    DMLocalToLocalEnd  (fda, ueqn->lVisc2, INSERT_VALUES, ueqn->lVisc2);
     DMLocalToLocalBegin(fda, ueqn->lVisc3, INSERT_VALUES, ueqn->lVisc3);
+
+    DMLocalToLocalEnd  (fda, ueqn->lDiv1,  INSERT_VALUES, ueqn->lDiv1);
+    DMLocalToLocalEnd  (fda, ueqn->lDiv2,  INSERT_VALUES, ueqn->lDiv2);
+    DMLocalToLocalEnd  (fda, ueqn->lDiv3,  INSERT_VALUES, ueqn->lDiv3);
+    DMLocalToLocalEnd  (fda, ueqn->lVisc1, INSERT_VALUES, ueqn->lVisc1);
+    DMLocalToLocalEnd  (fda, ueqn->lVisc2, INSERT_VALUES, ueqn->lVisc2);
     DMLocalToLocalEnd  (fda, ueqn->lVisc3, INSERT_VALUES, ueqn->lVisc3);
 
     if(ueqn->access->flags->isLesActive && (les->model == BAMD || les->model == BV))
