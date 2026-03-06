@@ -189,7 +189,7 @@ int main(int argc, char **argv)
             ContinuityErrorsOptimized(domain[d].peqn);
 
             // save momentum right hand side
-            if(domain[d].ueqn->ddtScheme=="backwardEuler")
+            if(domain[d].ueqn->ddtScheme=="crankNicholson")
             {
                 VecSet(domain[d].ueqn->Rhs_o, 0.0);
 

@@ -126,7 +126,7 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
 		VecDuplicate(mesh->Cent, &(ueqn->dPAGW));        VecSet(ueqn->dPAGW,      0.0);
 	}
 
-    if(ueqn->ddtScheme == "backwardEuler")
+    if(ueqn->ddtScheme == "crankNicholson")
     {
         ueqn->snesType     = "NEWTONTR";     // NEWTONLS
         SNESType snesType  = SNESNEWTONTR;   // SNESNEWTONLS
@@ -330,7 +330,7 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
     else
     {
         char error[512];
-        sprintf(error, "unknown ddtScheme %s for U equation, available schemes are\n    1. backwardEuler\n    2. forwardEuler\n    3. rungeKutta4\n    4. IMEX", ueqn->ddtScheme.c_str());
+        sprintf(error, "unknown ddtScheme %s for U equation, available schemes are\n    1. crankNicholson\n    2. forwardEuler\n    3. rungeKutta4\n    4. IMEX", ueqn->ddtScheme.c_str());
         fatalErrorInFunction("InitializeUEqn", error);
     }
 
@@ -1065,7 +1065,7 @@ PetscErrorCode SolveUEqn(ueqn_ *ueqn)
     // set the right hand side to zero
     VecSet (ueqn->Rhs, 0.0);
 
-    if(ueqn->ddtScheme == "backwardEuler")
+    if(ueqn->ddtScheme == "crankNicholson")
     {
         PetscReal     norm;
         PetscInt      iter;
