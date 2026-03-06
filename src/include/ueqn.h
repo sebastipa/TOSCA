@@ -39,7 +39,7 @@ struct ueqn_
     Vec           bU;                               //!< precomputed constant-RHS contributions (backwardEuler/IMEX): built once per time step in SolveUEqn
     Vec           RhsConv;                          //!< convective-only RHS at current step n  (IMEX-CNAB: Adams-Bashforth 2)
     Vec           RhsConv_o;                        //!< convective-only RHS at previous step n-1 (IMEX-CNAB: Adams-Bashforth 2)
-    PetscReal     imexConvBlend;                    //!< IMEX convection blend: 1=AB2 (2nd order, CFL<~0.5), 0=Fwd-Euler (1st order, CFL<1) (-imexConvBlendU)
+    word          teqnPredictorScheme;               //!< T predictor before SolveUEqn for improved buoyancy coupling: "forwardEuler" or "none" (default, -teqnPredictorU)
     Vec           lUstar;
     Cmpnts        meanGradP;
     Cmpnts        uBulk;
@@ -88,15 +88,6 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn);
 //! \brief Updates flux limiter
 PetscErrorCode UpdateFluxLimiter(ueqn_ *ueqn);
 
-//! \brief Update driving source terms
-PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print);
-
-//! \brief Correct damping source terms
-PetscErrorCode correctDampingSources(ueqn_ *ueqn);
-
-//! \brief finish the mapping of the ydamping source
-PetscErrorCode mapYDamping(ueqn_ *ueqn);
-
 //! \brief Transform velocity from contravariant to cartesian
 PetscErrorCode contravariantToCartesian(ueqn_ *ueqn);
 
@@ -106,52 +97,5 @@ PetscErrorCode contravariantToCartesianGeneric(mesh_ *mesh, Vec &lCont, Vec &lCa
 //! \brief Adjust fluxes to obey mass conservation (on a per-cell basis)
 PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn);
 
-//! \brief Compute driving source term
-PetscErrorCode sourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale);
-
-//! \brief Compute damping source terms (x and z)
-PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale);
-
-//! \brief Compute Coriolis source term
-PetscErrorCode Coriolis(ueqn_ *ueqn, Vec &Rhs, PetscReal scale);
-
-//! \brief Compute Side Force source term
-PetscErrorCode CanopyForce(ueqn_ *ueqn, Vec &Rhs, PetscReal scale);
-
-//! \brief Compute buoyancy term
-PetscErrorCode Buoyancy(ueqn_ *ueqn, PetscReal scale);
-
-//! \brief Compute mean pressure gradient force
-PetscErrorCode meanGradPForcing(ueqn_ *ueqn, Vec &Rhs, PetscReal scale);
-
-//! Viscous and divergence terms
-PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscBool fuseAuxTerms, PetscInt formMode = 0);
-
-//! \brief Explicit biharmonic (4th-order, index-space) hyperviscosity for IMEX.
-//! Adds -ε₄/dt · δ⁴(lUcont) to Rhs, so after VecScale(Rhs,dt) the per-step
-//! correction is -ε₄ · δ⁴(lUcont).  Only active when hyperVisc4 > 0.
-PetscErrorCode hyperViscosityU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale);
-
 //! \brief Solve the momentum equation
 PetscErrorCode SolveUEqn(ueqn_ *ueqn);
-
-//! \brief SNES evaluation function
-PetscErrorCode UeqnSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr);
-
-//! \brief SNES evaluation function for IMEX-CNAB (linear F: only implicit viscous depends on U^{n+1})
-PetscErrorCode UeqnIMEXSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr);
-
-//! \brief MatShell MatMult for IMEX operator A*v = v - dt*scale*Visc(v)
-PetscErrorCode IMEXMatVec(Mat A, Vec v, Vec Av);
-
-//! \brief Solves ueqn for one time step using IMEX-CNAB (AB2 convection + CN viscosity)
-PetscErrorCode UeqnIMEX(ueqn_ *ueqn);
-
-//! \brief Solves ueqn using 4 stages runge kutta
-PetscErrorCode UeqnRK4(ueqn_ *ueqn);
-
-//! \brief Solves ueqn using explicit euler
-PetscErrorCode UeqnEuler(ueqn_ *ueqn);
-
-//! \brief Computed RHS of momentum equation using current lUcont (updates Rhs), data put in ueqn->Rhs
-PetscErrorCode FormExplicitRhsU(ueqn_ *ueqn);

@@ -20,6 +20,10 @@
 #include "precursor.h"
 #include "turbines.h"
 #include "abl.h"
+#include "../sources/ueqn_sources.h"
+#include "../sources/teqn_sources.h"
+#include "../solvers/ueqn_solvers.h"
+#include "../solvers/teqn_solvers.h"
 
 //! \brief Domain data structure definition
 struct domain_

@@ -6,6 +6,9 @@
 #include "include/io.h"
 #include "include/inline.h"
 #include "include/inflow.h"
+#include "sources/ueqn_sources.h"
+#include "sources/teqn_sources.h"
+#include "solvers/ueqn_solvers.h"
 #include "include/initialization.h"
 #include "include/initialField.h"
 

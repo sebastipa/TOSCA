@@ -5,6 +5,7 @@
 #include "include/domain.h"
 #include "include/io.h"
 #include "include/inline.h"
+#include "sources/ueqn_sources.h"
 
 //***************************************************************************************************************//
 

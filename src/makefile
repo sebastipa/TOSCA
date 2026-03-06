@@ -100,19 +100,31 @@ TURBINES_DIR := turbines
 TURBINES_SRCS := $(wildcard $(SRC_DIR)/$(TURBINES_DIR)/*.c)
 TURBINES_OBJS := $(patsubst $(SRC_DIR)/$(TURBINES_DIR)/%.c, $(OBJ_DIR)/$(TURBINES_DIR)/%.o, $(TURBINES_SRCS))
 
+# Solvers module
+SOLVERS_DIR := solvers
+SOLVERS_SRCS := $(wildcard $(SRC_DIR)/$(SOLVERS_DIR)/*.c)
+SOLVERS_OBJS := $(patsubst $(SRC_DIR)/$(SOLVERS_DIR)/%.c, $(OBJ_DIR)/$(SOLVERS_DIR)/%.o, $(SOLVERS_SRCS))
+
+# Sources module
+SOURCES_DIR := sources
+SOURCES_SRCS := $(wildcard $(SRC_DIR)/$(SOURCES_DIR)/*.c)
+SOURCES_OBJS := $(patsubst $(SRC_DIR)/$(SOURCES_DIR)/%.c, $(OBJ_DIR)/$(SOURCES_DIR)/%.o, $(SOURCES_SRCS))
+
 
 # Object files
 OBJS_TOSCA = $(OBJ_DIR)/main.o $(OBJ_DIR)/initialization.o $(OBJ_DIR)/io.o $(OBJ_DIR)/overset.o \
              $(OBJ_DIR)/wallfunctions.o $(OBJ_DIR)/boundary.o $(OBJ_DIR)/mesh.o $(OBJ_DIR)/inflow.o \
              $(OBJ_DIR)/abl.o $(OBJ_DIR)/ueqn.o $(OBJ_DIR)/peqn.o $(OBJ_DIR)/les.o $(OBJ_DIR)/teqn.o \
              $(OBJ_DIR)/turbines.o $(OBJ_DIR)/initialField.o $(OBJ_DIR)/acquisition.o $(OBJ_DIR)/ibm.o \
-             $(OBJ_DIR)/clock.o $(OBJ_DIR)/precursor.o $(OBJ_DIR)/ibmInput.o $(OBJ_DIR)/lesScalar.o $(TURBINES_OBJS)
+             $(OBJ_DIR)/clock.o $(OBJ_DIR)/precursor.o $(OBJ_DIR)/ibmInput.o $(OBJ_DIR)/lesScalar.o \
+             $(TURBINES_OBJS) $(SOLVERS_OBJS) $(SOURCES_OBJS)
 
 OBJS_PP    = $(OBJ_DIR)/tosca2PV.o $(OBJ_DIR)/initialization.o $(OBJ_DIR)/io.o $(OBJ_DIR)/wallfunctions.o \
              $(OBJ_DIR)/overset.o $(OBJ_DIR)/boundary.o $(OBJ_DIR)/mesh.o $(OBJ_DIR)/inflow.o \
              $(OBJ_DIR)/abl.o $(OBJ_DIR)/ueqn.o $(OBJ_DIR)/peqn.o $(OBJ_DIR)/les.o $(OBJ_DIR)/teqn.o \
              $(OBJ_DIR)/turbines.o $(OBJ_DIR)/initialField.o $(OBJ_DIR)/acquisition.o $(OBJ_DIR)/ibm.o \
-             $(OBJ_DIR)/clock.o $(OBJ_DIR)/precursor.o $(OBJ_DIR)/ibmInput.o $(OBJ_DIR)/lesScalar.o $(TURBINES_OBJS)
+             $(OBJ_DIR)/clock.o $(OBJ_DIR)/precursor.o $(OBJ_DIR)/ibmInput.o $(OBJ_DIR)/lesScalar.o \
+             $(TURBINES_OBJS) $(SOLVERS_OBJS) $(SOURCES_OBJS)
 
 # Targets
 all: $(BUILD_DIR) tosca tosca2PV
