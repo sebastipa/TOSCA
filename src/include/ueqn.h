@@ -7,12 +7,16 @@
 //! \brief structure storing momentum equation
 struct ueqn_
 {
-    // Implicit time stepping
+    // implicit time stepping
     SNES          snesU;                      //!< non linear matrix free context for momentum equation
     Mat           JU;                         //!< non linear matrix free preconditioner
     Mat           A, C;
     KSP           ksp;                        //!< linear krylov-subspace context
     PC            pc;
+    word          snesType;                   //!< SNES solver type (kept for logging)
+    PetscInt      snesMaxIter;                //!< max SNES outer iterations (-snesMaxItersU in control.dat)
+    word          kspType;                    //!< KSP solver type: BiCGStab or GMRES (-kspTypeU in control.dat)
+    PetscInt      gmresRestart;               //!< GMRES restart parameter (-kspGMRESRestartU in control.dat, default 30)
 
     // momentum variables
     Vec           Utmp;                             //!< temporary solution passed to the SNES evaluation function or used for RK4
@@ -30,6 +34,10 @@ struct ueqn_
     Vec           Ucont, lUcont;                    //!< contravariant fluxes (contravariant velocity / J)
     Vec           Ucat, lUcat;                      //!< cartesian velocity
     Vec           Ucont_o;                          //!< contravariant fluxes at the previous time step
+    Vec           bU;                               //!< precomputed constant-RHS contributions (backwardEuler/IMEX): built once per time step in SolveUEqn
+    Vec           RhsConv;                          //!< convective-only RHS at current step n  (IMEX-CNAB: Adams-Bashforth 2)
+    Vec           RhsConv_o;                        //!< convective-only RHS at previous step n-1 (IMEX-CNAB: Adams-Bashforth 2)
+    PetscReal     imexConvBlend;                    //!< IMEX convection blend: 1=AB2 (2nd order, CFL<~0.5), 0=Fwd-Euler (1st order, CFL<1) (-imexConvBlendU)
     Vec           lUstar;
     Cmpnts        meanGradP;
     Cmpnts        uBulk;
@@ -54,6 +62,7 @@ struct ueqn_
     PetscInt      weno3Div;                   //!< 3rd order WENO scheme
 
     PetscReal     hyperVisc;                  //!< hyperviscocity parameter to add artificial diffusion - (b = 0 is blend between 3rd order upwind and 4th order, b = 1 is central 4th order, b = 0.8 is hybrid 3-4 scheme)
+    PetscReal     hyperVisc4;                 //!< IMEX explicit biharmonic (4th-order index-space) hyperviscosity coefficient: per-step damping ε₄, contribution to ΔU = -ε₄·δ⁴(lUcont). Targets Nyquist (checkerboard) modes only (-imexHyperVisc4U, default 0)
                                               
     // wall model patch
     wallModel     *iLWM;                      //!< wall model on the i-left patch
@@ -114,13 +123,24 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, PetscReal scale);
 PetscErrorCode meanGradPForcing(ueqn_ *ueqn, Vec &Rhs, PetscReal scale);
 
 //! Viscous and divergence terms
-PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale);
+PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscBool fuseAuxTerms, PetscInt formMode = 0);
+
+//! \brief Explicit biharmonic (4th-order, index-space) hyperviscosity for IMEX.
+//! Adds -ε₄/dt · δ⁴(lUcont) to Rhs, so after VecScale(Rhs,dt) the per-step
+//! correction is -ε₄ · δ⁴(lUcont).  Only active when hyperVisc4 > 0.
+PetscErrorCode hyperViscosityU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale);
 
 //! \brief Solve the momentum equation
 PetscErrorCode SolveUEqn(ueqn_ *ueqn);
 
 //! \brief SNES evaluation function
 PetscErrorCode UeqnSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr);
+
+//! \brief SNES evaluation function for IMEX-CNAB (linear F: only implicit viscous depends on U^{n+1})
+PetscErrorCode UeqnIMEXSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr);
+
+//! \brief Solves ueqn for one time step using IMEX-CNAB (AB2 convection + CN viscosity)
+PetscErrorCode UeqnIMEX(ueqn_ *ueqn);
 
 //! \brief Solves ueqn using 4 stages runge kutta
 PetscErrorCode UeqnRK4(ueqn_ *ueqn);

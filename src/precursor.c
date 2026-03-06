@@ -943,7 +943,7 @@ PetscErrorCode concurrentPrecursorSolve(abl_ *abl)
             Buoyancy(domain->ueqn, 1.0);
         }
 
-        if(domain->ueqn->centralUpwindDiv || domain->flags.isTeqnActive)
+        if(domain->ueqn->centralUpwindDiv || domain->ueqn->centralUpwindWDiv || domain->flags.isTeqnActive)
         {
             UpdateFluxLimiter(domain->ueqn);
         }
@@ -1070,7 +1070,7 @@ PetscErrorCode concurrentPrecursorSolve(abl_ *abl)
 
                 UpdateImmersedBCs(domain->ibm);
             }
-            FormU (domain->ueqn, domain->ueqn->Rhs_o, 1.0);
+            FormU (domain->ueqn, domain->ueqn->Rhs_o, 1.0, PETSC_FALSE);
         }
 
         if(domain->flags.isTeqnActive)
