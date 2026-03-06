@@ -12,7 +12,7 @@
 PetscErrorCode SNESMonitorU(SNES snes, PetscInt iter, PetscReal rnorm, void* comm)
 {
     MPI_Comm SNES_COMM = *(MPI_Comm*)comm;
-    if(iter==1)
+    if(iter==0)
     {
         PetscPrintf(SNES_COMM,"%e, ", rnorm);
     }
@@ -68,9 +68,10 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
         fatalErrorInFunction("InitializeUEqn", error);
     }
 
-    PetscPrintf(PETSC_COMM_WORLD, "DivScheme: %s for U equation\n", ueqn->divScheme.c_str());
+    PetscPrintf(mesh->MESH_COMM, "selected %s divergence scheme for U equation\n", ueqn->divScheme.c_str());
 
-    if(ueqn->divScheme == "central4")
+    // read hyperviscosity parameter for central4Div 
+    if(ueqn->central4Div)
     {
         ueqn->hyperVisc = 1.0;
         PetscOptionsGetReal(PETSC_NULL, PETSC_NULL,  "-hyperVisc", &(ueqn->hyperVisc),   PETSC_NULL);
@@ -124,11 +125,30 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
 
     if(ueqn->ddtScheme == "backwardEuler")
     {
-        ueqn->relExitTol = 1e-30;
-        ueqn->absExitTol = 1e-5;
+        ueqn->snesType     = "SNESNEWTONTR";
+        ueqn->relExitTol   = 1e-30;
+        ueqn->absExitTol   = 1e-5;
+        ueqn->snesMaxIter  = 20;
+        ueqn->gmresRestart = 30;
 
-        PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-relTolU",  &(ueqn->relExitTol), PETSC_NULL);
-        PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-absTolU",  &(ueqn->absExitTol), PETSC_NULL);
+        PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-relTolU",          &(ueqn->relExitTol),   PETSC_NULL);
+        PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-absTolU",          &(ueqn->absExitTol),   PETSC_NULL);
+        PetscOptionsGetInt (PETSC_NULL, PETSC_NULL, "-snesMaxItersU",    &(ueqn->snesMaxIter),  PETSC_NULL);
+        PetscOptionsGetInt (PETSC_NULL, PETSC_NULL, "-kspGMRESRestartU", &(ueqn->gmresRestart), PETSC_NULL);
+
+        // KSP type: BiCGStab or GMRES — set via -kspTypeU in control.dat
+        readDictWord("control.dat", "-kspTypeU", &(ueqn->kspType));
+
+        if(ueqn->kspType != "BiCGStab" && ueqn->kspType != "GMRES")
+        {
+            char error[512];
+            sprintf(error,
+                "unknown kspTypeU %s for U equation, available types are\n"
+                "    1. BiCGStab\n"
+                "    2. GMRES",
+                ueqn->kspType.c_str());
+            fatalErrorInFunction("InitializeUEqn", error);
+        }
 
         // create the SNES solver
         SNESCreate(mesh->MESH_COMM, &(ueqn->snesU));
@@ -137,13 +157,13 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
         // set the SNES evaluating function
         SNESSetFunction(ueqn->snesU, ueqn->Rhs, UeqnSNES, (void *)ueqn);
 
+        // Newton trust-region
+        SNESSetType(ueqn->snesU, ueqn->snesType.c_str());
+
         // create matrix-free Jacobian
         MatCreateSNESMF(ueqn->snesU, &(ueqn->JU));
+        MatMFFDSetType(ueqn->JU, MATMFFD_WP);
         SNESSetJacobian(ueqn->snesU, ueqn->JU, ueqn->JU, MatMFFDComputeJacobian, (void *)ueqn);
-
-        // set SNES solver type
-        SNESSetType(ueqn->snesU, SNESNEWTONTR);          //SNESTR
-        // SNESSetType(ueqn->snesU, SNESNEWTONLS);        //SNESLS is better for stiff PDEs such as the one including IB but slower
 
         // set SNES solve and step failures
         SNESSetMaxLinearSolveFailures(ueqn->snesU,10000);
@@ -153,43 +173,185 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
         SNESKSPSetUseEW(ueqn->snesU, PETSC_TRUE);
         SNESKSPSetParametersEW(ueqn->snesU, 3, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT);
 
-        // SNES tolerances
-        // 2nd arg: absolute tolerance
-        // 3rd arg: relative tolerance
-        // 4th arg: convergene tolerance in terms of the norm of the change in the solution |deltaU| / |U| < tol
-        // 5th arg: maximum number of iterations
-        // 6th arg: maximum function evaluations
-        SNESSetTolerances(ueqn->snesU, ueqn->absExitTol, ueqn->relExitTol, 1e-30, 20, 1000);
+        // SNES tolerances (snesMaxIter configurable via -snesMaxItersU in control.dat)
+        SNESSetTolerances(ueqn->snesU, ueqn->absExitTol, ueqn->relExitTol, 1e-30, ueqn->snesMaxIter, 1000);
 
         // get KSP and PC
         SNESGetKSP(ueqn->snesU, &(ueqn->ksp));
         KSPGetPC(ueqn->ksp, &(ueqn->pc));
 
-        // set KSP type 
-        KSPSetType(ueqn->ksp, KSPGMRES);
+        // KSP solver
+        if(ueqn->kspType == "BiCGStab")
+        {
+            KSPSetType(ueqn->ksp, KSPBCGS);
+        }
+        else 
+        {
+            KSPSetType(ueqn->ksp, KSPGMRES);
+            KSPGMRESSetRestart(ueqn->ksp, ueqn->gmresRestart);
+        }
 
         PCSetType(ueqn->pc, PCNONE);
         PetscReal rtol = ueqn->relExitTol, atol = ueqn->absExitTol, dtol = 1e30;
         KSPSetTolerances(ueqn->ksp, rtol, atol, dtol, 1000);
 
-        // add nonlinear preconditioning for stiffness 
-        SNES npc;
-        SNESGetNPC(ueqn->snesU, &npc);
-        SNESSetType(npc, SNESNEWTONLS);  
+        // allocate the constant-RHS precomputation buffer
+        VecDuplicate(ueqn->Ucont, &(ueqn->bU));
+        VecSet(ueqn->bU, 0.0);
 
-        // set modern line search (cubic backtracking for robustness)
-        SNESLineSearch linesearch;
-        SNESGetLineSearch(ueqn->snesU, &linesearch);
-        SNESLineSearchSetType(linesearch, SNESLINESEARCHBT);
+        // print information
+        PetscPrintf(mesh->MESH_COMM, "selected %s time scheme for U equation\n", ueqn->ddtScheme.c_str());
+        PetscPrintf(mesh->MESH_COMM, " > SNES type: %s\n", ueqn->snesType.c_str());
+        PetscPrintf(mesh->MESH_COMM, " > relTolU = %e\n", ueqn->relExitTol);
+        PetscPrintf(mesh->MESH_COMM, " > absTolU = %e\n", ueqn->absExitTol);
+        PetscPrintf(mesh->MESH_COMM, " > snesMaxIterU = %d\n", ueqn->snesMaxIter);
+        PetscPrintf(mesh->MESH_COMM, " > kspTypeU = %s\n", ueqn->kspType.c_str());
+        if(ueqn->kspType == "GMRES")
+        {
+            PetscPrintf(mesh->MESH_COMM, " > kspGMRESRestartU = %d\n", ueqn->gmresRestart);
+        }
+
+    }
+    else if(ueqn->ddtScheme == "IMEX")
+    {
+        // IMEX-CNAB: Adams-Bashforth 2 for convection (explicit) +
+        //            Crank-Nicolson for viscosity (implicit).
+        
+        // The residual F(U^{n+1}) is LINEAR in U^{n+1} (only the implicit
+        // viscous term Visc(U^{n+1}) depends on the current iterate), so the
+        // SNES converges in EXACTLY one Newton step. 
+        // This will correspond to 2 outer SNES iterations (initial guess + 1 Newton step) 
+        
+        ueqn->snesType     = "IMEX-CNAB";
+        ueqn->snesMaxIter  = 5;
+        ueqn->gmresRestart = 30;
+
+        PetscOptionsGetInt (PETSC_NULL, PETSC_NULL, "-snesMaxItersU",    &(ueqn->snesMaxIter),  PETSC_NULL);
+        PetscOptionsGetInt (PETSC_NULL, PETSC_NULL, "-kspGMRESRestartU", &(ueqn->gmresRestart), PETSC_NULL);
+
+        // KSP type: BiCGStab (default) or GMRES — set via -kspTypeU in control.dat
+        readDictWord("control.dat", "-kspTypeU", &(ueqn->kspType));
+
+        if(ueqn->kspType != "BiCGStab" && ueqn->kspType != "GMRES")
+        {
+            char error[512];
+            sprintf(error,
+                "unknown kspTypeU %s for U equation (IMEX), available types are\n"
+                "    1. BiCGStab\n"
+                "    2. GMRES",
+                ueqn->kspType.c_str());
+            fatalErrorInFunction("InitializeUEqn", error);
+        }
+
+        // create the SNES solver (uses UeqnIMEXSNES residual, not UeqnSNES)
+        SNESCreate(mesh->MESH_COMM, &(ueqn->snesU));
+        SNESMonitorSet(ueqn->snesU, SNESMonitorU, (void*)&(mesh->MESH_COMM), PETSC_NULL);
+
+        // set the IMEX-specific residual: only implicit viscous term depends on U^{n+1}
+        SNESSetFunction(ueqn->snesU, ueqn->Rhs, UeqnIMEXSNES, (void *)ueqn);
+
+        // Newton line-search (correct for the linear IMEX system — takes the full
+        // Newton step and verifies with a backtracking line search; converges exactly
+        // in 1 Newton iteration with residual going to near machine precision)
+        SNESSetType(ueqn->snesU, SNESNEWTONLS);
+
+        // matrix-free Jacobian (MATMFFD computes exact J-v for a linear F)
+        MatCreateSNESMF(ueqn->snesU, &(ueqn->JU));
+        MatMFFDSetType(ueqn->JU, MATMFFD_WP);
+        SNESSetJacobian(ueqn->snesU, ueqn->JU, ueqn->JU, MatMFFDComputeJacobian, (void *)ueqn);
+
+        // allow failures without abort (precaution)
+        SNESSetMaxLinearSolveFailures(ueqn->snesU, 10000);
+        SNESSetMaxNonlinearStepFailures(ueqn->snesU, 10000);
+
+        // read SNES exit tolerances from control.dat (same keys as backwardEuler)
+        ueqn->relExitTol = 1e-30;
+        ueqn->absExitTol = 1e-5;
+        PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-relTolU", &(ueqn->relExitTol), PETSC_NULL);
+        PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-absTolU", &(ueqn->absExitTol), PETSC_NULL);
+
+        // SNES tolerances: for the linear IMEX system 1 outer Newton iter is exact;
+        // the SNES exits immediately when ||F|| < absExitTol
+        SNESSetTolerances(ueqn->snesU, ueqn->absExitTol, ueqn->relExitTol, 1e-30, ueqn->snesMaxIter, 1000);
+
+        // KSP and PC
+        SNESGetKSP(ueqn->snesU, &(ueqn->ksp));
+        KSPGetPC(ueqn->ksp, &(ueqn->pc));
+
+        if(ueqn->kspType == "BiCGStab")
+        {
+            KSPSetType(ueqn->ksp, KSPBCGS);
+        }
+        else
+        {
+            KSPSetType(ueqn->ksp, KSPGMRES);
+            KSPGMRESSetRestart(ueqn->ksp, ueqn->gmresRestart);
+        }
+
+        PCSetType(ueqn->pc, PCNONE);
+        // KSP atol = absExitTol guarantees the SNES converges in exactly 1 Newton step:
+        // for the linear IMEX residual F(U) = A*U + b, the SNES residual after the
+        // Newton step equals the KSP residual, so KSP atol ≤ absExitTol → SNES done.
+        KSPSetTolerances(ueqn->ksp, 1e-8, ueqn->absExitTol, 1e30, 1000);
+
+        // allocate the constant-RHS buffer (explicit RHS, prebuilt once per step)
+        VecDuplicate(ueqn->Ucont, &(ueqn->bU));       VecSet(ueqn->bU, 0.0);
+
+        // allocate Adams-Bashforth 2 convective RHS history buffers
+        VecDuplicate(ueqn->Ucont, &(ueqn->RhsConv));   VecSet(ueqn->RhsConv,   0.0);
+        VecDuplicate(ueqn->Ucont, &(ueqn->RhsConv_o)); VecSet(ueqn->RhsConv_o, 0.0);
+
+        // Convection extrapolation blend parameter 
+        //   1.0 -> pure AB2: coeffs (1.5, -0.5), 2nd order, practical CFL < 0.5
+        //   0.5 -> blended : coeffs (1.25, -0.25), stable up to CFL < 0.7
+        //   0.0 -> forward Euler: coeff (1.0), 1st order, stable for CFL < 1
+        // c1 = 1 + ueqn->imexConvBlend/2,  c2 = -ueqn->imexConvBlend/2
+        
+        ueqn->imexConvBlend = 1.0;
+        PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-imexConvBlendU", &(ueqn->imexConvBlend), PETSC_NULL);
+        if(ueqn->imexConvBlend < 0.0 || ueqn->imexConvBlend > 1.0)
+        {
+            char error[512];
+            sprintf(error, "-imexConvBlendU must be in [0, 1] (got %f)\n", ueqn->imexConvBlend);
+            fatalErrorInFunction("InitializeUEqn", error);
+        }
+
+        // Explicit biharmonic (4th-order index-space) hyperviscosity.
+        // Suppresses checkerboard / Nyquist-frequency modes without affecting
+        // Use small values (0.01–0.1), 0 disables entirely 
+        
+        ueqn->hyperVisc4 = 0.0;
+        PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-imexHyperVisc4U", &(ueqn->hyperVisc4), PETSC_NULL);
+        if(ueqn->hyperVisc4 < 0.0)
+        {
+            char error[512];
+            sprintf(error, "-imexHyperVisc4U must be >= 0 (got %f)\n", ueqn->hyperVisc4);
+            fatalErrorInFunction("InitializeUEqn", error);
+        }
+
+        // print info 
+        PetscPrintf(mesh->MESH_COMM, "selected %s time scheme for U equation\n", ueqn->ddtScheme.c_str());
+        PetscPrintf(mesh->MESH_COMM, " > SNES type: %s\n", ueqn->snesType.c_str());
+        PetscPrintf(mesh->MESH_COMM, " > relTolU = %e\n", ueqn->relExitTol);
+        PetscPrintf(mesh->MESH_COMM, " > absTolU = %e\n", ueqn->absExitTol);
+        PetscPrintf(mesh->MESH_COMM, " > snesMaxIterU = %d\n", ueqn->snesMaxIter);
+        PetscPrintf(mesh->MESH_COMM, " > kspTypeU = %s\n", ueqn->kspType.c_str());
+        if(ueqn->kspType == "GMRES")
+        {
+            PetscPrintf(mesh->MESH_COMM, " > kspGMRESRestartU = %d\n", ueqn->gmresRestart);
+        }
+        PetscPrintf(mesh->MESH_COMM, " > imexConvBlendU = %f\n", ueqn->imexConvBlend);
+        PetscPrintf(mesh->MESH_COMM, " > imexHyperVisc4U = %f\n", ueqn->hyperVisc4);
     }
     else if(ueqn->ddtScheme == "forwardEuler" || ueqn->ddtScheme == "rungeKutta4")
     {
-        // explicit schemes
+        // print info 
+        PetscPrintf(mesh->MESH_COMM, "selected %s time scheme for U equation\n", ueqn->ddtScheme.c_str());
     }
     else
     {
         char error[512];
-        sprintf(error, "unknown ddtScheme %s for U equation, available schemes are\n    1. backwardEuler\n    2. forwardEuler\n    3. rungeKutta4", ueqn->ddtScheme.c_str());
+        sprintf(error, "unknown ddtScheme %s for U equation, available schemes are\n    1. backwardEuler\n    2. forwardEuler\n    3. rungeKutta4\n    4. IMEX", ueqn->ddtScheme.c_str());
         fatalErrorInFunction("InitializeUEqn", error);
     }
 
@@ -3752,7 +3914,7 @@ PetscErrorCode CanopyForce(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
     Cmpnts        ***rhs, ***ucat, ***cent;
     Cmpnts        ***icsi, ***jeta, ***kzet;
-    PetscReal     ***nvert, ***meshTag, ***aj;
+    PetscReal     ***nvert, ***meshTag;
 
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
     PetscInt      i, j, k, l;
@@ -3768,11 +3930,7 @@ PetscErrorCode CanopyForce(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     Cmpnts        diskNormal = ueqn->access->abl->diskDirCanopy;
 
     PetscReal     Hc      = (zEnd-zStart);
-    PetscReal     V       = (xEnd-xStart)*(yEnd-yStart)*(zEnd-zStart);
     PetscReal     cft     = ueqn->access->abl->cftCanopy;
-
-    PetscReal     ltotalIntU      = 0, gtotalIntU      = 0;
-    PetscReal     ltotalIntThrust = 0, gtotalIntThrust = 0;
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
@@ -3785,8 +3943,6 @@ PetscErrorCode CanopyForce(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     DMDAVecGetArray(da,  mesh->lmeshTag, &meshTag);
     DMDAVecGetArray(fda, mesh->lCent,  &cent);
 
-    DMDAVecGetArray(da,  mesh->lAj,  &aj);
-
     DMDAVecGetArray(fda, Rhs,  &rhs);
     DMDAVecGetArray(fda, ueqn->lUcat, &ucat);
 
@@ -3797,121 +3953,44 @@ PetscErrorCode CanopyForce(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
             for (i=lxs; i<lxe; i++)
             {
                 PetscReal uSource;
-                PetscReal coeff = 0.0, coeff_i = 0.0, coeff_j = 0.0, coeff_k = 0.0;
+                PetscReal coeff_i = 0.0, coeff_j = 0.0, coeff_k = 0.0;
 
-                // x coord of k-face center
-                PetscReal xk    = central(cent[k][j][i].x, cent[k+1][j][i].x);
+                // coords of cell center and adjacent face centers
+                PetscReal x  = cent[k][j][i].x, y  = cent[k][j][i].y, z  = cent[k][j][i].z;
+                PetscReal yi = central(cent[k][j][i].y, cent[k][j][i+1].y);
+                PetscReal zj = central(cent[k][j][i].z, cent[k][j][i+1].z);
+                PetscReal xk = central(cent[k][j][i].x, cent[k+1][j][i].x);
 
-                // y coord of i-face center
-                PetscReal yi    = central(cent[k][j][i].y, cent[k][j][i+1].y);
-
-                // z coord of j-face center
-                PetscReal zj    = central(cent[k][j][i].z, cent[k][j][i+1].z);
-
-                // coords of cell center
-                PetscReal x     = cent[k][j][i].x;
-                PetscReal y     = cent[k][j][i].y;
-                PetscReal z     = cent[k][j][i].z;
-
-                // k-face center is located in the canopy box?
-                if(xk < xEnd && xk > xStart && y  < yEnd && y  > yStart && z  < zEnd && z  > zStart) coeff_k = 1;
-                // i-face center is located in the canopy box?
+                // i-face center in canopy box?
                 if(x  < xEnd && x  > xStart && yi < yEnd && yi > yStart && z  < zEnd && z  > zStart) coeff_i = 1;
-                // j-face center is located in the canopy box?
+                // j-face center in canopy box?
                 if(x  < xEnd && x  > xStart && y  < yEnd && y  > yStart && zj < zEnd && zj > zStart) coeff_j = 1;
-                // cell center is located in the canopy box?
-                if(x  < xEnd && x  > xStart && y  < yEnd && y  > yStart && z  < zEnd && z  > zStart) coeff   = 1;
+                // k-face center in canopy box?
+                if(xk < xEnd && xk > xStart && y  < yEnd && y  > yStart && z  < zEnd && z  > zStart) coeff_k = 1;
 
-                // source-velocity at this i-face (use central interpolation scheme)
-                uSource   = nMag(centralVec(ucat[k][j][i], ucat[k][j][i+1]));
-
-                // force per unit volume at this i-face
-                PetscReal forceMagI = 0.5*cft*uSource*uSource/Hc;
-
-                // body force vector at this k-face
-                Cmpnts    forceI    = nScale(forceMagI, diskNormal);
-
-                // body force i-flux
-                if(isFluidIFace(k, j, i, i+1, nvert) && isCalculatedIFace(k, j, i, i+1, meshTag))
+                if(coeff_i > 0 && isFluidIFace(k, j, i, i+1, nvert) && isCalculatedIFace(k, j, i, i+1, meshTag))
                 {
-                    rhs[k][j][i].x
-                    +=
-                    coeff_i *
-                    (
-                        forceI.x * icsi[k][j][i].x +
-                        forceI.y * icsi[k][j][i].y +
-                        forceI.z * icsi[k][j][i].z
-                    );
+                    uSource = nMag(centralVec(ucat[k][j][i], ucat[k][j][i+1]));
+                    Cmpnts forceI = nScale(0.5*cft*uSource*uSource/Hc, diskNormal);
+                    rhs[k][j][i].x += coeff_i * (forceI.x*icsi[k][j][i].x + forceI.y*icsi[k][j][i].y + forceI.z*icsi[k][j][i].z);
                 }
 
-                // source-velocity at this j-face (use central interpolation scheme)
-                uSource   = nMag(centralVec(ucat[k][j][i], ucat[k][j+1][i]));
-
-                // force per unit volume at this j-face
-                PetscReal forceMagJ = 0.5*cft*uSource*uSource/Hc;
-
-                // body force vector at this j-face
-                Cmpnts    forceJ    = nScale(forceMagJ, diskNormal);
-
-                // body force j-flux
-                if(isFluidJFace(k, j, i, j+1, nvert) && isCalculatedJFace(k, j, i, j+1, meshTag))
+                if(coeff_j > 0 && isFluidJFace(k, j, i, j+1, nvert) && isCalculatedJFace(k, j, i, j+1, meshTag))
                 {
-                    rhs[k][j][i].y
-                    +=
-                    coeff_j *
-                    (
-                        forceJ.x * jeta[k][j][i].x +
-                        forceJ.y * jeta[k][j][i].y +
-                        forceJ.z * jeta[k][j][i].z
-                    );
+                    uSource = nMag(centralVec(ucat[k][j][i], ucat[k][j+1][i]));
+                    Cmpnts forceJ = nScale(0.5*cft*uSource*uSource/Hc, diskNormal);
+                    rhs[k][j][i].y += coeff_j * (forceJ.x*jeta[k][j][i].x + forceJ.y*jeta[k][j][i].y + forceJ.z*jeta[k][j][i].z);
                 }
 
-                // source-velocity at this k-face (use central interpolation scheme)
-                uSource   = nMag(centralVec(ucat[k][j][i], ucat[k+1][j][i]));
-
-                // force per unit volume at this k-face
-                PetscReal forceMagK = 0.5*cft*uSource*uSource/Hc;
-
-                // body force vector at this k-face
-                Cmpnts    forceK    = nScale(forceMagK, diskNormal);
-
-                // body force k-flux
-                if(isFluidKFace(k, j, i, k+1, nvert) && isCalculatedKFace(k, j, i, k+1, meshTag))
+                if(coeff_k > 0 && isFluidKFace(k, j, i, k+1, nvert) && isCalculatedKFace(k, j, i, k+1, meshTag))
                 {
-                    rhs[k][j][i].z
-                    +=
-                    coeff_k *
-                    (
-                        forceK.x * kzet[k][j][i].x +
-                        forceK.y * kzet[k][j][i].y +
-                        forceK.z * kzet[k][j][i].z
-                    );
+                    uSource = nMag(centralVec(ucat[k][j][i], ucat[k+1][j][i]));
+                    Cmpnts forceK = nScale(0.5*cft*uSource*uSource/Hc, diskNormal);
+                    rhs[k][j][i].z += coeff_k * (forceK.x*kzet[k][j][i].x + forceK.y*kzet[k][j][i].y + forceK.z*kzet[k][j][i].z);
                 }
-
-                // now do the computation on cell centers just to check
-                
-                uSource             = nMag(ucat[k][j][i]);
-                PetscReal vCell     = 1.0/aj[k][j][i];
-                PetscReal forceMag  = 0.5*cft*uSource*uSource/Hc;
-
-                // integrate velocity on the canopy weghting with volume
-                ltotalIntU      += coeff*uSource*vCell/V;
-
-                // integrate the cell-thrust in the canopy
-                ltotalIntThrust += coeff*forceMag*vCell;
-                
             }
         }
     }
-
-    
-    MPI_Allreduce(&ltotalIntU,      &gtotalIntU,      1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-    MPI_Allreduce(&ltotalIntThrust, &gtotalIntThrust, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-
-    PetscReal totalThrust = 0.5*cft*gtotalIntU*gtotalIntU*V/Hc;
-
-    //PetscPrintf(mesh->MESH_COMM, "Canopy: actual thrust = %.2f, integrated thrust = %.2f, error % = %.2f\n", totalThrust, gtotalIntThrust, fabs(totalThrust-gtotalIntThrust)/totalThrust*100);
-    
 
     DMDAVecRestoreArray(fda, mesh->lICsi,  &icsi);
     DMDAVecRestoreArray(fda, mesh->lJEta,  &jeta);
@@ -3919,8 +3998,6 @@ PetscErrorCode CanopyForce(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
     DMDAVecRestoreArray(da,  mesh->lmeshTag, &meshTag);
     DMDAVecRestoreArray(fda, mesh->lCent,  &cent);
-
-    DMDAVecRestoreArray(da,  mesh->lAj,  &aj);
 
     DMDAVecRestoreArray(fda, Rhs,  &rhs);
     DMDAVecRestoreArray(fda, ueqn->lUcat, &ucat);
@@ -4834,7 +4911,8 @@ PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn)
 
 //***************************************************************************************************************//
 
-PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
+// formMode: 0=full (conv+visc), 1=conv-only (divergence only), 2=visc-only
+PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscBool fuseAuxTerms, PetscInt formMode)
 {
     // In this function the viscous + divergence term of the momentum equation are
     // discretized at cell faces. The disposition is staggered, meaning that the
@@ -4845,11 +4923,13 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     // for every cell in cartesian coordinates, summing up the previously calculated fluxes.
     // Third, this cell centered flux is interpolated at the faces and dotted with that face's
     // area vector, meaning that it will point in that face's curiviliear coordinate direction.
-    // Note: if the flow is non-periodic in a give direction, only the contravariant velocity at
+    // Note: if the flow is non-periodic in a given direction, only the contravariant velocity at
     // the internal faces is solved for. If the flow is periodic in that direction also the
     // contravariant velocity at the right boundary faces is solved for and fluxes at the left
     // boundary faces are calculated as if that face was the right boundary face (as if left and
     // right boundaries were the same boundary).
+
+    // formMode: 0=full (conv+visc, default), 1=conv-only, 2=visc-only 
 
     mesh_            *mesh   = ueqn->access->mesh;
     les_             *les    = ueqn->access->les;
@@ -4877,7 +4957,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
     Cmpnts           ***div1,  ***div2,  ***div3;                               // divergence & cumulative fluxes
     Cmpnts           ***visc1, ***visc2, ***visc3;
-    Cmpnts           ***viscIBM1, ***viscIBM2, ***viscIBM3;                              // viscous terms                             // viscous terms
+    Cmpnts           ***viscIBM1, ***viscIBM2, ***viscIBM3;                     // viscous terms                             // viscous terms
     Cmpnts           ***rhs,   ***fp,    ***limiter;                            // right hand side
     PetscReal        ***aj,    ***iaj,   ***jaj, ***kaj;                        // cell and face jacobians
 
@@ -5016,7 +5096,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
             {
                 if(i==mx-1 || j==my-1 || k==mz-1) continue;
 
-                // ── i-face (skip ghost layers j==0 or k==0) ──────────────────
+                // i faces 
                 if(j!=0 && k!=0)
                 {
                     // get 1/V at the i-face
@@ -5207,7 +5287,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     visc1[k][j][i].z += (g11 * dwdc + g21 * dwde + g31 * dwdz + r13 * csi0 + r23 * csi1 + r33 * csi2) * ajc * (nuEff);
                 }
 
-                // ── j-face (skip ghost layers i==0 or k==0) ──────────────────
+                // j faces 
                 if(i!=0 && k!=0)
                 {
                     // get 1/V at the j-face
@@ -5396,7 +5476,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     visc2[k][j][i].z += (g11 * dwdc + g21 * dwde + g31 * dwdz + r13 * eta0 + r23 * eta1 + r33 * eta2) * ajc * (nuEff);
                 }
 
-                // ── k-face (skip ghost layers i==0 or j==0) ──────────────────
+                // k faces 
                 if(i!=0 && j!=0)
                 {
                     // get 1/V at the k-face
@@ -5591,22 +5671,21 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
         DMDAVecRestoreArray(fda, ueqn->lViscIBM3, &viscIBM3);
     }
 
-    // pipeline all 6 scatters: post every Begin before waiting on any End
-    // so that MPI can overlap all communications simultaneously
+    // update inter-processor ghost values for divergence and viscous contributions 
     DMLocalToLocalBegin(fda, ueqn->lDiv1,  INSERT_VALUES, ueqn->lDiv1);
-    DMLocalToLocalBegin(fda, ueqn->lDiv2,  INSERT_VALUES, ueqn->lDiv2);
-    DMLocalToLocalBegin(fda, ueqn->lDiv3,  INSERT_VALUES, ueqn->lDiv3);
-    DMLocalToLocalBegin(fda, ueqn->lVisc1, INSERT_VALUES, ueqn->lVisc1);
-    DMLocalToLocalBegin(fda, ueqn->lVisc2, INSERT_VALUES, ueqn->lVisc2);
-    DMLocalToLocalBegin(fda, ueqn->lVisc3, INSERT_VALUES, ueqn->lVisc3);
-
     DMLocalToLocalEnd  (fda, ueqn->lDiv1,  INSERT_VALUES, ueqn->lDiv1);
+    DMLocalToLocalBegin(fda, ueqn->lDiv2,  INSERT_VALUES, ueqn->lDiv2);
     DMLocalToLocalEnd  (fda, ueqn->lDiv2,  INSERT_VALUES, ueqn->lDiv2);
+    DMLocalToLocalBegin(fda, ueqn->lDiv3,  INSERT_VALUES, ueqn->lDiv3);
     DMLocalToLocalEnd  (fda, ueqn->lDiv3,  INSERT_VALUES, ueqn->lDiv3);
+    DMLocalToLocalBegin(fda, ueqn->lVisc1, INSERT_VALUES, ueqn->lVisc1);
     DMLocalToLocalEnd  (fda, ueqn->lVisc1, INSERT_VALUES, ueqn->lVisc1);
+    DMLocalToLocalBegin(fda, ueqn->lVisc2, INSERT_VALUES, ueqn->lVisc2);
     DMLocalToLocalEnd  (fda, ueqn->lVisc2, INSERT_VALUES, ueqn->lVisc2);
+    DMLocalToLocalBegin(fda, ueqn->lVisc3, INSERT_VALUES, ueqn->lVisc3);
     DMLocalToLocalEnd  (fda, ueqn->lVisc3, INSERT_VALUES, ueqn->lVisc3);
 
+    // update LES strucural model in contravariant form
     if(ueqn->access->flags->isLesActive && (les->model == BAMD || les->model == BV))
     {
         updateLESStructuralModelContravariantForm(les); 
@@ -5641,7 +5720,9 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
         {
             for (i=lxs; i<lxe; i++)
             {
-                // divergence contribution
+                // divergence contribution (formMode == 2: visc-only, skip convection)
+                if(formMode != 2)
+                {
                 fp[k][j][i].x
                 +=
                 (
@@ -5666,7 +5747,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     div3[k][j][i].z - div3[k-1][j][i].z
                 );
 
-                //damp convective term in vertical momentum equation for streamwise fringe
+                // damp convective term in vertical momentum equation for streamwise fringe
 				if(advectionDamping)
 				{
 					PetscReal height = cent[k][j][i].z - mesh->grndLevel;
@@ -5674,20 +5755,17 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 					fp[k][j][i].z    = nuD * fp[k][j][i].z;
 				}
 
-                //damp convective term in vertical momentum equation for lateral fringe
+                // damp convective term in vertical momentum equation for lateral fringe
                 if(advectionDampingY)
 				{
 					PetscReal height = cent[k][j][i].z - mesh->grndLevel;
 					nuDY             = viscStipaDelta(yS, yE, yDS, yDE, cent[k][j][i].y, height, advDampYH);
                     fp[k][j][i].z    = nuDY * fp[k][j][i].z;
 				}
+                } // end formMode != 2
 
-                // viscous contribution
-                if(ueqn->inviscid)
-                {
-
-                }
-                else
+                // viscous contribution (formMode == 1: conv-only, skip viscosity)
+                if(formMode != 1 && !ueqn->inviscid)
                 {
                     fp[k][j][i].x
                     +=
@@ -5712,48 +5790,49 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                         visc2[k][j][i].z - visc2[k][j-1][i].z +
                         visc3[k][j][i].z - visc3[k-1][j][i].z
                     );
+                }
 
-                    if( (i == 1) && !(mesh->i_periodic) && !(mesh->ii_periodic))
-                    {
-                        fp[k][j][i-1].x = fp[k][j][i].x;
-                        fp[k][j][i-1].y = fp[k][j][i].y;
-                        fp[k][j][i-1].z = fp[k][j][i].z;
-                    }
+                // handle periodicity regardless of formMode
+                if( (i == 1) && !(mesh->i_periodic) && !(mesh->ii_periodic))
+                {
+                    fp[k][j][i-1].x = fp[k][j][i].x;
+                    fp[k][j][i-1].y = fp[k][j][i].y;
+                    fp[k][j][i-1].z = fp[k][j][i].z;
+                }
 
-                    if( (j == 1) && !(mesh->j_periodic) && !(mesh->jj_periodic))
-                    {
-                        fp[k][j-1][i].x = fp[k][j][i].x;
-                        fp[k][j-1][i].y = fp[k][j][i].y;
-                        fp[k][j-1][i].z = fp[k][j][i].z;
-                    }
+                if( (j == 1) && !(mesh->j_periodic) && !(mesh->jj_periodic))
+                {
+                    fp[k][j-1][i].x = fp[k][j][i].x;
+                    fp[k][j-1][i].y = fp[k][j][i].y;
+                    fp[k][j-1][i].z = fp[k][j][i].z;
+                }
 
-                    if( (k == 1) && !(mesh->k_periodic) && !(mesh->kk_periodic))
-                    {
-                        fp[k-1][j][i].x = fp[k][j][i].x;
-                        fp[k-1][j][i].y = fp[k][j][i].y;
-                        fp[k-1][j][i].z = fp[k][j][i].z;
-                    }
+                if( (k == 1) && !(mesh->k_periodic) && !(mesh->kk_periodic))
+                {
+                    fp[k-1][j][i].x = fp[k][j][i].x;
+                    fp[k-1][j][i].y = fp[k][j][i].y;
+                    fp[k-1][j][i].z = fp[k][j][i].z;
+                }
 
-                    if( (i == mx-2) && !(mesh->i_periodic) && !(mesh->ii_periodic))
-                    {
-                        fp[k][j][i+1].x = fp[k][j][i].x;
-                        fp[k][j][i+1].y = fp[k][j][i].y;
-                        fp[k][j][i+1].z = fp[k][j][i].z;
-                    }
+                if( (i == mx-2) && !(mesh->i_periodic) && !(mesh->ii_periodic))
+                {
+                    fp[k][j][i+1].x = fp[k][j][i].x;
+                    fp[k][j][i+1].y = fp[k][j][i].y;
+                    fp[k][j][i+1].z = fp[k][j][i].z;
+                }
 
-                    if( (j == my-2) && !(mesh->j_periodic) && !(mesh->jj_periodic))
-                    {
-                        fp[k][j+1][i].x = fp[k][j][i].x;
-                        fp[k][j+1][i].y = fp[k][j][i].y;
-                        fp[k][j+1][i].z = fp[k][j][i].z;
-                    }
+                if( (j == my-2) && !(mesh->j_periodic) && !(mesh->jj_periodic))
+                {
+                    fp[k][j+1][i].x = fp[k][j][i].x;
+                    fp[k][j+1][i].y = fp[k][j][i].y;
+                    fp[k][j+1][i].z = fp[k][j][i].z;
+                }
 
-                    if((k == mz-2) && !(mesh->k_periodic) && !(mesh->kk_periodic))
-                    {
-                        fp[k+1][j][i].x = fp[k][j][i].x;
-                        fp[k+1][j][i].y = fp[k][j][i].y;
-                        fp[k+1][j][i].z = fp[k][j][i].z;
-                    }
+                if((k == mz-2) && !(mesh->k_periodic) && !(mesh->kk_periodic))
+                {
+                    fp[k+1][j][i].x = fp[k][j][i].x;
+                    fp[k+1][j][i].y = fp[k][j][i].y;
+                    fp[k+1][j][i].z = fp[k][j][i].z;
                 }
             }
         }
@@ -5766,95 +5845,161 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
     resetCellPeriodicFluxes(mesh, ueqn->lFp, ueqn->lFp, "vector", "localToLocal");
 
+    // pre-projection setup for fused auxiliary terms
+    // When fuseAuxTerms=PETSC_TRUE (called from UeqnSNES), Coriolis, CanopyForce,
+    // and sourceU are applied inside the projection loop below, eliminating 3
+    // separate full-domain traversals.  
+    // When PETSC_FALSE (FormExplicitRhsU or RK4), those functions are called separately as before.
+
+    // Coriolis params
+    PetscBool fuseCoriolis = PETSC_FALSE;
+    PetscReal fc           = 0.0;
+    if(fuseAuxTerms && flags->isAblActive && ueqn->access->abl->coriolisActive)
+    {
+        fuseCoriolis = PETSC_TRUE;
+        fc           = ueqn->access->abl->fc;
+    }
+
+    // Canopy params
+    PetscBool fuseCanopy  = PETSC_FALSE;
+    PetscReal cy_xStart = 0, cy_yStart = 0, cy_zStart = 0;
+    PetscReal cy_xEnd   = 0, cy_yEnd   = 0, cy_zEnd   = 0;
+    PetscReal cy_Hc = 1,  cy_cft = 0;
+    Cmpnts    cy_diskNormal = nSetZero();
+    if(fuseAuxTerms && flags->isCanopyActive)
+    {
+        fuseCanopy  = PETSC_TRUE;
+        cy_xStart = std::max(ueqn->access->abl->xStartCanopy, mesh->bounds.xmin);
+        cy_yStart = std::max(ueqn->access->abl->yStartCanopy, mesh->bounds.ymin);
+        cy_zStart = std::max(ueqn->access->abl->zStartCanopy, mesh->bounds.zmin);
+        cy_xEnd   = std::min(ueqn->access->abl->xEndCanopy,   mesh->bounds.xmax);
+        cy_yEnd   = std::min(ueqn->access->abl->yEndCanopy,   mesh->bounds.ymax);
+        cy_zEnd   = std::min(ueqn->access->abl->zEndCanopy,   mesh->bounds.zmax);
+        cy_Hc        = cy_zEnd - cy_zStart;
+        cy_cft       = ueqn->access->abl->cftCanopy;
+        cy_diskNormal = ueqn->access->abl->diskDirCanopy;
+    }
+
+    // sourceU params
+    Cmpnts    ***source      = NULL;
+    PetscBool fuseSourceU    = PETSC_FALSE;
+    if(fuseAuxTerms && flags->isAblActive && ueqn->access->abl->controllerActive)
+    {
+        fuseSourceU = PETSC_TRUE;
+        DMDAVecGetArray(fda, ueqn->sourceU, &source);
+    }
+
     DMDAVecGetArray(fda, ueqn->lFp, &fp);
 
-    // interpolate the convective and viscous contributions at the surface
-    // centers. This is done by projecting the flux fp along the curvilinear
-    // coordinates and averaging between two adhiacent cells center values to
-    // get the face value
+    // projection loop: fp (cell-centred combined flux) → face contravariant RHS.
+    // Dead code removed: v0/v3 and d0-d3 cell-width computations were computed
+    // but unused (only central(v1, v2) appears in the rhs assignment).
+    // Optional fused Coriolis, CanopyForce, sourceU (when fuseAuxTerms=PETSC_TRUE).
     for (k=lzs; k<lze; k++)
     {
         for (j=lys; j<lye; j++)
         {
             for (i=lxs; i<lxe; i++)
             {
-                // get the stencils
-                PetscReal denom;
-                PetscInt    iL, iR;
-                PetscInt    jL, jR;
-                PetscInt    kL, kR;
-                getFace2Cell4StencilCsi(mesh, k, j, i, mx, &iL, &iR, &denom, nvert, meshTag);
-                getFace2Cell4StencilEta(mesh, k, j, i, my, &jL, &jR, &denom, nvert, meshTag);
-                getFace2Cell4StencilZet(mesh, k, j, i, mz, &kL, &kR, &denom, nvert, meshTag);
+                PetscReal v1, v2;
 
-                PetscReal v0, v1, v2, v3;
-                PetscReal d0, d1, d2, d3;
-
-                v0 = csi[k][j][iL ].x * fp[k][j][iL ].x +
-                     csi[k][j][iL ].y * fp[k][j][iL ].y +
-                     csi[k][j][iL ].z * fp[k][j][iL ].z;
-                v1 = csi[k][j][i  ].x * fp[k][j][i  ].x +
-                     csi[k][j][i  ].y * fp[k][j][i  ].y +
-                     csi[k][j][i  ].z * fp[k][j][i  ].z;
-                v2 = csi[k][j][i+1].x * fp[k][j][i+1].x +
-                     csi[k][j][i+1].y * fp[k][j][i+1].y +
-                     csi[k][j][i+1].z * fp[k][j][i+1].z;
-                v3 = csi[k][j][iR ].x * fp[k][j][iR ].x +
-                     csi[k][j][iR ].y * fp[k][j][iR ].y +
-                     csi[k][j][iR ].z * fp[k][j][iR ].z;
-
-                // compute cell widths
-                d0 = 1.0 / (aj[k][j][iL ] * nMag(csi[k][j][iL  ]));
-                d1 = 1.0 / (aj[k][j][i  ] * nMag(csi[k][j][i  ]));
-                d2 = 1.0 / (aj[k][j][i+1] * nMag(csi[k][j][i+1]));
-                d3 = 1.0 / (aj[k][j][iR ] * nMag(csi[k][j][iR ]));
+                v1 = csi[k][j][i  ].x * fp[k][j][i  ].x + csi[k][j][i  ].y * fp[k][j][i  ].y + csi[k][j][i  ].z * fp[k][j][i  ].z;
+                v2 = csi[k][j][i+1].x * fp[k][j][i+1].x + csi[k][j][i+1].y * fp[k][j][i+1].y + csi[k][j][i+1].z * fp[k][j][i+1].z;
 
                 rhs[k][j][i].x += scale * iaj[k][j][i] * central(v1, v2);
 
-                v0 = eta[k][jL ][i].x * fp[k][jL ][i].x +
-                     eta[k][jL ][i].y * fp[k][jL ][i].y +
-                     eta[k][jL ][i].z * fp[k][jL ][i].z;
-                v1 = eta[k][j  ][i].x * fp[k][j  ][i].x +
-                     eta[k][j  ][i].y * fp[k][j  ][i].y +
-                     eta[k][j  ][i].z * fp[k][j  ][i].z;
-                v2 = eta[k][j+1][i].x * fp[k][j+1][i].x +
-                     eta[k][j+1][i].y * fp[k][j+1][i].y +
-                     eta[k][j+1][i].z * fp[k][j+1][i].z;
-                v3 = eta[k][jR ][i].x * fp[k][jR ][i].x +
-                     eta[k][jR ][i].y * fp[k][jR ][i].y +
-                     eta[k][jR ][i].z * fp[k][jR ][i].z;
-
-                // compute cell widths
-                d0 = 1.0 / (aj[k][jL ][i] * nMag(eta[k][jL ][i]));
-                d1 = 1.0 / (aj[k][j  ][i] * nMag(eta[k][j  ][i]));
-                d2 = 1.0 / (aj[k][j+1][i] * nMag(eta[k][j+1][i]));
-                d3 = 1.0 / (aj[k][jR ][i] * nMag(eta[k][jR ][i]));
+                v1 = eta[k][j  ][i].x * fp[k][j  ][i].x + eta[k][j  ][i].y * fp[k][j  ][i].y + eta[k][j  ][i].z * fp[k][j  ][i].z;
+                v2 = eta[k][j+1][i].x * fp[k][j+1][i].x + eta[k][j+1][i].y * fp[k][j+1][i].y + eta[k][j+1][i].z * fp[k][j+1][i].z;
 
                 rhs[k][j][i].y += scale * jaj[k][j][i] * central(v1, v2);
 
-                v0 = zet[kL ][j][i].x * fp[kL ][j][i].x +
-                     zet[kL ][j][i].y * fp[kL ][j][i].y +
-                     zet[kL ][j][i].z * fp[kL ][j][i].z;
-                v1 = zet[k  ][j][i].x * fp[k  ][j][i].x +
-                     zet[k  ][j][i].y * fp[k  ][j][i].y +
-                     zet[k  ][j][i].z * fp[k  ][j][i].z;
-                v2 = zet[k+1][j][i].x * fp[k+1][j][i].x +
-                     zet[k+1][j][i].y * fp[k+1][j][i].y +
-                     zet[k+1][j][i].z * fp[k+1][j][i].z;
-                v3 = zet[kR ][j][i].x * fp[kR ][j][i].x +
-                     zet[kR ][j][i].y * fp[kR ][j][i].y +
-                     zet[kR ][j][i].z * fp[kR ][j][i].z;
-
-                // compute cell widths
-                d0 = 1.0 / (aj[kL ][j][i] * nMag(zet[kL ][j][i]));
-                d1 = 1.0 / (aj[k  ][j][i] * nMag(zet[k  ][j][i]));
-                d2 = 1.0 / (aj[k+1][j][i] * nMag(zet[k+1][j][i]));
-                d3 = 1.0 / (aj[kR ][j][i] * nMag(zet[kR ][j][i]));
+                v1 = zet[k  ][j][i].x * fp[k  ][j][i].x + zet[k  ][j][i].y * fp[k  ][j][i].y + zet[k  ][j][i].z * fp[k  ][j][i].z;
+                v2 = zet[k+1][j][i].x * fp[k+1][j][i].x + zet[k+1][j][i].y * fp[k+1][j][i].y + zet[k+1][j][i].z * fp[k+1][j][i].z;
 
                 rhs[k][j][i].z += scale * kaj[k][j][i] * central(v1, v2);
+                
+                // fuse Coriolis 
+                if(fuseCoriolis)
+                {
+                    if(isFluidIFace(k, j, i, i+1, nvert) && isCalculatedIFace(k, j, i, i+1, meshTag))
+                    {
+                        rhs[k][j][i].x += -2.0 * (- fc * central(ucat[k][j][i].y, ucat[k][j][i+1].y) * icsi[k][j][i].x
+                                                  + fc * central(ucat[k][j][i].x, ucat[k][j][i+1].x) * icsi[k][j][i].y);
+                    }
+                    if(isFluidJFace(k, j, i, j+1, nvert) && isCalculatedJFace(k, j, i, j+1, meshTag))
+                    {
+                        rhs[k][j][i].y += -2.0 * (- fc * central(ucat[k][j][i].y, ucat[k][j+1][i].y) * jeta[k][j][i].x
+                                                  + fc * central(ucat[k][j][i].x, ucat[k][j+1][i].x) * jeta[k][j][i].y);
+                    }
+                    if(isFluidKFace(k, j, i, k+1, nvert) && isCalculatedKFace(k, j, i, k+1, meshTag))
+                    {
+                        rhs[k][j][i].z += -2.0 * (- fc * central(ucat[k][j][i].y, ucat[k+1][j][i].y) * kzet[k][j][i].x
+                                                  + fc * central(ucat[k][j][i].x, ucat[k+1][j][i].x) * kzet[k][j][i].y);
+                    }
+                }
 
+                // fuse canopy drag force 
+                if(fuseCanopy)
+                {
+                    PetscReal uSource;
+                    PetscReal cx = cent[k][j][i].x, cy = cent[k][j][i].y, cz = cent[k][j][i].z;
+                    PetscReal yi = central(cent[k][j][i].y, cent[k][j][i+1].y);
+                    PetscReal zj = central(cent[k][j][i].z, cent[k][j][i+1].z);
+                    PetscReal xk = central(cent[k][j][i].x, cent[k+1][j][i].x);
+
+                    PetscReal coeff_i = (cx  < cy_xEnd && cx  > cy_xStart && yi < cy_yEnd && yi > cy_yStart && cz  < cy_zEnd && cz  > cy_zStart) ? 1.0 : 0.0;
+                    PetscReal coeff_j = (cx  < cy_xEnd && cx  > cy_xStart && cy < cy_yEnd && cy > cy_yStart && zj  < cy_zEnd && zj  > cy_zStart) ? 1.0 : 0.0;
+                    PetscReal coeff_k = (xk  < cy_xEnd && xk  > cy_xStart && cy < cy_yEnd && cy > cy_yStart && cz  < cy_zEnd && cz  > cy_zStart) ? 1.0 : 0.0;
+
+                    if(coeff_i > 0 && isFluidIFace(k, j, i, i+1, nvert) && isCalculatedIFace(k, j, i, i+1, meshTag))
+                    {
+                        uSource         = nMag(centralVec(ucat[k][j][i], ucat[k][j][i+1]));
+                        Cmpnts fI       = nScale(0.5*cy_cft*uSource*uSource/cy_Hc, cy_diskNormal);
+                        rhs[k][j][i].x += coeff_i * (fI.x*icsi[k][j][i].x + fI.y*icsi[k][j][i].y + fI.z*icsi[k][j][i].z);
+                    }
+                    if(coeff_j > 0 && isFluidJFace(k, j, i, j+1, nvert) && isCalculatedJFace(k, j, i, j+1, meshTag))
+                    {
+                        uSource         = nMag(centralVec(ucat[k][j][i], ucat[k][j+1][i]));
+                        Cmpnts fJ       = nScale(0.5*cy_cft*uSource*uSource/cy_Hc, cy_diskNormal);
+                        rhs[k][j][i].y += coeff_j * (fJ.x*jeta[k][j][i].x + fJ.y*jeta[k][j][i].y + fJ.z*jeta[k][j][i].z);
+                    }
+                    if(coeff_k > 0 && isFluidKFace(k, j, i, k+1, nvert) && isCalculatedKFace(k, j, i, k+1, meshTag))
+                    {
+                        uSource         = nMag(centralVec(ucat[k][j][i], ucat[k+1][j][i]));
+                        Cmpnts fK       = nScale(0.5*cy_cft*uSource*uSource/cy_Hc, cy_diskNormal);
+                        rhs[k][j][i].z += coeff_k * (fK.x*kzet[k][j][i].x + fK.y*kzet[k][j][i].y + fK.z*kzet[k][j][i].z);
+                    }
+                }
+
+                // fuse atmospheric source terms 
+                if(fuseSourceU)
+                {
+                    if(isFluidIFace(k, j, i, i+1, nvert) && isCalculatedIFace(k, j, i, i+1, meshTag))
+                    {
+                        rhs[k][j][i].x  +=   central(source[k][j][i].x, source[k][j][i+1].x) * icsi[k][j][i].x
+                                           + central(source[k][j][i].y, source[k][j][i+1].y) * icsi[k][j][i].y
+                                           + central(source[k][j][i].z, source[k][j][i+1].z) * icsi[k][j][i].z;
+                    }
+                    if(isFluidJFace(k, j, i, j+1, nvert) && isCalculatedJFace(k, j, i, j+1, meshTag))
+                    {
+                        rhs[k][j][i].y  +=   central(source[k][j][i].x, source[k][j+1][i].x) * jeta[k][j][i].x
+                                           + central(source[k][j][i].y, source[k][j+1][i].y) * jeta[k][j][i].y
+                                           + central(source[k][j][i].z, source[k][j+1][i].z) * jeta[k][j][i].z;
+                    }
+                    if(isFluidKFace(k, j, i, k+1, nvert) && isCalculatedKFace(k, j, i, k+1, meshTag))
+                    {
+                        rhs[k][j][i].z  +=   central(source[k][j][i].x, source[k+1][j][i].x) * kzet[k][j][i].x
+                                           + central(source[k][j][i].y, source[k+1][j][i].y) * kzet[k][j][i].y
+                                           + central(source[k][j][i].z, source[k+1][j][i].z) * kzet[k][j][i].z;
+                    }
+                }
             }
         }
+    }
+
+    if(fuseSourceU)
+    {
+        DMDAVecRestoreArray(fda, ueqn->sourceU, &source);
     }
 
     if(ueqn->access->flags->isLesActive)
@@ -5907,6 +6052,75 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
 //***************************************************************************************************************//
 
+PetscErrorCode UeqnIMEXSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr)
+{
+    ueqn_  *ueqn  = (ueqn_*)ptr;
+    mesh_  *mesh  = ueqn->access->mesh;
+    clock_ *clock = ueqn->access->clock;
+
+    VecCopy(Ucont, ueqn->Ucont);
+
+    // scatter new contravariant velocity values to local ghost cells
+    DMGlobalToLocalBegin(mesh->fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
+    DMGlobalToLocalEnd  (mesh->fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
+
+    // reset no penetration fluxes to zero (override numerical errors)
+    resetNoPenetrationFluxes(ueqn);
+
+    // reset contravariant periodic fluxes to be consistent if the flow is periodic
+    resetFacePeriodicFluxesVector(mesh, ueqn->Ucont, ueqn->lUcont, "globalToLocal");
+
+    // transform to cartesian
+    contravariantToCartesian(ueqn);
+
+    // if(ueqn->access->flags->isIBMActive)
+    // {
+    //     UpdateImmersedBCs(ueqn->access->ibm);
+    // }
+
+    if(ueqn->access->flags->isOversetActive)
+    {
+        setBackgroundBC(mesh);
+    }
+
+    // reset cartesian periodic fluxes to be consistent if the flow is periodic
+    resetCellPeriodicFluxes(mesh, ueqn->Ucat, ueqn->lUcat, "vector", "globalToLocal");
+
+    // start from the prebuilt explicit IMEX buffer:
+    //   bU = -dP ± buoy + AB2_conv + 0.5*Visc^n + farm + Coriolis + sourceU + damping + meanGradP
+    // Built once per time step in UeqnIMEX before SNESSolve is called.
+    VecCopy(ueqn->bU, Rhs);
+
+    // get time step
+    PetscReal dt = clock->dt;
+
+    // add ONLY the implicit viscous half: 0.5 * Visc(U^{n+1})
+    // formMode=2 → visc-only; fuseAuxTerms=PETSC_FALSE (aux terms already in bU)
+    // First step (it == itStart): full backward-Euler viscosity (scale=1.0)
+    // Subsequent steps: Crank-Nicolson implicit half (scale=0.5)
+    if(clock->it > clock->itStart)
+    {
+        FormU(ueqn, Rhs, 0.5, PETSC_FALSE, 2);
+    }
+    else
+    {
+        FormU(ueqn, Rhs, 1.0, PETSC_FALSE, 2);
+    }
+
+    // multiply for dt
+    VecScale(Rhs, dt);
+
+    resetNonResolvedCellFaces(mesh, Rhs);
+
+    // F(U^{n+1}) = dt*Rhs - U^{n+1} + U^n
+    VecAXPY(Rhs, -1.0, Ucont);
+    VecAXPY(Rhs,  1.0, ueqn->Ucont_o);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
 PetscErrorCode UeqnSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr)
 {
     ueqn_  *ueqn  = (ueqn_*)ptr;
@@ -5941,60 +6155,25 @@ PetscErrorCode UeqnSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr)
     // reset cartesian periodic fluxes to be consistent if the flow is periodic
     resetCellPeriodicFluxes(mesh, ueqn->Ucat, ueqn->lUcat, "vector", "globalToLocal");
 
-    // initialize the rhs vector
-    VecSet(Rhs, 0.0);
+    // initialize Rhs from the prebuilt constant-RHS buffer (bU).
+    // bU = -dP [± buoyancy] [+ 0.5*Rhs_o (it>itStart)] [+ farm source]
+    // Built once per time step in SolveUEqn, avoiding the equivalent VecSet + multiple
+    // VecAXPY calls on every SNES function evaluation (called O(iter × ksp) times).
+    VecCopy(ueqn->bU, Rhs);
 
     // get time step
     PetscReal dt = clock->dt;
 
-    // add pressure gradient term
-    VecAXPY(Rhs, -1.0, ueqn->dP);
+    // add velocity-dependent terms (depend on current Ucont; cannot be precomputed)
 
-    // add coriolis term
-    if(ueqn->access->flags->isAblActive)
-    {
-        if(ueqn->access->abl->coriolisActive)
-        {
-            Coriolis(ueqn, Rhs, 1.0);
-        }
-    }
-
-    // add side force term
-    if(ueqn->access->flags->isCanopyActive)
-    {
-        CanopyForce(ueqn, Rhs, 1.0);
-    }
-
-    if(ueqn->access->flags->isTeqnActive && (clock->it > clock->itStart))
-    {
-        teqn_ *teqn = ueqn->access->teqn;
-
-        // add buoyancy gradient term
-        if(teqn->pTildeFormulation)
-        {
-            VecAXPY(Rhs, -1.0, teqn->ghGradRhok);
-        }
-        else
-        {
-            VecAXPY(Rhs,  1.0, ueqn->bTheta);
-        }
-    }
-
-    // add viscous and transport terms
+    // add viscous, transport, Coriolis, CanopyForce, and sourceU in one fused pass
     if(clock->it > clock->itStart)
     {
-        VecAXPY(Rhs, 0.5, ueqn->Rhs_o);
-        FormU(ueqn, Rhs, 0.5);
+        FormU(ueqn, Rhs, 0.5, PETSC_TRUE);
     }
     else
     {
-        FormU(ueqn, Rhs, 1.0);
-    }
-
-    // add wind farm model
-    if(ueqn->access->flags->isWindFarmActive)
-    {
-        VecAXPY(Rhs, 1.0, ueqn->access->farm->sourceFarmCont);
+        FormU(ueqn, Rhs, 1.0, PETSC_TRUE);
     }
 
     if
@@ -6009,15 +6188,7 @@ PetscErrorCode UeqnSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr)
         dampingSourceU(ueqn, Rhs, 1.0);
     }
 
-    // add driving source terms 
-    if(ueqn->access->flags->isAblActive)
-    {
-        if(ueqn->access->abl->controllerActive)
-        {
-            sourceU(ueqn, Rhs, 1.0);
-        }
-    }
-
+    // dampingSourceU and meanGradPForcing are not fused
     if(ueqn->access->flags->isMeangradPForcingActive)
     {
         meanGradPForcing(ueqn, Rhs, 1.0);
@@ -6101,8 +6272,8 @@ PetscErrorCode FormExplicitRhsU(ueqn_ *ueqn)
         }
     }
 
-    // add viscous and transport terms
-    FormU(ueqn, ueqn->Rhs, 1.0);
+    // add viscous and transport terms (auxiliary terms handled separately below)
+    FormU(ueqn, ueqn->Rhs, 1.0, PETSC_FALSE);
 
     // add wind farm model
     if(ueqn->access->flags->isWindFarmActive)
@@ -6233,6 +6404,295 @@ PetscErrorCode UeqnRK4(ueqn_ *ueqn)
 
 //***************************************************************************************************************//
 
+PetscErrorCode hyperViscosityU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
+{
+    if(ueqn->hyperVisc4 == 0.0) return(0);
+
+    // Explicit biharmonic (4th-order, index-space) hyperviscosity for the IMEX scheme.
+
+    mesh_        *mesh  = ueqn->access->mesh;
+    clock_       *clock = ueqn->access->clock;
+    DM            fda   = mesh->fda;
+    DM            da    = mesh->da;
+    DMDALocalInfo info  = mesh->info;
+    PetscInt xs = info.xs, xe = info.xs + info.xm;
+    PetscInt ys = info.ys, ye = info.ys + info.ym;
+    PetscInt zs = info.zs, ze = info.zs + info.zm;
+    PetscInt mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt lxs = xs; if(lxs == 0) lxs=lxs+1; PetscInt lxe = xe; if(lxe == mx) lxe=lxe-1;
+    PetscInt lys = ys; if(lys == 0) lys=lys+1; PetscInt lye = ye; if(lye == my) lye=lye-1;
+    PetscInt lzs = zs; if(lzs == 0) lzs=lzs+1; PetscInt lze = ze; if(lze == mz) lze=lze-1;
+
+    PetscInt    i, j, k;
+    Cmpnts    ***ucont, ***rhs;
+    PetscReal ***nvert;
+    PetscScalar solid = 0.5;
+
+    // eps/dt: after VecScale(Rhs, dt) the net effect is -ε₄ · δ⁴(lUcont)
+    PetscReal eps = scale * ueqn->hyperVisc4 / clock->dt;
+
+    DMDAVecGetArray(fda, ueqn->lUcont, &ucont);
+    DMDAVecGetArray(fda, Rhs,          &rhs);
+    DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+
+    for(k = lzs; k < lze; k++)
+    for(j = lys; j < lye; j++)
+    for(i = lxs; i < lxe; i++)
+    {
+        PetscInt im2 = i-2, im1 = i-1, ip1 = i+1, ip2 = i+2;
+        if(mesh->i_periodic)
+        {
+            if     (i == 1)    { im2 = mx-3; }               // im1=0 is already correct
+            else if(i == mx-2) { ip2 = 2; }                  // ip1=mx-1 (ghost) is fine
+        }
+        else if(mesh->ii_periodic)
+        {
+            if     (i == 1)    { im1 = -2;   im2 = -3; }
+            else if(i == 2)    { im2 = -2; }                  // 0 → -2 for ii_periodic
+            else if(i == mx-3) { ip1 = mx-2; ip2 = mx+1; }
+            else if(i == mx-2) { ip1 = mx+1; ip2 = mx+2; }   // mx-1→mx+1, mx→mx+2
+        }
+        else
+        {
+            // non-periodic: pad with the nearest interior value (zero-gradient / slip)
+            if(im2 < 1)    im2 = 1;
+            if(im1 < 1)    im1 = 1;
+            if(ip1 > mx-2) ip1 = mx-2;
+            if(ip2 > mx-2) ip2 = mx-2;
+        }
+
+        PetscInt jm2 = j-2, jm1 = j-1, jp1 = j+1, jp2 = j+2;
+        if(mesh->j_periodic)
+        {
+            if     (j == 1)    { jm2 = my-3; }
+            else if(j == my-2) { jp2 = 2; }
+        }
+        else if(mesh->jj_periodic)
+        {
+            if     (j == 1)    { jm1 = -2;   jm2 = -3; }
+            else if(j == 2)    { jm2 = -2; }
+            else if(j == my-3) { jp1 = my-2; jp2 = my+1; }
+            else if(j == my-2) { jp1 = my+1; jp2 = my+2; }
+        }
+        else
+        {
+            if(jm2 < 1)    jm2 = 1;
+            if(jm1 < 1)    jm1 = 1;
+            if(jp1 > my-2) jp1 = my-2;
+            if(jp2 > my-2) jp2 = my-2;
+        }
+
+        PetscInt km2 = k-2, km1 = k-1, kp1 = k+1, kp2 = k+2;
+        if(mesh->k_periodic)
+        {
+            if     (k == 1)    { km2 = mz-3; }
+            else if(k == mz-2) { kp2 = 2; }
+        }
+        else if(mesh->kk_periodic)
+        {
+            if     (k == 1)    { km1 = -2;   km2 = -3; }
+            else if(k == 2)    { km2 = -2; }
+            else if(k == mz-3) { kp1 = mz-2; kp2 = mz+1; }
+            else if(k == mz-2) { kp1 = mz+1; kp2 = mz+2; }
+        }
+        else
+        {
+            if(km2 < 1)    km2 = 1;
+            if(km1 < 1)    km1 = 1;
+            if(kp1 > mz-2) kp1 = mz-2;
+            if(kp2 > mz-2) kp2 = mz-2;
+        }
+
+        // ── i-face flux (ucont.x) ────────────────────────────────────────────
+        if(nvert[k][j][i] + nvert[k][j][i+1] < 2.0 * solid)
+        {
+            PetscReal b4 =
+                  ucont[k  ][j  ][ip2].x - 4.0*ucont[k  ][j  ][ip1].x + 6.0*ucont[k][j][i].x - 4.0*ucont[k  ][j  ][im1].x + ucont[k  ][j  ][im2].x
+                + ucont[k  ][jp2][i  ].x - 4.0*ucont[k  ][jp1][i  ].x + 6.0*ucont[k][j][i].x - 4.0*ucont[k  ][jm1][i  ].x + ucont[k  ][jm2][i  ].x
+                + ucont[kp2][j  ][i  ].x - 4.0*ucont[kp1][j  ][i  ].x + 6.0*ucont[k][j][i].x - 4.0*ucont[km1][j  ][i  ].x + ucont[km2][j  ][i  ].x;
+            rhs[k][j][i].x -= eps * b4;
+        }
+
+        // ── j-face flux (ucont.y) ────────────────────────────────────────────
+        if(nvert[k][j][i] + nvert[k][j+1][i] < 2.0 * solid)
+        {
+            PetscReal b4 =
+                  ucont[k  ][j  ][ip2].y - 4.0*ucont[k  ][j  ][ip1].y + 6.0*ucont[k][j][i].y - 4.0*ucont[k  ][j  ][im1].y + ucont[k  ][j  ][im2].y
+                + ucont[k  ][jp2][i  ].y - 4.0*ucont[k  ][jp1][i  ].y + 6.0*ucont[k][j][i].y - 4.0*ucont[k  ][jm1][i  ].y + ucont[k  ][jm2][i  ].y
+                + ucont[kp2][j  ][i  ].y - 4.0*ucont[kp1][j  ][i  ].y + 6.0*ucont[k][j][i].y - 4.0*ucont[km1][j  ][i  ].y + ucont[km2][j  ][i  ].y;
+            rhs[k][j][i].y -= eps * b4;
+        }
+
+        // ── k-face flux (ucont.z) ────────────────────────────────────────────
+        if(nvert[k][j][i] + nvert[k+1][j][i] < 2.0 * solid)
+        {
+            PetscReal b4 =
+                  ucont[k  ][j  ][ip2].z - 4.0*ucont[k  ][j  ][ip1].z + 6.0*ucont[k][j][i].z - 4.0*ucont[k  ][j  ][im1].z + ucont[k  ][j  ][im2].z
+                + ucont[k  ][jp2][i  ].z - 4.0*ucont[k  ][jp1][i  ].z + 6.0*ucont[k][j][i].z - 4.0*ucont[k  ][jm1][i  ].z + ucont[k  ][jm2][i  ].z
+                + ucont[kp2][j  ][i  ].z - 4.0*ucont[kp1][j  ][i  ].z + 6.0*ucont[k][j][i].z - 4.0*ucont[km1][j  ][i  ].z + ucont[km2][j  ][i  ].z;
+            rhs[k][j][i].z -= eps * b4;
+        }
+    }
+
+    DMDAVecRestoreArray(fda, ueqn->lUcont, &ucont);
+    DMDAVecRestoreArray(fda, Rhs,          &rhs);
+    DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+// IMEX-CNAB time-step routine.  Call order:
+//   1. Evaluate Conv^n and Visc^n from U^n (current Ucont at step start).
+//   2. Build the explicit RHS buffer bU once.  bU holds ALL terms that do NOT
+//      depend on U^{n+1}: pressure, buoyancy, AB2 convection, CN explicit
+//      viscous half, farm source, Coriolis, sourceU, damping, meanGradP.
+//   3. Build an explicit-Euler initial guess: Utmp = U^n + dt * bU.
+//   4. Call SNESSolve (residual = UeqnIMEXSNES).  Since the residual is linear
+//      in U^{n+1} (only the implicit Visc(U^{n+1}) contributes), the SNES
+//      converges in exactly ONE Newton step.
+//   5. Rotate RhsConv storage for the next step's AB2 stencil.
+//***************************************************************************************************************//
+
+PetscErrorCode UeqnIMEX(ueqn_ *ueqn)
+{
+    mesh_  *mesh  = ueqn->access->mesh;
+    clock_ *clock = ueqn->access->clock;
+
+    PetscReal ts, te;
+    PetscTime(&ts);
+    PetscPrintf(mesh->MESH_COMM, "IMEX-CNAB: Solving for Ucont, Initial residual = ");
+
+    // ── Step 1: prepare U^n state (synchronise lUcont / lUcat) ─────────────
+
+    resetNoPenetrationFluxes(ueqn);
+    resetFacePeriodicFluxesVector(mesh, ueqn->Ucont, ueqn->lUcont, "globalToLocal");
+    contravariantToCartesian(ueqn);
+    if(ueqn->access->flags->isOversetActive) setBackgroundBC(mesh);
+    resetCellPeriodicFluxes(mesh, ueqn->Ucat, ueqn->lUcat, "vector", "globalToLocal");
+
+    // ── Step 2a: convective RHS at U^n → RhsConv  ──────────────────────────
+    VecSet(ueqn->RhsConv, 0.0);
+    FormU(ueqn, ueqn->RhsConv, 1.0, PETSC_FALSE, 1);   // conv-only
+
+    // ── Step 2b: viscous RHS at U^n (scratch in Rhs Vec)  ───────────────────
+    VecSet(ueqn->Rhs, 0.0);
+    FormU(ueqn, ueqn->Rhs, 1.0, PETSC_FALSE, 2);        // visc-only
+
+    // ── Step 3: build bU (explicit part, evaluated once at U^n) ────────────
+    //
+    //   bU = -dP ± buoy  +  AB2_conv  +  CN_visc_explicit  +  farm
+    //      + Coriolis  +  CanopyForce  +  sourceU  +  damping  +  meanGradP
+    //
+    VecCopy(ueqn->dP, ueqn->bU);
+    VecScale(ueqn->bU, -1.0);                           // bU = -dP
+
+    // buoyancy
+    if(ueqn->access->flags->isTeqnActive && (clock->it > clock->itStart))
+    {
+        teqn_ *teqn = ueqn->access->teqn;
+        if(teqn->pTildeFormulation)
+            VecAXPY(ueqn->bU, -1.0, teqn->ghGradRhok);
+        else
+            VecAXPY(ueqn->bU,  1.0, ueqn->bTheta);
+    }
+
+    // wind farm source
+    if(ueqn->access->flags->isWindFarmActive)
+        VecAXPY(ueqn->bU, 1.0, ueqn->access->farm->sourceFarmCont);
+
+    // Convection extrapolation with blended AB2 / Forward-Euler
+    //   β = imexConvBlend: 1.0 = pure AB2, 0.0 = Forward Euler, intermediate = blended
+    //   coefficients: c1 = 1 + β/2,  c2 = -β/2
+    //   first step: always degenerate to Forward Euler (no RhsConv_o yet)
+    {
+        PetscReal beta = ueqn->imexConvBlend;
+        PetscReal c1   = 1.0 + 0.5 * beta;   // weight on N^n
+        PetscReal c2   = -0.5 * beta;          // weight on N^{n-1} (zero on first step)
+        if(clock->it > clock->itStart)
+        {
+            VecAXPY(ueqn->bU, c1, ueqn->RhsConv);    // c1 * Conv^n
+            VecAXPY(ueqn->bU, c2, ueqn->RhsConv_o);  // c2 * Conv^{n-1}
+        }
+        else
+        {
+            VecAXPY(ueqn->bU, 1.0, ueqn->RhsConv);   // Forward Euler on first step
+        }
+    }
+
+    // Crank-Nicolson viscous: explicit half 0.5*Visc^n
+    //   first step: visc is fully implicit (backward Euler), nothing added here;
+    //               UeqnIMEXSNES uses scale=1.0 on that step.
+    if(clock->it > clock->itStart)
+        VecAXPY(ueqn->bU, 0.5, ueqn->Rhs);            // +0.5 * Visc^n
+
+    // Coriolis
+    if(ueqn->access->flags->isAblActive)
+        if(ueqn->access->abl->coriolisActive)
+            Coriolis(ueqn, ueqn->bU, 1.0);
+
+    // canopy force
+    if(ueqn->access->flags->isCanopyActive)
+        CanopyForce(ueqn, ueqn->bU, 1.0);
+
+    // ABL driving source (PI controller)
+    if(ueqn->access->flags->isAblActive)
+        if(ueqn->access->abl->controllerActive)
+            sourceU(ueqn, ueqn->bU, 1.0);
+
+    // sponge/Rayleigh damping
+    if(ueqn->access->flags->isXDampingActive ||
+       ueqn->access->flags->isYDampingActive ||
+       ueqn->access->flags->isZDampingActive ||
+       ueqn->access->flags->isKLeftRayleighDampingActive ||
+       ueqn->access->flags->isKRightRayleighDampingActive)
+    {
+        dampingSourceU(ueqn, ueqn->bU, 1.0);
+    }
+
+    // mean-gradient pressure forcing
+    if(ueqn->access->flags->isMeangradPForcingActive)
+        meanGradPForcing(ueqn, ueqn->bU, 1.0);
+
+    // biharmonic hyperviscosity: damp checkerboard / Nyquist modes.
+    // Added to bU here (same explicit pass as convection); zero cost when
+    // hyperVisc4 == 0.  See hyperViscosityU() for scaling details.
+    if(ueqn->hyperVisc4 > 0.0)
+        hyperViscosityU(ueqn, ueqn->bU, 1.0);
+
+    // ── Step 4: initial guess = explicit Euler estimate of U^{n+1} ─────────
+    //   Utmp = U^n + dt * bU
+    VecCopy(ueqn->Ucont_o, ueqn->Utmp);
+    VecAXPY(ueqn->Utmp, clock->dt, ueqn->bU);
+
+    // ── Step 5: SNES solve (converges in 1 Newton step for linear F) ────────
+    SNESSolve(ueqn->snesU, PETSC_NULL, ueqn->Utmp);
+
+    PetscReal norm;   PetscInt iter;
+    SNESGetFunctionNorm(ueqn->snesU, &norm);
+    SNESGetIterationNumber(ueqn->snesU, &iter);
+    PetscInt linIter = 0;
+    SNESGetLinearSolveIterations(ueqn->snesU, &linIter);
+
+    // ── Step 6: store solution ───────────────────────────────────────────────
+    VecCopy(ueqn->Utmp, ueqn->Ucont);
+    DMGlobalToLocalBegin(mesh->fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
+    DMGlobalToLocalEnd  (mesh->fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
+
+    // ── Step 7: rotate Conv buffer for AB2 at next step ─────────────────────
+    VecCopy(ueqn->RhsConv, ueqn->RhsConv_o);
+
+    PetscTime(&te);
+    PetscPrintf(mesh->MESH_COMM,
+        "Final residual = %e, Iterations = %ld, Linear iterations = %ld, Elapsed Time = %lf\n",
+        norm, iter, linIter, te-ts);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
 PetscErrorCode SolveUEqn(ueqn_ *ueqn)
 {
     mesh_          *mesh = ueqn->access->mesh;
@@ -6248,15 +6708,48 @@ PetscErrorCode SolveUEqn(ueqn_ *ueqn)
         PetscReal     ts,te;
 
         PetscTime(&ts);
-        PetscPrintf(mesh->MESH_COMM, "TRSNES: Solving for Ucont, Initial residual = ");
+        PetscPrintf(mesh->MESH_COMM, "%sSNES: Solving for Ucont, Initial residual = ", ueqn->snesType.c_str());
 
-        // copy the solution in the tmp variable
-        VecCopy(ueqn->Ucont, ueqn->Utmp);
+        // build the constant-RHS buffer for this time step. bU accumulates all
+        // source terms that do NOT depend on the current iterate Ucont, so they
+        // are evaluated once here instead of once per SNES function evaluation:
+        //   bU = -dP [± buoyancy] [+ 0.5*Rhs_o (it > itStart)] [+ farm source]
+        VecCopy(ueqn->dP, ueqn->bU);
+        VecScale(ueqn->bU, -1.0);
+
+        if(ueqn->access->flags->isTeqnActive && (clock->it > clock->itStart))
+        {
+            teqn_ *teqn = ueqn->access->teqn;
+            if(teqn->pTildeFormulation)
+                VecAXPY(ueqn->bU, -1.0, teqn->ghGradRhok);
+            else
+                VecAXPY(ueqn->bU,  1.0, ueqn->bTheta);
+        }
+
+        if(clock->it > clock->itStart)
+            VecAXPY(ueqn->bU, 0.5, ueqn->Rhs_o);
+
+        if(ueqn->access->flags->isWindFarmActive)
+            VecAXPY(ueqn->bU, 1.0, ueqn->access->farm->sourceFarmCont);
+
+        // Explicit Euler predictor as SNES initial guess (bU must be built first):
+        //   Utmp = Ucont_o + dt * (-dP ± buoy + Rhs_o + farm)
+        // bU holds (-dP ± buoy + 0.5*Rhs_o + farm); adding the other 0.5*Rhs_o
+        // gives the full explicit-Euler step.  This is far better than Ucont_o
+        // alone and typically cuts SNES iterations by 2-3x.
+        VecCopy(ueqn->Ucont_o, ueqn->Utmp);
+        VecAXPY(ueqn->Utmp, clock->dt, ueqn->bU);               // +dt*(-dP ± buoy + 0.5*Rhs_o + farm)
+        if(clock->it > clock->itStart)
+            VecAXPY(ueqn->Utmp, 0.5*clock->dt, ueqn->Rhs_o);   // +dt*0.5*Rhs_o → full Rhs_o weight
 
         // solve momentum equation and compute solution norm and iteration number
         SNESSolve(ueqn->snesU, PETSC_NULL, ueqn->Utmp);
         SNESGetFunctionNorm(ueqn->snesU, &norm);
         SNESGetIterationNumber(ueqn->snesU, &iter);
+
+        // report total inner linear iterations (= total MatMFFD FormU calls for J*v)
+        PetscInt linIter = 0;
+        SNESGetLinearSolveIterations(ueqn->snesU, &linIter);
 
         // store the solution and global to local scatter
         VecCopy(ueqn->Utmp, ueqn->Ucont);
@@ -6266,7 +6759,7 @@ PetscErrorCode SolveUEqn(ueqn_ *ueqn)
         DMGlobalToLocalEnd  (mesh->fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
 
         PetscTime(&te);
-        PetscPrintf(mesh->MESH_COMM,"Final residual = %e, Iterations = %ld, Elapsed Time = %lf\n", norm, iter, te-ts);
+        PetscPrintf(mesh->MESH_COMM,"Final residual = %e, Iterations = %ld, Linear iterations = %ld, Elapsed Time = %lf\n", norm, iter, linIter, te-ts);
     }
     else if (ueqn->ddtScheme == "forwardEuler")
     {
@@ -6275,6 +6768,10 @@ PetscErrorCode SolveUEqn(ueqn_ *ueqn)
     else if (ueqn->ddtScheme == "rungeKutta4")
     {
         UeqnRK4(ueqn);
+    }
+    else if (ueqn->ddtScheme == "IMEX")
+    {
+        UeqnIMEX(ueqn);
     }
 
     // reset no penetration fluxes to zero (override numerical errors)

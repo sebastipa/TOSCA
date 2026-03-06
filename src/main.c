@@ -89,7 +89,7 @@ int main(int argc, char **argv)
                 Buoyancy(domain[d].ueqn, 1.0);
             }
 
-            if(domain[d].ueqn->centralUpwindDiv || flags.isTeqnActive)
+            if(domain[d].ueqn->centralUpwindDiv || domain[d].ueqn->centralUpwindWDiv || flags.isTeqnActive)
             {
                 UpdateFluxLimiter(domain[d].ueqn);
             }
@@ -233,7 +233,7 @@ int main(int argc, char **argv)
                     UpdateImmersedBCs(domain[d].ibm);
                 }
 
-                FormU (domain[d].ueqn, domain[d].ueqn->Rhs_o, 1.0);
+                FormU (domain[d].ueqn, domain[d].ueqn->Rhs_o, 1.0, PETSC_FALSE);
             }
 
             if(flags.isTeqnActive)
