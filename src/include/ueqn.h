@@ -11,8 +11,10 @@ struct ueqn_
     SNES          snesU;                      //!< non linear matrix free context for momentum equation
     Mat           JU;                         //!< non linear matrix free preconditioner
     Mat           A, C;
-    KSP           ksp;                        //!< linear krylov-subspace context
+    KSP           ksp;                        //!< linear krylov-subspace context (backwardEuler SNES inner KSP)
     PC            pc;
+    KSP           kspIMEX;                    //!< standalone direct KSP for IMEX scheme (no SNES wrapper)
+    Mat           JvIMEX;                     //!< MatShell for IMEX operator A*v = v - dt*scale*Visc(v)
     word          snesType;                   //!< SNES solver type (kept for logging)
     PetscInt      snesMaxIter;                //!< max SNES outer iterations (-snesMaxItersU in control.dat)
     word          kspType;                    //!< KSP solver type: BiCGStab or GMRES (-kspTypeU in control.dat)
@@ -138,6 +140,9 @@ PetscErrorCode UeqnSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr);
 
 //! \brief SNES evaluation function for IMEX-CNAB (linear F: only implicit viscous depends on U^{n+1})
 PetscErrorCode UeqnIMEXSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr);
+
+//! \brief MatShell MatMult for IMEX operator A*v = v - dt*scale*Visc(v)
+PetscErrorCode IMEXMatVec(Mat A, Vec v, Vec Av);
 
 //! \brief Solves ueqn for one time step using IMEX-CNAB (AB2 convection + CN viscosity)
 PetscErrorCode UeqnIMEX(ueqn_ *ueqn);

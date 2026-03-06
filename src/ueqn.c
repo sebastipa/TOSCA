@@ -125,7 +125,8 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
 
     if(ueqn->ddtScheme == "backwardEuler")
     {
-        ueqn->snesType     = "SNESNEWTONTR";
+        ueqn->snesType     = "SNESNEWTONTR"; //SNESNEWTONLS
+        SNESType snesType  = SNESNEWTONTR;   //SNESNEWTONLS --- line search corrects for nonlinearity, but for the linear backward Euler system SNESNEWTONTR is more efficient (no line search, converges in 1 iter)
         ueqn->relExitTol   = 1e-30;
         ueqn->absExitTol   = 1e-5;
         ueqn->snesMaxIter  = 20;
@@ -158,7 +159,7 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
         SNESSetFunction(ueqn->snesU, ueqn->Rhs, UeqnSNES, (void *)ueqn);
 
         // Newton trust-region
-        SNESSetType(ueqn->snesU, ueqn->snesType.c_str());
+        SNESSetType(ueqn->snesU, snesType);
 
         // create matrix-free Jacobian
         MatCreateSNESMF(ueqn->snesU, &(ueqn->JU));
@@ -219,8 +220,10 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
         
         // The residual F(U^{n+1}) is LINEAR in U^{n+1} (only the implicit
         // viscous term Visc(U^{n+1}) depends on the current iterate), so the
-        // SNES converges in EXACTLY one Newton step. 
-        // This will correspond to 2 outer SNES iterations (initial guess + 1 Newton step) 
+        // system reduces to a single linear solve: A*U^{n+1} = b where
+        //   A*v = v - dt*scale*Visc(v)   (MatShell, applied via IMEXMatVec)
+        //   b   = U^n + dt*bU            (explicit RHS, prebuilt per step)
+        // No SNES outer loop needed.
         
         ueqn->snesType     = "IMEX-CNAB";
         ueqn->snesMaxIter  = 5;
@@ -243,56 +246,46 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
             fatalErrorInFunction("InitializeUEqn", error);
         }
 
-        // create the SNES solver (uses UeqnIMEXSNES residual, not UeqnSNES)
-        SNESCreate(mesh->MESH_COMM, &(ueqn->snesU));
-        SNESMonitorSet(ueqn->snesU, SNESMonitorU, (void*)&(mesh->MESH_COMM), PETSC_NULL);
-
-        // set the IMEX-specific residual: only implicit viscous term depends on U^{n+1}
-        SNESSetFunction(ueqn->snesU, ueqn->Rhs, UeqnIMEXSNES, (void *)ueqn);
-
-        // Newton line-search (correct for the linear IMEX system — takes the full
-        // Newton step and verifies with a backtracking line search; converges exactly
-        // in 1 Newton iteration with residual going to near machine precision)
-        SNESSetType(ueqn->snesU, SNESNEWTONLS);
-
-        // matrix-free Jacobian (MATMFFD computes exact J-v for a linear F)
-        MatCreateSNESMF(ueqn->snesU, &(ueqn->JU));
-        MatMFFDSetType(ueqn->JU, MATMFFD_WP);
-        SNESSetJacobian(ueqn->snesU, ueqn->JU, ueqn->JU, MatMFFDComputeJacobian, (void *)ueqn);
-
-        // allow failures without abort (precaution)
-        SNESSetMaxLinearSolveFailures(ueqn->snesU, 10000);
-        SNESSetMaxNonlinearStepFailures(ueqn->snesU, 10000);
-
-        // read SNES exit tolerances from control.dat (same keys as backwardEuler)
+        // read KSP exit tolerances from control.dat
         ueqn->relExitTol = 1e-30;
         ueqn->absExitTol = 1e-5;
         PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-relTolU", &(ueqn->relExitTol), PETSC_NULL);
         PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-absTolU", &(ueqn->absExitTol), PETSC_NULL);
 
-        // SNES tolerances: for the linear IMEX system 1 outer Newton iter is exact;
-        // the SNES exits immediately when ||F|| < absExitTol
-        SNESSetTolerances(ueqn->snesU, ueqn->absExitTol, ueqn->relExitTol, 1e-30, ueqn->snesMaxIter, 1000);
+        // Create a standalone KSP for the IMEX linear system A*U^{n+1} = b.
+        // A*v = v - dt*scale*Visc(v) (linear operator, assembled via MatShell).
+        // b   = U^n + dt*bU          (explicit RHS, prebuilt once per time step).
+        // The SNES framework is not needed: the system is exactly linear.
+        {
+            PetscInt n, N;
+            VecGetLocalSize(ueqn->Ucont, &n);
+            VecGetSize(ueqn->Ucont, &N);
+            MatCreateShell(mesh->MESH_COMM, n, n, N, N, (void*)ueqn, &(ueqn->JvIMEX));
+            MatShellSetOperation(ueqn->JvIMEX, MATOP_MULT, (void(*)(void))IMEXMatVec);
+        }
 
-        // KSP and PC
-        SNESGetKSP(ueqn->snesU, &(ueqn->ksp));
-        KSPGetPC(ueqn->ksp, &(ueqn->pc));
+        KSPCreate(mesh->MESH_COMM, &(ueqn->kspIMEX));
+        KSPSetOperators(ueqn->kspIMEX, ueqn->JvIMEX, ueqn->JvIMEX);
+
+        {
+            PC pcIMEX;
+            KSPGetPC(ueqn->kspIMEX, &pcIMEX);
+            PCSetType(pcIMEX, PCNONE);
+        }
 
         if(ueqn->kspType == "BiCGStab")
         {
-            KSPSetType(ueqn->ksp, KSPBCGS);
+            KSPSetType(ueqn->kspIMEX, KSPBCGS);
         }
         else
         {
-            KSPSetType(ueqn->ksp, KSPGMRES);
-            KSPGMRESSetRestart(ueqn->ksp, ueqn->gmresRestart);
+            KSPSetType(ueqn->kspIMEX, KSPGMRES);
+            KSPGMRESSetRestart(ueqn->kspIMEX, ueqn->gmresRestart);
         }
 
-        PCSetType(ueqn->pc, PCNONE);
-        // KSP atol = absExitTol guarantees the SNES converges in exactly 1 Newton step:
-        // for the linear IMEX residual F(U) = A*U + b, the SNES residual after the
-        // Newton step equals the KSP residual, so KSP atol ≤ absExitTol → SNES done.
-        KSPSetTolerances(ueqn->ksp, 1e-8, ueqn->absExitTol, 1e30, 1000);
+        // use the explicit-Euler estimate (copied into the solution vec before KSPSolve)
+        KSPSetInitialGuessNonzero(ueqn->kspIMEX, PETSC_TRUE);
+        KSPSetTolerances(ueqn->kspIMEX, ueqn->relExitTol, ueqn->absExitTol, 1e30, 1000);
 
         // allocate the constant-RHS buffer (explicit RHS, prebuilt once per step)
         VecDuplicate(ueqn->Ucont, &(ueqn->bU));       VecSet(ueqn->bU, 0.0);
@@ -331,10 +324,9 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
 
         // print info 
         PetscPrintf(mesh->MESH_COMM, "selected %s time scheme for U equation\n", ueqn->ddtScheme.c_str());
-        PetscPrintf(mesh->MESH_COMM, " > SNES type: %s\n", ueqn->snesType.c_str());
+        PetscPrintf(mesh->MESH_COMM, " > direct KSP = %s\n", ueqn->snesType.c_str());
         PetscPrintf(mesh->MESH_COMM, " > relTolU = %e\n", ueqn->relExitTol);
         PetscPrintf(mesh->MESH_COMM, " > absTolU = %e\n", ueqn->absExitTol);
-        PetscPrintf(mesh->MESH_COMM, " > snesMaxIterU = %d\n", ueqn->snesMaxIter);
         PetscPrintf(mesh->MESH_COMM, " > kspTypeU = %s\n", ueqn->kspType.c_str());
         if(ueqn->kspType == "GMRES")
         {
@@ -5012,13 +5004,9 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscBool fuseAuxTe
     // FORM DIVERGENCE AND VISCOUS CONTRIBUTIONS                              //
     // ---------------------------------------------------------------------- //
 
-    VecSet(ueqn->lFp,     0.0);
-    VecSet(ueqn->lDiv1,   0.0);
-    VecSet(ueqn->lDiv2,   0.0);
-    VecSet(ueqn->lDiv3,   0.0);
-    VecSet(ueqn->lVisc1,  0.0);
-    VecSet(ueqn->lVisc2,  0.0);
-    VecSet(ueqn->lVisc3,  0.0);
+    VecSet(ueqn->lFp,   0.0);
+    if(formMode != 2) { VecSet(ueqn->lDiv1,  0.0); VecSet(ueqn->lDiv2,  0.0); VecSet(ueqn->lDiv3,  0.0); }
+    if(formMode != 1) { VecSet(ueqn->lVisc1, 0.0); VecSet(ueqn->lVisc2, 0.0); VecSet(ueqn->lVisc3, 0.0); }
 
     // get distributed arrays
     DMDAVecGetArray(fda, ueqn->lDiv1, &div1);
@@ -5099,36 +5087,43 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscBool fuseAuxTe
                 // i faces 
                 if(j!=0 && k!=0)
                 {
-                    // get 1/V at the i-face
-                    PetscReal ajc = iaj[k][j][i];
+                    // viscous setup (skip when conv-only: fields only needed for visc)
+                    PetscReal ajc = 0.0;
+                    if(formMode != 1)
+                    {
+                        ajc = iaj[k][j][i];
 
-                    // get face normals
-                    csi0 = icsi[k][j][i].x, csi1 = icsi[k][j][i].y, csi2 = icsi[k][j][i].z;
-                    eta0 = ieta[k][j][i].x, eta1 = ieta[k][j][i].y, eta2 = ieta[k][j][i].z;
-                    zet0 = izet[k][j][i].x, zet1 = izet[k][j][i].y, zet2 = izet[k][j][i].z;
+                        // get face normals
+                        csi0 = icsi[k][j][i].x, csi1 = icsi[k][j][i].y, csi2 = icsi[k][j][i].z;
+                        eta0 = ieta[k][j][i].x, eta1 = ieta[k][j][i].y, eta2 = ieta[k][j][i].z;
+                        zet0 = izet[k][j][i].x, zet1 = izet[k][j][i].y, zet2 = izet[k][j][i].z;
 
-                    // compute cartesian velocity derivatives w.r.t. curvilinear coords
-                    Compute_du_i (mesh, i, j, k, mx, my, mz, ucat, nvert, meshTag, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
+                        // compute cartesian velocity derivatives w.r.t. curvilinear coords
+                        Compute_du_i (mesh, i, j, k, mx, my, mz, ucat, nvert, meshTag, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
 
-                    // compute metric tensor - WARNING: there is a factor of 1/J^2 if using face area vectors
-                    //                                  must multiply for ajc in viscous term!!!
-                    g11 = csi0 * csi0 + csi1 * csi1 + csi2 * csi2;
-                    g21 = eta0 * csi0 + eta1 * csi1 + eta2 * csi2;
-                    g31 = zet0 * csi0 + zet1 * csi1 + zet2 * csi2;
+                        // compute metric tensor - WARNING: there is a factor of 1/J^2 if using face area vectors
+                        //                                  must multiply for ajc in viscous term!!!
+                        g11 = csi0 * csi0 + csi1 * csi1 + csi2 * csi2;
+                        g21 = eta0 * csi0 + eta1 * csi1 + eta2 * csi2;
+                        g31 = zet0 * csi0 + zet1 * csi1 + zet2 * csi2;
 
-                    // compute cartesian velocity derivatives w.r.t. cartesian coords
-                    r11 = dudc * csi0 + dude * eta0 + dudz * zet0;    //du_dx / J -> another factor of / J is added in the viscous term
-                    r21 = dvdc * csi0 + dvde * eta0 + dvdz * zet0;    //dv_dx / J -> another factor of / J is added in the viscous term
-                    r31 = dwdc * csi0 + dwde * eta0 + dwdz * zet0;    //dw_dx / J -> another factor of / J is added in the viscous term
+                        // compute cartesian velocity derivatives w.r.t. cartesian coords
+                        r11 = dudc * csi0 + dude * eta0 + dudz * zet0;    //du_dx / J -> another factor of / J is added in the viscous term
+                        r21 = dvdc * csi0 + dvde * eta0 + dvdz * zet0;    //dv_dx / J -> another factor of / J is added in the viscous term
+                        r31 = dwdc * csi0 + dwde * eta0 + dwdz * zet0;    //dw_dx / J -> another factor of / J is added in the viscous term
 
-                    r12 = dudc * csi1 + dude * eta1 + dudz * zet1;
-                    r22 = dvdc * csi1 + dvde * eta1 + dvdz * zet1;
-                    r32 = dwdc * csi1 + dwde * eta1 + dwdz * zet1;
+                        r12 = dudc * csi1 + dude * eta1 + dudz * zet1;
+                        r22 = dvdc * csi1 + dvde * eta1 + dvdz * zet1;
+                        r32 = dwdc * csi1 + dwde * eta1 + dwdz * zet1;
 
-                    r13 = dudc * csi2 + dude * eta2 + dudz * zet2;
-                    r23 = dvdc * csi2 + dvde * eta2 + dvdz * zet2;
-                    r33 = dwdc * csi2 + dwde * eta2 + dwdz * zet2;
+                        r13 = dudc * csi2 + dude * eta2 + dudz * zet2;
+                        r23 = dvdc * csi2 + dvde * eta2 + dvdz * zet2;
+                        r33 = dwdc * csi2 + dwde * eta2 + dwdz * zet2;
+                    }
 
+                    // divergence (skip when visc-only)
+                    if(formMode != 2)
+                    {
                     PetscInt    iL, iR;
                     PetscReal denom;
                     getFace2Cell4StencilCsi(mesh, k, j, i, mx, &iL, &iR, &denom, nvert, meshTag);
@@ -5215,7 +5210,11 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscBool fuseAuxTe
                             );
                         }
                     }
+                    } // end formMode != 2
 
+                    // viscous accumulation (skip when conv-only)
+                    if(formMode != 1)
+                    {
                     PetscReal nuEff, nu = cst->nu, nut;
 
                     // viscous terms
@@ -5285,40 +5284,48 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscBool fuseAuxTe
                     visc1[k][j][i].x += (g11 * dudc + g21 * dude + g31 * dudz + r11 * csi0 + r21 * csi1 + r31 * csi2) * ajc * (nuEff);
                     visc1[k][j][i].y += (g11 * dvdc + g21 * dvde + g31 * dvdz + r12 * csi0 + r22 * csi1 + r32 * csi2) * ajc * (nuEff);
                     visc1[k][j][i].z += (g11 * dwdc + g21 * dwde + g31 * dwdz + r13 * csi0 + r23 * csi1 + r33 * csi2) * ajc * (nuEff);
+                    } // end formMode != 1
                 }
 
                 // j faces 
                 if(i!=0 && k!=0)
                 {
-                    // get 1/V at the j-face
-                    PetscReal ajc = jaj[k][j][i];
+                    // viscous setup (skip when conv-only)
+                    PetscReal ajc = 0.0;
+                    if(formMode != 1)
+                    {
+                        ajc = jaj[k][j][i];
 
-                    // get face normals
-                    csi0 = jcsi[k][j][i].x, csi1 = jcsi[k][j][i].y, csi2 = jcsi[k][j][i].z;
-                    eta0 = jeta[k][j][i].x, eta1 = jeta[k][j][i].y, eta2 = jeta[k][j][i].z;
-                    zet0 = jzet[k][j][i].x, zet1 = jzet[k][j][i].y, zet2 = jzet[k][j][i].z;
+                        // get face normals
+                        csi0 = jcsi[k][j][i].x, csi1 = jcsi[k][j][i].y, csi2 = jcsi[k][j][i].z;
+                        eta0 = jeta[k][j][i].x, eta1 = jeta[k][j][i].y, eta2 = jeta[k][j][i].z;
+                        zet0 = jzet[k][j][i].x, zet1 = jzet[k][j][i].y, zet2 = jzet[k][j][i].z;
 
-                    // compute cartesian velocity derivatives w.r.t. curvilinear coords
-                    Compute_du_j (mesh, i, j, k, mx, my, mz, ucat, nvert, meshTag, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
+                        // compute cartesian velocity derivatives w.r.t. curvilinear coords
+                        Compute_du_j (mesh, i, j, k, mx, my, mz, ucat, nvert, meshTag, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
 
-                    // compute metric tensor
-                    g11 = csi0 * eta0 + csi1 * eta1 + csi2 * eta2;
-                    g21 = eta0 * eta0 + eta1 * eta1 + eta2 * eta2;
-                    g31 = zet0 * eta0 + zet1 * eta1 + zet2 * eta2;
+                        // compute metric tensor
+                        g11 = csi0 * eta0 + csi1 * eta1 + csi2 * eta2;
+                        g21 = eta0 * eta0 + eta1 * eta1 + eta2 * eta2;
+                        g31 = zet0 * eta0 + zet1 * eta1 + zet2 * eta2;
 
-                    // compute cartesian velocity derivatives w.r.t. cartesian coords
-                    r11 = dudc * csi0 + dude * eta0 + dudz * zet0;
-                    r21 = dvdc * csi0 + dvde * eta0 + dvdz * zet0;
-                    r31 = dwdc * csi0 + dwde * eta0 + dwdz * zet0;
+                        // compute cartesian velocity derivatives w.r.t. cartesian coords
+                        r11 = dudc * csi0 + dude * eta0 + dudz * zet0;
+                        r21 = dvdc * csi0 + dvde * eta0 + dvdz * zet0;
+                        r31 = dwdc * csi0 + dwde * eta0 + dwdz * zet0;
 
-                    r12 = dudc * csi1 + dude * eta1 + dudz * zet1;
-                    r22 = dvdc * csi1 + dvde * eta1 + dvdz * zet1;
-                    r32 = dwdc * csi1 + dwde * eta1 + dwdz * zet1;
+                        r12 = dudc * csi1 + dude * eta1 + dudz * zet1;
+                        r22 = dvdc * csi1 + dvde * eta1 + dvdz * zet1;
+                        r32 = dwdc * csi1 + dwde * eta1 + dwdz * zet1;
 
-                    r13 = dudc * csi2 + dude * eta2 + dudz * zet2;
-                    r23 = dvdc * csi2 + dvde * eta2 + dvdz * zet2;
-                    r33 = dwdc * csi2 + dwde * eta2 + dwdz * zet2;
+                        r13 = dudc * csi2 + dude * eta2 + dudz * zet2;
+                        r23 = dvdc * csi2 + dvde * eta2 + dvdz * zet2;
+                        r33 = dwdc * csi2 + dwde * eta2 + dwdz * zet2;
+                    }
 
+                    // divergence (skip when visc-only)
+                    if(formMode != 2)
+                    {
                     PetscInt    jL, jR;
                     PetscReal denom;
                     getFace2Cell4StencilEta(mesh, k, j, i, my, &jL, &jR, &denom, nvert, meshTag);
@@ -5404,7 +5411,11 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscBool fuseAuxTe
                             );
                         }
                     }
+                    } // end formMode != 2
 
+                    // viscous accumulation (skip when conv-only)
+                    if(formMode != 1)
+                    {
                     PetscReal nuEff, nu = cst->nu, nut;
 
                     if
@@ -5474,40 +5485,48 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscBool fuseAuxTe
                     visc2[k][j][i].x += (g11 * dudc + g21 * dude + g31 * dudz + r11 * eta0 + r21 * eta1 + r31 * eta2) * ajc * (nuEff);
                     visc2[k][j][i].y += (g11 * dvdc + g21 * dvde + g31 * dvdz + r12 * eta0 + r22 * eta1 + r32 * eta2) * ajc * (nuEff);
                     visc2[k][j][i].z += (g11 * dwdc + g21 * dwde + g31 * dwdz + r13 * eta0 + r23 * eta1 + r33 * eta2) * ajc * (nuEff);
+                    } // end formMode != 1
                 }
 
                 // k faces 
                 if(i!=0 && j!=0)
                 {
-                    // get 1/V at the k-face
-                    PetscReal ajc = kaj[k][j][i];
+                    // viscous setup (skip when conv-only)
+                    PetscReal ajc = 0.0;
+                    if(formMode != 1)
+                    {
+                        ajc = kaj[k][j][i];
 
-                    // get face normals
-                    csi0 = kcsi[k][j][i].x, csi1 = kcsi[k][j][i].y, csi2 = kcsi[k][j][i].z;
-                    eta0 = keta[k][j][i].x, eta1 = keta[k][j][i].y, eta2 = keta[k][j][i].z;
-                    zet0 = kzet[k][j][i].x, zet1 = kzet[k][j][i].y, zet2 = kzet[k][j][i].z;
+                        // get face normals
+                        csi0 = kcsi[k][j][i].x, csi1 = kcsi[k][j][i].y, csi2 = kcsi[k][j][i].z;
+                        eta0 = keta[k][j][i].x, eta1 = keta[k][j][i].y, eta2 = keta[k][j][i].z;
+                        zet0 = kzet[k][j][i].x, zet1 = kzet[k][j][i].y, zet2 = kzet[k][j][i].z;
 
-                    // compute cartesian velocity derivatives w.r.t. curvilinear coords
-                    Compute_du_k (mesh, i, j, k, mx, my, mz, ucat, nvert, meshTag, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
+                        // compute cartesian velocity derivatives w.r.t. curvilinear coords
+                        Compute_du_k (mesh, i, j, k, mx, my, mz, ucat, nvert, meshTag, &dudc, &dvdc, &dwdc, &dude, &dvde, &dwde, &dudz, &dvdz, &dwdz);
 
-                    // compute metric tensor
-                    g11 = csi0 * zet0 + csi1 * zet1 + csi2 * zet2;
-                    g21 = eta0 * zet0 + eta1 * zet1 + eta2 * zet2;
-                    g31 = zet0 * zet0 + zet1 * zet1 + zet2 * zet2;
+                        // compute metric tensor
+                        g11 = csi0 * zet0 + csi1 * zet1 + csi2 * zet2;
+                        g21 = eta0 * zet0 + eta1 * zet1 + eta2 * zet2;
+                        g31 = zet0 * zet0 + zet1 * zet1 + zet2 * zet2;
 
-                    // compute cartesian velocity derivatives w.r.t. cartesian coords
-                    r11 = dudc * csi0 + dude * eta0 + dudz * zet0;
-                    r21 = dvdc * csi0 + dvde * eta0 + dvdz * zet0;
-                    r31 = dwdc * csi0 + dwde * eta0 + dwdz * zet0;
+                        // compute cartesian velocity derivatives w.r.t. cartesian coords
+                        r11 = dudc * csi0 + dude * eta0 + dudz * zet0;
+                        r21 = dvdc * csi0 + dvde * eta0 + dvdz * zet0;
+                        r31 = dwdc * csi0 + dwde * eta0 + dwdz * zet0;
 
-                    r12 = dudc * csi1 + dude * eta1 + dudz * zet1;
-                    r22 = dvdc * csi1 + dvde * eta1 + dvdz * zet1;
-                    r32 = dwdc * csi1 + dwde * eta1 + dwdz * zet1;
+                        r12 = dudc * csi1 + dude * eta1 + dudz * zet1;
+                        r22 = dvdc * csi1 + dvde * eta1 + dvdz * zet1;
+                        r32 = dwdc * csi1 + dwde * eta1 + dwdz * zet1;
 
-                    r13 = dudc * csi2 + dude * eta2 + dudz * zet2;
-                    r23 = dvdc * csi2 + dvde * eta2 + dvdz * zet2;
-                    r33 = dwdc * csi2 + dwde * eta2 + dwdz * zet2;
+                        r13 = dudc * csi2 + dude * eta2 + dudz * zet2;
+                        r23 = dvdc * csi2 + dvde * eta2 + dvdz * zet2;
+                        r33 = dwdc * csi2 + dwde * eta2 + dwdz * zet2;
+                    }
 
+                    // divergence (skip when visc-only)
+                    if(formMode != 2)
+                    {
                     PetscInt    kL, kR;
                     PetscReal denom;
                     getFace2Cell4StencilZet(mesh, k, j, i, mz, &kL, &kR, &denom, nvert, meshTag);
@@ -5594,7 +5613,11 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscBool fuseAuxTe
                             );
                         }
                     }
+                    } // end formMode != 2
 
+                    // viscous accumulation (skip when conv-only)
+                    if(formMode != 1)
+                    {
                     PetscReal nuEff, nu = cst->nu, nut;
 
                     if
@@ -5649,6 +5672,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscBool fuseAuxTe
                     visc3[k][j][i].x += (g11 * dudc + g21 * dude + g31 * dudz + r11 * zet0 + r21 * zet1 + r31 * zet2) * ajc * (nuEff);
                     visc3[k][j][i].y += (g11 * dvdc + g21 * dvde + g31 * dvdz + r12 * zet0 + r22 * zet1 + r32 * zet2) * ajc * (nuEff);
                     visc3[k][j][i].z += (g11 * dwdc + g21 * dwde + g31 * dwdz + r13 * zet0 + r23 * zet1 + r33 * zet2) * ajc * (nuEff);
+                    } // end formMode != 1
                 }
             }
         }
@@ -6046,6 +6070,44 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscBool fuseAuxTe
     DMDAVecRestoreArray(fda, ueqn->lUcont, &ucont);
     DMDAVecRestoreArray(fda, ueqn->lUcat,  &ucat);
     DMDAVecRestoreArray(fda, Rhs,  &rhs);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+// IMEX MatShell operator: A*v = v - dt*scale*Visc(v)
+// Used by kspIMEX to solve the linear IMEX system A*U^{n+1} = U^n + dt*bU.
+// Called by PETSc KSP for every matrix-vector product during the iterative solve.
+//***************************************************************************************************************//
+
+PetscErrorCode IMEXMatVec(Mat A, Vec v, Vec Av)
+{
+    ueqn_  *ueqn;
+    MatShellGetContext(A, (void**)&ueqn);
+    mesh_  *mesh  = ueqn->access->mesh;
+    clock_ *clock = ueqn->access->clock;
+    PetscReal dt    = clock->dt;
+    PetscReal scale = (clock->it > clock->itStart) ? 0.5 : 1.0;
+
+    // sync v → Ucont/lUcont so FormU has the correct state
+    VecCopy(v, ueqn->Ucont);
+    DMGlobalToLocalBegin(mesh->fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
+    DMGlobalToLocalEnd  (mesh->fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
+    resetNoPenetrationFluxes(ueqn);
+    resetFacePeriodicFluxesVector(mesh, ueqn->Ucont, ueqn->lUcont, "globalToLocal");
+    contravariantToCartesian(ueqn);
+    if(ueqn->access->flags->isOversetActive) setBackgroundBC(mesh);
+    resetCellPeriodicFluxes(mesh, ueqn->Ucat, ueqn->lUcat, "vector", "globalToLocal");
+
+    // compute scale*Visc(v) into scratch buffer ueqn->Rhs
+    VecSet(ueqn->Rhs, 0.0);
+    FormU(ueqn, ueqn->Rhs, scale, PETSC_FALSE, 2);   // visc-only: Rhs = scale*Visc(v)
+    VecScale(ueqn->Rhs, dt);                           // Rhs = dt*scale*Visc(v)
+    resetNonResolvedCellFaces(mesh, ueqn->Rhs);
+
+    // Av = v - dt*scale*Visc(v)
+    VecCopy(v, Av);
+    VecAXPY(Av, -1.0, ueqn->Rhs);
 
     return(0);
 }
@@ -6562,7 +6624,7 @@ PetscErrorCode UeqnIMEX(ueqn_ *ueqn)
 
     PetscReal ts, te;
     PetscTime(&ts);
-    PetscPrintf(mesh->MESH_COMM, "IMEX-CNAB: Solving for Ucont, Initial residual = ");
+    PetscPrintf(mesh->MESH_COMM, "IMEX-CNAB: Solving for Ucont, ");
 
     // ── Step 1: prepare U^n state (synchronise lUcont / lUcat) ─────────────
 
@@ -6662,21 +6724,32 @@ PetscErrorCode UeqnIMEX(ueqn_ *ueqn)
         hyperViscosityU(ueqn, ueqn->bU, 1.0);
 
     // ── Step 4: initial guess = explicit Euler estimate of U^{n+1} ─────────
-    //   Utmp = U^n + dt * bU
+    //   b = Utmp = U^n + dt * bU  (also serves as non-zero initial guess)
     VecCopy(ueqn->Ucont_o, ueqn->Utmp);
     VecAXPY(ueqn->Utmp, clock->dt, ueqn->bU);
+    // Zero boundary/IBM faces in the RHS, matching what the SNES residual
+    // UeqnIMEXSNES did implicitly: it applied resetNonResolvedCellFaces on the
+    // full dt*(bU + scale*Visc(U^{n+1})) vector, which zeroed dt*bU at those
+    // faces.  Without this, inflow/outflow and IBM faces accumulate source
+    // terms each step and blow up.
+    resetNonResolvedCellFaces(mesh, ueqn->Utmp);
 
-    // ── Step 5: SNES solve (converges in 1 Newton step for linear F) ────────
-    SNESSolve(ueqn->snesU, PETSC_NULL, ueqn->Utmp);
+    // ── Step 5: KSP direct solve: A*Ucont = Utmp  (A is linear, no SNES needed) ──
+    //   RhsConv_o is used as the KSP solution buffer to avoid aliasing:
+    //   IMEXMatVec writes to ueqn->Ucont/lUcont as FormU workspace, so the KSP
+    //   solution vector must be a *different* Vec to prevent in-place update
+    //   (VecAXPY on x) from interfering with the MatVec workspace.
+    //   RhsConv_o is free at this point (its value was already consumed into bU).
+    //   Step 7 will overwrite RhsConv_o with RhsConv, so the order matters.
+    VecCopy(ueqn->Utmp, ueqn->RhsConv_o);    // initial guess ≈ U^n + dt*bU
+    KSPSolve(ueqn->kspIMEX, ueqn->Utmp, ueqn->RhsConv_o);
 
-    PetscReal norm;   PetscInt iter;
-    SNESGetFunctionNorm(ueqn->snesU, &norm);
-    SNESGetIterationNumber(ueqn->snesU, &iter);
-    PetscInt linIter = 0;
-    SNESGetLinearSolveIterations(ueqn->snesU, &linIter);
+    PetscReal norm;  PetscInt iter;
+    KSPGetResidualNorm(ueqn->kspIMEX, &norm);
+    KSPGetIterationNumber(ueqn->kspIMEX, &iter);
 
-    // ── Step 6: store solution ───────────────────────────────────────────────
-    VecCopy(ueqn->Utmp, ueqn->Ucont);
+    // ── Step 6: copy solution and scatter ────────────────────────────────────
+    VecCopy(ueqn->RhsConv_o, ueqn->Ucont);
     DMGlobalToLocalBegin(mesh->fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
     DMGlobalToLocalEnd  (mesh->fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
 
@@ -6685,8 +6758,8 @@ PetscErrorCode UeqnIMEX(ueqn_ *ueqn)
 
     PetscTime(&te);
     PetscPrintf(mesh->MESH_COMM,
-        "Final residual = %e, Iterations = %ld, Linear iterations = %ld, Elapsed Time = %lf\n",
-        norm, iter, linIter, te-ts);
+        "Final residual = %e, Iterations = %ld, Elapsed Time = %lf\n",
+        norm, iter, te-ts);
 
     return(0);
 }
