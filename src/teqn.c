@@ -65,10 +65,20 @@ PetscErrorCode InitializeTEqn(teqn_ *teqn)
         readDictWord("control.dat", "-dTdtScheme", &(teqn->ddtScheme));
 
         // create the SNES solver
-        if(teqn->ddtScheme=="backwardEuler")
+        if(teqn->ddtScheme=="backwardEuler" || teqn->ddtScheme=="crankNicholson")
         {
-            // readDictDouble("control.dat", "-absTolT", &(teqn->absExitTol));
-            // readDictDouble("control.dat", "-relTolT", &(teqn->relExitTol));
+            // for crankNicholson, warn if T predictor is not enabled
+            if(teqn->ddtScheme=="crankNicholson")
+            {
+                ueqn_ *ueqn = teqn->access->ueqn;
+                if(!ueqn || ueqn->teqnPredictorScheme != "forwardEuler")
+                {
+                    PetscPrintf(mesh->MESH_COMM,
+                        "WARNING: crankNicholson selected for T equation without a T predictor "
+                        "(-teqnPredictorU forwardEuler) — buoyancy coupling will use stale T^n "
+                        "instead of T*\n");
+                }
+            }
 
             // default parameters
             teqn->absExitTol        = 1e-5;
@@ -125,6 +135,12 @@ PetscErrorCode InitializeTEqn(teqn_ *teqn)
             PCSetType(teqn->pc, PCNONE);
             PetscReal rtol=teqn->relExitTol, atol=teqn->absExitTol, dtol=PETSC_DEFAULT;
             KSPSetTolerances(teqn->ksp, rtol, atol, dtol, 1000);
+
+            // for crankNicholson: allocate explicit-half buffer bT = 0.5*dt*(FormT + damp)(T^n), built once per step in SolveTEqn
+            if(teqn->ddtScheme=="crankNicholson")
+            {
+                VecDuplicate(mesh->Nvert, &(teqn->bT));  VecSet(teqn->bT, 0.0);
+            }
         }
         else if (teqn->ddtScheme=="rungeKutta4")
         {
@@ -212,9 +228,97 @@ PetscErrorCode InitializeTEqn(teqn_ *teqn)
         else
         {
             char error[512];
-            sprintf(error, "unknown ddtScheme %s for T equation, available schemes are\n    1. backwardEuler\n    2. rungeKutta4\n    3. IMEX", teqn->ddtScheme.c_str());
+            sprintf(error, "unknown ddtScheme %s for T equation, available schemes are\n    1. backwardEuler\n    2. rungeKutta4\n    3. IMEX\n    4. crankNicholson", teqn->ddtScheme.c_str());
             fatalErrorInFunction("InitializeTEqn", error);
         }
+    }
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode SolveTEqn(teqn_ *teqn)
+{
+    mesh_          *mesh  = teqn->access->mesh;
+    clock_         *clock = teqn->access->clock;
+
+    // set the right hand side to zero
+    VecSet (teqn->Rhs, 0.0);
+
+    if(teqn->ddtScheme=="backwardEuler")
+    {
+        PetscReal     norm;
+        PetscInt      iter;
+        PetscReal     ts,te;
+
+        PetscTime(&ts);
+        PetscPrintf(mesh->MESH_COMM, "TRSNES: Solving for T, Initial residual = ");
+
+        // Explicit Euler predictor as SNES initial guess:
+        //   TmprtTmp = T^n + dt * FormT_full(T^n)
+        FormExplicitRhsT(teqn);                            // Rhs = full RHS at T^n (T/time units)
+        VecCopy(teqn->Tmprt, teqn->TmprtTmp);              // TmprtTmp = T^n
+        VecAXPY(teqn->TmprtTmp, clock->dt, teqn->Rhs);    // TmprtTmp = T^n + dt * Rhs
+
+        // solve temperature equation and compute solution norm and iteration number
+        SNESSolve(teqn->snesT, PETSC_NULL, teqn->TmprtTmp);
+        SNESGetFunctionNorm(teqn->snesT, &norm);
+        SNESGetIterationNumber(teqn->snesT, &iter);
+
+        // store the solution and global to local scatter
+        VecCopy(teqn->TmprtTmp, teqn->Tmprt);
+
+        // scatter
+        DMGlobalToLocalBegin(mesh->da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
+        DMGlobalToLocalEnd  (mesh->da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
+
+        // compute elapsed time
+        PetscTime(&te);
+        PetscPrintf(mesh->MESH_COMM,"Final residual = %e, Iterations = %ld, Elapsed Time = %lf\n", norm, iter, te-ts);
+    }
+    else if (teqn->ddtScheme=="rungeKutta4")
+    {
+        TeqnRK4(teqn);
+    }
+    else if (teqn->ddtScheme=="IMEX")
+    {
+        TeqnIMEX(teqn);
+    }
+    else if (teqn->ddtScheme=="crankNicholson")
+    {
+        PetscReal     norm;
+        PetscInt      iter;
+        PetscReal     ts, te;
+
+        PetscTime(&ts);
+        PetscPrintf(mesh->MESH_COMM, "TRSNES: Solving for T (CN), Initial residual = ");
+
+        // build explicit CN half: bT = 0.5*dt*(FormT + damp)(T^n)
+        // lTmprt = T^n at this point (TmprtRestoreFromOld was called before SolveTEqn)
+        VecSet(teqn->bT, 0.0);
+        FormT(teqn, teqn->bT, 1.0);
+        if(teqn->access->flags->isXDampingActive)
+            dampingSourceT(teqn, teqn->bT, 1.0);
+        VecScale(teqn->bT, 0.5 * clock->dt);
+
+        // Explicit Euler predictor as SNES initial guess:
+        //   TmprtTmp = T^n + dt * FormT_full(T^n)
+        FormExplicitRhsT(teqn);                            // Rhs = full RHS at T^n (T/time units)
+        VecCopy(teqn->Tmprt, teqn->TmprtTmp);              // TmprtTmp = T^n
+        VecAXPY(teqn->TmprtTmp, clock->dt, teqn->Rhs);    // TmprtTmp = T^n + dt * Rhs
+
+        SNESSolve(teqn->snesT, PETSC_NULL, teqn->TmprtTmp);
+        SNESGetFunctionNorm(teqn->snesT, &norm);
+        SNESGetIterationNumber(teqn->snesT, &iter);
+
+        VecCopy(teqn->TmprtTmp, teqn->Tmprt);
+
+        DMGlobalToLocalBegin(mesh->da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
+        DMGlobalToLocalEnd  (mesh->da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
+
+        PetscTime(&te);
+        PetscPrintf(mesh->MESH_COMM, "Final residual = %e, Iterations = %ld, Elapsed Time = %lf\n", norm, iter, te-ts);
     }
 
     return(0);
@@ -639,59 +743,6 @@ PetscErrorCode TmprtRestoreFromOld(teqn_ *teqn)
     DMGlobalToLocalBegin(mesh->da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
     DMGlobalToLocalEnd  (mesh->da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
     resetCellPeriodicFluxes(mesh, teqn->Tmprt, teqn->lTmprt, "scalar", "globalToLocal");
-
-    return(0);
-}
-
-//***************************************************************************************************************//
-
-PetscErrorCode SolveTEqn(teqn_ *teqn)
-{
-    mesh_          *mesh  = teqn->access->mesh;
-    clock_         *clock = teqn->access->clock;
-
-    // set the right hand side to zero
-    VecSet (teqn->Rhs, 0.0);
-
-    if(teqn->ddtScheme=="backwardEuler")
-    {
-        PetscReal     norm;
-        PetscInt      iter;
-        PetscReal     ts,te;
-
-        PetscTime(&ts);
-        PetscPrintf(mesh->MESH_COMM, "TRSNES: Solving for T, Initial residual = ");
-
-        // Explicit Euler predictor as SNES initial guess:
-        //   TmprtTmp = T^n + dt * FormT_full(T^n)
-        FormExplicitRhsT(teqn);                            // Rhs = full RHS at T^n (T/time units)
-        VecCopy(teqn->Tmprt, teqn->TmprtTmp);              // TmprtTmp = T^n
-        VecAXPY(teqn->TmprtTmp, clock->dt, teqn->Rhs);    // TmprtTmp = T^n + dt * Rhs
-
-        // solve temperature equation and compute solution norm and iteration number
-        SNESSolve(teqn->snesT, PETSC_NULL, teqn->TmprtTmp);
-        SNESGetFunctionNorm(teqn->snesT, &norm);
-        SNESGetIterationNumber(teqn->snesT, &iter);
-
-        // store the solution and global to local scatter
-        VecCopy(teqn->TmprtTmp, teqn->Tmprt);
-
-        // scatter
-        DMGlobalToLocalBegin(mesh->da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
-        DMGlobalToLocalEnd  (mesh->da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
-
-        // compute elapsed time
-        PetscTime(&te);
-        PetscPrintf(mesh->MESH_COMM,"Final residual = %e, Iterations = %ld, Elapsed Time = %lf\n", norm, iter, te-ts);
-    }
-    else if (teqn->ddtScheme=="rungeKutta4")
-    {
-        TeqnRK4(teqn);
-    }
-    else if (teqn->ddtScheme=="IMEX")
-    {
-        TeqnIMEX(teqn);
-    }
 
     return(0);
 }

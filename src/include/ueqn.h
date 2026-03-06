@@ -11,7 +11,7 @@ struct ueqn_
     SNES          snesU;                      //!< non linear matrix free context for momentum equation
     Mat           JU;                         //!< non linear matrix free preconditioner
     Mat           A, C;
-    KSP           ksp;                        //!< linear krylov-subspace context (backwardEuler SNES inner KSP)
+    KSP           ksp;                        //!< linear krylov-subspace context (crankNicholson SNES inner KSP)
     PC            pc;
     KSP           kspIMEX;                    //!< standalone direct KSP for IMEX scheme (no SNES wrapper)
     Mat           JvIMEX;                     //!< MatShell for IMEX operator A*v = v - dt*scale*Visc(v)
@@ -36,7 +36,7 @@ struct ueqn_
     Vec           Ucont, lUcont;                    //!< contravariant fluxes (contravariant velocity / J)
     Vec           Ucat, lUcat;                      //!< cartesian velocity
     Vec           Ucont_o;                          //!< contravariant fluxes at the previous time step
-    Vec           bU;                               //!< precomputed constant-RHS contributions (backwardEuler/IMEX): built once per time step in SolveUEqn
+    Vec           bU;                               //!< precomputed constant-RHS contributions (crankNicholson/IMEX): built once per time step in SolveUEqn
     Vec           RhsConv;                          //!< convective-only RHS at current step n  (IMEX-CNAB: Adams-Bashforth 2)
     Vec           RhsConv_o;                        //!< convective-only RHS at previous step n-1 (IMEX-CNAB: Adams-Bashforth 2)
     word          teqnPredictorScheme;               //!< T predictor before SolveUEqn for improved buoyancy coupling: "forwardEuler" or "none" (default, -teqnPredictorU)

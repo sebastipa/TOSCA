@@ -11,7 +11,7 @@ struct teqn_
     SNES          snesT;                      //!< non linear matrix free context
     Mat           JT;                         //!< non linear matrix free preconditioner
     Mat           AT, CT;
-    KSP           ksp;                        //!< linear krylov-subspace context (backwardEuler SNES inner KSP)
+    KSP           ksp;                        //!< linear krylov-subspace context (backwardEuler/crankNicholson SNES inner KSP)
     PC            pc;
     KSP           kspIMEX;                    //!< standalone direct KSP for IMEX scheme (no SNES wrapper)
     Mat           JvIMEX;                     //!< MatShell for IMEX operator A*v = v - dt*D(v)
@@ -19,7 +19,7 @@ struct teqn_
     PetscInt      gmresRestart;               //!< GMRES restart parameter for IMEX (-kspGMRESRestartT in control.dat, default 30)
     Vec           Rhs;
     Vec           Rhs_o;
-    Vec           bT;                         //!< explicit RHS buffer prebuilt once per IMEX time step
+    Vec           bT;                         //!< explicit-half RHS buffer: prebuilt once per step for IMEX (conv) or crankNicholson (FormT+damp)
     Vec           RhsConv;                    //!< convective RHS at T^n (for AB2 blending)
     Vec           RhsConv_o;                  //!< convective RHS at T^{n-1} (for AB2 blending)
 

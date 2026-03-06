@@ -706,9 +706,8 @@ PetscErrorCode TeqnSNES(SNES snes, Vec T, Vec Rhs, void *ptr)
     // get time step
     const PetscReal dt = clock->dt;
 
-    // add viscous and transport terms. 
-    // Note: here we use backward Euler, because Crank-Nicholson poorly couples 
-    //       velocity and temperature
+    // add viscous and transport terms.
+    // implicit-half scale: 0.5 for Crank-Nicolson (explicit half prebuilt in bT), 1.0 for backward Euler
     FormT(teqn, Rhs, 1.0);
 
     if(teqn->access->flags->isXDampingActive)
@@ -717,8 +716,13 @@ PetscErrorCode TeqnSNES(SNES snes, Vec T, Vec Rhs, void *ptr)
         dampingSourceT(teqn, Rhs, 1.0);
     }
 
-    // multiply for dt
-    VecScale(Rhs, dt);
+    // multiply for dt: 0.5*dt for CN (implicit half only), dt for backward Euler
+    PetscReal dtScale = (teqn->ddtScheme == "crankNicholson") ? 0.5 : 1.0;
+    VecScale(Rhs, dtScale * dt);
+
+    // for CN: add prebuilt explicit half bT = 0.5*dt*(FormT + damp)(T^n)
+    if(teqn->ddtScheme == "crankNicholson")
+        VecAXPY(Rhs, 1.0, teqn->bT);
 
     // add driving source terms after as it is not scaled by 1/dt
     if(teqn->access->flags->isAblActive)
