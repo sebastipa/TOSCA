@@ -86,6 +86,11 @@ int main(int argc, char **argv)
                     ghGradRhoK(domain[d].teqn);
                 }
 
+                if(domain[d].ueqn->teqnPredictorScheme == "forwardEuler")
+                {
+                    TmprtPredictor(domain[d].teqn);
+                }
+
                 Buoyancy(domain[d].ueqn, 1.0);
             }
 
@@ -160,6 +165,12 @@ int main(int argc, char **argv)
             // temperature step
             if(flags.isTeqnActive)
             {
+
+                // restore lTmprt = T^n (predictor temporarily advanced it to T* for buoyancy)
+                if(domain[d].ueqn->teqnPredictorScheme == "forwardEuler")
+                {
+                    TmprtRestoreFromOld(domain[d].teqn);
+                }
 
                 UpdateCsk(domain[d].les);
                 UpdatekT(domain[d].les);

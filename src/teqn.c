@@ -6,6 +6,9 @@
 #include "include/io.h"
 #include "include/inline.h"
 
+#include "sources/teqn_sources.h"
+#include "solvers/teqn_solvers.h"
+
 //***************************************************************************************************************//
 
 PetscErrorCode SNESMonitorT(SNES snes, PetscInt iter, PetscReal rnorm, void* comm)
@@ -127,606 +130,91 @@ PetscErrorCode InitializeTEqn(teqn_ *teqn)
         {
 
         }
+        else if (teqn->ddtScheme=="IMEX")
+        {
+            // IMEX-CNAB: Adams-Bashforth 2 for convection (explicit) + backward-Euler for diffusion (implicit).
+            // Solved using a standalone KSP for the linear system A*T^{n+1} = b,
+            // where A*v = v - dt*D(v) is assembled via MatShell, and
+            //       b = T^n + dt*bT is prebuilt once per time step.
+
+            teqn->gmresRestart = 30;
+            PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-kspGMRESRestartT", &(teqn->gmresRestart), PETSC_NULL);
+
+            // KSP type: BiCGStab or GMRES set via -kspTypeT in control.dat
+            readDictWord("control.dat", "-kspTypeT", &(teqn->kspType));
+
+            if(teqn->kspType != "BiCGStab" && teqn->kspType != "GMRES")
+            {
+                char error[512];
+                sprintf(error,
+                    "unknown kspTypeT %s for T equation (IMEX), available types are\n"
+                    "    BiCGStab\n"
+                    "    GMRES",
+                    teqn->kspType.c_str());
+                fatalErrorInFunction("InitializeTEqn", error);
+            }
+
+            // read KSP exit tolerances
+            teqn->relExitTol = 1e-30;
+            teqn->absExitTol = 1e-5;
+            PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-relTolT", &(teqn->relExitTol), PETSC_NULL);
+            PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-absTolT", &(teqn->absExitTol), PETSC_NULL);
+
+            // Create standalone KSP for the IMEX linear system A*T^{n+1} = b.
+            {
+                PetscInt n, N;
+                VecGetLocalSize(teqn->Tmprt, &n);
+                VecGetSize(teqn->Tmprt, &N);
+                MatCreateShell(mesh->MESH_COMM, n, n, N, N, (void*)teqn, &(teqn->JvIMEX));
+                MatShellSetOperation(teqn->JvIMEX, MATOP_MULT, (void(*)(void))IMEXTMatVec);
+            }
+
+            KSPCreate(mesh->MESH_COMM, &(teqn->kspIMEX));
+            KSPSetOperators(teqn->kspIMEX, teqn->JvIMEX, teqn->JvIMEX);
+
+            {
+                PC pcIMEX;
+                KSPGetPC(teqn->kspIMEX, &pcIMEX);
+                PCSetType(pcIMEX, PCNONE);
+            }
+
+            if(teqn->kspType == "BiCGStab")
+            {
+                KSPSetType(teqn->kspIMEX, KSPBCGSL);
+                KSPBCGSLSetEll(teqn->kspIMEX, 2);
+            }
+            else
+            {
+                KSPSetType(teqn->kspIMEX, KSPGMRES);
+                KSPGMRESSetRestart(teqn->kspIMEX, teqn->gmresRestart);
+            }
+
+            // use explicit-Euler estimate as non-zero initial guess
+            KSPSetInitialGuessNonzero(teqn->kspIMEX, PETSC_TRUE);
+            KSPSetTolerances(teqn->kspIMEX, teqn->relExitTol, teqn->absExitTol, 1e30, 1000);
+
+            // allocate IMEX buffers
+            VecDuplicate(mesh->Nvert, &(teqn->bT));        VecSet(teqn->bT,        0.0);
+            VecDuplicate(mesh->Nvert, &(teqn->RhsConv));   VecSet(teqn->RhsConv,   0.0);
+            VecDuplicate(mesh->Nvert, &(teqn->RhsConv_o)); VecSet(teqn->RhsConv_o, 0.0);
+
+            // print info
+            PetscPrintf(mesh->MESH_COMM, "selected IMEX time scheme for T equation\n");
+            PetscPrintf(mesh->MESH_COMM, " > scheme: IMEX-CNAB (AB2 conv + backward-Euler diff)\n");
+            PetscPrintf(mesh->MESH_COMM, " > relTolT = %e\n", teqn->relExitTol);
+            PetscPrintf(mesh->MESH_COMM, " > absTolT = %e\n", teqn->absExitTol);
+            PetscPrintf(mesh->MESH_COMM, " > kspTypeT = %s\n", teqn->kspType.c_str());
+            if(teqn->kspType == "GMRES")
+            {
+                PetscPrintf(mesh->MESH_COMM, " > kspGMRESRestartT = %d\n", teqn->gmresRestart);
+            }
+        }
         else
         {
             char error[512];
-            sprintf(error, "unknown ddtScheme %s for T equation, available schemes are\n    1. backwardEuler\n    2. rungeKutta4", teqn->ddtScheme.c_str());
+            sprintf(error, "unknown ddtScheme %s for T equation, available schemes are\n    1. backwardEuler\n    2. rungeKutta4\n    3. IMEX", teqn->ddtScheme.c_str());
             fatalErrorInFunction("InitializeTEqn", error);
         }
-    }
-
-    return(0);
-}
-
-//***************************************************************************************************************//
-
-PetscErrorCode CorrectSourceTermsT(teqn_ *teqn, PetscInt print)
-{
-    mesh_         *mesh = teqn->access->mesh;
-    clock_        *clock= teqn->access->clock;
-    DM            da   = mesh->da, fda = mesh->fda;
-    DMDALocalInfo info = mesh->info;
-    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
-    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
-    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
-    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
-
-    PetscReal     ***t,  ***source;
-    PetscReal     ***nvert, ***aj;
-    Cmpnts        ***cent;
-
-    abl_          *abl  = teqn->access->abl;
-
-    PetscInt      lxs, lxe, lys, lye, lzs, lze;
-    PetscInt      i, j, k, l;
-
-    PetscMPIInt   rank;
-    MPI_Comm_rank(mesh->MESH_COMM, &rank);
-
-    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
-    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
-    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
-
-    DMDAVecGetArray(da, teqn->sourceT, &source);
-    DMDAVecGetArray(da, teqn->lTmprt,  &t);
-
-    PetscReal nLevels = my-2;
-    PetscReal *ltMean, *gtMean, *tD, *tM;
-    PetscReal *src;
-
-    if(abl->controllerActionT == "write")
-    {
-        PetscMalloc(sizeof(PetscReal) * (nLevels), &(ltMean));
-        PetscMalloc(sizeof(PetscReal) * (nLevels), &(gtMean));
-        PetscMalloc(sizeof(PetscReal) * (nLevels), &(tD));
-        PetscMalloc(sizeof(PetscReal) * (nLevels), &(tM));
-
-        for(j=0; j<nLevels; j++)
-        {
-            ltMean[j] = 0.0;
-            gtMean[j] = 0.0;
-        }
-
-        DMDAVecGetArray(da, mesh->lAj, &aj);
-
-        for (k=lzs; k<lze; k++)
-        {
-            for (j=lys; j<lye; j++)
-            {
-                for (i=lxs; i<lxe; i++)
-                {
-                    ltMean[j-1] += t[k][j][i] / aj[k][j][i];
-                }
-            }
-        }
-
-        DMDAVecRestoreArray(da, mesh->lAj, &aj);
-
-        MPI_Allreduce(&ltMean[0], &gtMean[0], nLevels, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-
-        for(j=0; j<nLevels; j++)
-        {
-            gtMean[j] = gtMean[j] / abl->totVolPerLevel[j];
-            tM[j]     = gtMean[j];
-        }
-
-        if(abl->controllerTypeT == "initial")
-        {
-            // save initial temperature
-            if(clock->it == clock->itStart)
-            {
-                for(j=0; j<nLevels; j++)
-                {
-                    abl->tDes[j] = gtMean[j];
-                }
-            }
-        }
-        else if((abl->controllerTypeT == "directProfileAssimilation") || (abl->controllerTypeT == "indirectProfileAssimilation") || (abl->controllerTypeT == "waveletProfileAssimilation"))
-        {
-            PetscInt  idxh1, idxh2, idxt1;
-            PetscReal wth1, wth2, wtt1;
-            PetscReal tH1, tH2;
-
-            //find the two closest available mesoscale data in time
-            PetscInt idx_1 = abl->closestTimeIndT;
-            PetscInt idx_2 = abl->closestTimeIndT + 1;
-
-            PetscInt lwrBound = 0;
-            PetscInt uprBound = abl->numtT;
-
-            if(clock->it > clock->itStart)
-            {
-                lwrBound = PetscMax(0, (abl->closestTimeIndT - 50));
-                uprBound = PetscMin(abl->numtT, (abl->closestTimeIndT + 50));
-            }
-
-            // build error vector for the time search
-            PetscReal  diff[abl->numtT];
-
-            for(PetscInt i=lwrBound; i<uprBound; i++)
-            {
-                diff[i] = fabs(abl->timeT[i] - clock->time);
-            }
-
-            // find the two closest times
-            for(PetscInt i=lwrBound; i<uprBound; i++)
-            {
-                if(diff[i] < diff[idx_1])
-                {
-                    idx_2 = idx_1;
-                    idx_1 = i;
-                }
-                if(diff[i] < diff[idx_2] && i != idx_1)
-                {
-                    idx_2 = i;
-                }
-            }
-
-            // always put the lower time at idx_1 and higher at idx_2
-            if(abl->timeT[idx_2] < abl->timeT[idx_1])
-            {
-                PetscInt idx_tmp = idx_2;
-                idx_2 = idx_1;
-                idx_1 = idx_tmp;
-            }
-
-            // ensure time is bounded between idx_1 and idx_2 (necessary for non-uniform data)
-            if(abl->timeT[idx_2] < clock->time)
-            {
-                idx_1 = idx_2;
-                idx_2 = idx_1 + 1;
-            }
-
-            if(abl->timeT[idx_1] > clock->time)
-            {
-                idx_2 = idx_1;
-                idx_1 = idx_2 - 1;
-            }
-
-            // find interpolation weights
-            PetscReal idx = (idx_2 - idx_1) / (abl->timeT[idx_2] - abl->timeT[idx_1]) * (clock->time - abl->timeT[idx_1]) + idx_1;
-            PetscReal w1 = (idx_2 - idx) / (idx_2 - idx_1);
-            PetscReal w2 = (idx - idx_1) / (idx_2 - idx_1);
-
-            // reset the closest index for next iteration
-            abl->closestTimeIndT = idx_1;
-
-            for(j=0; j<nLevels; j++)
-            {
-                idxh1 = abl->tempInterpIdx[j][0];
-                idxh2 = abl->tempInterpIdx[j][1];
-
-                wth1  = abl->tempInterpWts[j][0];
-                wth2  = abl->tempInterpWts[j][1];
-
-                tH1 = w1 * abl->tMeso[idxh1][idx_1] + (w2) * abl->tMeso[idxh1][idx_2];
-                tH2 = w1 * abl->tMeso[idxh2][idx_1] + (w2) * abl->tMeso[idxh2][idx_2];
-                tD[j] = wth1*tH1 + wth2*tH2;
-                abl->tDes[j] = tD[j];
-                // PetscPrintf(PETSC_COMM_WORLD, "tdes = %lf, gtmean = %lf, interpolated from time:%lf %lf, wts %lf %lf \n", abl->tDes[j], gtMean[j], abl->timeT[idx_1], abl->timeT[idx_2], w1, w2);
-            }
-
-            for(j=0; j<nLevels; j++)
-            {
-                // if cellLevels is below the lowest mesoscale data point use the source at the last available height
-                if(abl->cellLevels[j] < abl->bottomSrcHtT)
-                {
-                    abl->tDes[j] = abl->tDes[abl->lowestIndT];
-                    gtMean[j] = gtMean[abl->lowestIndT];
-                    tD[j]     = tD[abl->lowestIndT];
-                    tM[j]     = tM[abl->lowestIndT];
-                }
-
-                if(abl->cellLevels[j] > abl->hT[abl->numhT - 1])
-                {
-                    abl->tDes[j] = abl->tDes[abl->highestIndT];
-                    gtMean[j] = gtMean[abl->highestIndT];
-                    tD[j]     = tD[abl->highestIndT];
-                    tM[j]     = tM[abl->highestIndT];
-                }
-            }
-
-            if((abl->controllerTypeT == "indirectProfileAssimilation"))
-            {
-                //smooth the source based on the polynomial interpolation 
-                for (PetscInt iCtr = 0; iCtr < nLevels; iCtr++) 
-                {
-                    PetscReal dotProduct1 = 0.0, dotProduct2 = 0.0;
-
-                    for (PetscInt kCtr = 0; kCtr < nLevels; kCtr++) 
-                    {
-                        dotProduct1 += abl->polyCoeffT[iCtr][kCtr] * tD[kCtr];
-                        dotProduct2 += abl->polyCoeffT[iCtr][kCtr] * tM[kCtr];
-                    }
-                    abl->tDes[iCtr] = dotProduct1;
-                    gtMean[iCtr]    = dotProduct2;
-                }  
-
-                if(abl->flTypeT == "constantHeight")
-                {
-                    for(j=0; j<nLevels; j++)    
-                    {
-                        if(abl->cellLevels[j] < abl->bottomSrcHtT)
-                        {
-                            abl->tDes[j] = abl->tDes[abl->lowestIndT];
-                            gtMean[j] = gtMean[abl->lowestIndT];
-                        }
-                    }
-                }
-
-                for(j=0; j<nLevels; j++)    
-                {
-                    if(abl->cellLevels[j] > abl->hT[abl->numhT - 1])
-                    {
-                        abl->tDes[j] = abl->tDes[abl->highestIndT];
-                        gtMean[j] = gtMean[abl->highestIndT];
-                    }
-                }
-
-            }
-
-            if((abl->controllerTypeT == "waveletProfileAssimilation"))
-            {
-                if(abl->waveletBlend)
-                {
-                    PetscReal *tDesAbove, *gtMeanAbove;
-                    PetscReal *tDesBelow, *gtMeanBelow;
-
-                    PetscMalloc(sizeof(PetscReal) * (nLevels), &(tDesAbove));
-                    PetscMalloc(sizeof(PetscReal) * (nLevels), &(gtMeanAbove));
-                    PetscMalloc(sizeof(PetscReal) * (nLevels), &(tDesBelow));
-                    PetscMalloc(sizeof(PetscReal) * (nLevels), &(gtMeanBelow));
-
-                    #if USE_PYTHON
-                        pywavedecScalar(abl, tD, tDesBelow, nLevels);
-                        pywavedecScalar(abl, tM, gtMeanBelow, nLevels);
-                    #endif
-
-                    PetscInt waveLevel = abl->waveLevel;
-                    
-                    //hardcoded value for now
-                    abl->waveLevel = abl->waveLevel - 4;
-                    if(abl->waveLevel <= 0) abl->waveLevel = 1;
-
-                    #if USE_PYTHON
-                        pywavedecScalar(abl, tD, tDesAbove, nLevels);
-                        pywavedecScalar(abl, tM, gtMeanAbove, nLevels);
-                    #endif
-
-                    abl->waveLevel = waveLevel;
-                    
-                    // blend between the below and above profiles 
-                    PetscReal blendHeight = mesh->bounds.zmax-500.0, scaleFactor;
-                    PetscReal ablgeoDelta = 300;
-                    PetscReal blendTop = blendHeight + 0.5*ablgeoDelta;
-
-                    for(j=0; j<nLevels; j++)
-                    {
-                        scaleFactor = scaleHyperTangTop(abl->cellLevels[j], blendTop, ablgeoDelta);
-                        abl->tDes[j] = (1-scaleFactor)*tDesBelow[j] + scaleFactor*tDesAbove[j];                                                                     
-                        gtMean[j] = (1-scaleFactor)*gtMeanBelow[j] + scaleFactor*gtMeanAbove[j];                                                                
-                    }   
-
-                    PetscFree(tDesAbove);
-                    PetscFree(gtMeanAbove);
-                    PetscFree(tDesBelow);
-                    PetscFree(gtMeanBelow);
-                }
-                else 
-                {
-                    #if USE_PYTHON
-                    pywavedecScalar(abl, tD, abl->tDes, nLevels);
-                    pywavedecScalar(abl, tM, gtMean, nLevels);
-                    #endif
-                }
-
-
-                if(abl->flTypeT == "constantHeight")
-                {
-                    for(j=0; j<nLevels; j++)    
-                    {
-                        if(abl->cellLevels[j] < abl->bottomSrcHtT)
-                        {
-                            abl->tDes[j] = abl->tDes[abl->lowestIndT];
-                            gtMean[j] = gtMean[abl->lowestIndT];
-                        }
-                    }
-                }
-
-                for(j=0; j<nLevels; j++)    
-                {
-                    if(abl->cellLevels[j] > abl->hT[abl->numhT - 1])
-                    {
-                        abl->tDes[j] = abl->tDes[abl->highestIndT];
-                        gtMean[j] = gtMean[abl->highestIndT];
-                    }
-                }
-            }
-        }
-    }
-    else if(abl->controllerActionT == "read")
-    {
-        if(abl->controllerTypeT == "timeHeightSeries")
-        {
-            PetscMalloc(sizeof(PetscReal) * (nLevels), &(src));
-            PetscReal  tT1, tT2;
-            PetscReal  wth1, wth2;
-            PetscInt   idxh1, idxh2;
-
-            PetscInt idx_1 = abl->currentCloseIdxT;
-            PetscInt idx_2 = abl->currentCloseIdxT + 1;
-
-            PetscInt lwrBound = 0;
-            PetscInt uprBound = abl->nSourceTimes;
-
-            // if past first iteration do the search on a subset to speed up the process
-            if(clock->it > clock->itStart)
-            {
-                lwrBound = PetscMax(0, (abl->currentCloseIdxT - 50));
-                uprBound = PetscMin(abl->nSourceTimes, (abl->currentCloseIdxT + 50));
-            }
-
-            // build error vector for the time search
-            PetscReal  diff[abl->nSourceTimes];
-
-            for(PetscInt i=lwrBound; i<uprBound; i++)
-            {
-                diff[i] = fabs(abl->timeHtSourcesT[i][0][0] - clock->time);
-            }
-
-            // find the two closest times
-            for(PetscInt i=lwrBound; i<uprBound; i++)
-            {
-                if(diff[i] < diff[idx_1])
-                {
-                    idx_2 = idx_1;
-                    idx_1 = i;
-                }
-                if(diff[i] < diff[idx_2] && i != idx_1)
-                {
-                    idx_2 = i;
-                }
-            }
-
-            // always put the lower time at idx_1 and higher at idx_2
-            if(abl->timeHtSourcesT[idx_2][0][0] < abl->timeHtSourcesT[idx_1][0][0])
-            {
-                PetscInt idx_tmp = idx_2;
-                idx_2 = idx_1;
-                idx_1 = idx_tmp;
-            }
-
-            // ensure time is bounded between idx_1 and idx_2 (necessary for non-uniform data)
-            if(abl->timeHtSourcesT[idx_2][0][0] < clock->time)
-            {
-                idx_1 = idx_2;
-                idx_2 = idx_1 + 1;
-            }
-
-            if(abl->timeHtSourcesT[idx_1][0][0] > clock->time)
-            {
-                idx_2 = idx_1;
-                idx_1 = idx_2 - 1;
-            }
-            
-            // find interpolation weights
-            PetscReal idx = (idx_2 - idx_1) / (abl->timeHtSourcesT[idx_2][0][0] - abl->timeHtSourcesT[idx_1][0][0]) * (clock->time - abl->timeHtSourcesT[idx_1][0][0]) + idx_1;
-            PetscReal w1 = (idx_2 - idx) / (idx_2 - idx_1);
-            PetscReal w2 = (idx - idx_1) / (idx_2 - idx_1);
-
-                        
-            if(print) PetscPrintf(mesh->MESH_COMM, "Correcting source terms T: selected time %lf for reading sources\n", w1 * abl->timeHtSourcesT[idx_1][0][0] + w2 * abl->timeHtSourcesT[idx_2][0][0]);
-            if(print) PetscPrintf(mesh->MESH_COMM, "                         interpolation weights: w1 = %lf, w2 = %lf\n", w1, w2);
-            if(print) PetscPrintf(mesh->MESH_COMM, "                         closest avail. times : t1 = %lf, t2 = %lf\n", abl->timeHtSourcesT[idx_1][0][0], abl->timeHtSourcesT[idx_2][0][0]);
-
-            // reset the closest index for nex iteration
-            abl->currentCloseIdxT = idx_1;
-
-            // get also the dt at the time the source was calculated
-            double dtSource1 = std::max((abl->timeHtSourcesT[idx_1+1][0][0] - abl->timeHtSourcesT[idx_1][0][0]), 1e-5);
-            double dtSource2 = std::max((abl->timeHtSourcesT[idx_2+1][0][0] - abl->timeHtSourcesT[idx_2][0][0]), 1e-5);
-
-            // scale with time step for each height
-            for(j=0; j<nLevels; j++)
-            {
-                if(abl->numhT != nLevels)
-                {
-                    //interpolating in height for each time
-                    idxh1 = abl->tempInterpIdx[j][0];
-                    idxh2 = abl->tempInterpIdx[j][1];
-
-                    wth1  = abl->tempInterpWts[j][0];
-                    wth2  = abl->tempInterpWts[j][1];
-                    
-                    tT1   = wth1 * abl->timeHtSourcesT[idx_1][idxh1][1] + wth2 * abl->timeHtSourcesT[idx_1][idxh2][1];
-                    tT2   = wth1 * abl->timeHtSourcesT[idx_2][idxh1][1] + wth2 * abl->timeHtSourcesT[idx_2][idxh2][1];
-
-                    // src[j] = (w1 * tT1 / dtSource1 + w2 * tT2 / dtSource2) * clock->dt;
-                    src[j] = (w1 * tT1 + w2 * tT2);
-                }
-                else 
-                {
-                    // src[j] = (w1 * abl->timeHtSourcesT[idx_1][j][1] / dtSource1 + w2 * abl->timeHtSourcesT[idx_2][j][1] / dtSource2) * clock->dt;
-
-                    src[j] = w1 * abl->timeHtSourcesT[idx_1][j][1] + w2 * abl->timeHtSourcesT[idx_2][j][1];
-
-                } 
-            }
-        }
-        else 
-        {
-            char error[512];
-            sprintf(error, "unknown controllerType %s for T equation under read mode, available types are\n    1. timeHeightSeries\n   ", abl->controllerTypeT.c_str());
-            fatalErrorInFunction("correctSourceTermT", error); 
-        }
-    }
-    else
-    {
-        char error[512];
-        sprintf(error, "unknown controllerAction %s for T equation, available actions are\n    1. write\n    2. read", abl->controllerAction.c_str());
-        fatalErrorInFunction("correctSourceTermT", error);
-    }
-
-    if(abl->controllerActionT == "write")
-    {
-        // compute level-wise source
-        std::vector<PetscReal> lsource(lye-lys);
-        for(j=lys; j<lye; j++)
-        {
-            lsource[j-lys] = abl->relax*(abl->tDes[j-1] - gtMean[j-1]);
-        }
-
-        // apply source and compute error
-        PetscReal lrelError = 0.0, grelError = 0.0;
-        PetscInt lcells = 0, gcells = 0;
-
-        for (k=lzs; k<lze; k++)
-        {
-            for (j=lys; j<lye; j++)
-            {
-                for (i=lxs; i<lxe; i++)
-                {
-                    source[k][j][i]  = lsource[j-lys] * clock->dt;
-                    lrelError += lsource[j-lys] / abl->tDes[j-1];
-                    lcells++;
-                }
-            }
-        }
-
-        MPI_Allreduce(&lrelError, &grelError, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-        MPI_Allreduce(&lcells, &gcells, 1, MPIU_INT, MPIU_SUM, mesh->MESH_COMM);
-
-        if(print) PetscPrintf(mesh->MESH_COMM, "Correcting source terms: global avg error on theta = %.5f percent\n", grelError*100/gcells);
-
-        // write source terms to file (radiative fluxes)
-        // write the uniform source term
-        if(!rank)
-        {
-            if(clock->it == clock->itStart)
-            {
-                errno = 0;
-                PetscInt dirRes = mkdir("./postProcessing", 0777);
-                if(dirRes != 0 && errno != EEXIST)
-                {
-                    char error[512];
-                    sprintf(error, "could not create postProcessing directory\n");
-                    fatalErrorInFunction("correctSourceTermT",  error);
-                }
-            }
-
-            word fileName = "postProcessing/temperatureSource_" + getStartTimeName(clock);
-            FILE *fp = fopen(fileName.c_str(), "a");
-
-            if(!fp)
-            {
-                char error[512];
-                sprintf(error, "cannot open file postProcessing/temperatureSource\n");
-                fatalErrorInFunction("correctSourceTermT",  error);
-            }
-            else
-            {
-                PetscInt width = -15;
-
-                if(clock->it == clock->itStart)
-                {
-                    word w1 = "levels";
-                    PetscFPrintf(mesh->MESH_COMM, fp, "%*s\n", width, w1.c_str());
-
-                    for(j=0; j<nLevels; j++)
-                    {
-                        PetscFPrintf(mesh->MESH_COMM, fp, "%*.5f\t", width, abl->cellLevels[j]);
-                    }
-
-                    PetscFPrintf(mesh->MESH_COMM, fp, "\n");
-
-                    word w2 = "time";
-                    PetscFPrintf(mesh->MESH_COMM, fp, "%*s\n", width, w2.c_str());
-                }
-
-                PetscFPrintf(mesh->MESH_COMM, fp, "%*.5f\t", width, clock->time);
-
-                for(j=0; j<nLevels; j++)
-                {
-                    PetscFPrintf(mesh->MESH_COMM, fp, "%*.5e\t", width, abl->relax * (abl->tDes[j] - gtMean[j]));
-                }
-
-                PetscFPrintf(mesh->MESH_COMM, fp, "\n");
-
-                fclose(fp);
-            }
-
-            fileName = "postProcessing/temperatureSourceDPA_" + getStartTimeName(clock);
-            fp = fopen(fileName.c_str(), "a");
-
-            if(!fp)
-            {
-                char error[512];
-                sprintf(error, "cannot open file postProcessing/temperatureSource\n");
-                fatalErrorInFunction("correctSourceTermT",  error);
-            }
-            else
-            {
-                PetscInt width = -15;
-
-                if(clock->it == clock->itStart)
-                {
-                    word w1 = "levels";
-                    PetscFPrintf(mesh->MESH_COMM, fp, "%*s\n", width, w1.c_str());
-
-                    for(j=0; j<nLevels; j++)
-                    {
-                        PetscFPrintf(mesh->MESH_COMM, fp, "%*.5f\t", width, abl->cellLevels[j]);
-                    }
-
-                    PetscFPrintf(mesh->MESH_COMM, fp, "\n");
-
-                    word w2 = "time";
-                    PetscFPrintf(mesh->MESH_COMM, fp, "%*s\n", width, w2.c_str());
-                }
-
-                PetscFPrintf(mesh->MESH_COMM, fp, "%*.5f\t", width, clock->time);
-
-                for(j=0; j<nLevels; j++)
-                {
-                    PetscFPrintf(mesh->MESH_COMM, fp, "%*.5e\t", width, abl->relax * (tD[j] - tM[j]));
-                }
-
-                PetscFPrintf(mesh->MESH_COMM, fp, "\n");
-
-                fclose(fp);
-            }
-        }
-    }
-    else if(abl->controllerActionT == "read")
-    {
-        if(abl->controllerTypeT == "timeHeightSeries")
-        {
-            for (k=lzs; k<lze; k++)
-            {
-                for (j=lys; j<lye; j++)
-                {
-                    for (i=lxs; i<lxe; i++)
-                    {
-                        source[k][j][i]  = src[j-1] * clock->dt;
-                    }
-                }
-            }
-        }
-    }
-
-    DMDAVecRestoreArray(da, teqn->sourceT, &source);
-    DMDAVecRestoreArray(da, teqn->lTmprt,  &t);
-
-    if(abl->controllerActionT == "write")
-    {
-        PetscFree(tD);
-        PetscFree(tM);
-        PetscFree(ltMean);
-        PetscFree(gtMean);
-    }
-    else if(abl->controllerActionT == "read")
-    {
-        PetscFree(src);
     }
 
     return(0);
@@ -1102,1102 +590,55 @@ PetscErrorCode ghGradRhoK(teqn_ *teqn)
 }
 
 //***************************************************************************************************************//
-PetscErrorCode correctDampingSourcesT(teqn_ *teqn)
+PetscErrorCode TmprtPredictor(teqn_ *teqn)
 {
-    mesh_         *mesh = teqn->access->mesh;
-    abl_          *abl  = teqn->access->abl;
+    // Explicit forward-Euler conv-only predictor: T* = T^n + dt * N(T^n)
+    // Advances Tmprt/lTmprt from T^n to T* so that Buoyancy() in SolveUEqn
+    // sees a forward-extrapolated temperature field.
+    // Tmprt_o retains T^n so TmprtRestoreFromOld() can undo this before SolveTEqn.
 
-    DM            da    = mesh->da, fda = mesh->fda;
-    DMDALocalInfo info  = mesh->info;
-    PetscInt      xs    = info.xs, xe = info.xs + info.xm;
-    PetscInt      ys    = info.ys, ye = info.ys + info.ym;
-    PetscInt      zs    = info.zs, ze = info.zs + info.zm;
-    PetscInt      mx    = info.mx, my = info.my, mz = info.mz;
-
-    Cmpnts        ***cent;
-
-    PetscReal     ***tP;
-
-    PetscInt      lxs, lxe, lys, lye, lzs, lze;
-    PetscInt      i, j, k, l;
-
-    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
-    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
-    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
-    
-    PetscMPIInt   rank;
-    MPI_Comm_rank(mesh->MESH_COMM, &rank);
-
-    if(teqn->access->flags->isYDampingActive)
-    {
-        cellIds     *srcMinInd = abl->srcMinInd, *srcMaxInd = abl->srcMaxInd;
-        PetscReal   **tMapped = abl->tMapped;
-        PetscInt    numJ, numK, numI;
-        PetscInt    imin, imax, jmin, jmax, kmin, kmax;
-        precursor_  *precursor;
-        domain_     *pdomain;
-
-        // update the unsteady uBar state
-        if(abl->xFringeUBarSelectionType == 3)
-        {
-            precursor = abl->precursor;
-            pdomain   = precursor->domain;
-
-            if(precursor->thisProcessorInFringe)
-            {
-                DMDAVecGetArray(pdomain->mesh->da, pdomain->teqn->lTmprt,  &tP);
-            } 
-
-            for(PetscInt p=0; p < abl->numSourceProc; p++)
-            {
-                if(rank == abl->sourceProcList[p])
-                {
-
-                    imin = abl->srcMinInd[p].i;
-                    imax = abl->srcMaxInd[p].i;
-                    jmin = abl->srcMinInd[p].j;
-                    jmax = abl->srcMaxInd[p].j;
-                    kmin = abl->srcMinInd[p].k;
-                    kmax = abl->srcMaxInd[p].k;
-
-                    numI = abl->srcNumI[p];
-                    numJ = abl->srcNumJ[p];
-                    numK = abl->srcNumK[p];
-
-                    //loop through the sub domain of this processor
-                    for (k=kmin; k<=kmax; k++)
-                    {
-                        for (j=jmin; j<=jmax; j++)
-                        {
-                            for (i=imin; i<=imax; i++)
-                            {
-                                tMapped[p][(k-kmin) * numJ * numI + (j-jmin) * numI + (i-imin)] = tP[k][j][i];
-                            }
-                        }
-                    }
-                }
-
-                if(abl->isdestProc[p] == 1)
-                {
-
-                    numI = abl->srcNumI[p];
-                    numJ = abl->srcNumJ[p];
-                    numK = abl->srcNumK[p];
-                    
-                    MPI_Ibcast(tMapped[p], numI * numJ * numK, MPIU_REAL, abl->srcCommLocalRank[p], abl->yDamp_comm[p], &(abl->mapRequest[p]));
-                }
-                
-            }
-
-            if(precursor->thisProcessorInFringe)
-            {
-                DMDAVecRestoreArray(pdomain->mesh->da, pdomain->teqn->lTmprt,  &tP);
-            }
-        }
-    }
-    return (0);
-}
-//***************************************************************************************************************//
-
-PetscErrorCode dampingSourceT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
-{
-    abl_          *abl  = teqn->access->abl;
-    mesh_         *mesh = teqn->access->mesh;
-    ueqn_         *ueqn = teqn->access->ueqn;
-    les_          *les  = teqn->access->les;
-    DM            da    = mesh->da, fda = mesh->fda;
-    DMDALocalInfo info  = mesh->info;
-    PetscInt      xs    = info.xs, xe = info.xs + info.xm;
-    PetscInt      ys    = info.ys, ye = info.ys + info.ym;
-    PetscInt      zs    = info.zs, ze = info.zs + info.zm;
-    PetscInt      mx    = info.mx, my = info.my, mz = info.mz;
-
-    PetscInt      i, j, k;
-    PetscInt      lxs, lxe, lys, lye, lzs, lze;
-
-    Cmpnts        ***cent;
-    PetscReal     ***rhs, ***t, ***tP, ***tBarY;
-
-    precursor_    *precursor;
-    domain_       *pdomain;
-    PetscInt      kStart, kEnd;
-
-    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
-    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
-    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
-
-    DMDAVecGetArray(fda, mesh->lCent,  &cent);
-    DMDAVecGetArray(da,  teqn->lTmprt, &t);
-    DMDAVecGetArray(da,  Rhs,  &rhs);
-
-    if(teqn->access->flags->isXDampingActive)
-    {
-        if(abl->xFringeUBarSelectionType == 3)
-        {
-            precursor = abl->precursor;
-            pdomain   = precursor->domain;
-
-            if(precursor->thisProcessorInFringe)
-            {
-                DMDAVecGetArray(pdomain->mesh->da, pdomain->teqn->lTmprt,  &tP);
-                kStart = precursor->map.kStart;
-                kEnd   = precursor->map.kEnd;
-            }
-        }
-    }
-
-    if(teqn->access->flags->isYDampingActive)
-    {
-        if(abl->xFringeUBarSelectionType == 3)
-        {
-            DMDAVecGetArray(da, abl->tBarInstY, &tBarY);
-        }
-    }
-
-    // x damping layer
-    PetscReal alphaX = abl->xDampingAlpha;
-    PetscReal xS     = abl->xDampingStart;
-    PetscReal xE     = abl->xDampingEnd;
-    PetscReal xD     = abl->xDampingDelta;
-
-    // y damping layer
-    PetscReal alphaY = abl->yDampingAlpha;
-    PetscReal yS     = abl->yDampingStart;
-    PetscReal yE     = abl->yDampingEnd;
-    PetscReal yD     = abl->yDampingDelta;
-    
-
-    // loop over internal cell faces
-    for (k=lzs; k<lze; k++)
-    {
-        for (j=lys; j<lye; j++)
-        {
-            for (i=lxs; i<lxe; i++)
-            {
-                if(teqn->access->flags->isXDampingActive)
-                {
-                    // compute cell center x at i,j,k
-                    PetscReal x     = cent[k][j][i].x;
-
-                    // compute Nordstrom viscosity at i,j,k
-                    PetscReal nud_x   = viscNordstrom(alphaX, xS, xE, xD, x);
-                    PetscReal tBarInstX;
-
-                    if
-                    (
-                        abl->xFringeUBarSelectionType == 0 ||
-                        abl->xFringeUBarSelectionType == 1 ||
-                        abl->xFringeUBarSelectionType == 2 ||
-                        abl->xFringeUBarSelectionType == 4
-                    )
-                    {
-                        // set desired temperature
-                        tBarInstX  = abl->tBarInstX[j][i];
-                    }
-                    else if(abl->xFringeUBarSelectionType == 3)
-                    {
-                        if
-                        (
-                            precursor->thisProcessorInFringe && // is this processor in the fringe?
-                            k >= kStart && k <= kEnd            // is this face in the fringe?
-                        )
-                        {
-                            // set desired temperature
-                            tBarInstX  = tP[k-kStart][j][i];
-                        }
-                        else
-                        {
-                            tBarInstX  = t[k][j][i];
-                        }
-                    }
-
-                    rhs[k][j][i] += scale * nud_x * (tBarInstX - t[k][j][i]);
-                }
-
-                if(teqn->access->flags->isYDampingActive)
-                {
-                    PetscReal y = cent[k][j][i].y;
-                    PetscReal x = cent[k][j][i].x;
-                    
-                    PetscReal nud_y  = viscNordstrom(alphaY, yS, yE, yD, y);
-                    PetscReal fAsc_x = viscNordstromNoVertFilter(xS, xE, xD, x);
-
-                    if
-                    (
-                        abl->xFringeUBarSelectionType == 0 ||
-                        abl->xFringeUBarSelectionType == 1 ||
-                        abl->xFringeUBarSelectionType == 2 ||
-                        abl->xFringeUBarSelectionType == 4
-                    )
-                    {
-
-                    }
-                    else if(abl->xFringeUBarSelectionType == 3)
-                    {
-                        rhs[k][j][i] += scale * nud_y * fAsc_x * (tBarY[k][j][i] - t[k][j][i]);
-                    }
-
-                }
-
-            }
-        }
-    }
-
-    DMDAVecRestoreArray(fda, mesh->lCent, &cent);
-    DMDAVecRestoreArray(da,  teqn->lTmprt, &t);
-    DMDAVecRestoreArray(da,  Rhs,  &rhs);
-
-    if(teqn->access->flags->isXDampingActive)
-    {
-        if(abl->xFringeUBarSelectionType == 3)
-        {
-            if(precursor->thisProcessorInFringe)
-            {
-                DMDAVecRestoreArray(pdomain->mesh->da, pdomain->teqn->lTmprt,  &tP);
-            }
-        }
-    }
-
-    if(teqn->access->flags->isYDampingActive)
-    {
-        if(abl->xFringeUBarSelectionType == 3)
-        {
-            DMDAVecRestoreArray(da, abl->tBarInstY, &tBarY);
-        }
-    }
-
-    return(0);
-}
-
-//***************************************************************************************************************//
-
-
-PetscErrorCode sourceT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
-{
-    mesh_         *mesh = teqn->access->mesh;
-    DM            da    = mesh->da, fda = mesh->fda;
-    DMDALocalInfo info  = mesh->info;
-    PetscInt      xs    = info.xs, xe = info.xs + info.xm;
-    PetscInt      ys    = info.ys, ye = info.ys + info.ym;
-    PetscInt      zs    = info.zs, ze = info.zs + info.zm;
-    PetscInt      mx    = info.mx, my = info.my, mz = info.mz;
-
-    PetscInt      i, j, k;
-    PetscInt      lxs, lxe, lys, lye, lzs, lze;
-
-    PetscReal     ***source, ***rhs;
-
-    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
-    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
-    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
-
-    DMDAVecGetArray(da,  teqn->sourceT, &source);
-    DMDAVecGetArray(da,  Rhs,  &rhs);
-
-    // loop over internal cell faces
-    for (k=lzs; k<lze; k++)
-    {
-        for (j=lys; j<lye; j++)
-        {
-            for (i=lxs; i<lxe; i++)
-            {
-                rhs[k][j][i] += scale * source[k][j][i];
-            }
-        }
-    }
-
-    DMDAVecRestoreArray(da,  teqn->sourceT, &source);
-    DMDAVecRestoreArray(da,  Rhs,  &rhs);
-
-    return(0);
-}
-
-//***************************************************************************************************************//
-
-
-PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
-{
-    // In this function the viscous + divergence term of the temperature equation are
-    // discretized at cell centers.
-    // First the divergence and viscous fluxes are evaluated at cell faces, then
-    // their budget is evaluated at the internal cells, forming the Rhs.
-
-    mesh_         *mesh  = teqn->access->mesh;
-    ueqn_         *ueqn  = teqn->access->ueqn;
-    les_          *les   = teqn->access->les;
-    constants_    *cst   = teqn->access->constants;
-    flags_        *flags = teqn->access->flags;
-    DM            da     = mesh->da, fda = mesh->fda;
-    DMDALocalInfo info   = mesh->info;
-    PetscInt      xs     = info.xs, xe = info.xs + info.xm;
-    PetscInt      ys     = info.ys, ye = info.ys + info.ym;
-    PetscInt      zs     = info.zs, ze = info.zs + info.zm;
-    PetscInt      mx     = info.mx, my = info.my, mz = info.mz;
-
-    PetscInt      i, j, k;
-    PetscInt      lxs, lxe, lys, lye, lzs, lze;
-
-    Cmpnts        ***ucont;
-
-    Cmpnts        ***csi, ***eta, ***zet, ***cent;
-    Cmpnts        ***icsi, ***ieta, ***izet;
-    Cmpnts        ***jcsi, ***jeta, ***jzet;
-    Cmpnts        ***kcsi, ***keta, ***kzet;
-
-    PetscReal     ***tmprt, ***rhs, ***nvert, ***meshTag;
-
-    Cmpnts        ***div, ***visc, ***viscIBM;                                                // divergence and viscous terms
-    Cmpnts        ***limiter;                                                     // flux limiter
-    PetscReal     ***aj, ***iaj, ***jaj, ***kaj;                                  // cell and face jacobians
-    PetscReal     ***lnu_t, ***Sabs, ***lch, ***lcs, ***lkt;
-
-    PetscReal     dtdc, dtde, dtdz;                                              // velocity der. w.r.t. curvil. coords
-    PetscReal     csi0, csi1, csi2, eta0, eta1, eta2, zet0, zet1, zet2;          // surface area vectors components
-    PetscReal     g11, g21, g31;                                                 // metric tensor components
-
-    PetscReal     tRef;
-    if(ueqn->access->flags->isAblActive) tRef = teqn->access->abl->tRef;
-    else                                 tRef = teqn->access->constants->tRef;
-
-    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
-    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
-    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
-
-    DMDAVecGetArray(da,  Rhs,               &rhs);
-    DMDAVecGetArray(da,  teqn->lTmprt,      &tmprt);
-    DMDAVecGetArray(fda, ueqn->lUcont,      &ucont);
-
-    DMDAVecGetArray(fda, mesh->lCsi,        &csi);
-    DMDAVecGetArray(fda, mesh->lEta,        &eta);
-    DMDAVecGetArray(fda, mesh->lZet,        &zet);
-    DMDAVecGetArray(fda, mesh->lICsi,       &icsi);
-    DMDAVecGetArray(fda, mesh->lIEta,       &ieta);
-    DMDAVecGetArray(fda, mesh->lIZet,       &izet);
-    DMDAVecGetArray(fda, mesh->lJCsi,       &jcsi);
-    DMDAVecGetArray(fda, mesh->lJEta,       &jeta);
-    DMDAVecGetArray(fda, mesh->lJZet,       &jzet);
-    DMDAVecGetArray(fda, mesh->lKCsi,       &kcsi);
-    DMDAVecGetArray(fda, mesh->lKEta,       &keta);
-    DMDAVecGetArray(fda, mesh->lKZet,       &kzet);
-    DMDAVecGetArray(da,  mesh->lAj,         &aj);
-    DMDAVecGetArray(da,  mesh->lIAj,        &iaj);
-    DMDAVecGetArray(da,  mesh->lJAj,        &jaj);
-    DMDAVecGetArray(da,  mesh->lKAj,        &kaj);
-    DMDAVecGetArray(fda, mesh->lCent,       &cent);
-    DMDAVecGetArray(da,  mesh->lNvert,      &nvert);
-    DMDAVecGetArray(da,  mesh->lmeshTag,    &meshTag);
-    DMDAVecGetArray(fda, mesh->fluxLimiter, &limiter);
-
-    if(flags->isIBMActive)
-    {
-        DMDAVecGetArray(fda, teqn->lViscIBMT, &viscIBM);
-    }
-
-    VecSet(teqn->lDivT,  0.0);
-    VecSet(teqn->lViscT, 0.0);;
-
-    DMDAVecGetArray(fda, teqn->lDivT, &div);
-    DMDAVecGetArray(fda, teqn->lViscT, &visc);
-
-    if (teqn->access->flags->isLesActive)
-    {
-        if(les->model != STABILITY_BASED)
-        {
-            DMDAVecGetArray(da, les->lNu_t, &lnu_t);
-
-            if(les->model == AMD   || 
-               les->model == DSM   || 
-               les->model == DLASI || 
-               les->model == DLASD || 
-               les->model == DPASD ||
-               les->model == BAMD)            
-            {
-                DMDAVecGetArray(da, les->lk_t, &lkt);
-            }
-        }
-        else
-        {
-            DMDAVecGetArray(da,  les->lS,  &Sabs);
-            DMDAVecGetArray(da,  les->lCh, &lch);
-            DMDAVecGetArray(da,  les->lCs, &lcs);
-        }
-    }
-
-    // ---------------------------------------------------------------------- //
-    //                FORM DIVERGENCE AND VISCOUS CONTRIBUTIONS               //
-    // ---------------------------------------------------------------------- //
-
-    // i direction
-    for (k=zs; k<ze; k++)
-    {
-        for (j=ys; j<ye; j++)
-        {
-            for (i=xs; i<xe; i++)
-            {
-                if(i==mx-1 || j==my-1 || k==mz-1) continue;
-                if(j==0 || k==0) continue;
-
-                // get 1/V at the i-face
-                PetscReal ajc = iaj[k][j][i];
-
-                // get face normals
-                csi0 = icsi[k][j][i].x, csi1 = icsi[k][j][i].y, csi2 = icsi[k][j][i].z;
-                eta0 = ieta[k][j][i].x, eta1 = ieta[k][j][i].y, eta2 = ieta[k][j][i].z;
-                zet0 = izet[k][j][i].x, zet1 = izet[k][j][i].y, zet2 = izet[k][j][i].z;
-
-                // compute metric tensor - WARNING: there is a factor of 1/J^2 if using face area vectors
-                //                                  must multiply for ajc in viscous term!!!
-                g11 = csi0 * csi0 + csi1 * csi1 + csi2 * csi2;
-                g21 = eta0 * csi0 + eta1 * csi1 + eta2 * csi2;
-                g31 = zet0 * csi0 + zet1 * csi1 + zet2 * csi2;
-
-                Compute_dscalar_i(mesh, i, j, k, mx, my, mz, tmprt, nvert, meshTag, &dtdc, &dtde, &dtdz);
-
-                PetscInt    iL, iR;
-                PetscReal denom;
-                getFace2Cell4StencilCsi(mesh, k, j, i, mx, &iL, &iR, &denom, nvert, meshTag);
-
-                div[k][j][i].x =
-                - ucont[k][j][i].x
-                * centralUpwind
-                (
-                    tmprt[k][j][iL],
-                    tmprt[k][j][i],
-                    tmprt[k][j][i+1],
-                    tmprt[k][j][iR],
-                    ucont[k][j][i].x
-                    ,limiter[k][j][i].x
-                );
-
-                PetscReal nu = cst->nu, nut;
-                PetscReal kappaEff;
-
-                // viscous terms
-                if
-                (
-                    teqn->access->flags->isLesActive
-                )
-                {
-                    nu = 0;
-
-                    if(les->model != STABILITY_BASED)
-                    {
-                        nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k][j][i+1]);
-
-                        if( les->model == AMD   || 
-                            les->model == DSM   || 
-                            les->model == DLASI || 
-                            les->model == DLASD || 
-                            les->model == DPASD ||
-                            les->model == BAMD)  
-                        {
-                            PetscReal diff =  0.5 * (lkt[k][j][i] + lkt[k][j][i+1]);
-                            kappaEff = (nu / cst->Pr) + diff;
-                        }
-                        else 
-                        {
-                            // compute stability dependent turbulent Prandtl number
-                            PetscReal gradTdotG = dtde*(-9.81);
-                            PetscReal l, delta = pow( 1./ajc, 1./3. );
-                            if(gradTdotG < 0.)
-                            {
-                                l = PetscMin(delta, 7.6*nut/delta*std::sqrt(tRef / std::fabs(gradTdotG)));
-                            }
-                            else
-                            {
-                                l = delta;
-                            }
-
-                            PetscReal Prt = 1.0 / (1.0 + (2.0 * l / delta));
-
-                            kappaEff = (nu / cst->Pr) + (nut / Prt);
-                        }
-
-                    }
-                    else
-                    {
-                        kappaEff = (nu / cst->Pr) + 0.5 *
-                        (
-                            lch[k][j][i+1] / 0.1 * Sabs[k][j][i+1] * lcs[k][j][i+1] +
-                            lch[k][j][i]   / 0.1 * Sabs[k][j][i]   * lcs[k][j][i]
-                        ) * pow(1.0 / ajc, 1.0/3.0);
-                    }
-
-                    // wall model i-left/right patch
-                    if
-                    (
-                        (mesh->boundaryT.iLeft=="thetaWallFunction" && i==0) ||
-                        (mesh->boundaryT.iRight=="thetaWallFunction" && i==mx-2)
-                    )
-                    {
-                        PetscReal signQ =  1.0;
-                        if(i==0)  signQ = -1.0;
-
-                        visc[k][j][i].x
-                        =
-                        signQ *
-                        (
-                            teqn->iRWM->qWall.x[k-zs][j-ys] * icsi[k][j][i].x +
-                            teqn->iRWM->qWall.y[k-zs][j-ys] * icsi[k][j][i].y +
-                            teqn->iRWM->qWall.z[k-zs][j-ys] * icsi[k][j][i].z
-                        );
-
-                        kappaEff = 0.0;
-                    }
-
-                    //IBM wall model 
-                    if(isIBMFluidIFace(k, j, i, i+1, nvert))
-                    {
-                        if(teqn->access->ibm->wallShearOn && teqn->access->ibm->ibmBody[0]->tempBC == "thetaWallFunction")
-                        {
-                            if(isIBMFluidCell(k, j, i, nvert))
-                            {
-                                visc[k][j][i].x = viscIBM[k][j][i].x;
-                            }
-                            else if(isIBMFluidCell(k, j, i+1, nvert))
-                            {
-                                visc[k][j][i].x = viscIBM[k][j][i+1].x;
-                            }
-
-                            kappaEff = 0;
-                        }
-                    }
-
-
-                }
-                else
-                {
-                    kappaEff = nu / cst->Pr;
-                }
-
-                // note: 1/J is the original term, here terms arrive already with a factor of 1/J^2 so actually we multiply for J (ajc)
-                visc[k][j][i].x += (g11 * dtdc + g21 * dtde + g31 * dtdz) * ajc * (kappaEff);
-            }
-        }
-    }
-
-    // j direction
-    for (k=zs; k<ze; k++)
-    {
-        for (j=ys; j<ye; j++)
-        {
-            for (i=xs; i<xe; i++)
-            {
-                if(i==mx-1 || j==my-1 || k==mz-1) continue;
-                if(i==0 || k==0) continue;
-
-                // get 1/V at the j-face
-                PetscReal ajc = jaj[k][j][i];
-
-                // get face normals
-                csi0 = jcsi[k][j][i].x, csi1 = jcsi[k][j][i].y, csi2 = jcsi[k][j][i].z;
-                eta0 = jeta[k][j][i].x, eta1 = jeta[k][j][i].y, eta2 = jeta[k][j][i].z;
-                zet0 = jzet[k][j][i].x, zet1 = jzet[k][j][i].y, zet2 = jzet[k][j][i].z;
-
-                // compute metric tensor
-                g11 = csi0 * eta0 + csi1 * eta1 + csi2 * eta2;
-                g21 = eta0 * eta0 + eta1 * eta1 + eta2 * eta2;
-                g31 = zet0 * eta0 + zet1 * eta1 + zet2 * eta2;
-
-                Compute_dscalar_j(mesh, i, j, k, mx, my, mz, tmprt, nvert, meshTag, &dtdc, &dtde, &dtdz);
-
-                PetscInt    jL, jR;
-                PetscReal denom;
-                getFace2Cell4StencilEta(mesh, k, j, i, my, &jL, &jR, &denom, nvert, meshTag);
-
-                div[k][j][i].y =
-                - ucont[k][j][i].y
-                * centralUpwind
-                (
-                    tmprt[k][jL][i],
-                    tmprt[k][j][i],
-                    tmprt[k][j+1][i],
-                    tmprt[k][jR][i],
-                    ucont[k][j][i].y
-                    ,limiter[k][j][i].y
-                );
-
-                PetscReal nu = cst->nu, nut;
-                PetscReal kappaEff;
-
-                if
-                (
-                    teqn->access->flags->isLesActive
-                )
-                {
-                    nu = 0;
-
-                    if(les->model != STABILITY_BASED)
-                    {
-                        nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k][j+1][i]);
-
-                        if( les->model == AMD   || 
-                            les->model == DSM   || 
-                            les->model == DLASI || 
-                            les->model == DLASD || 
-                            les->model == DPASD ||
-                            les->model == BAMD)
-                        {                        
-                            PetscReal diff =  0.5 * (lkt[k][j][i] + lkt[k][j+1][i]);
-                            kappaEff = (nu / cst->Pr) + diff;
-                        }
-                        else 
-                        {
-                            // compute stability dependend turbulent Prandtl number
-                            PetscReal gradTdotG = dtde*(-9.81);
-                            PetscReal l, delta = pow( 1./ajc, 1./3. );
-                            if(gradTdotG < 0.)
-                            {
-                                l = PetscMin(delta, 7.6*nut/delta*std::sqrt(tRef / std::fabs(gradTdotG)));
-                            }
-                            else
-                            {
-                                l = delta;
-                            }
-
-                            PetscReal Prt = 1.0 / (1.0 + (2.0 * l / delta));
-
-                            kappaEff = (nu / cst->Pr) + (nut / Prt);
-                        }
-                    }
-                    else
-                    {
-                        kappaEff = (nu / cst->Pr) + 0.5 *
-                        (
-                            lch[k][j+1][i] / 0.1 * Sabs[k][j+1][i] * lcs[k][j+1][i] +
-                            lch[k][j][i]   / 0.1 * Sabs[k][j][i]   * lcs[k][j][i]
-                        ) * pow(1.0 / ajc, 1.0/3.0);
-                    }
-
-                    // wall model j-left patch
-                    if
-                    (
-                        (mesh->boundaryT.jLeft=="thetaWallFunction"  && j==0) ||
-                        (mesh->boundaryT.jRight=="thetaWallFunction" && j==my-2)
-                    )
-                    {
-                        PetscReal signQ =  1.0;
-                        if(j==0)  signQ = -1.0;
-
-                        visc[k][j][i].y
-                        =
-                        signQ *
-                        (
-                            teqn->jLWM->qWall.x[k-zs][i-xs] * jeta[k][j][i].x +
-                            teqn->jLWM->qWall.y[k-zs][i-xs] * jeta[k][j][i].y +
-                            teqn->jLWM->qWall.z[k-zs][i-xs] * jeta[k][j][i].z
-                        );
-
-                        kappaEff = 0.0;
-                    }
-
-                    if(isIBMFluidJFace(k, j, i, j+1, nvert) && teqn->access->ibm->ibmBody[0]->tempBC == "thetaWallFunction")
-                    {
-                        if(teqn->access->ibm->wallShearOn)
-                        {
-
-                            if(isIBMFluidCell(k, j, i, nvert))
-                            {
-                                visc[k][j][i].y = viscIBM[k][j][i].y;
-                            }
-                            else if(isIBMFluidCell(k, j+1, i, nvert))
-                            {
-                                visc[k][j][i].y = viscIBM[k][j+1][i].y;
-                            }
-                           
-                            kappaEff = 0;
-                        }
-
-                    }
-                }
-                else
-                {
-                    kappaEff = nu / cst->Pr;
-                }
-
-                // note: 1/J is the original term, here terms arrive already with a factor of 1/J^2 so actually we multiply for J (ajc)
-                visc[k][j][i].y += (g11 * dtdc + g21 * dtde + g31 * dtdz) * ajc * (kappaEff);
-            }
-        }
-    }
-
-    // k direction
-    for (k=zs; k<ze; k++)
-    {
-        for (j=ys; j<ye; j++)
-        {
-            for (i=xs; i<xe; i++)
-            {
-                if(i==mx-1 || j==my-1 || k==mz-1) continue;
-                if(i==0 || j==0) continue;
-
-                // get 1/V at the j-face
-                PetscReal ajc = kaj[k][j][i];
-
-                // get face normals
-                csi0 = kcsi[k][j][i].x, csi1 = kcsi[k][j][i].y, csi2 = kcsi[k][j][i].z;
-                eta0 = keta[k][j][i].x, eta1 = keta[k][j][i].y, eta2 = keta[k][j][i].z;
-                zet0 = kzet[k][j][i].x, zet1 = kzet[k][j][i].y, zet2 = kzet[k][j][i].z;
-
-                // compute metric tensor
-                g11 = csi0 * zet0 + csi1 * zet1 + csi2 * zet2;
-                g21 = eta0 * zet0 + eta1 * zet1 + eta2 * zet2;
-                g31 = zet0 * zet0 + zet1 * zet1 + zet2 * zet2;
-
-                Compute_dscalar_k(mesh, i, j, k, mx, my, mz, tmprt, nvert, meshTag, &dtdc, &dtde, &dtdz);
-
-                PetscInt    kL, kR;
-                PetscReal denom;
-                getFace2Cell4StencilZet(mesh, k, j, i, mz, &kL, &kR, &denom, nvert, meshTag);
-
-                div[k][j][i].z =
-                - ucont[k][j][i].z
-                * centralUpwind
-                (
-                    tmprt[kL][j][i],
-                    tmprt[k][j][i],
-                    tmprt[k+1][j][i],
-                    tmprt[kR][j][i],
-                    ucont[k][j][i].z
-                    ,limiter[k][j][i].z
-                );
-
-                PetscReal nu = cst->nu, nut;
-                PetscReal kappaEff;
-
-                if
-                (
-                    teqn->access->flags->isLesActive
-                )
-                {
-                    nu = 0;
-                    
-                    if(les->model != STABILITY_BASED)
-                    {
-                        nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k+1][j][i]);
-                        
-                        if( les->model == AMD   || 
-                            les->model == DSM   || 
-                            les->model == DLASI || 
-                            les->model == DLASD || 
-                            les->model == DPASD ||
-                            les->model == BAMD)
-                        {                        
-                            PetscReal diff =  0.5 * (lkt[k][j][i] + lkt[k+1][j][i]);
-                            kappaEff = (nu / cst->Pr) + diff;
-                        }
-                        else 
-                        {
-                            // compute stability depentend turbulent Prandtl number
-                            PetscReal gradTdotG = dtde*(-9.81);
-                            PetscReal l, delta = pow( 1./ajc, 1./3. );
-                            if(gradTdotG < 0.)
-                            {
-                                l = PetscMin(delta, 7.6*nut/delta*std::sqrt(tRef / std::fabs(gradTdotG)));
-                            }
-                            else
-                            {
-                                l = delta;
-                            }
-
-                            PetscReal Prt = 1.0 / (1.0 + (2.0 * l / delta));
-
-                            kappaEff = (nu / cst->Pr) + (nut / Prt);
-                        }
-                    }
-                    else
-                    {
-                        kappaEff = (nu / cst->Pr) + 0.5 *
-                        (
-                            lch[k+1][j][i] / 0.1 * Sabs[k+1][j][i] * lcs[k+1][j][i] +
-                            lch[k][j][i]   / 0.1 * Sabs[k][j][i]   * lcs[k][j][i]
-                        ) * pow(1.0 / ajc, 1.0/3.0);
-                    }
-
-                    if(isIBMFluidKFace(k, j, i, k+1, nvert) && teqn->access->ibm->ibmBody[0]->tempBC == "thetaWallFunction")
-                    {
-                        if(teqn->access->ibm->wallShearOn)
-                        {
-                            if(isIBMFluidCell(k, j, i, nvert))
-                            {
-                                visc[k][j][i].z = viscIBM[k][j][i].z;
-                            }
-                            else if(isIBMFluidCell(k+1, j, i, nvert))
-                            {
-                                visc[k][j][i].z = viscIBM[k+1][j][i].z;
-                            }
-
-                            kappaEff = 0;
-                        }
-                    }
-                }
-                else
-                {
-                    kappaEff = nu / cst->Pr;
-                }
-
-                // note: 1/J is the original term, here terms arrive already with a factor of 1/J^2 so actually we multiply for J (ajc)
-                visc[k][j][i].z += (g11 * dtdc + g21 * dtde + g31 * dtdz) * ajc * (kappaEff);
-            }
-        }
-    }
-
-    DMDAVecRestoreArray(fda, teqn->lDivT, &div);
-    DMDAVecRestoreArray(fda, teqn->lViscT, &visc);
-
-    if(flags->isIBMActive)
-    {
-        DMDAVecRestoreArray(fda, teqn->lViscIBMT, &viscIBM);
-    }
-
-    DMLocalToLocalBegin(fda, teqn->lDivT,  INSERT_VALUES, teqn->lDivT);
-    DMLocalToLocalEnd  (fda, teqn->lDivT,  INSERT_VALUES, teqn->lDivT);
-    DMLocalToLocalBegin(fda, teqn->lViscT, INSERT_VALUES, teqn->lViscT);
-    DMLocalToLocalEnd  (fda, teqn->lViscT, INSERT_VALUES, teqn->lViscT);
-
-    if(teqn->access->flags->isLesActive && (les->model == BAMD || les->model == BV))
-    {
-        updateLESScalarStructuralModel(les); 
-    }
-
-    resetFacePeriodicFluxesVector(mesh, teqn->lDivT,   teqn->lDivT, "localToLocal");
-    resetFacePeriodicFluxesVector(mesh, teqn->lViscT, teqn->lViscT, "localToLocal");
-
-    DMDAVecGetArray(fda, teqn->lDivT, &div);
-    DMDAVecGetArray(fda, teqn->lViscT, &visc);
-
-    // ---------------------------------------------------------------------- //
-    //                      FORM THE CUMULATIVE FLUXES                        //
-    // ---------------------------------------------------------------------- //
-
-    for (k=lzs; k<lze; k++)
-    {
-        for (j=lys; j<lye; j++)
-        {
-            for (i=lxs; i<lxe; i++)
-            {
-                rhs[k][j][i]
-                =
-                scale *
-                (
-                        div[k][j][i].x  - div[k  ][j  ][i-1].x       +
-                        div[k][j][i].y  - div[k  ][j-1][i  ].y       +
-                        div[k][j][i].z  - div[k-1][j  ][i  ].z       +
-                        visc[k][j][i].x - visc[k  ][j  ][i-1].x      +
-                        visc[k][j][i].y - visc[k  ][j-1][i  ].y      +
-                        visc[k][j][i].z - visc[k-1][j  ][i  ].z
-                ) * aj[k][j][i];
-            }
-        }
-    }
-
-    if(teqn->access->flags->isLesActive)
-    {
-        if(les->model != STABILITY_BASED)
-        {
-            DMDAVecRestoreArray(da, les->lNu_t, &lnu_t);
-
-            if( les->model == AMD   || 
-                les->model == DSM   || 
-                les->model == DLASI || 
-                les->model == DLASD || 
-                les->model == DPASD ||
-                les->model == BAMD)             
-            {
-                DMDAVecRestoreArray(da, les->lk_t, &lkt);
-            }
-        }
-        else
-        {
-            DMDAVecRestoreArray(da,  les->lS,  &Sabs);
-            DMDAVecRestoreArray(da,  les->lCh, &lch);
-            DMDAVecRestoreArray(da,  les->lCs, &lcs);
-        }
-    }
-
-    DMDAVecRestoreArray(fda, teqn->lDivT,       &div);
-    DMDAVecRestoreArray(fda, teqn->lViscT,      &visc);
-
-    DMDAVecRestoreArray(da,  Rhs,              &rhs);
-    DMDAVecRestoreArray(da,  teqn->lTmprt,      &tmprt);
-    DMDAVecRestoreArray(fda, ueqn->lUcont,     &ucont);
-
-    DMDAVecRestoreArray(fda, mesh->lCsi,        &csi);
-    DMDAVecRestoreArray(fda, mesh->lEta,        &eta);
-    DMDAVecRestoreArray(fda, mesh->lZet,        &zet);
-    DMDAVecRestoreArray(fda, mesh->lICsi,       &icsi);
-    DMDAVecRestoreArray(fda, mesh->lIEta,       &ieta);
-    DMDAVecRestoreArray(fda, mesh->lIZet,       &izet);
-    DMDAVecRestoreArray(fda, mesh->lJCsi,       &jcsi);
-    DMDAVecRestoreArray(fda, mesh->lJEta,       &jeta);
-    DMDAVecRestoreArray(fda, mesh->lJZet,       &jzet);
-    DMDAVecRestoreArray(fda, mesh->lKCsi,       &kcsi);
-    DMDAVecRestoreArray(fda, mesh->lKEta,       &keta);
-    DMDAVecRestoreArray(fda, mesh->lKZet,       &kzet);
-    DMDAVecRestoreArray(da,  mesh->lAj,         &aj);
-    DMDAVecRestoreArray(da,  mesh->lIAj,        &iaj);
-    DMDAVecRestoreArray(da,  mesh->lJAj,        &jaj);
-    DMDAVecRestoreArray(da,  mesh->lKAj,        &kaj);
-    DMDAVecRestoreArray(fda, mesh->lCent,       &cent);
-    DMDAVecRestoreArray(da,  mesh->lNvert,      &nvert);
-    DMDAVecRestoreArray(da,  mesh->lmeshTag,    &meshTag);
-    DMDAVecRestoreArray(fda, mesh->fluxLimiter, &limiter);
-
-    return(0);
-}
-
-//***************************************************************************************************************//
-
-PetscErrorCode TeqnSNES(SNES snes, Vec T, Vec Rhs, void *ptr)
-{
-    teqn_ *teqn   = (teqn_*)ptr;
-    mesh_ *mesh   = teqn->access->mesh;
-    clock_ *clock = teqn->access->clock;
-    VecCopy(T, teqn->Tmprt);
-
-    // scatter temperature from global to local
-    DMGlobalToLocalBegin(mesh->da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
-    DMGlobalToLocalEnd  (mesh->da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
-
-    // reset temperature periodic fluxes to be consistent if the flow is periodic
-    resetCellPeriodicFluxes(mesh, teqn->Tmprt, teqn->lTmprt, "scalar", "globalToLocal");
-
-    // update wall model (optional)
-    // UpdateWallModelsT(teqn);
-
-    // initialize the rhs vector
-    VecSet(Rhs, 0.0);
-
-    // get time step
-    const PetscReal dt = clock->dt;
-
-    // add viscous and transport terms
-    FormT(teqn, Rhs, 1.0);
-
-    if(teqn->access->flags->isXDampingActive)
-    {
-        // this is causing spurious oscillation: deactivate
-        dampingSourceT(teqn, Rhs, 1.0);
-    }
-
-    // multiply for dt
-    VecScale(Rhs, dt);
-
-    // add driving source terms after as it is not scaled by 1/dt
-    if(teqn->access->flags->isAblActive)
-    {
-        if(teqn->access->abl->controllerActiveT)
-        {
-            sourceT(teqn, Rhs, 1.0);
-        }
-    }
-
-    // set to zero at non-resolved cell faces
-    resetNonResolvedCellCentersScalar(mesh, Rhs);
-
-    VecAXPY(Rhs, -1.0, T);
-    VecAXPY(Rhs,  1.0, teqn->Tmprt_o);
-
-    return(0);
-}
-
-//***************************************************************************************************************//
-
-PetscErrorCode FormExplicitRhsT(teqn_ *teqn)
-{
-    mesh_ *mesh   = teqn->access->mesh;
-
-    // reset temperature periodic fluxes to be consistent if the flow is periodic
-    resetCellPeriodicFluxes(mesh, teqn->Tmprt, teqn->lTmprt, "scalar", "globalToLocal");
-
-    // update wall model (optional)
-    // UpdateWallModelsT(teqn);
-
-    // initialize the rhs vector
-    VecSet(teqn->Rhs, 0.0);
-
-    // add viscous and transport terms
-    FormT(teqn, teqn->Rhs, 1.0);
-
-    if(teqn->access->flags->isXDampingActive)
-    {
-        // this is causing spurious oscillation: deactivate
-        dampingSourceT(teqn, teqn->Rhs, 1.0);
-    }
-
-    // add driving source terms after as it is not scaled by 1/dt
-    if(teqn->access->flags->isAblActive)
-    {
-        if(teqn->access->abl->controllerActiveT)
-        {
-            sourceT(teqn, teqn->Rhs, 1.0 / teqn->access->clock->dt);
-        }
-    }
-
-    // set to zero at non-resolved cell faces
-    resetNonResolvedCellCentersScalar(mesh, teqn->Rhs);
-
-    return(0);
-}
-
-//***************************************************************************************************************//
-
-PetscErrorCode TeqnRK4(teqn_ *teqn)
-{
     mesh_  *mesh  = teqn->access->mesh;
     clock_ *clock = teqn->access->clock;
 
-    PetscReal ts,te;
-
+    PetscReal ts, te;
     PetscTime(&ts);
-    PetscPrintf(mesh->MESH_COMM, "RungeKutta-4: Solving for T, Stage ");
+    PetscPrintf(mesh->MESH_COMM, "Predicted potential temperature in ");
 
-    PetscInt  s = 4;
-    PetscReal b[4];
-    PetscReal a[4];
+    // ensure lTmprt reflects current Tmprt (T^n)
+    resetCellPeriodicFluxes(mesh, teqn->Tmprt, teqn->lTmprt, "scalar", "globalToLocal");
 
-    b[0] = 1.0 / 6.0;
-    b[1] = 1.0 / 3.0;
-    b[2] = 1.0 / 3.0;
-    b[3] = 1.0 / 6.0;
+    // conv-only RHS: Rhs = N(T^n)  (formMode=1, scale=1.0)
+    VecSet(teqn->Rhs, 0.0);
+    FormT(teqn, teqn->Rhs, 1.0, 1);
 
-    a[0] = 0.0;
-    a[1] = 0.5;
-    a[2] = 0.5;
-    a[3] = 1.0;
+    // T* = T^n + dt * N(T^n)
+    VecAXPY(teqn->Tmprt, clock->dt, teqn->Rhs);
 
-    PetscReal dt = clock->dt;
-
-    // Tmprt_o contribution
-    VecCopy(teqn->Tmprt_o, teqn->TmprtTmp);
-
-    // contribution from K2, K3, K4
-    for (PetscInt i=0; i<s; i++)
-    {
-        PetscPrintf(mesh->MESH_COMM, "%ld, ", i+1);
-
-        // compute intermediate U guess and evaluate RHS
-        if(i!=0)
-        {
-            VecWAXPY(teqn->Tmprt, a[i] * dt, teqn->Rhs, teqn->Tmprt_o);
-            DMGlobalToLocalBegin(mesh->da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
-            DMGlobalToLocalEnd(mesh->da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
-        }
-
-        // compute function guess
-        FormExplicitRhsT(teqn);
-
-        // add contribution from K1, K2, K3, K4
-        VecAXPY(teqn->TmprtTmp, dt * b[i], teqn->Rhs);
-    }
-
-    VecCopy(teqn->TmprtTmp, teqn->Tmprt);
+    // scatter T* → lTmprt for Buoyancy()
     DMGlobalToLocalBegin(mesh->da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
-    DMGlobalToLocalEnd(mesh->da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
+    DMGlobalToLocalEnd  (mesh->da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
+    resetCellPeriodicFluxes(mesh, teqn->Tmprt, teqn->lTmprt, "scalar", "globalToLocal");
 
-    // compute elapsed time
     PetscTime(&te);
-    PetscPrintf(mesh->MESH_COMM,"Elapsed Time = %f\n", te-ts);
+    PetscPrintf(mesh->MESH_COMM, "%f\n", te-ts);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode TmprtRestoreFromOld(teqn_ *teqn)
+{
+    // Restore Tmprt/lTmprt to T^n (saved in Tmprt_o) after TmprtPredictor has
+    // temporarily advanced them to T* for buoyancy in SolveUEqn.
+    // Must be called before SolveTEqn so the T solve starts from T^n.
+
+    mesh_ *mesh = teqn->access->mesh;
+
+    VecCopy(teqn->Tmprt_o, teqn->Tmprt);
+    DMGlobalToLocalBegin(mesh->da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
+    DMGlobalToLocalEnd  (mesh->da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
+    resetCellPeriodicFluxes(mesh, teqn->Tmprt, teqn->lTmprt, "scalar", "globalToLocal");
 
     return(0);
 }
@@ -2206,7 +647,8 @@ PetscErrorCode TeqnRK4(teqn_ *teqn)
 
 PetscErrorCode SolveTEqn(teqn_ *teqn)
 {
-    mesh_          *mesh = teqn->access->mesh;
+    mesh_          *mesh  = teqn->access->mesh;
+    clock_         *clock = teqn->access->clock;
 
     // set the right hand side to zero
     VecSet (teqn->Rhs, 0.0);
@@ -2220,8 +662,11 @@ PetscErrorCode SolveTEqn(teqn_ *teqn)
         PetscTime(&ts);
         PetscPrintf(mesh->MESH_COMM, "TRSNES: Solving for T, Initial residual = ");
 
-        // copy the solution in the tmp variable
-        VecCopy(teqn->Tmprt, teqn->TmprtTmp);
+        // Explicit Euler predictor as SNES initial guess:
+        //   TmprtTmp = T^n + dt * FormT_full(T^n)
+        FormExplicitRhsT(teqn);                            // Rhs = full RHS at T^n (T/time units)
+        VecCopy(teqn->Tmprt, teqn->TmprtTmp);              // TmprtTmp = T^n
+        VecAXPY(teqn->TmprtTmp, clock->dt, teqn->Rhs);    // TmprtTmp = T^n + dt * Rhs
 
         // solve temperature equation and compute solution norm and iteration number
         SNESSolve(teqn->snesT, PETSC_NULL, teqn->TmprtTmp);
@@ -2242,6 +687,10 @@ PetscErrorCode SolveTEqn(teqn_ *teqn)
     else if (teqn->ddtScheme=="rungeKutta4")
     {
         TeqnRK4(teqn);
+    }
+    else if (teqn->ddtScheme=="IMEX")
+    {
+        TeqnIMEX(teqn);
     }
 
     return(0);

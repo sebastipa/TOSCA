@@ -11,10 +11,18 @@ struct teqn_
     SNES          snesT;                      //!< non linear matrix free context
     Mat           JT;                         //!< non linear matrix free preconditioner
     Mat           AT, CT;
-    KSP           ksp;                        //!< linear krylov-subspace context
+    KSP           ksp;                        //!< linear krylov-subspace context (backwardEuler SNES inner KSP)
     PC            pc;
+    KSP           kspIMEX;                    //!< standalone direct KSP for IMEX scheme (no SNES wrapper)
+    Mat           JvIMEX;                     //!< MatShell for IMEX operator A*v = v - dt*D(v)
+    word          kspType;                    //!< KSP solver type for IMEX: BiCGStab or GMRES (-kspTypeT in control.dat)
+    PetscInt      gmresRestart;               //!< GMRES restart parameter for IMEX (-kspGMRESRestartT in control.dat, default 30)
     Vec           Rhs;
     Vec           Rhs_o;
+    Vec           bT;                         //!< explicit RHS buffer prebuilt once per IMEX time step
+    Vec           RhsConv;                    //!< convective RHS at T^n (for AB2 blending)
+    Vec           RhsConv_o;                  //!< convective RHS at T^{n-1} (for AB2 blending)
+
     Vec           TmprtTmp;                   //!< temporary solution
     Vec           Tmprt, lTmprt,
                   Tmprt_o, lTmprt_o;
@@ -54,29 +62,11 @@ PetscErrorCode InitializeTEqn(teqn_ *teqn);
 //! \brief Solve T equation
 PetscErrorCode SolveTEqn(teqn_ *teqn);
 
-//! \brief SNES evaulation function
-PetscErrorCode TeqnSNES(SNES snes, Vec T, Vec Rhs, void *ptr);
-
 //! \brief Computes g*h times gradient of rho_k / rho_0
 PetscErrorCode ghGradRhoK(teqn_ *teqn);
 
-//! \brief Compute temperature control source term
-PetscErrorCode CorrectSourceTermsT(teqn_ *teqn, PetscInt print);
+//! \brief Forward-Euler conv-only T predictor: T* = T^n + dt*N(T^n) -> lTmprt (for buoyancy in SolveUEqn)
+PetscErrorCode TmprtPredictor(teqn_ *teqn);
 
-//! \brief Apply fringe region damping
-PetscErrorCode dampingSourceT(teqn_ *teqn, Vec &Rhs, PetscReal scale);
-
-//! \brief Apply temperature control
-PetscErrorCode sourceT(teqn_ *teqn, Vec &Rhs, PetscReal scale);
-
-//! \brief RHS of the potential temperature transport equation
-PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale);
-
-//! \brief solve Teqn using RungeKutta 4
-PetscErrorCode TeqnRK4(teqn_ *teqn);
-
-//! \brief Computed RHS of temperature equation using current lTmprt (updates Rhs), data put in ueqn->Rhs
-PetscErrorCode FormExplicitRhsT(teqn_ *teqn);
-
-//! \brief Compute tBar state for lateral damping region
-PetscErrorCode correctDampingSourcesT(teqn_ *teqn);
+//! \brief Restore Tmprt/lTmprt to T^n from Tmprt_o (undo TmprtPredictor before SolveTEqn)
+PetscErrorCode TmprtRestoreFromOld(teqn_ *teqn);
