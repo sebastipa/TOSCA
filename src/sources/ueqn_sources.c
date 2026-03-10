@@ -2766,7 +2766,6 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, PetscReal scale)
     VecSet(ueqn->bTheta, 0.0);
     DMDAVecGetArray(fda, ueqn->bTheta,  &btheta);
 
-    // loop over i-face centers
     for(k=zs; k<lze; k++)
     {
         for(j=ys; j<lye; j++)

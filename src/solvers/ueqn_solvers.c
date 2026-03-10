@@ -1159,18 +1159,22 @@ PetscErrorCode UeqnSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr)
     PetscReal dt    = clock->dt;
     PetscReal scale = (clock->it > clock->itStart) ? 0.5 : 1.0;
 
-    // add velocity-dependent terms (depend on current Ucont; cannot be precomputed)
+    // convection and diffusion terms 
     FormU(ueqn, Rhs, scale);
 
+    // add coriolis term
     if(ueqn->access->flags->isAblActive && ueqn->access->abl->coriolisActive)
         Coriolis(ueqn, Rhs, 1.0);
 
+    // add canopy term
     if(ueqn->access->flags->isCanopyActive)
         CanopyForce(ueqn, Rhs, 1.0);
 
+    // add source terms 
     if(ueqn->access->flags->isAblActive && ueqn->access->abl->controllerActive)
         sourceU(ueqn, Rhs, 1.0);
 
+    // add damping terms 
     if
     (
         ueqn->access->flags->isXDampingActive ||
@@ -1183,6 +1187,7 @@ PetscErrorCode UeqnSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr)
         dampingSourceU(ueqn, Rhs, 1.0);
     }
 
+    // add mean pressure gradient forcing term
     if(ueqn->access->flags->isMeangradPForcingActive)
     {
         meanGradPForcing(ueqn, Rhs, 1.0);
@@ -1194,7 +1199,6 @@ PetscErrorCode UeqnSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr)
     resetNonResolvedCellFaces(mesh, Rhs);
 
     // add time derivative term
-
     VecAXPY(Rhs, -1.0, Ucont);
     VecAXPY(Rhs,  1.0, ueqn->Ucont_o);
 
@@ -1251,7 +1255,7 @@ PetscErrorCode FormExplicitRhsU(ueqn_ *ueqn)
         CanopyForce(ueqn, ueqn->Rhs, 1.0);
     }
 
-    if(ueqn->access->flags->isTeqnActive && (clock->it > clock->itStart))
+    if(ueqn->access->flags->isTeqnActive)
     {
         teqn_ *teqn = ueqn->access->teqn;
 
@@ -1266,7 +1270,7 @@ PetscErrorCode FormExplicitRhsU(ueqn_ *ueqn)
         }
     }
 
-    // add viscous and transport terms (auxiliary terms handled separately below)
+    // add convection and diffusion terms
     FormU(ueqn, ueqn->Rhs, 1.0);
 
     // add wind farm model
@@ -1275,6 +1279,7 @@ PetscErrorCode FormExplicitRhsU(ueqn_ *ueqn)
         VecAXPY(ueqn->Rhs, 1.0, ueqn->access->farm->sourceFarmCont);
     }
 
+    // add damping terms
     if
     (
         ueqn->access->flags->isXDampingActive ||
@@ -1400,9 +1405,11 @@ PetscErrorCode UeqnRK4(ueqn_ *ueqn)
 
 PetscErrorCode hyperViscosityU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 {
-    if(ueqn->hyperVisc4 == 0.0) return(0);
+    if(ueqn->hyperVisc4i == 0.0 && ueqn->hyperVisc4j == 0.0 && ueqn->hyperVisc4k == 0.0) return(0);
 
     // Explicit biharmonic (4th-order, index-space) hyperviscosity for the IMEX scheme.
+    // Each index direction has an independent coefficient, allowing e.g. horizontal-only
+    // damping (i+j) without touching vertical (k) turbulence transport.
 
     mesh_        *mesh  = ueqn->access->mesh;
     clock_       *clock = ueqn->access->clock;
@@ -1423,8 +1430,11 @@ PetscErrorCode hyperViscosityU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     PetscReal ***nvert;
     PetscScalar solid = 0.5;
 
-    // eps/dt: after VecScale(Rhs, dt) the net effect is Rhs += scale*dt*hyperVisc4*Laplacian^2(U)
-    PetscReal eps = scale * ueqn->hyperVisc4 / clock->dt;
+    // eps_{i,j,k}/dt: after VecScale(Rhs, dt) the net effect is
+    //   Rhs += scale*dt * ( eps_i*δ⁴_i(U) + eps_j*δ⁴_j(U) + eps_k*δ⁴_k(U) )
+    PetscReal eps_i = scale * ueqn->hyperVisc4i / clock->dt;
+    PetscReal eps_j = scale * ueqn->hyperVisc4j / clock->dt;
+    PetscReal eps_k = scale * ueqn->hyperVisc4k / clock->dt;
 
     DMDAVecGetArray(fda, ueqn->lUcont, &ucont);
     DMDAVecGetArray(fda, Rhs,          &rhs);
@@ -1501,31 +1511,28 @@ PetscErrorCode hyperViscosityU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
         // i-face flux (ucont.x)
         if(nvert[k][j][i] + nvert[k][j][i+1] < 2.0 * solid)
         {
-            PetscReal b4 =
-                  ucont[k  ][j  ][ip2].x - 4.0*ucont[k  ][j  ][ip1].x + 6.0*ucont[k][j][i].x - 4.0*ucont[k  ][j  ][im1].x + ucont[k  ][j  ][im2].x
-                + ucont[k  ][jp2][i  ].x - 4.0*ucont[k  ][jp1][i  ].x + 6.0*ucont[k][j][i].x - 4.0*ucont[k  ][jm1][i  ].x + ucont[k  ][jm2][i  ].x
-                + ucont[kp2][j  ][i  ].x - 4.0*ucont[kp1][j  ][i  ].x + 6.0*ucont[k][j][i].x - 4.0*ucont[km1][j  ][i  ].x + ucont[km2][j  ][i  ].x;
-            rhs[k][j][i].x -= eps * b4;
+            rhs[k][j][i].x -=
+                  eps_i * (ucont[k  ][j  ][ip2].x - 4.0*ucont[k  ][j  ][ip1].x + 6.0*ucont[k][j][i].x - 4.0*ucont[k  ][j  ][im1].x + ucont[k  ][j  ][im2].x)
+                + eps_j * (ucont[k  ][jp2][i  ].x - 4.0*ucont[k  ][jp1][i  ].x + 6.0*ucont[k][j][i].x - 4.0*ucont[k  ][jm1][i  ].x + ucont[k  ][jm2][i  ].x)
+                + eps_k * (ucont[kp2][j  ][i  ].x - 4.0*ucont[kp1][j  ][i  ].x + 6.0*ucont[k][j][i].x - 4.0*ucont[km1][j  ][i  ].x + ucont[km2][j  ][i  ].x);
         }
 
-        // j-face flux (ucont.y) 
+        // j-face flux (ucont.y)
         if(nvert[k][j][i] + nvert[k][j+1][i] < 2.0 * solid)
         {
-            PetscReal b4 =
-                  ucont[k  ][j  ][ip2].y - 4.0*ucont[k  ][j  ][ip1].y + 6.0*ucont[k][j][i].y - 4.0*ucont[k  ][j  ][im1].y + ucont[k  ][j  ][im2].y
-                + ucont[k  ][jp2][i  ].y - 4.0*ucont[k  ][jp1][i  ].y + 6.0*ucont[k][j][i].y - 4.0*ucont[k  ][jm1][i  ].y + ucont[k  ][jm2][i  ].y
-                + ucont[kp2][j  ][i  ].y - 4.0*ucont[kp1][j  ][i  ].y + 6.0*ucont[k][j][i].y - 4.0*ucont[km1][j  ][i  ].y + ucont[km2][j  ][i  ].y;
-            rhs[k][j][i].y -= eps * b4;
+            rhs[k][j][i].y -=
+                  eps_i * (ucont[k  ][j  ][ip2].y - 4.0*ucont[k  ][j  ][ip1].y + 6.0*ucont[k][j][i].y - 4.0*ucont[k  ][j  ][im1].y + ucont[k  ][j  ][im2].y)
+                + eps_j * (ucont[k  ][jp2][i  ].y - 4.0*ucont[k  ][jp1][i  ].y + 6.0*ucont[k][j][i].y - 4.0*ucont[k  ][jm1][i  ].y + ucont[k  ][jm2][i  ].y)
+                + eps_k * (ucont[kp2][j  ][i  ].y - 4.0*ucont[kp1][j  ][i  ].y + 6.0*ucont[k][j][i].y - 4.0*ucont[km1][j  ][i  ].y + ucont[km2][j  ][i  ].y);
         }
 
-        // k-face flux 
+        // k-face flux
         if(nvert[k][j][i] + nvert[k+1][j][i] < 2.0 * solid)
         {
-            PetscReal b4 =
-                  ucont[k  ][j  ][ip2].z - 4.0*ucont[k  ][j  ][ip1].z + 6.0*ucont[k][j][i].z - 4.0*ucont[k  ][j  ][im1].z + ucont[k  ][j  ][im2].z
-                + ucont[k  ][jp2][i  ].z - 4.0*ucont[k  ][jp1][i  ].z + 6.0*ucont[k][j][i].z - 4.0*ucont[k  ][jm1][i  ].z + ucont[k  ][jm2][i  ].z
-                + ucont[kp2][j  ][i  ].z - 4.0*ucont[kp1][j  ][i  ].z + 6.0*ucont[k][j][i].z - 4.0*ucont[km1][j  ][i  ].z + ucont[km2][j  ][i  ].z;
-            rhs[k][j][i].z -= eps * b4;
+            rhs[k][j][i].z -=
+                  eps_i * (ucont[k  ][j  ][ip2].z - 4.0*ucont[k  ][j  ][ip1].z + 6.0*ucont[k][j][i].z - 4.0*ucont[k  ][j  ][im1].z + ucont[k  ][j  ][im2].z)
+                + eps_j * (ucont[k  ][jp2][i  ].z - 4.0*ucont[k  ][jp1][i  ].z + 6.0*ucont[k][j][i].z - 4.0*ucont[k  ][jm1][i  ].z + ucont[k  ][jm2][i  ].z)
+                + eps_k * (ucont[kp2][j  ][i  ].z - 4.0*ucont[kp1][j  ][i  ].z + 6.0*ucont[k][j][i].z - 4.0*ucont[km1][j  ][i  ].z + ucont[km2][j  ][i  ].z);
         }
     }
 
@@ -1583,14 +1590,35 @@ PetscErrorCode UeqnIMEX(ueqn_ *ueqn)
     VecCopy(ueqn->dP, ueqn->bU);
     VecScale(ueqn->bU, -1.0);                           
 
-    // buoyancy
-    if(ueqn->access->flags->isTeqnActive && (clock->it > clock->itStart))
+    // buoyancy — AB2: b^{n+1/2} ≈ 1.5*b^n - 0.5*b^{n-1} (Forward Euler on first step)
+    if(ueqn->access->flags->isTeqnActive)
     {
         teqn_ *teqn = ueqn->access->teqn;
         if(teqn->pTildeFormulation)
-            VecAXPY(ueqn->bU, -1.0, teqn->ghGradRhok);
+        {
+            if(clock->it > clock->itStart)
+            {
+                VecAXPY(ueqn->bU, -1.5, teqn->ghGradRhok);
+                VecAXPY(ueqn->bU,  0.5, teqn->ghGradRhok_o);
+            }
+            else
+            {
+                VecAXPY(ueqn->bU, -1.0, teqn->ghGradRhok);
+            }
+        }
         else
-            VecAXPY(ueqn->bU,  1.0, ueqn->bTheta);
+        {
+            if(clock->it > clock->itStart)
+            {
+                // AB2 extrapolation: 1.5*b(T^n) - 0.5*b(T^{n-1})
+                VecAXPY(ueqn->bU,  1.5, ueqn->bTheta);
+                VecAXPY(ueqn->bU, -0.5, ueqn->bTheta_o);
+            }
+            else
+            {
+                VecAXPY(ueqn->bU, 1.0, ueqn->bTheta);
+            }
+        }
     }
 
     // wind farm source
@@ -1642,7 +1670,7 @@ PetscErrorCode UeqnIMEX(ueqn_ *ueqn)
         meanGradPForcing(ueqn, ueqn->bU, 1.0);
 
     // biharmonic hyperviscosity: damp checkerboard / Nyquist modes.
-    if(ueqn->hyperVisc4 > 0.0)
+    if(ueqn->hyperVisc4i > 0.0 || ueqn->hyperVisc4j > 0.0 || ueqn->hyperVisc4k > 0.0)
         hyperViscosityU(ueqn, ueqn->bU, 1.0);
 
     // Step 4: initial guess = explicit Euler estimate of U^{n+1} 

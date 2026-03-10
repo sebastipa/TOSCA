@@ -688,6 +688,7 @@ PetscErrorCode TeqnSNES(SNES snes, Vec T, Vec Rhs, void *ptr)
     teqn_ *teqn   = (teqn_*)ptr;
     mesh_ *mesh   = teqn->access->mesh;
     clock_ *clock = teqn->access->clock;
+
     VecCopy(T, teqn->Tmprt);
 
     // scatter temperature from global to local
@@ -704,25 +705,31 @@ PetscErrorCode TeqnSNES(SNES snes, Vec T, Vec Rhs, void *ptr)
     VecSet(Rhs, 0.0);
 
     // get time step
-    const PetscReal dt = clock->dt;
+    PetscReal dt = clock->dt;
+    PetscReal scale;
+    
+    if(teqn->ddtScheme == "backwardEuler" || clock->it == clock->itStart)
+    {
+        scale = 1.0;
+    }
+    else if(teqn->ddtScheme == "crankNicholson")
+    {
+        scale = 0.5;
 
-    // add viscous and transport terms.
-    // implicit-half scale: 0.5 for Crank-Nicolson (explicit half prebuilt in bT), 1.0 for backward Euler
-    FormT(teqn, Rhs, 1.0);
+        // add 0.5*T^n contribution to RHS for Crank-Nicolson
+        VecAXPY(Rhs, 0.5, teqn->Rhs_o); 
+    }
 
+    // convection and diffusion terms
+    FormT(teqn, Rhs, scale);
+
+    // add damping terms
     if(teqn->access->flags->isXDampingActive)
     {
-        // this is causing spurious oscillation: deactivate
         dampingSourceT(teqn, Rhs, 1.0);
     }
 
-    // multiply for dt: 0.5*dt for CN (implicit half only), dt for backward Euler
-    PetscReal dtScale = (teqn->ddtScheme == "crankNicholson") ? 0.5 : 1.0;
-    VecScale(Rhs, dtScale * dt);
-
-    // for CN: add prebuilt explicit half bT = 0.5*dt*(FormT + damp)(T^n)
-    if(teqn->ddtScheme == "crankNicholson")
-        VecAXPY(Rhs, 1.0, teqn->bT);
+    VecScale(Rhs, dt);
 
     // add driving source terms after as it is not scaled by 1/dt
     if(teqn->access->flags->isAblActive)
@@ -736,6 +743,7 @@ PetscErrorCode TeqnSNES(SNES snes, Vec T, Vec Rhs, void *ptr)
     // set to zero at non-resolved cell faces
     resetNonResolvedCellCentersScalar(mesh, Rhs);
 
+    // add time derivative term
     VecAXPY(Rhs, -1.0, T);
     VecAXPY(Rhs,  1.0, teqn->Tmprt_o);
 
@@ -757,16 +765,17 @@ PetscErrorCode FormExplicitRhsT(teqn_ *teqn)
     // initialize the rhs vector
     VecSet(teqn->Rhs, 0.0);
 
-    // add viscous and transport terms
+    // add convection and diffusion terms 
     FormT(teqn, teqn->Rhs, 1.0);
 
+    // add damping terms
     if(teqn->access->flags->isXDampingActive)
     {
         // this is causing spurious oscillation: deactivate
         dampingSourceT(teqn, teqn->Rhs, 1.0);
     }
 
-    // add driving source terms after as it is not scaled by 1/dt
+    // add driving source terms (not scaled by 1/dt)
     if(teqn->access->flags->isAblActive)
     {
         if(teqn->access->abl->controllerActiveT)
