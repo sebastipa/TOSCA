@@ -80,18 +80,6 @@ int main(int argc, char **argv)
             if(flags.isTeqnActive)
             {
                 VecCopy(domain[d].teqn->Tmprt, domain[d].teqn->Tmprt_o);
-
-                if(domain[d].teqn->pTildeFormulation)
-                {
-                    ghGradRhoK(domain[d].teqn);
-                }
-
-                if(domain[d].ueqn->teqnPredictorScheme == "forwardEuler")
-                {
-                    TmprtPredictor(domain[d].teqn);
-                }
-
-                Buoyancy(domain[d].ueqn, 1.0);
             }
 
             if(domain[d].ueqn->centralUpwindDiv || domain[d].ueqn->centralUpwindWDiv || flags.isTeqnActive)
@@ -153,6 +141,34 @@ int main(int argc, char **argv)
                 mapYDamping(domain[d].ueqn);
             }
 
+            if(flags.isTeqnActive)
+            {
+                if(domain[d].ueqn->ddtScheme == "crankNicholson" ||
+                   domain[d].ueqn->ddtScheme == "IMEX")
+                {
+                    // AB2 buoyancy: rotate history then evaluate b(T^n).
+                    // Works for both CN and IMEX-CNAB — both extrapolate buoyancy to t^{n+1/2}.
+                    VecCopy(domain[d].ueqn->bTheta, domain[d].ueqn->bTheta_o);
+
+                    if(domain[d].teqn->pTildeFormulation)
+                    {
+                        VecCopy(domain[d].teqn->ghGradRhok, domain[d].teqn->ghGradRhok_o);
+                        ghGradRhoK(domain[d].teqn);
+                    }
+                    else
+                        Buoyancy(domain[d].ueqn, 1.0);   // bTheta = b(T^n)
+                }
+                else
+                {
+                    // forwardEuler / rungeKutta4: evaluate b(T^n), no history needed
+                    if(domain[d].teqn->pTildeFormulation)
+                        ghGradRhoK(domain[d].teqn);
+                    else
+                        Buoyancy(domain[d].ueqn, 1.0);
+                }
+
+            }
+
             // Predictor Step (adjusts fluxes)
             SolveUEqn(domain[d].ueqn);
 
@@ -165,18 +181,14 @@ int main(int argc, char **argv)
             // temperature step
             if(flags.isTeqnActive)
             {
-
-                // restore lTmprt = T^n (predictor temporarily advanced it to T* for buoyancy)
-                if(domain[d].ueqn->teqnPredictorScheme == "forwardEuler")
-                {
-                    TmprtRestoreFromOld(domain[d].teqn);
-                }
-
+                // update SGS fields 
                 UpdateCsk(domain[d].les);
                 UpdatekT(domain[d].les);
 
+                // update wall models
                 UpdateWallModelsT(domain[d].teqn);
                 
+                // advance temperature to n+1
                 SolveTEqn(domain[d].teqn);
             }
 
@@ -191,8 +203,6 @@ int main(int argc, char **argv)
             // save momentum right hand side
             if(domain[d].ueqn->ddtScheme=="crankNicholson")
             {
-                VecSet(domain[d].ueqn->Rhs_o, 0.0);
-
                 //interpolate IBM cells before computing the forces and moments on the IBM
                 if(flags.isIBMActive)
                 {
@@ -244,11 +254,20 @@ int main(int argc, char **argv)
                     UpdateImmersedBCs(domain[d].ibm);
                 }
 
-                FormU (domain[d].ueqn, domain[d].ueqn->Rhs_o, 1.0, PETSC_FALSE);
+                // save right hand side (both convection and diffusion) next iter 
+                VecSet(domain[d].ueqn->Rhs_o, 0.0);
+                FormU (domain[d].ueqn, domain[d].ueqn->Rhs_o, 1.0, 0);
             }
 
             if(flags.isTeqnActive)
             {
+                if(domain[d].teqn->ddtScheme == "crankNicholson")
+                {
+                    // save right hand side (both convection and diffusion) next iter 
+                    VecSet(domain[d].teqn->Rhs_o, 0.0);
+                    FormT(domain[d].teqn, domain[d].teqn->Rhs_o, 1.0, 0);
+                }
+
                 // update temperature BC
                 UpdateTemperatureBCs(domain[d].teqn);
             }

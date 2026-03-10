@@ -30,7 +30,8 @@ struct teqn_
     Vec           sourceT;                    //!< temperature sources
 
     Vec           lRhoK;                      //!< rhok / rho0 field
-    Vec           ghGradRhok;                 //!< buoyancy term for momentum equation
+    Vec           ghGradRhok;                 //!< buoyancy term for momentum equation (current step)
+    Vec           ghGradRhok_o;               //!< buoyancy term for momentum equation (previous step, for AB2)
 
     PetscReal     absExitTol;                 //!< absolute exit tolerance
     PetscReal     relExitTol;                 //!< relative exit tolerance

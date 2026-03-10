@@ -30,7 +30,8 @@ struct ueqn_
     Vec           lViscIBM1, lViscIBM2, lViscIBM3;  //!< Components of the viscous term in the momentum equation for IBM faces
     Vec           dP;                               //!< pressure term of the momentum equation
 	Vec           dPAGW;                            //!< pressure term of the momentum equation as calculated from provided atmopsheric gravity waves pressure
-    Vec           bTheta;                           //!< buoyancy field
+    Vec           bTheta;                           //!< buoyancy field at current T (T^{n+1}* after predictor)
+    Vec           bTheta_o;                          //!< buoyancy field at T^n — used for CN-consistent 0.5*b^n + 0.5*b^{n+1} splitting
     Vec           sourceU;                          //!< source term to drive Uref at Zref with periodic BCs
     Vec           gCont;                            //!< gravity vector in cuvilinear coordinates
     Vec           Ucont, lUcont;                    //!< contravariant fluxes (contravariant velocity / J)
@@ -39,7 +40,7 @@ struct ueqn_
     Vec           bU;                               //!< precomputed constant-RHS contributions (crankNicholson/IMEX): built once per time step in SolveUEqn
     Vec           RhsConv;                          //!< convective-only RHS at current step n  (IMEX-CNAB: Adams-Bashforth 2)
     Vec           RhsConv_o;                        //!< convective-only RHS at previous step n-1 (IMEX-CNAB: Adams-Bashforth 2)
-    word          teqnPredictorScheme;               //!< T predictor before SolveUEqn for improved buoyancy coupling: "forwardEuler" or "none" (default, -teqnPredictorU)
+
     Vec           lUstar;
     Cmpnts        meanGradP;
     Cmpnts        uBulk;
@@ -64,7 +65,9 @@ struct ueqn_
     PetscInt      weno3Div;                   //!< 3rd order WENO scheme
 
     PetscReal     hyperVisc;                  //!< hyperviscocity parameter to add artificial diffusion - (b = 0 is blend between 3rd order upwind and 4th order, b = 1 is central 4th order, b = 0.8 is hybrid 3-4 scheme)
-    PetscReal     hyperVisc4;                 //!< IMEX explicit biharmonic (4th-order index-space) hyperviscosity coefficient: per-step damping ε₄, contribution to ΔU = -ε₄·δ⁴(lUcont). Targets Nyquist (checkerboard) modes only (-imexHyperVisc4U, default 0)
+    PetscReal     hyperVisc4i;                //!< IMEX biharmonic hyperviscosity along i (ξ) index direction (-imexHyperVisc4U_i, default 0)
+    PetscReal     hyperVisc4j;                //!< IMEX biharmonic hyperviscosity along j (η) index direction (-imexHyperVisc4U_j, default 0)
+    PetscReal     hyperVisc4k;                //!< IMEX biharmonic hyperviscosity along k (ζ) index direction, typically vertical (-imexHyperVisc4U_k, default 0)
                                               
     // wall model patch
     wallModel     *iLWM;                      //!< wall model on the i-left patch

@@ -111,7 +111,8 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
 
     if(ueqn->access->flags->isTeqnActive)
     {
-        VecDuplicate(mesh->Cent, &(ueqn->bTheta)); VecSet(ueqn->bTheta,    0.0);
+        VecDuplicate(mesh->Cent, &(ueqn->bTheta));   VecSet(ueqn->bTheta,   0.0);
+        VecDuplicate(mesh->Cent, &(ueqn->bTheta_o)); VecSet(ueqn->bTheta_o, 0.0);
     }
 
     if(flags->isIBMActive)
@@ -298,15 +299,19 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
         VecDuplicate(ueqn->Ucont, &(ueqn->RhsConv_o)); VecSet(ueqn->RhsConv_o, 0.0);
 
         // Explicit biharmonic (4th-order index-space) hyperviscosity.
-        // Suppresses checkerboard / Nyquist-frequency modes without affecting
-        // Use small values (0.01–0.1), 0 disables entirely 
-        
-        ueqn->hyperVisc4 = 0.0;
-        PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-imexHyperVisc4U", &(ueqn->hyperVisc4), PETSC_NULL);
-        if(ueqn->hyperVisc4 < 0.0)
+        // Each direction is activated independently: i (streamwise), j (spanwise), k (vertical).
+        // Suppresses checkerboard / Nyquist-frequency modes in the chosen directions.
+        // Use small values (0.01–0.1), 0 disables the direction entirely.
+        ueqn->hyperVisc4i = 0.0;
+        ueqn->hyperVisc4j = 0.0;
+        ueqn->hyperVisc4k = 0.0;
+        PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-imexHyperVisc4U_i", &(ueqn->hyperVisc4i), PETSC_NULL);
+        PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-imexHyperVisc4U_j", &(ueqn->hyperVisc4j), PETSC_NULL);
+        PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-imexHyperVisc4U_k", &(ueqn->hyperVisc4k), PETSC_NULL);
+        if(ueqn->hyperVisc4i < 0.0 || ueqn->hyperVisc4j < 0.0 || ueqn->hyperVisc4k < 0.0)
         {
             char error[512];
-            sprintf(error, "-imexHyperVisc4U must be >= 0 (got %f)\n", ueqn->hyperVisc4);
+            sprintf(error, "-imexHyperVisc4U_{i,j,k} must be >= 0\n");
             fatalErrorInFunction("InitializeUEqn", error);
         }
 
@@ -320,7 +325,9 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
         {
             PetscPrintf(mesh->MESH_COMM, " > kspGMRESRestartU = %d\n", ueqn->gmresRestart);
         }
-        PetscPrintf(mesh->MESH_COMM, " > imexHyperVisc4U = %f\n", ueqn->hyperVisc4);
+        PetscPrintf(mesh->MESH_COMM, " > imexHyperVisc4U_i = %f\n", ueqn->hyperVisc4i);
+        PetscPrintf(mesh->MESH_COMM, " > imexHyperVisc4U_j = %f\n", ueqn->hyperVisc4j);
+        PetscPrintf(mesh->MESH_COMM, " > imexHyperVisc4U_k = %f\n", ueqn->hyperVisc4k);
     }
     else if(ueqn->ddtScheme == "forwardEuler" || ueqn->ddtScheme == "rungeKutta4")
     {
@@ -333,28 +340,6 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
         sprintf(error, "unknown ddtScheme %s for U equation, available schemes are\n    1. crankNicholson\n    2. forwardEuler\n    3. rungeKutta4\n    4. IMEX", ueqn->ddtScheme.c_str());
         fatalErrorInFunction("InitializeUEqn", error);
     }
-
-    // ---------------------------------------------------------------------- //
-    //  T predictor for buoyancy coupling (cross-cutting, independent of ddtScheme)
-    //  When active, a cheap conv-only forward-Euler T step runs before SolveUEqn
-    //  so that FormU sees T* ≈ T^{n+1/2} instead of T^n for buoyancy.
-    //  Control: -teqnPredictorU forwardEuler   (default: none)
-    // ---------------------------------------------------------------------- //
-    ueqn->teqnPredictorScheme = "none";
-    {
-        char buf[64];
-        PetscBool set = PETSC_FALSE;
-        PetscOptionsGetString(PETSC_NULL, PETSC_NULL, "-teqnPredictorU", buf, sizeof(buf), &set);
-        if(set) ueqn->teqnPredictorScheme = std::string(buf);
-    }
-    if(ueqn->teqnPredictorScheme != "none" && ueqn->teqnPredictorScheme != "forwardEuler")
-    {
-        char error[512];
-        sprintf(error, "-teqnPredictorU: unknown scheme '%s', available: 'none', 'forwardEuler'\n",
-                ueqn->teqnPredictorScheme.c_str());
-        fatalErrorInFunction("InitializeUEqn", error);
-    }
-    PetscPrintf(mesh->MESH_COMM, " > teqnPredictorU = %s\n", ueqn->teqnPredictorScheme.c_str());
 
     return(0);
 }
@@ -1074,40 +1059,59 @@ PetscErrorCode SolveUEqn(ueqn_ *ueqn)
         PetscTime(&ts);
         PetscPrintf(mesh->MESH_COMM, "%sSNES: Solving for Ucont, Initial residual = ", ueqn->snesType.c_str());
 
-        // build the constant-RHS buffer for this time step. 
+        // build the constant-RHS buffer for this time step
 
-        // pressure gradient
+        // 1. pressure gradient
         VecCopy(ueqn->dP, ueqn->bU);
         VecScale(ueqn->bU, -1.0);
 
-        // buoyancy
-        if(ueqn->access->flags->isTeqnActive && (clock->it > clock->itStart))
+        // 2. buoyancy
+        if(ueqn->access->flags->isTeqnActive)
         {
             teqn_ *teqn = ueqn->access->teqn;
             if(teqn->pTildeFormulation)
-                VecAXPY(ueqn->bU, -1.0, teqn->ghGradRhok);
+            {
+                if(clock->it > clock->itStart)
+                {
+                    // AB2 extrapolation: -(1.5*ghGradRhok - 0.5*ghGradRhok_o)
+                    VecAXPY(ueqn->bU, -1.5, teqn->ghGradRhok);
+                    VecAXPY(ueqn->bU,  0.5, teqn->ghGradRhok_o);
+                }
+                else
+                {
+                    VecAXPY(ueqn->bU, -1.0, teqn->ghGradRhok);
+                }
+            }
+            else if(clock->it > clock->itStart)
+            {
+                // AB2 extrapolation to t^{n+1/2}: b = 1.5*b(T^n) - 0.5*b(T^{n-1})
+                VecAXPY(ueqn->bU,  1.5, ueqn->bTheta);
+                VecAXPY(ueqn->bU, -0.5, ueqn->bTheta_o);
+            }
             else
-                VecAXPY(ueqn->bU,  1.0, ueqn->bTheta);
+            {
+                VecAXPY(ueqn->bU, 1.0, ueqn->bTheta);
+            }
         }
 
-        // 0.5 * Rhs for Crank-Nicolson time stepping (backward Euler on first step, then CN for subsequent steps)
+        // 3. half Rhs for Crank-Nicolson time stepping 
         if(clock->it > clock->itStart)
             VecAXPY(ueqn->bU, 0.5, ueqn->Rhs_o);
 
-        // wind farm source
+        // 4. wind farm source
         if(ueqn->access->flags->isWindFarmActive)
             VecAXPY(ueqn->bU, 1.0, ueqn->access->farm->sourceFarmCont);
 
-        // Explicit Euler predictor as SNES initial guess (bU must be built first):
-        //   Utmp = Ucont_o + dt * (-dP ± buoy + Rhs_o + farm)
+        // Predictor: 
+        // it > 0 : Utmp = Ucont_o + dt * (-dP ± buoy + Rhs_o + farm)
+        // it = 0 : Utmp = Ucont_o + dt * (-dP ± buoy + farm)       
         
-        // compute guess
+        // compute initial guess (forward Euler predictor):
+        // FormExplicitRhsU(ueqn);
         VecCopy(ueqn->Ucont_o, ueqn->Utmp);
-        VecAXPY(ueqn->Utmp, clock->dt, ueqn->bU);               // +dt*(-dP ± buoy + 0.5*Rhs_o + farm)
-        if(clock->it > clock->itStart)
-            VecAXPY(ueqn->Utmp, 0.5*clock->dt, ueqn->Rhs_o);   // +dt*0.5*Rhs_o: full Rhs_o weight
+        //VecAXPY(ueqn->Utmp, clock->dt, ueqn->Rhs);
 
-        // solve momentum equation and compute solution norm and iteration number
+        // solve momentum equation 
         SNESSolve(ueqn->snesU, PETSC_NULL, ueqn->Utmp);
         SNESGetFunctionNorm(ueqn->snesU, &norm);
         SNESGetIterationNumber(ueqn->snesU, &iter);
