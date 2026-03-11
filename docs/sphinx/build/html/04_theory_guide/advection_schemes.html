@@ -1,0 +1,187 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Advection Schemes &mdash; TOSCA dev documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=23c79765" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=3ce10a4d"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Parallel Efficiency" href="parallel_efficiency.html" />
+    <link rel="prev" title="Time Integration Schemes" href="time_integration.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            TOSCA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../tosca_getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tosca_installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tosca_user_guide.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tosca_examples.html">Example Cases</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tosca_applications.html">TOSCA Applications</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../tosca_theory_guide.html">Theory Guide</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="governing_equations.html">Governing Equations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="numerics.html">Numerical Method</a></li>
+<li class="toctree-l2"><a class="reference internal" href="time_integration.html">Time Integration Schemes</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Advection Schemes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="parallel_efficiency.html">Parallel Efficiency</a></li>
+<li class="toctree-l2"><a class="reference internal" href="turbulence_models.html">Sub-grid Scale Model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="flow_controllers.html">Controllers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="precursor.html">Precursor, Fringe Regions &amp; Damping Layers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="turbine_models.html">Turbine Models</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tosca_versions.html">Versions</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">TOSCA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../tosca_theory_guide.html">Theory Guide</a></li>
+      <li class="breadcrumb-item active">Advection Schemes</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/04_theory_guide/advection_schemes.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="advection-schemes">
+<span id="advection-schemes-section"></span><h1>Advection Schemes<a class="headerlink" href="#advection-schemes" title="Link to this heading"></a></h1>
+<p>The advection (divergence) term in both the momentum and temperature equations is
+discretized using one of six selectable schemes, chosen via the keyword
+<code class="docutils literal notranslate"><span class="pre">-divScheme</span></code> in <code class="docutils literal notranslate"><span class="pre">control.dat</span></code>.  All schemes operate on a one-dimensional,
+four-point stencil.  Assuming a positive advecting contravariant
+flux (the stencil mirrors for the opposite sign), for a cell face located between cells <span class="math notranslate nohighlight">\(i\)</span> and
+<span class="math notranslate nohighlight">\(i+1\)</span>, the fluxes at the upwind and downind nodes are <span class="math notranslate nohighlight">\(f_U = f_i\)</span> and <span class="math notranslate nohighlight">\(f_D = f_{i+1}\)</span>, respectively,
+while those at the far-upwind and far-downwind nodes are <span class="math notranslate nohighlight">\(f_{UU} = f_{i-1}\)</span> and
+<span class="math notranslate nohighlight">\(f_{DD} = f_{i+2}\)</span>, respectively. Using this notation, the six available schemes are:</p>
+<p><strong>central</strong> — Second-order linear interpolation (non-dissipative, dispersive):</p>
+<div class="math notranslate nohighlight">
+\[f_{i+1/2} = \frac{f_U + f_D}{2}.\]</div>
+<p><strong>central4</strong> — Fourth-order central interpolation (4-point stencil):</p>
+<div class="math notranslate nohighlight">
+\[f_{i+1/2} = \frac{-f_{UU} + 9f_U + 9f_D - f_{DD}}{16}.\]</div>
+<p>A mild explicit biharmonic hyperviscosity correction <span class="math notranslate nohighlight">\(-\nu_{h}(f_{UU} - 4f_U + 6f_{i+1/2} - 4f_D + f_{DD})\)</span>
+is applied to damp Nyquist-wavenumber ringing (coefficient <span class="math notranslate nohighlight">\(\nu_h\)</span> set by <code class="docutils literal notranslate"><span class="pre">-hyperVisc</span></code>).</p>
+<p><strong>quickDiv</strong> — Third-order QUICK (Quadratic Upstream Interpolation for ConvectiveKinematics, Leonard 1979) for uniform mesh:</p>
+<div class="math notranslate nohighlight">
+\[f_{i+1/2} = \frac{f_U + f_D}{2} + \frac{2f_U - f_D - f_{UU}}{8}.\]</div>
+<p>The second term is a third-order correction to the linear interpolant, which biases the stencil upstream.</p>
+<p><strong>centralUpwind</strong> — Van Leer-limited blend of central and QUICK for uniform mesh.  The face value is</p>
+<div class="math notranslate nohighlight">
+\[f_{i+1/2}
+= \underbrace{\frac{f_U + f_D}{2}}_{\text{central}}
++ \bigl(1 - \psi(r)\bigr)
+  \underbrace{\frac{2f_U - f_D - f_{UU}}{8}}_{\text{QUICK correction}},\]</div>
+<p>where the <strong>Van Leer limiter</strong> and the upwind-ratio <span class="math notranslate nohighlight">\(r\)</span> are</p>
+<div class="math notranslate nohighlight">
+\[\psi(r) = \frac{r + |r|}{2(1 + |r|)},
+\qquad
+r = \frac{f_U - f_{UU}}{f_D - f_U}.\]</div>
+<p>When <span class="math notranslate nohighlight">\(r &lt; 0\)</span> (the solution has a local extremum) <span class="math notranslate nohighlight">\(\psi = 0\)</span> and the full QUICK upwind correction is applied, giving TVD behavior.  When
+<span class="math notranslate nohighlight">\(r \to \infty\)</span> (the solution is smooth and gently varying) <span class="math notranslate nohighlight">\(\psi \to 1\)</span> and the scheme reduces to pure central interpolation, recovering low-dissipation
+properties on well-resolved scales.  The Van Leer limiter uses contravariant flux ratios rather than scalar ratios for the momentum equation, providing
+flow-direction awareness on non-Cartesian grids.</p>
+<p>This scheme is the default and recommended choice for most LES simulations, as it combines low numerical dissipation in smooth regions with robust behavior near
+sharp gradients or steep velocity layers.</p>
+<p><strong>centralUpwindW</strong> — Identical to <code class="docutils literal notranslate"><span class="pre">centralUpwind</span></code> but with cell-distance-weighted interpolation coefficients to preserve second-order
+accuracy on non-uniform (stretched) meshes.</p>
+<p><strong>weno3</strong> — Third-order WENO scheme with two candidate stencils (Liu et al., 1994).  The two candidate interpolants are</p>
+<div class="math notranslate nohighlight">
+\[u_0 = \frac{f_U + f_D}{2}, \qquad u_1 = \frac{3f_U - f_{UU}}{2},\]</div>
+<p>with ideal convex weights <span class="math notranslate nohighlight">\(d_0 = 2/3\)</span>, <span class="math notranslate nohighlight">\(d_1 = 1/3\)</span>. The smoothness indicators are</p>
+<div class="math notranslate nohighlight">
+\[\beta_0 = (f_U - f_D)^2, \qquad \beta_1 = (f_{UU} - f_U)^2,\]</div>
+<p>and the nonlinear WENO weights are</p>
+<div class="math notranslate nohighlight">
+\[\omega_k = \frac{\alpha_k}{\alpha_0 + \alpha_1},
+\qquad
+\alpha_k = \frac{d_k}{(\varepsilon + \beta_k)^2},
+\qquad \varepsilon = 10^{-6}.\]</div>
+<p>The final face value is <span class="math notranslate nohighlight">\(f_{i+1/2} = \omega_0 u_0 + \omega_1 u_1\)</span>. Near discontinuities <span class="math notranslate nohighlight">\(\beta_0 \gg \beta_1\)</span>, driving <span class="math notranslate nohighlight">\(\omega_0 \to 0\)</span>
+so that the upwind stencil dominates.  In smooth regions the weights recover the optimal third-order interpolant.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Viscous-stress and pressure-gradient terms always use pure second-order central differences, regardless of the advection scheme selected.
+The Laplacian on the curvilinear mesh couples all three coordinate directions through the off-diagonal metric tensor components <span class="math notranslate nohighlight">\(S^{qr}\)</span> (see
+<a class="reference internal" href="numerics.html#numerics-section"><span class="std std-ref">Numerical Method</span></a>).</p>
+</div>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="time_integration.html" class="btn btn-neutral float-left" title="Time Integration Schemes" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="parallel_efficiency.html" class="btn btn-neutral float-right" title="Parallel Efficiency" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Sebastiano Stipa, Arjun Ajay, Joshua Brinkerhoff.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
