@@ -1073,8 +1073,9 @@ PetscErrorCode IMEXMatVec(Mat A, Vec v, Vec Av)
         scale = 1.0;   // full backward-Euler implicit viscosity for first step to initialize the IMEX scheme
     }
 
-    // sync v → Ucont/lUcont so FormU has the correct state
     VecCopy(v, ueqn->Ucont);
+
+    // scatter new contravariant velocity values
     DMGlobalToLocalBegin(mesh->fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
     DMGlobalToLocalEnd  (mesh->fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
     
@@ -1102,8 +1103,13 @@ PetscErrorCode IMEXMatVec(Mat A, Vec v, Vec Av)
 
     // compute scale*Visc(v) into scratch buffer ueqn->Rhs
     VecSet(ueqn->Rhs, 0.0);
-    FormU(ueqn, ueqn->Rhs, scale, 2);   // visc-only: Rhs = scale*Visc(v)
-    VecScale(ueqn->Rhs, dt);            // Rhs = dt*scale*Visc(v)
+
+    // visc-only: Rhs = scale*Visc(v)
+    FormU(ueqn, ueqn->Rhs, scale, 2);   
+
+    // Rhs = dt*scale*Visc(v)
+    VecScale(ueqn->Rhs, dt);   
+
     resetNonResolvedCellFaces(mesh, ueqn->Rhs);
 
     // Av = v - dt*scale*Visc(v)
@@ -1564,15 +1570,29 @@ PetscErrorCode UeqnIMEX(ueqn_ *ueqn)
     PetscTime(&ts);
     PetscPrintf(mesh->MESH_COMM, "IMEX-CNAB: Solving for Ucont, ");
 
-    // Step 1: prepare U^n state (synchronise lUcont / lUcat) 
-
+    // reset no penetration fluxes to zero (override numerical errors)
     resetNoPenetrationFluxes(ueqn);
+
+    // reset contravariant periodic fluxes to be consistent if the flow is periodic
     resetFacePeriodicFluxesVector(mesh, ueqn->Ucont, ueqn->lUcont, "globalToLocal");
+    
+    // transform to cartesian
     contravariantToCartesian(ueqn);
-    if(ueqn->access->flags->isOversetActive) setBackgroundBC(mesh);
+
+    // if(ueqn->access->flags->isIBMActive)
+    // {
+    //     UpdateImmersedBCs(ueqn->access->ibm);
+    // }
+
+    if(ueqn->access->flags->isOversetActive)
+    {
+        setBackgroundBC(mesh);;
+    }
+
+    // reset cartesian periodic fluxes to be consistent if the flow is periodic
     resetCellPeriodicFluxes(mesh, ueqn->Ucat, ueqn->lUcat, "vector", "globalToLocal");
 
-    // Step 2a: convective RHS at U^n → RhsConv  
+    // convective RHS at U^n → RhsConv  
     VecSet(ueqn->RhsConv, 0.0);
     FormU(ueqn, ueqn->RhsConv, 1.0, 1);   // conv-only
 
@@ -1588,7 +1608,7 @@ PetscErrorCode UeqnIMEX(ueqn_ *ueqn)
 
     // pressure gradient
     VecCopy(ueqn->dP, ueqn->bU);
-    VecScale(ueqn->bU, -1.0);                           
+    VecScale(ueqn->bU, -1.0);
 
     // buoyancy — AB2: b^{n+1/2} ≈ 1.5*b^n - 0.5*b^{n-1} (Forward Euler on first step)
     if(ueqn->access->flags->isTeqnActive)
@@ -1625,10 +1645,11 @@ PetscErrorCode UeqnIMEX(ueqn_ *ueqn)
     if(ueqn->access->flags->isWindFarmActive)
         VecAXPY(ueqn->bU, 1.0, ueqn->access->farm->sourceFarmCont);
 
+    
     // AB2 convection extrapolation: c1=3/2, c2=-1/2 (Forward Euler on first step)
     if(clock->it > clock->itStart)
     {
-        VecAXPY(ueqn->bU,  1.5, ueqn->RhsConv);   // (3/2) * Conv^n
+        VecAXPY(ueqn->bU,  1.5, ueqn->RhsConv);   // (3/2)  * Conv^n
         VecAXPY(ueqn->bU, -0.5, ueqn->RhsConv_o); // (-1/2) * Conv^{n-1}
     }
     else
@@ -1673,24 +1694,31 @@ PetscErrorCode UeqnIMEX(ueqn_ *ueqn)
     if(ueqn->hyperVisc4i > 0.0 || ueqn->hyperVisc4j > 0.0 || ueqn->hyperVisc4k > 0.0)
         hyperViscosityU(ueqn, ueqn->bU, 1.0);
 
-    // Step 4: initial guess = explicit Euler estimate of U^{n+1} 
-    //         b = Utmp = U^n + dt * bU  (also serves as non-zero initial guess)
+    // Clean non-resolved faces from bU before building the RHS.
+    // bU accumulates FormU (conv + visc), Coriolis, farm, damping, etc.
+    // FormU leaves non-zero values at IBM / wall / unused faces.
+    // Without this, Utmp = Ucont_o + dt*bU carries garbage at those faces.
+    // IMEXMatVec acts as identity there (Av = v), so KSP returns
+    // U[non-resolved] = Utmp[non-resolved] = wrong value.
+    // This mirrors the resetNonResolvedCellFaces call at the end of
+    // FormExplicitRhsU (RK4) and UeqnSNES (CN), which clean Rhs in the
+    // same way before combining with Ucont_o.
+    resetNonResolvedCellFaces(mesh, ueqn->bU);
+
+    // Step 4: build KSP RHS: Utmp = U^n + dt * bU
     VecCopy(ueqn->Ucont_o, ueqn->Utmp);
     VecAXPY(ueqn->Utmp, clock->dt, ueqn->bU);
-    
-    // zero boundary/IBM faces before KSPSolve
-    resetNonResolvedCellFaces(mesh, ueqn->Utmp);
 
-    // Step 5: KSP direct solve: A*Ucont = Utmp  (A is linear, no SNES needed) ──
+    // Step 5: KSP solve: A*Ucont = Utmp  (A is linear, no SNES needed)
     //   RhsConv_o is used as the KSP solution buffer to avoid aliasing:
     //   IMEXMatVec writes to ueqn->Ucont/lUcont as FormU workspace, so the KSP
     //   solution vector must be a *different* Vec to prevent in-place update
     //   (VecAXPY on x) from interfering with the MatVec workspace.
     //   RhsConv_o is free at this point (its value was already consumed into bU).
     //   Step 7 will overwrite RhsConv_o with RhsConv, so the order matters.
-    
-    // initial guess 
-    VecCopy(ueqn->Utmp, ueqn->RhsConv_o);    
+
+    // initial guess: the explicit Euler estimate
+    VecCopy(ueqn->Utmp, ueqn->RhsConv_o);
 
     // solve 
     KSPSolve(ueqn->kspIMEX, ueqn->Utmp, ueqn->RhsConv_o);
@@ -1704,7 +1732,12 @@ PetscErrorCode UeqnIMEX(ueqn_ *ueqn)
     DMGlobalToLocalBegin(mesh->fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
     DMGlobalToLocalEnd  (mesh->fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
 
-    // Step 7: rotate Conv buffer for AB2 at next step 
+    // KSP solvers like GMRES reconstruct the solution from the Krylov basis and estimate 
+    // the residual algebraically. There is no guarantee that MatMult is called last with the converged solution
+    // So update here the cartesian velocity (this is actually required)
+    contravariantToCartesian(ueqn);
+
+    // Step 7: rotate Conv buffer for AB2 at next step.
     VecCopy(ueqn->RhsConv, ueqn->RhsConv_o);
 
     PetscTime(&te);
