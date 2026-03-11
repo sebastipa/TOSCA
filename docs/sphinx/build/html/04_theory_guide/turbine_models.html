@@ -17,10 +17,11 @@
       <script src="../_static/documentation_options.js?v=3ce10a4d"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Versions" href="../tosca_versions.html" />
+    <link rel="next" title="Immersed Boundary Method" href="ibm.html" />
     <link rel="prev" title="Precursor, Fringe Regions &amp; Damping Layers" href="precursor.html" /> 
 </head>
 
@@ -43,20 +44,37 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
-<ul class="current">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../tosca_getting_started.html">Getting Started</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tosca_installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tosca_user_guide.html">User Guide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tosca_examples.html">Example Cases</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tosca_applications.html">TOSCA Applications</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="../tosca_theory_guide.html">Theory Guide</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="governing_equations.html">Governing Equations</a></li>
-<li class="toctree-l2"><a class="reference internal" href="numerics.html">Numerical Method &amp; Curvilinear Coordinates</a></li>
+<li class="toctree-l2"><a class="reference internal" href="numerics.html">Numerical Method</a></li>
+<li class="toctree-l2"><a class="reference internal" href="time_integration.html">Time Integration Schemes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="advection_schemes.html">Advection Schemes</a></li>
 <li class="toctree-l2"><a class="reference internal" href="parallel_efficiency.html">Parallel Efficiency</a></li>
-<li class="toctree-l2"><a class="reference internal" href="turbulence_models.html">Sub-grid Scale Model</a></li>
-<li class="toctree-l2"><a class="reference internal" href="flow_controllers.html">Controllers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="turbulence_models.html">Sub-grid Scale Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="flow_controllers.html">Flow Controllers and Mesoscale Coupling</a></li>
 <li class="toctree-l2"><a class="reference internal" href="precursor.html">Precursor, Fringe Regions &amp; Damping Layers</a></li>
-<li class="toctree-l2 current"><a class="current reference internal" href="#">Turbine Models</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Turbine Models</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#gaussian-force-projection">Gaussian Force Projection</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#aerodynamic-force-computation-adm-and-alm">Aerodynamic Force Computation (ADM and ALM)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#actuator-disk-model-adm">Actuator Disk Model (ADM)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#actuator-line-model-alm">Actuator Line Model (ALM)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#uniform-actuator-disk-model-uniformadm">Uniform Actuator Disk Model (uniformADM)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#actuator-farm-model-afm">Actuator Farm Model (AFM)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#tower-and-nacelle-models">Tower and Nacelle Models</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#rotor-dynamics-and-drive-train">Rotor Dynamics and Drive Train</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#control-systems">Control Systems</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#upstream-velocity-sampling">Upstream Velocity Sampling</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#parallel-implementation">Parallel Implementation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#openfast-coupling">OpenFAST Coupling</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ibm.html">Immersed Boundary Method</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../tosca_versions.html">Versions</a></li>
@@ -89,6 +107,226 @@
              
   <section id="turbine-models">
 <span id="turbine-models-section"></span><h1>Turbine Models<a class="headerlink" href="#turbine-models" title="Link to this heading"></a></h1>
+<p>TOSCA implements four actuator-based wind turbine models at increasing levels of fidelity and cost:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 18.0%" />
+<col style="width: 14.0%" />
+<col style="width: 14.0%" />
+<col style="width: 14.0%" />
+<col style="width: 14.0%" />
+<col style="width: 14.0%" />
+<col style="width: 12.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Model</p></th>
+<th class="head"><p>BEM aero</p></th>
+<th class="head"><p>Blade rotation</p></th>
+<th class="head"><p>Ct-based</p></th>
+<th class="head"><p>Drive-train ODE</p></th>
+<th class="head"><p>OpenFAST coupling</p></th>
+<th class="head"><p>Tower/nacelle</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>ADM</p></td>
+<td><p>yes</p></td>
+<td><p>no (axisymmetric)</p></td>
+<td><p>no</p></td>
+<td><p>yes</p></td>
+<td><p>yes</p></td>
+<td><p>optional</p></td>
+</tr>
+<tr class="row-odd"><td><p>ALM</p></td>
+<td><p>yes</p></td>
+<td><p>yes</p></td>
+<td><p>no</p></td>
+<td><p>yes</p></td>
+<td><p>yes</p></td>
+<td><p>optional</p></td>
+</tr>
+<tr class="row-even"><td><p>uniformADM</p></td>
+<td><p>no</p></td>
+<td><p>no</p></td>
+<td><p>yes</p></td>
+<td><p>no</p></td>
+<td><p>partial</p></td>
+<td><p>optional</p></td>
+</tr>
+<tr class="row-odd"><td><p>AFM</p></td>
+<td><p>no</p></td>
+<td><p>no</p></td>
+<td><p>yes</p></td>
+<td><p>no</p></td>
+<td><p>partial</p></td>
+<td><p>optional</p></td>
+</tr>
+</tbody>
+</table>
+<p>All models represent the rotor as a distribution of Lagrangian force points whose body forces are projected onto the surrounding CFD mesh using an isotropic Gaussian kernel. Optionally, every turbine in a farm can delegate its structural dynamics and detailed aerodynamics to OpenFAST while TOSCA handles the background LES flow.</p>
+<section id="gaussian-force-projection">
+<h2>Gaussian Force Projection<a class="headerlink" href="#gaussian-force-projection" title="Link to this heading"></a></h2>
+<p>The Lagrangian body force at each actuator point is smeared onto the surrounding mesh cells using the regularised delta function</p>
+<div class="math notranslate nohighlight" id="equation-eq-gaussianprojection">
+<span class="eqno">(1)<a class="headerlink" href="#equation-eq-gaussianprojection" title="Link to this equation"></a></span>\[g(\mathbf{x}) = \frac{1}{\varepsilon^3 \pi^{3/2}}
+\exp\!\left(-\frac{|\mathbf{x}-\mathbf{x}_0|^2}{\varepsilon^2}\right),\]</div>
+<p>where <span class="math notranslate nohighlight">\(\mathbf{x}_0\)</span> is the actuator point location and <span class="math notranslate nohighlight">\(\varepsilon\)</span> is the regularisation width. The integration domain is truncated once 99 % of the Gaussian volume has been accounted for. To avoid systematic under-projection and numerical instabilities, <span class="math notranslate nohighlight">\(\varepsilon/\Delta &gt; 2\)</span> is recommended, where <span class="math notranslate nohighlight">\(\Delta\)</span> is the local mesh size.</p>
+</section>
+<section id="aerodynamic-force-computation-adm-and-alm">
+<h2>Aerodynamic Force Computation (ADM and ALM)<a class="headerlink" href="#aerodynamic-force-computation-adm-and-alm" title="Link to this heading"></a></h2>
+<p>Both the ADM and the ALM share the same blade-element aerodynamic routine. This section describes the common formulation; model-specific aspects are covered below.</p>
+<p><strong>Blade reference frame.</strong> At each actuator point with position <span class="math notranslate nohighlight">\(\mathbf{r}_p\)</span> relative to the rotor centre, a local reference frame <span class="math notranslate nohighlight">\((\hat{\mathbf{x}}_b, \hat{\mathbf{y}}_b, \hat{\mathbf{z}}_b)\)</span> is constructed:</p>
+<div class="math notranslate nohighlight">
+\[\hat{\mathbf{z}}_b = \pm\,\hat{\mathbf{r}}_p, \qquad
+\hat{\mathbf{x}}_b = -\hat{\boldsymbol{\Omega}}, \qquad
+\hat{\mathbf{y}}_b = \hat{\mathbf{z}}_b \times \hat{\mathbf{x}}_b,\]</div>
+<p>where <span class="math notranslate nohighlight">\(\hat{\boldsymbol{\Omega}}\)</span> is the unit rotor-axis vector (positive from nacelle to wind), and the sign of <span class="math notranslate nohighlight">\(\hat{\mathbf{z}}_b\)</span> follows the rotation convention: for a clockwise rotor <span class="math notranslate nohighlight">\(\hat{\mathbf{z}}_b = +\hat{\mathbf{r}}_p\)</span> (root to tip), for counter-clockwise <span class="math notranslate nohighlight">\(\hat{\mathbf{z}}_b = -\hat{\mathbf{r}}_p\)</span>. This convention keeps the local velocity vector in the first quadrant of the <span class="math notranslate nohighlight">\((x_b, y_b)\)</span> plane in both cases. The CFD velocity <span class="math notranslate nohighlight">\(\mathbf{u}\)</span> is projected onto this frame to give the axial component <span class="math notranslate nohighlight">\(u_{b,x}\)</span> (aligned with wind direction) and tangential component <span class="math notranslate nohighlight">\(u_{b,y}\)</span> (aligned with blade motion).</p>
+<p><strong>Angle of attack.</strong> The geometric angle of attack at radial station <span class="math notranslate nohighlight">\(r\)</span> is</p>
+<div class="math notranslate nohighlight" id="equation-eq-aoa">
+<span class="eqno">(2)<a class="headerlink" href="#equation-eq-aoa" title="Link to this equation"></a></span>\[\alpha = \arctan\!\left(\frac{u_{b,x}}{u_{b,y}}\right) - \theta_t - \beta_c - \Delta\beta_\text{wf},\]</div>
+<p>where <span class="math notranslate nohighlight">\(\theta_t\)</span> is the local pre-twist, <span class="math notranslate nohighlight">\(\beta_c\)</span> is the collective blade pitch, and <span class="math notranslate nohighlight">\(\Delta\beta_\text{wf}\)</span> is an optional wind-farm pitch offset provided by the external scheduler.</p>
+<p><strong>Airfoil table lookup.</strong> The lift and drag coefficients are obtained by 2-D interpolation in pre-supplied tabular data. Each radial station <span class="math notranslate nohighlight">\(r\)</span> lies between two airfoil tables at radial positions <span class="math notranslate nohighlight">\(r_1\)</span> and <span class="math notranslate nohighlight">\(r_2\)</span>, and the coefficients are linearly interpolated in both the radial direction and in angle of attack:</p>
+<div class="math notranslate nohighlight">
+\[C_{l/d}(r, \alpha) = w_1\,C_{l/d}^{(1)}(\alpha) + w_2\,C_{l/d}^{(2)}(\alpha),
+\qquad w_1 = \frac{r_2 - r}{r_2 - r_1},\; w_2 = 1 - w_1.\]</div>
+<p><strong>Prandtl tip/root-loss correction.</strong> To account for the finite number of blades, the Prandtl correction factor <span class="math notranslate nohighlight">\(F = F_\text{tip} \cdot F_\text{root}\)</span> is applied, where</p>
+<div class="math notranslate nohighlight" id="equation-eq-prandtl">
+<span class="eqno">(3)<a class="headerlink" href="#equation-eq-prandtl" title="Link to this equation"></a></span>\[\begin{split}F_\text{tip}  &amp;= \frac{2}{\pi}\arccos\!\exp\!\left(-\frac{N_b}{2}\,
+                 \frac{R-r}{r\sin\varphi}\right), \\
+F_\text{root} &amp;= \frac{2}{\pi}\arccos\!\exp\!\left(-\frac{N_b}{2}\,
+                 \frac{r-r_\text{hub}}{r\sin\varphi}\right),\end{split}\]</div>
+<p>with <span class="math notranslate nohighlight">\(N_b\)</span> the number of blades, <span class="math notranslate nohighlight">\(R\)</span> the tip radius, <span class="math notranslate nohighlight">\(r_\text{hub}\)</span> the hub radius, and <span class="math notranslate nohighlight">\(\varphi\)</span> the local flow angle. The corrected coefficients are <span class="math notranslate nohighlight">\(\tilde{C}_{l/d} = F\,C_{l/d}\)</span>.</p>
+<p><strong>Lift and drag forces.</strong> The elemental lift and drag at a blade segment of chord <span class="math notranslate nohighlight">\(c\)</span> and span <span class="math notranslate nohighlight">\(dr\)</span> are</p>
+<div class="math notranslate nohighlight" id="equation-eq-liftdrag">
+<span class="eqno">(4)<a class="headerlink" href="#equation-eq-liftdrag" title="Link to this equation"></a></span>\[L = \tfrac{1}{2}|\mathbf{u}|^2\,c\,dr\,\tilde{C}_l, \qquad
+D = \tfrac{1}{2}|\mathbf{u}|^2\,c\,dr\,\tilde{C}_d.\]</div>
+<p>The aerodynamic reference frame <span class="math notranslate nohighlight">\((\hat{\mathbf{x}}_a, \hat{\mathbf{y}}_a, \hat{\mathbf{z}}_a)\)</span> places <span class="math notranslate nohighlight">\(\hat{\mathbf{x}}_a\)</span> along the local velocity vector, <span class="math notranslate nohighlight">\(\hat{\mathbf{y}}_a\)</span> in the radial direction, and <span class="math notranslate nohighlight">\(\hat{\mathbf{z}}_a = \hat{\mathbf{x}}_a \times \hat{\mathbf{y}}_a\)</span> as the lift direction. The body force imposed on the flow (reaction principle) at point <span class="math notranslate nohighlight">\(p\)</span> is</p>
+<div class="math notranslate nohighlight" id="equation-eq-bodyforce">
+<span class="eqno">(5)<a class="headerlink" href="#equation-eq-bodyforce" title="Link to this equation"></a></span>\[\mathbf{B}_p = -(L\,\hat{\mathbf{z}}_a + D\,\hat{\mathbf{x}}_a).\]</div>
+<p><strong>Rotor loads.</strong> Thrust and torque are accumulated across all actuator points weighted by their solidity <span class="math notranslate nohighlight">\(\sigma_p\)</span>:</p>
+<div class="math notranslate nohighlight" id="equation-eq-thrust-torque">
+<span class="eqno">(6)<a class="headerlink" href="#equation-eq-thrust-torque" title="Link to this equation"></a></span>\[\begin{split}T &amp;= \sum_p f_{a,p}\,\sigma_p\,\rho, \\
+Q &amp;= \sum_p f_{t,p}\,\sigma_p\,\rho\,r_p\cos\psi_\text{cone},\end{split}\]</div>
+<p>where <span class="math notranslate nohighlight">\(f_{a,p}\)</span> is the axial force component, <span class="math notranslate nohighlight">\(f_{t,p}\)</span> the tangential component, <span class="math notranslate nohighlight">\(\rho\)</span> the air density, and <span class="math notranslate nohighlight">\(\psi_\text{cone}\)</span> the pre-cone angle. The aerodynamic power is <span class="math notranslate nohighlight">\(P_\text{aero} = Q\,\Omega\)</span>, and the electrical power is <span class="math notranslate nohighlight">\(P_\text{gen} = Q_\text{gen}\,\Omega_\text{gen}\,\eta_\text{gen}\)</span>.</p>
+</section>
+<section id="actuator-disk-model-adm">
+<h2>Actuator Disk Model (ADM)<a class="headerlink" href="#actuator-disk-model-adm" title="Link to this heading"></a></h2>
+<p>The ADM represents each rotor as a fixed axisymmetric disk of actuator points distributed in the radial and azimuthal directions. Because the disk is time-steady, the forcing represents the azimuthal average of the blade loading and is suitable for wake studies that do not require blade-passage unsteadiness.</p>
+<p>Each point on the ADM disk is assigned a solidity weight that distributes the discrete blade loading over the full revolution. The BEM aerodynamic routine described above is applied at every disk point with the local pitch, chord, and twist from the blade geometry tables.</p>
+<p><strong>DIPC helix pitch control.</strong> The ADM supports an individual-blade-pitch strategy that creates a helical wake structure (Dynamic Induction and Phase Control, DIPC). An oscillating pitch offset is superimposed on the collective pitch at each azimuthal position <span class="math notranslate nohighlight">\(\psi\)</span>:</p>
+<div class="math notranslate nohighlight" id="equation-eq-dipc">
+<span class="eqno">(7)<a class="headerlink" href="#equation-eq-dipc" title="Link to this equation"></a></span>\[\Delta\beta_\text{DIPC}(\psi, t) = A\sin\!\left(\psi \pm 2\pi f t\right),\]</div>
+<p>where <span class="math notranslate nohighlight">\(A\)</span> is the amplitude (degrees), <span class="math notranslate nohighlight">\(f\)</span> is the helix frequency (Hz), and the sign selects the helix handedness. This option is not available for the ALM.</p>
+</section>
+<section id="actuator-line-model-alm">
+<h2>Actuator Line Model (ALM)<a class="headerlink" href="#actuator-line-model-alm" title="Link to this heading"></a></h2>
+<p>The ALM represents each rotor blade as a radial line of actuator points that physically rotates with the rotor at every time step. This makes it an inherently unsteady three-dimensional model capable of resolving blade-passage effects and tip vortices.</p>
+<p>At each time step the blade azimuth <span class="math notranslate nohighlight">\(\psi\)</span> is advanced by <span class="math notranslate nohighlight">\(\Omega\,\Delta t\)</span> (from the drive-train solver described below), and each actuator point is rotated accordingly. The BEM aerodynamic routine is then applied at every point using the instantaneous sampled CFD velocity. The azimuth is synchronised to the master writer rank at checkpoint write times via a single global reduction.</p>
+<p>The ALM uses the same aerodynamic and control routines as the ADM; the DIPC helix option is not implemented for rotating blades.</p>
+</section>
+<section id="uniform-actuator-disk-model-uniformadm">
+<h2>Uniform Actuator Disk Model (uniformADM)<a class="headerlink" href="#uniform-actuator-disk-model-uniformadm" title="Link to this heading"></a></h2>
+<p>The uniformADM does not require detailed blade geometry. The rotor thrust is calculated from a prescribed thrust coefficient <span class="math notranslate nohighlight">\(C_t\)</span>, which may be constant or variable (tabulated as a function of a reference velocity). The body force at the <span class="math notranslate nohighlight">\(p\)</span>-th disk element is</p>
+<div class="math notranslate nohighlight" id="equation-eq-uniformadm">
+<span class="eqno">(8)<a class="headerlink" href="#equation-eq-uniformadm" title="Link to this equation"></a></span>\[\mathbf{f}_p = \tfrac{1}{2}\,U_\text{ref}^2\,dA_p\,C_t\,(-\hat{\boldsymbol{\Omega}}),\]</div>
+<p>where <span class="math notranslate nohighlight">\(dA_p\)</span> is the rotor area fraction of point <span class="math notranslate nohighlight">\(p\)</span> and <span class="math notranslate nohighlight">\(U_\text{ref}\)</span> is a reference velocity whose computation depends on the chosen sampling strategy (<code class="docutils literal notranslate"><span class="pre">sampleType</span></code>):</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">rotorUpstream</span></code>: <span class="math notranslate nohighlight">\(U_\text{ref}\)</span> is sampled at the upstream face of the rotor disk.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">givenVelocity</span></code>: <span class="math notranslate nohighlight">\(U_\text{ref}\)</span> is set directly by the user.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">rotorDisk</span></code>: the disk-averaged velocity <span class="math notranslate nohighlight">\(\bar{U}_\text{disk}\)</span> is measured on the rotor plane and <span class="math notranslate nohighlight">\(U_\text{ref}\)</span> is recovered via momentum theory, <span class="math notranslate nohighlight">\(U_\text{ref} = \bar{U}_\text{disk}/(1-a)\)</span>, where <span class="math notranslate nohighlight">\(a\)</span> satisfies <span class="math notranslate nohighlight">\(C_t = 4a(1-a)\)</span>. When <span class="math notranslate nohighlight">\(C_t\)</span> is variable this requires an iterative solve.</p></li>
+</ul>
+<p>When a variable-<span class="math notranslate nohighlight">\(C_p\)</span> table is provided, the aerodynamic power is computed as <span class="math notranslate nohighlight">\(P_\text{aero} = \tfrac{1}{2}\,U_\text{ref}^3\,A_\text{rotor}\,C_p(U_\text{ref})\)</span>; otherwise it is derived from thrust and induction: <span class="math notranslate nohighlight">\(P_\text{aero} = T\,(1-a)\,U_\text{ref}\)</span>.</p>
+</section>
+<section id="actuator-farm-model-afm">
+<h2>Actuator Farm Model (AFM)<a class="headerlink" href="#actuator-farm-model-afm" title="Link to this heading"></a></h2>
+<p>The AFM is a single-point coarse-LES model intended for very large wind farms where resolving the rotor disk is unnecessary. The entire rotor is represented by a single actuator point at the hub location, and the same Ct-based thrust formulation as the uniformADM is applied. Three sampling strategies are available:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">momentumTheory</span></code>: the hub-height velocity is used to back-compute <span class="math notranslate nohighlight">\(U_\text{ref}\)</span> from one-dimensional momentum theory.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">rotorDisk</span></code>: disk-averaged velocity is measured on the rotor plane and corrected for induction.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">integral</span></code>: <span class="math notranslate nohighlight">\(U_\text{ref}\)</span> is computed from the area-integrated velocity over the upstream rotor face.</p></li>
+</ul>
+</section>
+<section id="tower-and-nacelle-models">
+<h2>Tower and Nacelle Models<a class="headerlink" href="#tower-and-nacelle-models" title="Link to this heading"></a></h2>
+<p>Optional tower and nacelle drag models can be activated independently for any turbine model (<code class="docutils literal notranslate"><span class="pre">includeTwr</span></code>, <code class="docutils literal notranslate"><span class="pre">includeNacelle</span></code>). The tower is represented as a series of actuator points along its axis; the nacelle as a single point at the hub. The drag body force at each point follows a standard drag formulation and is projected onto the mesh via the same Gaussian kernel as the blade forces.</p>
+</section>
+<section id="rotor-dynamics-and-drive-train">
+<h2>Rotor Dynamics and Drive Train<a class="headerlink" href="#rotor-dynamics-and-drive-train" title="Link to this heading"></a></h2>
+<p>For the ADM and ALM (without OpenFAST), TOSCA solves a lumped-parameter drive-train model. The equation of motion for the low-speed shaft is</p>
+<div class="math notranslate nohighlight" id="equation-eq-drivetrain">
+<span class="eqno">(9)<a class="headerlink" href="#equation-eq-drivetrain" title="Link to this equation"></a></span>\[J\,\frac{d\Omega}{dt} = \eta_\text{gbx}\,Q_\text{aero} - i_\text{gbx}\,Q_\text{gen},\]</div>
+<p>where <span class="math notranslate nohighlight">\(J\)</span> is the total drive-train inertia referenced to the low-speed shaft (<code class="docutils literal notranslate"><span class="pre">driveTrainInertia</span></code>), <span class="math notranslate nohighlight">\(\eta_\text{gbx}\)</span> is the gearbox efficiency (<code class="docutils literal notranslate"><span class="pre">gbxEff</span></code>), <span class="math notranslate nohighlight">\(i_\text{gbx}\)</span> is the gearbox ratio (<code class="docutils literal notranslate"><span class="pre">gbxRatioG2R</span></code>, rotor-to-generator), <span class="math notranslate nohighlight">\(Q_\text{aero}\)</span> is the aerodynamic torque accumulated from the BEM loop, and <span class="math notranslate nohighlight">\(Q_\text{gen}\)</span> is the generator torque. The generator speed is <span class="math notranslate nohighlight">\(\Omega_\text{gen} = \Omega\,i_\text{gbx}\)</span>.</p>
+<p>A first-order low-pass filter smooths the rotor speed signal used by the generator controller:</p>
+<div class="math notranslate nohighlight" id="equation-eq-lowpass">
+<span class="eqno">(10)<a class="headerlink" href="#equation-eq-lowpass" title="Link to this equation"></a></span>\[\begin{split}a &amp;= e^{-\Delta t\,f_\text{filt}}, \\
+\Omega_\text{filt}(t) &amp;= (1-a)\,\Omega(t) + a\,\Omega_\text{filt}(t-\Delta t),\end{split}\]</div>
+<p>where <span class="math notranslate nohighlight">\(f_\text{filt}\)</span> is the filter cut-off frequency (<code class="docutils literal notranslate"><span class="pre">rtrSpdFilterFreq</span></code>, rad/s).</p>
+</section>
+<section id="control-systems">
+<h2>Control Systems<a class="headerlink" href="#control-systems" title="Link to this heading"></a></h2>
+<p><strong>Generator torque controller.</strong>
+TOSCA implements a classic four-region generator torque controller. Below the cut-in generator speed <span class="math notranslate nohighlight">\(\Omega_\text{ci}\)</span> (region 1) the torque is zero. Between cut-in and the rated region-2 speed <span class="math notranslate nohighlight">\(\Omega_{2}\)</span>, the torque rises linearly (region 1½). In region 2 the torque follows the optimal power curve</p>
+<div class="math notranslate nohighlight" id="equation-eq-genctrl">
+<span class="eqno">(11)<a class="headerlink" href="#equation-eq-genctrl" title="Link to this equation"></a></span>\[Q_\text{gen} = k_P\,\Omega_\text{gen}^2, \qquad
+k_P = \frac{\pi\,\rho\,R^5\,C_{p,\text{opt}}}{2\,\lambda_\text{opt}^3\,i_\text{gbx}^3},\]</div>
+<p>where <span class="math notranslate nohighlight">\(\lambda_\text{opt}\)</span> is the optimal tip-speed ratio. Between the top of region 2 and rated speed (region 2½) the torque is interpolated linearly, and above rated (region 3) it is held at <span class="math notranslate nohighlight">\(Q_\text{rated}\)</span>. A torque rate limiter constrains <span class="math notranslate nohighlight">\(|dQ_\text{gen}/dt| \leq \dot{Q}_\text{max}\)</span> when enabled. Alternatively, the rotor speed can be assigned directly from a lookup table of <span class="math notranslate nohighlight">\(\Omega(U_\text{ref})\)</span> by setting <code class="docutils literal notranslate"><span class="pre">genControllerType</span> <span class="pre">=</span> <span class="pre">rpmControlCurve</span></code>.</p>
+<p><strong>Blade pitch controller.</strong>
+In region 3 the blade pitch is regulated by a gain-scheduled PID controller. The scheduling gain is</p>
+<div class="math notranslate nohighlight" id="equation-eq-pitchgain">
+<span class="eqno">(12)<a class="headerlink" href="#equation-eq-pitchgain" title="Link to this equation"></a></span>\[G(\beta) = \frac{1}{1 + \beta / \beta_{s2r}},\]</div>
+<p>where <span class="math notranslate nohighlight">\(\beta\)</span> is the current pitch angle and <span class="math notranslate nohighlight">\(\beta_{s2r}\)</span> is the pitch angle at which the sensitivity halves (<code class="docutils literal notranslate"><span class="pre">pitchGainSchedule</span></code>). The error signal is <span class="math notranslate nohighlight">\(e = \Omega - \Omega_\text{rated}\)</span>, and the commanded pitch is</p>
+<div class="math notranslate nohighlight" id="equation-eq-pitchpid">
+<span class="eqno">(13)<a class="headerlink" href="#equation-eq-pitchpid" title="Link to this equation"></a></span>\[\beta_\text{cmd} = G\!\left(K_P\,e + K_I\int_0^t e\,d\tau + K_D\,\dot{e}\right),\]</div>
+<p>saturated to <span class="math notranslate nohighlight">\([\beta_\text{min}, \beta_\text{max}]\)</span>. The integral is clamped to prevent wind-up. Setting <code class="docutils literal notranslate"><span class="pre">pitchControllerType</span> <span class="pre">=</span> <span class="pre">bladePitchCurve</span></code> replaces the PID with a static <span class="math notranslate nohighlight">\(\beta(U_\text{ref})\)</span> lookup table.</p>
+<p><strong>Nacelle yaw controller.</strong>
+The nacelle yaw controller estimates the mean wind direction from a velocity sample taken 2R upstream of the rotor centre (<code class="docutils literal notranslate"><span class="pre">yawSamplingType</span> <span class="pre">=</span> <span class="pre">hubUpDistance</span></code>). An exponential moving average filters the instantaneous flow angle <span class="math notranslate nohighlight">\(\phi_0 = \text{atan2}(u_y, u_x)\)</span>:</p>
+<div class="math notranslate nohighlight" id="equation-eq-yawfilter">
+<span class="eqno">(14)<a class="headerlink" href="#equation-eq-yawfilter" title="Link to this equation"></a></span>\[\phi(t) = \phi(t-\Delta t) + \frac{\Delta t}{\tau_\text{yaw}}\!\left[\phi_0(t) - \phi(t-\Delta t)\right],\]</div>
+<p>where <span class="math notranslate nohighlight">\(\tau_\text{yaw}\)</span> is the yaw time constant (<code class="docutils literal notranslate"><span class="pre">yawRelaxFactor</span></code>). When the yaw error <span class="math notranslate nohighlight">\(|\phi - \psi_\text{yaw}|\)</span> exceeds the deadband <code class="docutils literal notranslate"><span class="pre">yawAllowedError</span></code>, the nacelle rotates at the prescribed yaw rate <code class="docutils literal notranslate"><span class="pre">yawSpeed</span></code> (degrees/s) within the angular bounds <code class="docutils literal notranslate"><span class="pre">yawMin</span></code>/<code class="docutils literal notranslate"><span class="pre">yawMax</span></code>. All rotor geometry—rotor axis, rotor direction, rotor centre, and all actuator points—is rotated accordingly. Yaw data are synchronised to the master rank only at output write times, requiring a single global MPI reduction per time series write.</p>
+<p><strong>Wind farm controller.</strong>
+An external wind farm controller applies time-varying pitch or thrust offsets to all turbines simultaneously. A plain-text time-series file supplies pitch offsets <span class="math notranslate nohighlight">\(\Delta\beta_\text{wf}(t)\)</span> for ADM/ALM turbines, or thrust-coefficient offsets <span class="math notranslate nohighlight">\(\Delta C_t(t)\)</span> for uniformADM/AFM turbines. The values are linearly interpolated in time and added to the individual turbine setpoints at each step.</p>
+</section>
+<section id="upstream-velocity-sampling">
+<h2>Upstream Velocity Sampling<a class="headerlink" href="#upstream-velocity-sampling" title="Link to this heading"></a></h2>
+<p>All turbine models that require a reference velocity (uniformADM rotorDisk sampling, yaw control, Uref monitoring) use a rotor-shaped upsampling grid at 2.5 diameters upstream of the rotor centre. The grid consists of a <span class="math notranslate nohighlight">\(12 \times 12\)</span> azimuth–radial array of points spanning from hub to tip radius. The area weight of each point accounts for the annular area of its radial band, including a redistribution of the hub area over the swept annulus. The sampled velocity components are area-averaged to yield the scalar reference velocity <span class="math notranslate nohighlight">\(U_\text{ref}\)</span>.</p>
+</section>
+<section id="parallel-implementation">
+<h2>Parallel Implementation<a class="headerlink" href="#parallel-implementation" title="Link to this heading"></a></h2>
+<p>To minimise global communication, each turbine is managed by a dedicated sub-communicator <code class="docutils literal notranslate"><span class="pre">TRB_COMM</span></code> of at most 8 MPI ranks. Only the mesh cells within the turbine’s influence sphere—the smallest bounding box that contains the rotor at any yaw angle—are mapped to a turbine. Force projection, velocity sampling, and checkpoint I/O are all confined to these rank subsets.</p>
+<p>The upsampling grid has its own communicator <code class="docutils literal notranslate"><span class="pre">UPW_COMM</span></code>. When the nacelle yaws, <code class="docutils literal notranslate"><span class="pre">trbMoved</span></code> is set and the controlled-cell search is repeated. A single global <code class="docutils literal notranslate"><span class="pre">MPI_Reduce</span></code> is issued only at output write times to synchronise the yaw angle across the full domain. Each turbine designates a writer rank (rank 0 of <code class="docutils literal notranslate"><span class="pre">TRB_COMM</span></code>) that handles all checkpoint files and time-series logs.</p>
+</section>
+<section id="openfast-coupling">
+<h2>OpenFAST Coupling<a class="headerlink" href="#openfast-coupling" title="Link to this heading"></a></h2>
+<p>When compiled with <code class="docutils literal notranslate"><span class="pre">-DUSE_OPENFAST</span></code>, any turbine in the farm can be delegated to <a class="reference external" href="https://openfast.readthedocs.io">OpenFAST</a> for its structural dynamics, detailed aerodynamics (AeroDyn), and generator/pitch control (ServoDyn). The remaining turbines continue to use TOSCA-native models. The two solvers exchange data every CFD time step through a partitioned coupling scheme.</p>
+<p><strong>Initialisation.</strong>
+TOSCA creates one <code class="docutils literal notranslate"><span class="pre">fast::OpenFAST</span></code> instance per coupled turbine and populates the coupling metadata structure <code class="docutils literal notranslate"><span class="pre">fi</span></code>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">dtFAST</span> <span class="pre">=</span> <span class="pre">dtCFD</span> <span class="pre">/</span> <span class="pre">nFastSubSteps</span></code> — OpenFAST internal time step;</p></li>
+<li><p>FST input file: <code class="docutils literal notranslate"><span class="pre">turbines/&lt;type&gt;.&lt;id&gt;.fst</span></code>;</p></li>
+<li><p>restart checkpoint: <code class="docutils literal notranslate"><span class="pre">turbines/&lt;type&gt;.&lt;id&gt;.chkpt</span></code>.</p></li>
+</ul>
+<p>OpenFAST exposes two independent grids of coupling points per turbine: <em>velocity points</em> (AeroDyn inflow nodes, classified as hub=0, blade=1, or tower=2) and <em>force points</em> (AeroDyn/ElastoDyn structural nodes). All coordinates are maintained in the TOSCA global Cartesian frame. After <code class="docutils literal notranslate"><span class="pre">FAST-&gt;init()</span></code> the number of force and velocity points is confirmed and storage for <code class="docutils literal notranslate"><span class="pre">velPtsBlade</span></code>, <code class="docutils literal notranslate"><span class="pre">velValsBlade</span></code>, <code class="docutils literal notranslate"><span class="pre">forcePtsBlade</span></code>, <code class="docutils literal notranslate"><span class="pre">forceValsBlade</span></code>, and the tower equivalents is allocated.</p>
+<p><strong>Per-step protocol (one CFD time step).</strong>
+The coupling follows a sequential predictor–corrector protocol:</p>
+<ol class="arabic simple">
+<li><p><strong>Point discovery.</strong> <code class="docutils literal notranslate"><span class="pre">findControlledPointsRotorOpenFAST</span></code> locates the nearest CFD cell to every velocity and force point. Ties between processors are broken by a small rank-dependent perturbation so that each point is owned by exactly one rank.</p></li>
+<li><p><strong>Velocity transfer (TOSCA → OpenFAST).</strong> <code class="docutils literal notranslate"><span class="pre">computeWindVectorsRotorOpenFAST</span></code> and <code class="docutils literal notranslate"><span class="pre">computeWindVectorsTowerOpenFAST</span></code> trilinearly interpolate the TOSCA velocity field at every OpenFAST velocity point, then call <code class="docutils literal notranslate"><span class="pre">FAST-&gt;setVelocity</span></code> on the writer rank.</p></li>
+<li><p><strong>OpenFAST advance.</strong> <code class="docutils literal notranslate"><span class="pre">stepOpenFAST</span></code> calls <code class="docutils literal notranslate"><span class="pre">FAST-&gt;step()</span></code> <em>nFastSubSteps</em> times per CFD time step, advancing the OpenFAST internal state at the finer resolution <code class="docutils literal notranslate"><span class="pre">dtFAST</span></code>.</p></li>
+<li><p><strong>Geometry update.</strong> <code class="docutils literal notranslate"><span class="pre">getForcePtsBladeOpenFAST</span></code> and <code class="docutils literal notranslate"><span class="pre">getForcePtsTwrOpenFAST</span></code> retrieve the updated structural positions from OpenFAST and broadcast them to all ranks. <code class="docutils literal notranslate"><span class="pre">mapOFDisplToActPts</span></code> then copies these positions to the TOSCA actuator-point arrays (e.g. <code class="docutils literal notranslate"><span class="pre">alm.points</span></code>).</p></li>
+<li><p><strong>Force transfer (OpenFAST → TOSCA).</strong> <code class="docutils literal notranslate"><span class="pre">mapOFForcesToActPts</span></code> reads the aerodynamic body forces from the OpenFAST force points and writes them to the TOSCA actuator-point force arrays, scaled by <span class="math notranslate nohighlight">\(1/\rho\)</span>. These forces are subsequently projected onto the CFD mesh by the standard Gaussian projector.</p></li>
+</ol>
+<p><strong>Global rotor state.</strong>
+<code class="docutils literal notranslate"><span class="pre">getGlobParamsOpenFAST</span></code> extracts all rotor-level scalars needed by the TOSCA I/O and upsampling infrastructure:</p>
+<ul class="simple">
+<li><p><em>Hub position</em> and <em>shaft direction</em>: obtained via <code class="docutils literal notranslate"><span class="pre">FAST-&gt;getHubPos</span></code> / <code class="docutils literal notranslate"><span class="pre">FAST-&gt;getHubShftDir</span></code> and broadcast to all ranks.</p></li>
+<li><p><em>Rotor speed</em> <span class="math notranslate nohighlight">\(\Omega\)</span>: derived from the angular displacement of the last blade force point (blade-3 tip) between successive steps, <span class="math notranslate nohighlight">\(\Omega = \Delta\theta / \Delta t_\text{CFD}\)</span>, where <span class="math notranslate nohighlight">\(\Delta\theta = \arccos(|\hat{\mathbf{r}}_\text{new}\!\cdot\!\hat{\mathbf{r}}_\text{old}|)\)</span>.</p></li>
+<li><p><em>Azimuth</em>: computed from the projection of the tip vector onto the rotor plane; 0° when blade 0 points vertically up, increasing in the clockwise direction when viewed from the front.</p></li>
+<li><p><em>Thrust and torque</em>: obtained from <code class="docutils literal notranslate"><span class="pre">FAST-&gt;computeTorqueThrust</span></code> and projected onto the rotor axis; also independently accumulated from the force-point array for cross-validation.</p></li>
+<li><p><em>Rotation direction</em>: inferred from <span class="math notranslate nohighlight">\(\operatorname{sign}\!\left((\hat{\mathbf{r}}_\text{old}\times\hat{\mathbf{r}}_\text{new})\cdot\hat{\boldsymbol{\Omega}}\right)\)</span>.</p></li>
+</ul>
+<p><strong>Yaw handling.</strong>
+Because OpenFAST (ServoDyn) controls nacelle yaw, TOSCA reads the current yaw angle from the updated shaft direction rather than running its own yaw controller. Whenever the yaw angle changes by more than 1°, the upsampling rig is fully rebuilt: the 12 × 12 azimuth–radial grid is recomputed at 2.5D upstream in the new rotor-normal direction, and <code class="docutils literal notranslate"><span class="pre">trbMoved</span></code> is set to trigger a new controlled-cell search.</p>
+</section>
 </section>
 
 
@@ -96,7 +334,7 @@
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="precursor.html" class="btn btn-neutral float-left" title="Precursor, Fringe Regions &amp; Damping Layers" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="../tosca_versions.html" class="btn btn-neutral float-right" title="Versions" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="ibm.html" class="btn btn-neutral float-right" title="Immersed Boundary Method" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

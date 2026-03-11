@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Controllers &mdash; TOSCA dev documentation</title>
+  <title>Flow Controllers and Mesoscale Coupling &mdash; TOSCA dev documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=80d5e7a1" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=23c79765" />
@@ -17,11 +17,12 @@
       <script src="../_static/documentation_options.js?v=3ce10a4d"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Precursor, Fringe Regions &amp; Damping Layers" href="precursor.html" />
-    <link rel="prev" title="Sub-grid Scale Model" href="turbulence_models.html" /> 
+    <link rel="prev" title="Sub-grid Scale Models" href="turbulence_models.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -43,18 +44,33 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
-<ul class="current">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../tosca_getting_started.html">Getting Started</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tosca_installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tosca_user_guide.html">User Guide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tosca_examples.html">Example Cases</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tosca_applications.html">TOSCA Applications</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="../tosca_theory_guide.html">Theory Guide</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="governing_equations.html">Governing Equations</a></li>
-<li class="toctree-l2"><a class="reference internal" href="numerics.html">Numerical Method &amp; Curvilinear Coordinates</a></li>
+<li class="toctree-l2"><a class="reference internal" href="numerics.html">Numerical Method</a></li>
+<li class="toctree-l2"><a class="reference internal" href="time_integration.html">Time Integration Schemes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="advection_schemes.html">Advection Schemes</a></li>
 <li class="toctree-l2"><a class="reference internal" href="parallel_efficiency.html">Parallel Efficiency</a></li>
-<li class="toctree-l2"><a class="reference internal" href="turbulence_models.html">Sub-grid Scale Model</a></li>
-<li class="toctree-l2 current"><a class="current reference internal" href="#">Controllers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="turbulence_models.html">Sub-grid Scale Models</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Flow Controllers and Mesoscale Coupling</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#precursor-controllers">Precursor Controllers</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#geostrophic-controller-geostrophic">Geostrophic Controller (<code class="docutils literal notranslate"><span class="pre">geostrophic</span></code>)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pressure-pi-controller-pressure">Pressure (PI) Controller (<code class="docutils literal notranslate"><span class="pre">pressure</span></code>)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#temperature-controller-initial">Temperature Controller (<code class="docutils literal notranslate"><span class="pre">initial</span></code>)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#bulk-velocity-controller-meangradpforce">Bulk Velocity Controller (<code class="docutils literal notranslate"><span class="pre">-meanGradPForce</span></code>)</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#mesoscale-to-microscale-coupling-mmc">Mesoscale-to-Microscale Coupling (MMC)</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#profile-assimilation-methods">Profile Assimilation Methods</a></li>
+</ul>
+</li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="precursor.html">Precursor, Fringe Regions &amp; Damping Layers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="turbine_models.html">Turbine Models</a></li>
 </ul>
@@ -77,7 +93,7 @@
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
           <li class="breadcrumb-item"><a href="../tosca_theory_guide.html">Theory Guide</a></li>
-      <li class="breadcrumb-item active">Controllers</li>
+      <li class="breadcrumb-item active">Flow Controllers and Mesoscale Coupling</li>
       <li class="wy-breadcrumbs-aside">
             <a href="../_sources/04_theory_guide/flow_controllers.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -87,15 +103,227 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="controllers">
-<span id="controllers-section"></span><h1>Controllers<a class="headerlink" href="#controllers" title="Link to this heading"></a></h1>
+  <section id="flow-controllers-and-mesoscale-coupling">
+<span id="controllers-section"></span><h1>Flow Controllers and Mesoscale Coupling<a class="headerlink" href="#flow-controllers-and-mesoscale-coupling" title="Link to this heading"></a></h1>
+<p>TOSCA provides two classes of flow-driving strategies: <em>precursor controllers</em>, which sustain a statistically stationary ABL for spin-up or recycling purposes,
+and <em>mesoscale-to-microscale coupling (MMC) methods</em>, which introduce time- and height-varying mesoscale conditions into the LES through internal forcing source
+terms.  Both classes are configured via the <code class="docutils literal notranslate"><span class="pre">controllerType</span></code> (momentum) and <code class="docutils literal notranslate"><span class="pre">controllerTypeT</span></code> (temperature) keywords in <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code>.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 35.0%" />
+<col style="width: 25.0%" />
+<col style="width: 40.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Method</p></th>
+<th class="head"><p><code class="docutils literal notranslate"><span class="pre">controllerType</span></code></p></th>
+<th class="head"><p>Purpose</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Geostrophic controller</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">geostrophic</span></code></p></td>
+<td><p>Fixed pressure gradient from geostrophic balance</p></td>
+</tr>
+<tr class="row-odd"><td><p>Pressure (PI) controller</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">pressure</span></code></p></td>
+<td><p>PI feedback to a target hub-height velocity</p></td>
+</tr>
+<tr class="row-even"><td><p>Direct profile assimilation</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">directProfileAssimilation</span></code></p></td>
+<td><p>MMC: pointwise error feedback</p></td>
+</tr>
+<tr class="row-odd"><td><p>Indirect profile assimilation</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">indirectProfileAssimilation</span></code></p></td>
+<td><p>MMC: polynomial-smoothed error feedback</p></td>
+</tr>
+<tr class="row-even"><td><p>Wavelet profile assimilation</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">waveletProfileAssimilation</span></code></p></td>
+<td><p>MMC: wavelet-filtered error feedback</p></td>
+</tr>
+<tr class="row-odd"><td><p>Geostrophic profile assimilation</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">geostrophicProfileAssimilation</span></code></p></td>
+<td><p>MMC: physics-based pressure-gradient forcing + WPA temperature</p></td>
+</tr>
+<tr class="row-even"><td><p>Bulk velocity controller</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">-meanGradPForce</span> <span class="pre">1</span></code> (CLI flag)</p></td>
+<td><p>Drive volume-averaged velocity to a target bulk value</p></td>
+</tr>
+</tbody>
+</table>
+<section id="precursor-controllers">
+<h2>Precursor Controllers<a class="headerlink" href="#precursor-controllers" title="Link to this heading"></a></h2>
+<section id="geostrophic-controller-geostrophic">
+<h3>Geostrophic Controller (<code class="docutils literal notranslate"><span class="pre">geostrophic</span></code>)<a class="headerlink" href="#geostrophic-controller-geostrophic" title="Link to this heading"></a></h3>
+<p>The driving pressure gradient is derived from geostrophic balance:</p>
+<div class="math notranslate nohighlight" id="equation-eq-geobalance">
+<span class="eqno">(1)<a class="headerlink" href="#equation-eq-geobalance" title="Link to this equation"></a></span>\[\frac{1}{\rho_0}\frac{\partial p_\infty}{\partial x} = f_c V_G,
+\qquad
+\frac{1}{\rho_0}\frac{\partial p_\infty}{\partial y} = -f_c U_G\]</div>
+<p>where <span class="math notranslate nohighlight">\(f_c = 2\Omega_z\)</span> is the Coriolis parameter and <span class="math notranslate nohighlight">\((U_G, V_G)\)</span> are the specified geostrophic wind components.  The geostrophic controller does
+not directly control the hub-height wind speed, which is set by the turbulent stress balance inside the boundary layer.  An optional wind-angle controller
+(Allaerts and Meyers 2015) can be added to prescribe the wind direction at a reference height by slowly rotating the domain.</p>
+</section>
+<section id="pressure-pi-controller-pressure">
+<h3>Pressure (PI) Controller (<code class="docutils literal notranslate"><span class="pre">pressure</span></code>)<a class="headerlink" href="#pressure-pi-controller-pressure" title="Link to this heading"></a></h3>
+<p>The pressure controller drives the horizontally averaged velocity at a reference height <span class="math notranslate nohighlight">\(h_\text{ref}\)</span> to a target value <span class="math notranslate nohighlight">\(u_{\text{ref},i}\)</span> using
+a proportional–integral (PI) algorithm:</p>
+<div class="math notranslate nohighlight" id="equation-eq-pcontrol">
+<span class="eqno">(2)<a class="headerlink" href="#equation-eq-pcontrol" title="Link to this equation"></a></span>\[\frac{1}{\rho_0}\frac{\partial p_\infty}{\partial x_i}
+= r\left(\alpha\, e_{P,i} + (1-\alpha)\,e^n_{I,i}\right),\]</div>
+<p>with proportional and integral errors</p>
+<div class="math notranslate nohighlight">
+\[e_{P,i} = \frac{u_{\text{ref},i} - \langle u_i(h_{\text{ref}})\rangle_{xy}}{\Delta t},
+\qquad
+e^n_{I,i} = \left(1 - \frac{\Delta t}{T}\right)e^{n-1}_{I,i} + \frac{\Delta t}{T}\,e_{P,i},\]</div>
+<p>where <span class="math notranslate nohighlight">\(r\)</span> is a relaxation factor, <span class="math notranslate nohighlight">\(\alpha\)</span> the proportional fraction, and <span class="math notranslate nohighlight">\(T\)</span> an integral time scale.</p>
+<p>Because the geostrophic wind components <span class="math notranslate nohighlight">\((U_G, V_G)\)</span> are not prescribed a priori, an initial velocity inconsistent with geostrophic balance drives
+inertial oscillations above the boundary layer at frequency <span class="math notranslate nohighlight">\(f_c\)</span>.  These are suppressed by the <strong>geostrophic damping</strong> term described below.</p>
+<section id="geostrophic-damping">
+<h4>Geostrophic Damping<a class="headerlink" href="#geostrophic-damping" title="Link to this heading"></a></h4>
+<p>The momentum equations above the boundary layer are augmented with:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{cases}
+    \dfrac{\partial u}{\partial t} + 2\alpha_d f_c(u - U_G) + f_c(V_G - v) = 0 \\[4pt]
+    \dfrac{\partial v}{\partial t} + 2\alpha_d f_c(v - V_G) - f_c(U_G - u) = 0
+\end{cases}\end{split}\]</div>
+<p>where <span class="math notranslate nohighlight">\(\alpha_d &gt; 0\)</span> determines the damping strength (critically damped at <span class="math notranslate nohighlight">\(\alpha_d = 1\)</span>).  The e-folding decay time is
+<span class="math notranslate nohighlight">\(1/(2\alpha_d f_c)\)</span>.  For the amplitude to fall below 3% of its initial value the required damping time is
+<span class="math notranslate nohighlight">\(T_{3\%} = \ln(100/3)/(2\alpha_d f_c)\)</span>.</p>
+<p>The geostrophic wind components are inferred from the PI pressure gradient via <a class="reference internal" href="#equation-eq-geobalance">(1)</a>, filtered with a time constant <span class="math notranslate nohighlight">\(0.2\pi/f_c\)</span>.  The
+damping is blended to zero below the capping inversion using</p>
+<div class="math notranslate nohighlight">
+\[f_d = \frac{1}{2}\left[1 + \tanh\!\left(\frac{7(h - H_d)}{\Delta_d}\right)\right],\]</div>
+<p>where <span class="math notranslate nohighlight">\(H_d\)</span> is the inversion center height and <span class="math notranslate nohighlight">\(\Delta_d\)</span> the inversion width.</p>
+</section>
+</section>
+<section id="temperature-controller-initial">
+<h3>Temperature Controller (<code class="docutils literal notranslate"><span class="pre">initial</span></code>)<a class="headerlink" href="#temperature-controller-initial" title="Link to this heading"></a></h3>
+<p>To keep the mean potential temperature profile — and therefore the capping inversion — constant throughout a precursor simulation, a height-dependent source
+term is added to the temperature equation:</p>
+<div class="math notranslate nohighlight" id="equation-eq-temperaturecontrol">
+<span class="eqno">(3)<a class="headerlink" href="#equation-eq-temperaturecontrol" title="Link to this equation"></a></span>\[s_\theta(h) = r\,\frac{\bar\theta(h) - \langle\theta(h)\rangle_{xy}}{\Delta t},\]</div>
+<p>where <span class="math notranslate nohighlight">\(\bar\theta(h)\)</span> is the target profile (taken from the initial condition) and <span class="math notranslate nohighlight">\(r \approx 0.7\)</span> is a relaxation coefficient.  This controller
+eliminates drift of the inversion layer caused by differences in numerical dissipation between codes or simulation durations.</p>
+</section>
+<section id="bulk-velocity-controller-meangradpforce">
+<h3>Bulk Velocity Controller (<code class="docutils literal notranslate"><span class="pre">-meanGradPForce</span></code>)<a class="headerlink" href="#bulk-velocity-controller-meangradpforce" title="Link to this heading"></a></h3>
+<p>The bulk velocity controller adds a uniform body force to the momentum equations every time step to drive the <em>volume-averaged</em> velocity toward a prescribed
+target bulk velocity <span class="math notranslate nohighlight">\(\mathbf{U}_\text{bulk}\)</span>.  Unlike the pressure PI controller, which acts on the planar average at a single reference height, this
+controller acts on the full three-dimensional volume average:</p>
+<div class="math notranslate nohighlight">
+\[\langle \mathbf{u} \rangle_V(t)
+= \frac{\displaystyle\sum_\Omega \mathbf{u}\,\delta V}
+       {\displaystyle\sum_\Omega \delta V},\]</div>
+<p>where the sums run over all fluid (non-IBM, non-overset) cells.  The per-step forcing applied uniformly to every cell is</p>
+<div class="math notranslate nohighlight">
+\[\mathbf{F}_\text{bulk}(t) = \mathbf{U}_\text{bulk} - \langle \mathbf{u} \rangle_V(t),\]</div>
+<p>which is a purely proportional correction with unit gain (gain = 1 s<sup>-1</sup>).  The forcing is projected onto the curvilinear contravariant face fluxes so
+that it is consistent with the collocated finite-volume discretisation of the non-orthogonal grid.</p>
+<p>The target bulk velocity <span class="math notranslate nohighlight">\(\mathbf{U}_\text{bulk}\)</span> is a three-component vector read from the <code class="docutils literal notranslate"><span class="pre">uBulk</span></code> keyword in the initial-condition input file (under
+whichever initialisation block is active, e.g. <code class="docutils literal notranslate"><span class="pre">ABLFlow</span></code>, <code class="docutils literal notranslate"><span class="pre">uniform</span></code>, <code class="docutils literal notranslate"><span class="pre">spreadInflow</span></code>).</p>
+<p>A running diagnostic accumulator <code class="docutils literal notranslate"><span class="pre">meanGradP</span></code> tracks the cumulative correction applied over the simulation.</p>
+</section>
+</section>
+<section id="mesoscale-to-microscale-coupling-mmc">
+<h2>Mesoscale-to-Microscale Coupling (MMC)<a class="headerlink" href="#mesoscale-to-microscale-coupling-mmc" title="Link to this heading"></a></h2>
+<p>Mesoscale-to-microscale coupling extends LES beyond statistically stationary, idealized conditions by incorporating time- and height-varying mesoscale
+information through internal source terms <span class="math notranslate nohighlight">\(F_{u_i}\)</span> and <span class="math notranslate nohighlight">\(F_\theta\)</span> added to the momentum and temperature equations, respectively:</p>
+<div class="math notranslate nohighlight">
+\[\frac{\partial \overline{u}_i}{\partial t} + \cdots = \cdots + F_{u_i}(z,t),
+\qquad
+\frac{\partial \overline{\theta}}{\partial t} + \cdots = \cdots + F_\theta(z,t).\]</div>
+<p>All MMC methods read mesoscale data (wind velocity and virtual potential temperature as functions of height and time) from <cite>inflowDatabase/mesoscaleData</cite>.
+For momentum, the region below a transition height can be treated differently from the region above, controlled by the <code class="docutils literal notranslate"><span class="pre">lowerLayerForcingType</span></code> keyword:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">constantHeight</span></code> — transition height is a fixed value.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ablHeight</span></code> — transition height tracks the dynamically computed ABL height.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">mesoDataHeight</span></code> — transition is set to the lowest height at which mesoscale data are available.</p></li>
+</ul>
+<section id="profile-assimilation-methods">
+<h3>Profile Assimilation Methods<a class="headerlink" href="#profile-assimilation-methods" title="Link to this heading"></a></h3>
+<p>All profile assimilation techniques compute the forcing from an error between the horizontally averaged LES field
+<span class="math notranslate nohighlight">\(\langle\bar\varphi_\text{LES}\rangle(z,t)\)</span> and the target mesoscale data <span class="math notranslate nohighlight">\(\varphi_\text{m}(z,t)\)</span>:</p>
+<div class="math notranslate nohighlight">
+\[e_\varphi(z,t) = \varphi_\text{m}(z,t) - \langle\bar\varphi_\text{LES}\rangle(z,t), \qquad \varphi \in \{u,\,v,\,\theta\}.\]</div>
+<p>The three methods differ in how they filter or smooth <span class="math notranslate nohighlight">\(e_\varphi\)</span> before applying it as a forcing.</p>
+<section id="direct-profile-assimilation-dpa-directprofileassimilation">
+<h4>Direct Profile Assimilation — DPA (<code class="docutils literal notranslate"><span class="pre">directProfileAssimilation</span></code>)<a class="headerlink" href="#direct-profile-assimilation-dpa-directprofileassimilation" title="Link to this heading"></a></h4>
+<p>The error at each vertical level is used directly as a proportional forcing:</p>
+<div class="math notranslate nohighlight">
+\[F_\varphi(z,t) = \mathcal{K}_p\,e_\varphi(z,t),\]</div>
+<p>where <span class="math notranslate nohighlight">\(\mathcal{K}_p = 0.2\,\mathrm{s^{-1}}\)</span> is the proportional gain.  Because the corrections at each height level are independent, DPA can generate
+an artificial buildup of turbulent kinetic energy in regions where the LES has limited ability to adjust the mean flow through turbulent mixing.</p>
+</section>
+<section id="indirect-profile-assimilation-ipa-indirectprofileassimilation">
+<h4>Indirect Profile Assimilation — IPA (<code class="docutils literal notranslate"><span class="pre">indirectProfileAssimilation</span></code>)<a class="headerlink" href="#indirect-profile-assimilation-ipa-indirectprofileassimilation" title="Link to this heading"></a></h4>
+<p>IPA smooths <span class="math notranslate nohighlight">\(e_\varphi\)</span> by fitting a polynomial of order <span class="math notranslate nohighlight">\(m\)</span> (set by <code class="docutils literal notranslate"><span class="pre">polynomialOrder</span></code>) to the vertical error profile at each time step.
+The polynomial coefficients <span class="math notranslate nohighlight">\(\hat{\boldsymbol\beta}\)</span> are found by weighted least-squares minimisation:</p>
+<div class="math notranslate nohighlight">
+\[\hat{\boldsymbol\beta}(t) = \left(Z^\top W Z\right)^{-1} Z^\top W\,e_\varphi(t),\]</div>
+<p>where <span class="math notranslate nohighlight">\(Z\)</span> is the Vandermonde matrix evaluated at the vertical grid points and <span class="math notranslate nohighlight">\(W\)</span> is a diagonal weight matrix.  The forcing is then</p>
+<div class="math notranslate nohighlight">
+\[F_\varphi(z,t) = \mathcal{K}_p\,Z\hat{\boldsymbol\beta}(t).\]</div>
+<p>The polynomial fit acts as a vertical low-pass filter that enforces inter-level coherence.  A typical choice is a cubic polynomial (<span class="math notranslate nohighlight">\(m=3\)</span>) with uniform
+weights, but higher orders can be used to capture stronger vertical gradients.  IPA reduces the TKE build-up of DPA but can over-smooth sharp features such as
+low-level jets.</p>
+</section>
+<section id="wavelet-profile-assimilation-wpa-waveletprofileassimilation">
+<h4>Wavelet Profile Assimilation — WPA (<code class="docutils literal notranslate"><span class="pre">waveletProfileAssimilation</span></code>)<a class="headerlink" href="#wavelet-profile-assimilation-wpa-waveletprofileassimilation" title="Link to this heading"></a></h4>
+<p>WPA applies a multi-resolution analysis (MRA) to the error profile using the discrete wavelet transform (DWT), providing a scale-aware filtering that
+preserves vertical structure while avoiding the over-smoothing of IPA.  The error is decomposed across <span class="math notranslate nohighlight">\(m_0\)</span> levels (set by <code class="docutils literal notranslate"><span class="pre">waveletDecompLevel</span></code>) into
+approximation and detail coefficients using a chosen mother wavelet (<code class="docutils literal notranslate"><span class="pre">waveletName</span></code>, e.g. <code class="docutils literal notranslate"><span class="pre">db7</span></code> — Daubechies of order 7):</p>
+<div class="math notranslate nohighlight">
+\[e_\varphi(k,t) = \underbrace{\sum_n \mathbb{W}^A_{m_0,n}(t)\,\phi_{m_0,n}(k)}_{\text{low-freq. approx.}}
+               + \sum_{m=0}^{m_0-1}\sum_n \mathbb{W}^D_{m,n}(t)\,\psi_{m,n}(k).\]</div>
+<p>By retaining only the low-frequency approximation coefficients <span class="math notranslate nohighlight">\(\mathbb{W}^A_{m_0,n}\)</span> (controlled by <code class="docutils literal notranslate"><span class="pre">waveletTMethod</span></code>), the reconstructed forcing is</p>
+<div class="math notranslate nohighlight">
+\[F_\varphi(z,t) = \mathcal{K}_p \sum_n \mathbb{W}^A_{m_0,n}(t)\,\phi_{m_0,n}(z).\]</div>
+<p>WPA requires that TOSCA is compiled with Python support (<code class="docutils literal notranslate"><span class="pre">USE_PYTHON=1</span></code> in the Makefile).  Symmetric signal extension is applied at the domain boundaries to
+minimise edge artefacts, which were observed in IPA near the surface.</p>
+</section>
+<section id="geostrophic-profile-assimilation-hgwpa-geostrophicprofileassimilation">
+<h4>Geostrophic Profile Assimilation — HGWPA (<code class="docutils literal notranslate"><span class="pre">geostrophicProfileAssimilation</span></code>)<a class="headerlink" href="#geostrophic-profile-assimilation-hgwpa-geostrophicprofileassimilation" title="Link to this heading"></a></h4>
+<p>The hybrid geostrophic-wavelet profile assimilation (HGWPA) method computes the momentum source term from the large-scale pressure gradient force rather than
+from an error-based correction.  This is more physically consistent than DPA/IPA/WPA because it avoids momentum error forcing and directly encodes the
+relevant physical processes (pressure gradient, Coriolis force, and turbulent friction) into the LES source term.  The temperature source term is computed with
+WPA.</p>
+<p>Under baroclinic, unsteady conditions the large-scale pressure gradient is</p>
+<div class="math notranslate nohighlight" id="equation-eq-geobalanceunsteadymmc">
+<span class="eqno">(4)<a class="headerlink" href="#equation-eq-geobalanceunsteadymmc" title="Link to this equation"></a></span>\[-\frac{\partial p_\infty(z,t)}{\partial x}
+= \frac{dG_x(z,t)}{dt} - f_c\,G_y(z,t) - \frac{\partial\langle\mathcal{T}_{xz}(z,t)\rangle}{\partial z},\]</div>
+<p>and analogously for the <span class="math notranslate nohighlight">\(y\)</span> component, where <span class="math notranslate nohighlight">\(G_x(z,t), G_y(z,t)\)</span> are the mesoscale (possibly height-varying) geostrophic wind components,
+and <span class="math notranslate nohighlight">\(\mathcal{T}_{i3}\)</span> is the total shear stress (resolved Reynolds stress + SGS stress):</p>
+<div class="math notranslate nohighlight">
+\[\mathcal{T}_{i3}(z) = -\langle\overline{u'_i u'_3}\rangle - \tau_{i3}^\text{sgs}(z).\]</div>
+<p>The frictional drag term (last term in <a class="reference internal" href="#equation-eq-geobalanceunsteadymmc">(4)</a>) is computed directly from the running LES field using horizontal plane averaging and
+temporal filtering.  HGWPA requires <code class="docutils literal notranslate"><span class="pre">lowerLayerForcingType</span> <span class="pre">=</span> <span class="pre">ablHeight</span></code>.</p>
+<p>The frictional drag contribution is active only inside the boundary layer and is blended smoothly to zero above the ABL height using a hyperbolic-tangent
+taper:</p>
+<div class="math notranslate nohighlight">
+\[f_s(z) = 1 - \frac{1}{2}\!\left[1 + \tanh\!\left(\frac{7(z - H_t)}{\Delta_s}\right)\right],\]</div>
+<p>where <span class="math notranslate nohighlight">\(H_t = H + 0.5\,\Delta_s\)</span>, <span class="math notranslate nohighlight">\(H\)</span> is the instantaneous ABL height, and <span class="math notranslate nohighlight">\(\Delta_s = 0.2H\)</span> is the transition width.  The ABL height is
+computed dynamically at every time step from the running LES statistics.  The stability regime is detected from the surface heat flux:</p>
+<ul class="simple">
+<li><p><strong>Convective</strong> (surface heat flux <span class="math notranslate nohighlight">\(&gt; 0.02\,\text{K\,m\,s}^{-1}\)</span>): <span class="math notranslate nohighlight">\(H\)</span> is the height of the minimum of the horizontally averaged total heat flux
+profile above its near-surface maximum.  If no minimum is found, the height of the maximum vertical temperature gradient is used as a fallback.</p></li>
+<li><p><strong>Stable/neutral</strong>: <span class="math notranslate nohighlight">\(H\)</span> is the height at which the total (resolved + SGS) shear stress drops below 10 % of its surface-layer maximum,
+cross-checked against the bulk Richardson number criterion <span class="math notranslate nohighlight">\(\text{Ri}_B \geq 0.25\)</span>.</p></li>
+</ul>
+<p>The raw estimate is smoothed with an exponential running average</p>
+<div class="math notranslate nohighlight">
+\[H^{n+1} = \frac{T_H}{T_H + \Delta t}\,H^n + \frac{\Delta t}{T_H + \Delta t}\,H_\text{raw}^{n+1},\]</div>
+<p>where the averaging time scale <span class="math notranslate nohighlight">\(T_H\)</span> is set by the <code class="docutils literal notranslate"><span class="pre">hAverageTime</span></code> keyword in the <code class="docutils literal notranslate"><span class="pre">controllerProperties</span></code> sub-dictionary of <code class="docutils literal notranslate"><span class="pre">ABLProperties.dat</span></code>.</p>
+</section>
+</section>
+</section>
 </section>
 
 
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="turbulence_models.html" class="btn btn-neutral float-left" title="Sub-grid Scale Model" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="turbulence_models.html" class="btn btn-neutral float-left" title="Sub-grid Scale Models" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
         <a href="precursor.html" class="btn btn-neutral float-right" title="Precursor, Fringe Regions &amp; Damping Layers" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 

@@ -158,6 +158,28 @@ Solution Flags
    ---------------------- -----------------------------------------------------------------------------------------------------
    ``-pvCatalyst``        Enables `ParaView-Catalyst` off-screen rendering capabilities. Useful to create nice videos of very 
                           large simulations. More details are given in Sec. :ref:`paraview-catalyst-section`.
+   ---------------------- -----------------------------------------------------------------------------------------------------
+   ``-meanGradPForce``    If set to 1, activates the bulk velocity controller, which adds a uniform body force to the momentum
+                          equations every time step to drive the volume-averaged velocity toward a prescribed target bulk
+                          velocity. Unlike the pressure PI controller (which acts on the planar average at a single reference
+                          height), this controller acts on the full three-dimensional domain average and is therefore suited
+                          for closed or fully periodic domains (e.g. doubly- or triply-periodic boxes) where no inflow/outflow
+                          boundaries are present.
+
+                          The target bulk velocity vector ``uBulk`` must be set inside the active initialisation
+                          sub-dictionary of the initial conditions file (``initialConditions``). For example, if
+                          ``initializationType`` is ``ABLFlow``, the entry reads:
+
+                          .. code-block:: none
+
+                              ABLFlow
+                              {
+                                  uBulk    (10.0 0.0 0.0);
+                                  ...
+                              }
+
+                          The same ``uBulk`` keyword applies to all other initialisation types (``uniform``,
+                          ``spreadInflow``, ``TGVFlow``, ``ABLFlowZilitinkevich``, ``readField``). 
    ====================== =====================================================================================================
 
 Solution Controls 

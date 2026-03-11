@@ -21,7 +21,7 @@
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Sub-grid Scale Model" href="turbulence_models.html" />
-    <link rel="prev" title="Numerical Method &amp; Curvilinear Coordinates" href="numerics.html" /> 
+    <link rel="prev" title="Advection Schemes" href="advection_schemes.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -43,15 +43,17 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
-<ul class="current">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../tosca_getting_started.html">Getting Started</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tosca_installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tosca_user_guide.html">User Guide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tosca_examples.html">Example Cases</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tosca_applications.html">TOSCA Applications</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="../tosca_theory_guide.html">Theory Guide</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="governing_equations.html">Governing Equations</a></li>
-<li class="toctree-l2"><a class="reference internal" href="numerics.html">Numerical Method &amp; Curvilinear Coordinates</a></li>
+<li class="toctree-l2"><a class="reference internal" href="numerics.html">Numerical Method</a></li>
+<li class="toctree-l2"><a class="reference internal" href="time_integration.html">Time Integration Schemes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="advection_schemes.html">Advection Schemes</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Parallel Efficiency</a></li>
 <li class="toctree-l2"><a class="reference internal" href="turbulence_models.html">Sub-grid Scale Model</a></li>
 <li class="toctree-l2"><a class="reference internal" href="flow_controllers.html">Controllers</a></li>
@@ -89,13 +91,35 @@
              
   <section id="parallel-efficiency">
 <span id="parallel-eff-section"></span><h1>Parallel Efficiency<a class="headerlink" href="#parallel-efficiency" title="Link to this heading"></a></h1>
-</section>
+<p>TOSCA is built on state-of-the-art parallel libraries (OpenMPI, PETSc, HYPRE, HDF5), thus it is suitable by construction for massively parallel wind farm simulations.
+All primary field operations — flow solver kernels, Poisson solver, actuator model updates, and I/O — are parallelized and distributed across MPI processes.</p>
+<p>The computational domain is decomposed into a structured rectilinear partition of subdomains, one per MPI process. The PETSc DMDA framework manages the inter-process halo
+exchange (intra-processor ghost-cell updates) needed by the finite-difference stencils. All global reductions (e.g. computation of pressure mean, controller error averages,
+Lagrangian model denominators) use MPI collective operations, optimized where possible.</p>
+<p>Wind turbine updates and parallelization are original of the TOSCA code and no external library is used. Each turbine is associated with a sphere of mesh cells enclosing the full
+rotor sweep during an hypothetical 360 deg yaw. Processors owning cells inside this sphere are grouped into turbine-specific sub-communicators. This design ensures that,
+provided a sufficient core count, all turbines are solved simultaneously and the turbine update time is independent of the total wind farm size. Notably, each communicator writes
+its turbine output files concurrently, eliminating the I/O bottleneck that would arise if all turbine output had to be written by a single process. When coupled with OpenFAST,
+it is the master processor of each turbine communicator to handle the OpenFAST solution, so that multiple instances of OpenFAST can be solved in parallel across the cluster.</p>
+<p>TOSCA’s parallel efficiency was assessed on Compute Canada’s <em>Niagara</em> cluster (2024 nodes, 40 Intel Skylake/Cascade Lake cores each, EDR Infiniband in a Dragonfly+ topology) in 2024,
+using three conventionally-neutral boundary layer (CNBL) meshes of 9M, 72M, and 576M cells obtained by sistematically doubling the cell count in each direction. The time per iteration remains close to linear in the
+number of nodes down to approximately 25000 cells per core, which is identified as a practical efficiency threshold. TOSCA has been successfully run at full machine scale
+(all 2024 Niagara nodes, exceeding 1 billion mesh elements) to demonstrate its capability for massively parallel computations.</p>
+<figure class="align-center" id="id1">
+<a class="reference internal image-reference" href="../_images/scaling-efficiency-niagara.jpg"><img alt="../_images/scaling-efficiency-niagara.jpg" src="../_images/scaling-efficiency-niagara.jpg" style="width: 80%;" />
+</a>
+<figcaption>
+<p><span class="caption-text">Strong-scaling efficiency on the Niagara cluster (Compute Canada) for three CNBL meshes: 9M, 72M, and 576M cells. The dashed line shows ideal linear scaling.
+Efficiency remains close to 1 down to approximately 25000 cells per core.</span><a class="headerlink" href="#id1" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<br><br></section>
 
 
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="numerics.html" class="btn btn-neutral float-left" title="Numerical Method &amp; Curvilinear Coordinates" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="advection_schemes.html" class="btn btn-neutral float-left" title="Advection Schemes" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
         <a href="turbulence_models.html" class="btn btn-neutral float-right" title="Sub-grid Scale Model" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
