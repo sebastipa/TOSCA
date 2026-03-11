@@ -433,7 +433,7 @@ PetscErrorCode CreateHypreSolver(peqn_ *peqn)
 PetscErrorCode MyKSPMonitorPoisson(KSP ksp, PetscInt iter, PetscReal rnorm, void* dummy)
 {
     peqn_* peqn = (peqn_*)dummy;
-    if(iter==1)
+    if(iter==0)
     {
         peqn->initialPoissonRes = rnorm;
     }
@@ -461,26 +461,32 @@ PetscErrorCode CreatePETScSolver(peqn_ *peqn)
     //PCSetType(peqn->petscPC, PCMG);
     //PCSetType(peqn->petscPC, PCILU);
     //PCMGSetType(peqn->petscPC,PC_MG_KASKADE);
-    PCSetType(peqn->petscPC,PCSOR);
-    //PCSetType(peqn->petscPC,PCGAMG);
+    //PCSetType(peqn->petscPC,PCSOR);
+    PCSetType(peqn->petscPC,PCGAMG);
 
-    // omega = 1 equivalent to Gauss Seidel preconditioner
-    PCSORSetOmega(peqn->petscPC,1.0);
-    PCSORSetIterations(peqn->petscPC,10,2);
+    // 1 smoother sweep per level is standard for scalar Poisson
+    PCGAMGSetNSmooths(peqn->petscPC, 1);
 
-    KSPSetPCSide(peqn->ksp,PC_LEFT);
+    // FGMRES only supports right preconditioning
+    KSPSetPCSide(peqn->ksp,PC_RIGHT);
 
     // null space
     MatNullSpaceCreate(mesh->MESH_COMM, PETSC_TRUE,0,0, &(peqn->petscNs));
     MatSetNullSpace(peqn->petscA,peqn->petscNs);
 
-
-    KSPSetType(peqn->ksp,KSPPGMRES);
+    // FGMRES allows variable preconditioners (required for AMG) and is more
+    // stable than pipelined PGMRES on CPU paths
+    KSPSetType(peqn->ksp,KSPFGMRES);
 
     KSPSetTolerances(peqn->ksp, 1e-30, peqn->poissonTol, 1e30, peqn->poissonIt);
 
-    KSPGMRESSetRestart(peqn->ksp, 100);
+    // AMG typically converges in <20 iterations; a restart of 20 avoids
+    // the memory overhead of the previous 100-vector Krylov basis
+    KSPGMRESSetRestart(peqn->ksp, 20);
     KSPSetFromOptions(peqn->ksp);
+
+    // use previous step's phi as initial guess (warm start)
+    KSPSetInitialGuessNonzero(peqn->ksp, PETSC_TRUE);
 
     KSPSetUp(peqn->ksp);
 
@@ -1784,8 +1790,7 @@ PetscErrorCode SubtractAveragePETSc(peqn_ *peqn, Vec &B)
 
     PetscInt           i, j, k;
     PetscInt           lxs, lxe, lys, lye, lzs, lze;
-    PetscInt           size;
-    PetscReal          ***nvert, ***gid, *b;
+    PetscReal          ***nvert, ***meshTag, ***gid, *b;
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
@@ -1793,37 +1798,56 @@ PetscErrorCode SubtractAveragePETSc(peqn_ *peqn, Vec &B)
 
     DMDAVecGetArray(da, peqn->lGid, &gid);
     DMDAVecGetArray(da, mesh->lNvert, &nvert);
+    DMDAVecGetArray(da, mesh->lmeshTag, &meshTag);
     VecGetArray(B, &b);
 
-    // get local Petsc array dimension
-    VecGetLocalSize(B, &size);
-
     PetscReal lsum = 0, gsum = 0;
-    PetscInt    lcount = 0, gcount = 0;
+    PetscInt  lcount = 0, gcount = 0;
 
-    for(PetscInt id=0; id<size; id++)
+    // average only over fluid/calculated cells, mirroring SubtractAverageHypre
+    for (k=lzs; k<lze; k++)
     {
-        lsum += b[id];
-        lcount++;
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+                if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
+                {
+                    PetscInt idx = (PetscInt)matID(i, j, k) - peqn->thisRankStart;
+                    lsum += b[idx];
+                    lcount++;
+                }
+            }
+        }
     }
 
     // global number of counts among processors
-    MPI_Allreduce(&lsum, &gsum, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-
-    // global number of counts among processors
-    MPI_Allreduce(&lcount, &gcount, 1, MPIU_INT, MPI_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&lsum,   &gsum,   1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&lcount, &gcount, 1, MPIU_INT,  MPI_SUM,  mesh->MESH_COMM);
 
     // compute the mean of the values in the vector
     PetscReal val = -gsum/(PetscReal)gcount;
 
-    for(PetscInt id=0; id<size; id++)
+    // subtract mean from fluid/calculated cells only
+    for (k=lzs; k<lze; k++)
     {
-        b[id] += val;
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+                if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
+                {
+                    PetscInt idx = (PetscInt)matID(i, j, k) - peqn->thisRankStart;
+                    b[idx] += val;
+                }
+            }
+        }
     }
 
     VecRestoreArray(B, &b);
     DMDAVecRestoreArray(da, peqn->lGid, &gid);
     DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da, mesh->lmeshTag, &meshTag);
 
     VecAssemblyBegin(B);
     VecAssemblyEnd  (B);
@@ -2857,9 +2881,6 @@ PetscErrorCode UpdatePressure(peqn_ *peqn)
         }
     }
 
-    // update boundary conditions
-    UpdatePressureBCs(peqn);
-
     MPI_Allreduce(&lPsum,    &gPsum,    1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
     MPI_Allreduce(&lnPoints, &gnPoints, 1, MPIU_INT,    MPI_SUM, mesh->MESH_COMM);
 
@@ -3740,12 +3761,26 @@ PetscErrorCode SolvePEqn(peqn_ *peqn)
         {
             if(peqn->solverType == "HYPRE")
             {
+                // Both the matrix AND the solver/preconditioner must be
+                // destroyed and recreated together. HYPRE_BoomerAMGSetup
+                // (called internally by HYPRE_ParCSRGMRESSetup) caches the
+                // fine-level ParCSR pointer from the previous Setup call. If
+                // only the matrix is recreated, BoomerAMG still holds the old
+                // (now freed) pointer and dereferences it during hierarchy
+                // cleanup at the start of the next Setup — causing the hang.
+                // Destroying BoomerAMG and the GMRES/PCG solver first ensures
+                // no stale internal references survive into the new Setup.
+                DestroyHypreSolver(peqn);
                 DestroyHypreMatrix(peqn);
-                DestroyHypreVector(peqn);
 
+                CreateHypreMatrix(peqn);   // refreshes hypreParA via GetObject
+                CreateHypreSolver(peqn);   // fresh BoomerAMG + GMRES/PCG
 
-                CreateHypreMatrix(peqn);
-                CreateHypreVector(peqn);
+                // Vectors are always fully overwritten by SetRHS and
+                // Petsc2HypreVector, so in-place re-initialisation is safe
+                // and avoids the collective IJVectorCreate MPI overhead.
+                HYPRE_IJVectorInitialize(peqn->hypreP);
+                HYPRE_IJVectorInitialize(peqn->hypreRhs);
 
                 MPI_Barrier(mesh->MESH_COMM);
             }
@@ -3757,16 +3792,17 @@ PetscErrorCode SolvePEqn(peqn_ *peqn)
 
             if(peqn->solverType == "PETSc")
             {
-                // destroy rhs framework
+                // The matrix object (petscA) is never destroyed: SetCoeffMatrix
+                // already called MatZeroEntries + MatAssemblyEnd, incrementing
+                // PETSc's internal version counter. Re-registering the operator
+                // marks the preconditioner as stale so PCGAMG rebuilds its
+                // hierarchy on the next KSPSolve. This avoids tearing down and
+                // recreating the entire KSP context (which discards the
+                // warm-start state and monitor registration).
+                KSPSetOperators(peqn->ksp, peqn->petscA, peqn->petscA);
+
+                // reset RHS vector
                 VecSet(peqn->petscRhs, 0.0);
-
-                // create solver framework
-                if(clock->it > clock->itStart)
-                {
-                    DestroyPETScSolver(peqn);
-                }
-
-                CreatePETScSolver(peqn);
             }
         }
     }
@@ -3865,16 +3901,6 @@ PetscErrorCode SolvePEqn(peqn_ *peqn)
 
         PetscPrintf(mesh->MESH_COMM, "MGGMRES: Solving for p, Initial residual = %e, Final residual = %e, Iterations = %ld, Elapsed Time = ",peqn->initialPoissonRes, peqn->finalPoissonRes, peqn->poissonIterations);
 
-        if(flags->isIBMActive)
-        {
-            if( peqn->access->ibm->dynamic )
-            {
-                MatMPIAIJSetPreallocation(peqn->petscA, 27, PETSC_NULL, 27, PETSC_NULL);
-
-                MatSetOption(peqn->petscA, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE);
-            }
-        }
-
         SubtractAveragePETSc(peqn, peqn->phi);
     }
 
@@ -3892,6 +3918,9 @@ PetscErrorCode SolvePEqn(peqn_ *peqn)
 
     // set pressure reference
     SetPressureReference(peqn);
+
+    // update boundary conditions (must be after SetPressureReference so lP is final)
+    UpdatePressureBCs(peqn);
 
     // update velocity
     ProjectVelocity(peqn);
