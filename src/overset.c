@@ -106,7 +106,39 @@ PetscErrorCode InitializeOverset(domain_ *domain)
             findClosestDomainDonors(d, domain, 0, holeObjects);
         }
     }
-    
+
+    // Re-run a clean interpolation cycle here, with all domains fully initialized,
+    // to set consistent overset boundary conditions before the first time step.
+    PetscPrintf(PETSC_COMM_WORLD, "\nOverset: initializing interface cells after field initialization...\n");
+    UpdateOversetInterpolation(domain);
+
+    // Re-save old-field vectors so that Ucont_o and Tmprt_o reflect the
+    // corrected interface state.  Also fill the physical-domain boundary
+    // ghost rows of every local field vector, because UpdateDomainInterpolation
+    // only calls UpdateCartesianBCs / UpdateContravariantBCs (velocity) and
+    // leaves the pressure and temperature ghost rows at their initialised state.
+    // Notes:
+    //   - UpdateCartesianBCs / UpdateContravariantBCs are already called for
+    //     every domain inside UpdateDomainInterpolation, so Ucont is consistent.
+    //   - UpdatePressureBCs / UpdateTemperatureBCs are NOT called inside
+    //     UpdateDomainInterpolation.  We call them here so that the
+    //     domain-boundary ghost rows of lP and lTmprt are correct before
+    //     SolveUEqn uses GradP on the first time step, and before Tmprt_o is
+    //     snapshotted.
+    PetscInt nDomainsFinal = domain[0].info.nDomains;
+    for (PetscInt d = 0; d < nDomainsFinal; d++)
+    {
+        VecCopy(domain[d].ueqn->Ucont, domain[d].ueqn->Ucont_o);
+
+        UpdatePressureBCs(domain[d].peqn);
+
+        if (domain[d].flags.isTeqnActive)
+        {
+            UpdateTemperatureBCs(domain[d].teqn);
+            VecCopy(domain[d].teqn->Tmprt, domain[d].teqn->Tmprt_o);
+        }
+    }
+
     return 0;
 }
 
@@ -638,6 +670,8 @@ PetscErrorCode interpolateACellTrilinearP2C(mesh_ *meshD, mesh_ *meshA)
     ueqn_            *ueqnD  = meshD->access->ueqn;
     teqn_            *teqnA  = meshA->access->teqn;
     teqn_            *teqnD  = meshD->access->teqn;
+    peqn_            *peqnA  = meshA->access->peqn;
+    peqn_            *peqnD  = meshD->access->peqn;
     flags_           *flags  = meshA->access->flags;
     DM               daA     = meshA->da, fdaA = meshA->fda;
     DMDALocalInfo    infoA   = meshA->info;
@@ -653,6 +687,7 @@ PetscErrorCode interpolateACellTrilinearP2C(mesh_ *meshD, mesh_ *meshA)
 
     Cmpnts           ***lucatD, ***ucatA, ***cent, ucart;
     PetscReal        ***ltempD, ***tempA, Temp;
+    PetscReal        ***lpressD, ***pressA, Pres;
 
     Cmpnts           pCoor;
 
@@ -673,6 +708,8 @@ PetscErrorCode interpolateACellTrilinearP2C(mesh_ *meshD, mesh_ *meshA)
     DMDAVecGetArray(fdaD, ueqnD->lUcat, &lucatD);
     DMDAVecGetArray(fdaA, ueqnA->Ucat, &ucatA);
     DMDAVecGetArray(fdaD, meshD->lCent, &cent);
+    DMDAVecGetArray(daD, peqnD->lP, &lpressD);
+    DMDAVecGetArray(daA, peqnA->P,  &pressA);
 
     if (flags->isTeqnActive)
     {
@@ -706,6 +743,7 @@ PetscErrorCode interpolateACellTrilinearP2C(mesh_ *meshD, mesh_ *meshA)
                     ucart.y = 0.0;
                     ucart.z = 0.0;
                     Temp = 0.0;
+                    Pres = 0.0;
 
                     if (rankD == dCell[b].rank)
                     {
@@ -736,8 +774,19 @@ PetscErrorCode interpolateACellTrilinearP2C(mesh_ *meshD, mesh_ *meshA)
                             );
                         }
 
+                        scalarPointLocalVolumeInterpolation
+                        (
+                                meshD,
+                                pCoor.x, pCoor.y, pCoor.z,
+                                ic, jc, kc,
+                                cent,
+                                lpressD,
+                                Pres
+                        );
+
                         MPI_Send(&ucart, 3, MPIU_REAL, aCell[b].rank, 0, meshD->MESH_COMM);
                         MPI_Send(&Temp, 1, MPIU_REAL, aCell[b].rank, 1, meshD->MESH_COMM);
+                        MPI_Send(&Pres, 1, MPIU_REAL, aCell[b].rank, 2, meshD->MESH_COMM);
 
                         // if(k == 25 && j == 25 && i == 20)
                         //     PetscPrintf(PETSC_COMM_SELF, "donor = %ld %ld %ld, ucatD = %lf %lf %lf, ucatA = %lf %lf %lf\n", kc, jc, ic, lucatD[kc][jc][ic].x, lucatD[kc][jc][ic].y, lucatD[kc][jc][ic].z, ucart.x, ucart.y, ucart.z );
@@ -748,10 +797,13 @@ PetscErrorCode interpolateACellTrilinearP2C(mesh_ *meshD, mesh_ *meshA)
 
                         MPI_Recv(&ucart, 3, MPIU_REAL, dCell[b].rank, 0, meshD->MESH_COMM, MPI_STATUS_IGNORE);
                         MPI_Recv(&Temp, 1, MPIU_REAL, dCell[b].rank, 1, meshD->MESH_COMM, MPI_STATUS_IGNORE);
+                        MPI_Recv(&Pres, 1, MPIU_REAL, dCell[b].rank, 2, meshD->MESH_COMM, MPI_STATUS_IGNORE);
 
                         ucatA[k][j][i].x = ucart.x;
                         ucatA[k][j][i].y = ucart.y;
                         ucatA[k][j][i].z = ucart.z;
+
+                        pressA[k][j][i]   = Pres;
 
                         if (flags->isTeqnActive)
                         {
@@ -775,6 +827,8 @@ PetscErrorCode interpolateACellTrilinearP2C(mesh_ *meshD, mesh_ *meshA)
     DMDAVecRestoreArray(fdaD, ueqnD->lUcat, &lucatD);
     DMDAVecRestoreArray(fdaA, ueqnA->Ucat, &ucatA);
     DMDAVecRestoreArray(fdaD, meshD->lCent, &cent);
+    DMDAVecRestoreArray(daD, peqnD->lP, &lpressD);
+    DMDAVecRestoreArray(daA, peqnA->P,  &pressA);
 
     if (flags->isTeqnActive)
     {
@@ -784,6 +838,9 @@ PetscErrorCode interpolateACellTrilinearP2C(mesh_ *meshD, mesh_ *meshA)
         DMGlobalToLocalBegin(daA, teqnA->Tmprt, INSERT_VALUES, teqnA->lTmprt);
         DMGlobalToLocalEnd(daA, teqnA->Tmprt, INSERT_VALUES, teqnA->lTmprt);
     }
+
+    DMGlobalToLocalBegin(daA, peqnA->P, INSERT_VALUES, peqnA->lP);
+    DMGlobalToLocalEnd  (daA, peqnA->P, INSERT_VALUES, peqnA->lP);
 
     DMGlobalToLocalBegin(fdaA, ueqnA->Ucat, INSERT_VALUES, ueqnA->lUcat);
     DMGlobalToLocalEnd(fdaA, ueqnA->Ucat, INSERT_VALUES, ueqnA->lUcat);
@@ -802,6 +859,8 @@ PetscErrorCode interpolateACellTrilinearC2P(mesh_ *meshD, mesh_ *meshA, PetscInt
     ueqn_            *ueqnD  = meshD->access->ueqn;
     teqn_            *teqnA  = meshA->access->teqn;
     teqn_            *teqnD  = meshD->access->teqn;
+    peqn_            *peqnA  = meshA->access->peqn;
+    peqn_            *peqnD  = meshD->access->peqn;
     flags_           *flags  = meshA->access->flags;
     DM               daA     = meshA->da, fdaA = meshA->fda;
     DMDALocalInfo    infoA   = meshA->info;
@@ -817,9 +876,10 @@ PetscErrorCode interpolateACellTrilinearC2P(mesh_ *meshD, mesh_ *meshA, PetscInt
 
     Cmpnts           ***lucatD, ***ucatA, ***cent;
     PetscReal        ***ltempD, ***tempA;
+    PetscReal        ***lpressD, ***pressA;
 
     Cmpnts           pCoor, ucart;
-    PetscReal        Temp;
+    PetscReal        Temp, Pres;
 
     PetscMPIInt      rankA, sizeA, rankD, sizeD;
     PetscInt         sum_ind1 = 0;
@@ -837,6 +897,8 @@ PetscErrorCode interpolateACellTrilinearC2P(mesh_ *meshD, mesh_ *meshA, PetscInt
     DMDAVecGetArray(fdaD, ueqnD->lUcat, &lucatD);
     DMDAVecGetArray(fdaA, ueqnA->Ucat, &ucatA);
     DMDAVecGetArray(fdaD, meshD->lCent, &cent);
+    DMDAVecGetArray(daD, peqnD->lP, &lpressD);
+    DMDAVecGetArray(daA, peqnA->P,  &pressA);
 
     if (flags->isTeqnActive)
     {
@@ -847,6 +909,7 @@ PetscErrorCode interpolateACellTrilinearC2P(mesh_ *meshD, mesh_ *meshA, PetscInt
     // Map to store interpolated values for each parent cell
     std::map<PetscInt, std::vector<Cmpnts>> vertexVelocities; // parentCellId -> list of velocities
     std::map<PetscInt, std::vector<PetscReal>> vertexTemps;   // parentCellId -> list of temperatures
+    std::map<PetscInt, std::vector<PetscReal>> vertexPressures; // parentCellId -> list of pressures
     std::map<PetscInt, std::tuple<PetscInt, PetscInt, PetscInt>> cellIndices; // parentCellId -> (i, j, k)
 
     // Loop through the ranks
@@ -869,6 +932,7 @@ PetscErrorCode interpolateACellTrilinearC2P(mesh_ *meshD, mesh_ *meshA, PetscInt
                         ucart.y = 0.0;
                         ucart.z = 0.0;
                         Temp = 0.0;
+                        Pres = 0.0;
 
                         if (rankD == dCell[b].rank)
                         {
@@ -900,12 +964,23 @@ PetscErrorCode interpolateACellTrilinearC2P(mesh_ *meshD, mesh_ *meshA, PetscInt
                                 );
                             }
 
+                            scalarPointLocalVolumeInterpolation
+                            (
+                                meshD,
+                                pCoor.x, pCoor.y, pCoor.z,
+                                ic, jc, kc,
+                                cent,
+                                lpressD,
+                                Pres
+                            );
+
                             // Send interpolated values to acceptor processor
                             MPI_Send(&ucart, 3, MPIU_REAL, aCell[b].rank, b, meshD->MESH_COMM);
                             if (flags->isTeqnActive)
                             {
                                 MPI_Send(&Temp, 1, MPIU_REAL, aCell[b].rank, b + sizeA, meshD->MESH_COMM);
                             }
+                            MPI_Send(&Pres, 1, MPIU_REAL, aCell[b].rank, b + 2*sizeA, meshD->MESH_COMM);
                         }
 
                         if (rankA == aCell[b].rank)
@@ -919,6 +994,9 @@ PetscErrorCode interpolateACellTrilinearC2P(mesh_ *meshD, mesh_ *meshA, PetscInt
                                 MPI_Recv(&Temp, 1, MPIU_REAL, dCell[b].rank, b + sizeA, meshD->MESH_COMM, MPI_STATUS_IGNORE);
                                 vertexTemps[aCell[b].parentCellId].push_back(Temp);
                             }
+
+                            MPI_Recv(&Pres, 1, MPIU_REAL, dCell[b].rank, b + 2*sizeA, meshD->MESH_COMM, MPI_STATUS_IGNORE);
+                            vertexPressures[aCell[b].parentCellId].push_back(Pres);
 
                             // Store cell indices for this parentCellId (only once per cell)
                             if (cellIndices.find(aCell[b].parentCellId) == cellIndices.end())
@@ -968,6 +1046,14 @@ PetscErrorCode interpolateACellTrilinearC2P(mesh_ *meshD, mesh_ *meshA, PetscInt
                 ucatA[k][j][i].y = avgVelocity.y;
                 ucatA[k][j][i].z = avgVelocity.z;
 
+                // Average and store pressure
+                PetscReal avgPressure = 0.0;
+                for (const auto& p : vertexPressures[parentCellId])
+                {
+                    avgPressure += p / 8.0;
+                }
+                pressA[k][j][i] = avgPressure;
+
                 // Handle temperature if active
                 if (flags->isTeqnActive)
                 {
@@ -991,6 +1077,8 @@ PetscErrorCode interpolateACellTrilinearC2P(mesh_ *meshD, mesh_ *meshA, PetscInt
     DMDAVecRestoreArray(fdaD, ueqnD->lUcat, &lucatD);
     DMDAVecRestoreArray(fdaA, ueqnA->Ucat, &ucatA);
     DMDAVecRestoreArray(fdaD, meshD->lCent, &cent);
+    DMDAVecRestoreArray(daD, peqnD->lP, &lpressD);
+    DMDAVecRestoreArray(daA, peqnA->P,  &pressA);
 
     if (flags->isTeqnActive)
     {
@@ -1000,6 +1088,9 @@ PetscErrorCode interpolateACellTrilinearC2P(mesh_ *meshD, mesh_ *meshA, PetscInt
         DMGlobalToLocalBegin(daA, teqnA->Tmprt, INSERT_VALUES, teqnA->lTmprt);
         DMGlobalToLocalEnd(daA, teqnA->Tmprt, INSERT_VALUES, teqnA->lTmprt);
     }
+
+    DMGlobalToLocalBegin(daA, peqnA->P, INSERT_VALUES, peqnA->lP);
+    DMGlobalToLocalEnd  (daA, peqnA->P, INSERT_VALUES, peqnA->lP);
 
     DMGlobalToLocalBegin(fdaA, ueqnA->Ucat, INSERT_VALUES, ueqnA->lUcat);
     DMGlobalToLocalEnd(fdaA, ueqnA->Ucat, INSERT_VALUES, ueqnA->lUcat);

@@ -1903,7 +1903,7 @@ PetscErrorCode SetRHS(peqn_ *peqn)
             {
                 PetscReal val;
 
-                // i, j, k is on solid body
+                // i, j, k is on solid body or overset cell
                 if (isIBMCell(k, j, i, nvert) || isOversetCell(k,j,i,meshTag))
                 {
                     val = 0;

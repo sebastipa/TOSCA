@@ -80,6 +80,17 @@ PetscErrorCode SetInitialField(domain_ *domain)
     {
         PetscPrintf(mesh->MESH_COMM, "Setting initial field: %s\n\n", domain->ueqn->initFieldType.c_str());
         readFields(domain, domain->clock->startTime);
+
+        // readFields uses DMGlobalToLocal which fills MPI ghost cells but does NOT
+        // fill the physical-domain boundary ghost rows of lP / lTmprt.  Update
+        // pressure and temperature BCs here so that GradP and Tmprt_o are
+        // consistent before the first time step.
+        UpdatePressureBCs(domain->peqn);
+
+        if(flags->isTeqnActive)
+        {
+            UpdateTemperatureBCs(domain->teqn);
+        }
     }
 
     // save old fields
