@@ -62,10 +62,11 @@
 </li>
 <li class="toctree-l2"><a class="reference internal" href="advection_schemes.html">Advection Schemes</a></li>
 <li class="toctree-l2"><a class="reference internal" href="parallel_efficiency.html">Parallel Efficiency</a></li>
-<li class="toctree-l2"><a class="reference internal" href="turbulence_models.html">Sub-grid Scale Model</a></li>
-<li class="toctree-l2"><a class="reference internal" href="flow_controllers.html">Controllers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="turbulence_models.html">Sub-grid Scale Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="flow_controllers.html">Flow Controllers and Mesoscale Coupling</a></li>
 <li class="toctree-l2"><a class="reference internal" href="precursor.html">Precursor, Fringe Regions &amp; Damping Layers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="turbine_models.html">Turbine Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ibm.html">Immersed Boundary Method</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../tosca_versions.html">Versions</a></li>
@@ -188,13 +189,15 @@ K_s = \mathcal{F}\!\bigl(T^n + a_s\,\Delta t\,K_{s-1}\bigr),\]</div>
 <div class="math notranslate nohighlight">
 \[\mathcal{G}(T^{n+1}) = -\frac{T^{n+1} - T^n}{\Delta t} + \mathcal{F}(T^{n+1}) = 0\]</div>
 <p>is solved using PETSc’s SNES with the same Newton–Krylov configuration used for the momentum equation.  Unconditionally stable; first-order accurate in time.</p>
-<p><strong>Crank–Nicolson</strong></p>
-<p>Second-order implicit scheme that averages <span class="math notranslate nohighlight">\(\mathcal{F}\)</span> at the old and new time levels:</p>
+<p><strong>BDF2 (Second-order Backward Differentiation Formula)</strong></p>
+<p>Second-order fully implicit scheme that uses a three-level time-derivative approximation.  The nonlinear residual is</p>
 <div class="math notranslate nohighlight">
-\[\frac{T^{n+1} - T^n}{\Delta t}
-= \tfrac{1}{2}\,\mathcal{F}(T^{n+1}) + \tfrac{1}{2}\,\mathcal{F}(T^n).\]</div>
-<p>The explicit contribution <span class="math notranslate nohighlight">\(\tfrac{1}{2}\mathcal{F}(T^n)\)</span> is precomputed and stored in the buffer <code class="docutils literal notranslate"><span class="pre">Rhs_o</span></code> before the SNES nonlinear solve, which uses the
-same Newton–Krylov configuration as Backward Euler.  Unconditionally stable and second-order accurate in time.</p>
+\[\mathcal{G}(T^{n+1}) = -\frac{\tfrac{3}{2}T^{n+1} - 2T^n + \tfrac{1}{2}T^{n-1}}{\Delta t}
++ \mathcal{F}(T^{n+1}) = 0,\]</div>
+<p>which is solved with the same Newton–Krylov SNES configuration as Backward Euler.  On the first time step BDF2 falls back to Backward Euler (only <span class="math notranslate nohighlight">\(T^n\)</span> is
+available).  BDF2 is A-stable and mildly dissipative at high wavenumbers (<span class="math notranslate nohighlight">\(|G| &lt; 1\)</span>), unlike Crank–Nicolson which has <span class="math notranslate nohighlight">\(|G| = 1\)</span> exactly and
+can accumulate high-frequency errors in stratified LES.  An extra storage vector <span class="math notranslate nohighlight">\(T^{n-1}\)</span> (<code class="docutils literal notranslate"><span class="pre">Tmprt_oo</span></code>) is allocated only when this scheme is selected.
+Recommended for stable stratification runs where second-order accuracy in time is required.</p>
 <p><strong>IMEX-BEAB (Implicit–Explicit Backward Euler Adams–Bashforth 2)</strong></p>
 <p>Implicit–explicit scheme: convection treated explicitly with Adams–Bashforth 2 and diffusion treated implicitly with Backward Euler.  The scheme avoids the
 need for <span class="math notranslate nohighlight">\(\mathbf{u}^{n+1}\)</span> and yields a <strong>linear</strong> system in <span class="math notranslate nohighlight">\(T^{n+1}\)</span>:</p>
@@ -238,13 +241,13 @@ the system is solved with the same standalone KSP (GMRES or BiCGStab) used for t
 <td><p><span class="math notranslate nohighlight">\(\mathrm{CFL} &lt; 1\)</span>. Conditionally stable, fourth-order accurate in time. Suitable for non-turbulent or idealized runs.</p></td>
 </tr>
 <tr class="row-even"><td><p>Crank–Nicolson</p></td>
-<td><p>Crank–Nicolson / Backward Euler</p></td>
+<td><p>BDF2 / Backward Euler</p></td>
 <td><p>BiCGStab inside SNES, GMRES as fallback.</p></td>
-<td><p><em>robust choice</em>, conditionally stable (<span class="math notranslate nohighlight">\(\mathrm{CFL} \gtrsim 0.9\)</span>). Production runs where the nonlinear-solve cost is offset by large time steps, second-order accurate in time.</p></td>
+<td><p><em>robust choice</em>, unconditionally stable (<span class="math notranslate nohighlight">\(\mathrm{CFL} \gtrsim 0.9\)</span>). Production runs where the nonlinear-solve cost is offset by large time steps. BDF2 gives second-order accuracy in time with mild A-stable dissipation; Backward Euler is first-order but simpler.</p></td>
 </tr>
 <tr class="row-odd"><td><p>IMEX-CNAB</p></td>
-<td><p>Crank–Nicolson / Backward Euler</p></td>
-<td><p><em>fastest choiche</em>, standalone GMRES KSP; BiCGStab as a fallback.</p></td>
+<td><p>BDF2 / Backward Euler</p></td>
+<td><p><em>fastest choice</em>, standalone GMRES KSP; BiCGStab as a fallback.</p></td>
 <td><p><span class="math notranslate nohighlight">\(\mathrm{CFL} \leq 0.5\)</span> without any hyperviscosity, <span class="math notranslate nohighlight">\(\mathrm{CFL} \leq 0.6\)</span>–<span class="math notranslate nohighlight">\(0.7\)</span> with explicit filtering (recommended horizontal coefficient around 0.003; set via <code class="docutils literal notranslate"><span class="pre">-imexHyperVisc4U_i/j/k</span></code>) or added advection scheme viscosity (only for <code class="docutils literal notranslate"><span class="pre">-central4</span></code>). Production runs balancing stability and efficiency; second-order accurate in time.</p></td>
 </tr>
 </tbody>
