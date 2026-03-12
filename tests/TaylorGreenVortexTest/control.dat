@@ -36,8 +36,8 @@
 
 # Numerical Schemes
 # ---------------------------------
--dUdtScheme                rungeKutta4 #backwardEuler
--dTdtScheme                backwardEuler
+-dUdtScheme                RK4 #CN
+-dTdtScheme                BE
 -divScheme                 central4 
 -hyperVisc		   1.0
 # Wind Turbine

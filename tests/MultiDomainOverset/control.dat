@@ -39,7 +39,7 @@
 
 # Numerical Schemes
 # ---------------------------------
--dUdtScheme                backwardEuler
+-dUdtScheme                CN
 -divScheme                 centralUpwind
 -viscScheme     central
 # Wind Turbine
