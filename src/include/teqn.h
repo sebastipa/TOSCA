@@ -11,21 +11,21 @@ struct teqn_
     SNES          snesT;                      //!< non linear matrix free context
     Mat           JT;                         //!< non linear matrix free preconditioner
     Mat           AT, CT;
-    KSP           ksp;                        //!< linear krylov-subspace context (backwardEuler/crankNicholson SNES inner KSP)
+    KSP           ksp;                        //!< linear krylov-subspace context (backwardEuler/BDF2 SNES inner KSP)
     PC            pc;
     KSP           kspIMEX;                    //!< standalone direct KSP for IMEX scheme (no SNES wrapper)
     Mat           JvIMEX;                     //!< MatShell for IMEX operator A*v = v - dt*D(v)
     word          kspType;                    //!< KSP solver type for IMEX: BiCGStab or GMRES (-kspTypeT in control.dat)
     PetscInt      gmresRestart;               //!< GMRES restart parameter for IMEX (-kspGMRESRestartT in control.dat, default 30)
     Vec           Rhs;
-    Vec           Rhs_o;
-    Vec           bT;                         //!< explicit-half RHS buffer: prebuilt once per step for IMEX (conv) or crankNicholson (FormT+damp)
+    Vec           bT;                         //!< explicit-half RHS buffer: prebuilt once per step for IMEX
     Vec           RhsConv;                    //!< convective RHS at T^n (for AB2 blending)
     Vec           RhsConv_o;                  //!< convective RHS at T^{n-1} (for AB2 blending)
 
     Vec           TmprtTmp;                   //!< temporary solution
     Vec           Tmprt, lTmprt,
                   Tmprt_o, lTmprt_o;
+    Vec           Tmprt_oo;                   //!< T^{n-1} (two-steps-back) for BDF2
     Vec           lDivT, lViscT, lViscIBMT;              //!< viscous and divergence temperature equation fluxes
     Vec           sourceT;                    //!< temperature sources
 

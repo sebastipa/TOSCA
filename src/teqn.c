@@ -42,7 +42,6 @@ PetscErrorCode InitializeTEqn(teqn_ *teqn)
         VecDuplicate(mesh->Nvert, &(teqn->Tmprt));       VecSet(teqn->Tmprt,    0.0);
         VecDuplicate(mesh->Nvert, &(teqn->Tmprt_o));     VecSet(teqn->Tmprt_o,  0.0);
         VecDuplicate(mesh->Nvert, &(teqn->Rhs));         VecSet(teqn->Rhs,      0.0);
-        VecDuplicate(mesh->Nvert, &(teqn->Rhs_o));       VecSet(teqn->Rhs_o,    0.0);
         VecDuplicate(mesh->lAj,   &(teqn->lTmprt));      VecSet(teqn->lTmprt,   0.0);
         VecDuplicate(mesh->lAj,   &(teqn->lTmprt_o));    VecSet(teqn->lTmprt_o, 0.0);
 
@@ -66,7 +65,7 @@ PetscErrorCode InitializeTEqn(teqn_ *teqn)
         readDictWord("control.dat", "-dTdtScheme", &(teqn->ddtScheme));
 
         // create the SNES solver
-        if(teqn->ddtScheme=="backwardEuler" || teqn->ddtScheme=="crankNicholson")
+        if(teqn->ddtScheme=="BE" || teqn->ddtScheme=="BDF2")
         {
             // default parameters
             teqn->absExitTol        = 1e-5;
@@ -123,12 +122,26 @@ PetscErrorCode InitializeTEqn(teqn_ *teqn)
             PCSetType(teqn->pc, PCNONE);
             PetscReal rtol=teqn->relExitTol, atol=teqn->absExitTol, dtol=PETSC_DEFAULT;
             KSPSetTolerances(teqn->ksp, rtol, atol, dtol, 1000);
+
+            // BDF2 needs T^{n-1} storage
+            if(teqn->ddtScheme == "BDF2")
+            {
+                VecDuplicate(mesh->Nvert, &(teqn->Tmprt_oo));  VecSet(teqn->Tmprt_oo, 0.0);
+            }
+
+            // print info
+            if(teqn->ddtScheme == "BE")
+                PetscPrintf(mesh->MESH_COMM, "selected BE time scheme for T equation\n");
+            else
+                PetscPrintf(mesh->MESH_COMM, "selected BDF2 time scheme for T equation\n");
+            PetscPrintf(mesh->MESH_COMM, " > relTolT = %e\n", teqn->relExitTol);
+            PetscPrintf(mesh->MESH_COMM, " > absTolT = %e\n", teqn->absExitTol);
         }
-        else if (teqn->ddtScheme=="rungeKutta4")
+        else if (teqn->ddtScheme=="RK4")
         {
 
         }
-        else if (teqn->ddtScheme=="IMEX")
+        else if (teqn->ddtScheme=="BEAB")
         {
             // IMEX-CNAB: Adams-Bashforth 2 for convection (explicit) + backward-Euler for diffusion (implicit).
             // Solved using a standalone KSP for the linear system A*T^{n+1} = b,
@@ -210,7 +223,7 @@ PetscErrorCode InitializeTEqn(teqn_ *teqn)
         else
         {
             char error[512];
-            sprintf(error, "unknown ddtScheme %s for T equation, available schemes are\n    1. backwardEuler\n    2. rungeKutta4\n    3. IMEX\n    4. crankNicholson", teqn->ddtScheme.c_str());
+            sprintf(error, "unknown ddtScheme %s for T equation, available schemes are\n    1. BE\n    2. RK4\n    3. BEAB\n    4. BDF2", teqn->ddtScheme.c_str());
             fatalErrorInFunction("InitializeTEqn", error);
         }
     }
@@ -228,14 +241,14 @@ PetscErrorCode SolveTEqn(teqn_ *teqn)
     // set the right hand side to zero
     VecSet (teqn->Rhs, 0.0);
 
-    if(teqn->ddtScheme=="backwardEuler" || teqn->ddtScheme=="crankNicholson")
+    if(teqn->ddtScheme=="BE" || teqn->ddtScheme=="BDF2")
     {
         PetscReal     norm;
         PetscInt      iter;
         PetscReal     ts, te;
 
         PetscTime(&ts);
-        PetscPrintf(mesh->MESH_COMM, "TRSNES: Solving for T (CN), Initial residual = ");
+        PetscPrintf(mesh->MESH_COMM, "TRSNES: Solving for T, Initial residual = ");
    
         // compute initial guess: conv-only forward Euler (avoids explicit diffusion instability)
         // VecSet(teqn->Rhs, 0.0);
@@ -259,11 +272,11 @@ PetscErrorCode SolveTEqn(teqn_ *teqn)
         PetscTime(&te);
         PetscPrintf(mesh->MESH_COMM, "Final residual = %e, Iterations = %ld, Linear iterations = %ld, Elapsed Time = %lf\n", norm, iter, linIter, te-ts);
     }
-    else if (teqn->ddtScheme=="rungeKutta4")
+    else if (teqn->ddtScheme=="RK4")
     {
         TeqnRK4(teqn);
     }
-    else if (teqn->ddtScheme=="IMEX")
+    else if (teqn->ddtScheme=="BEAB")
     {
         TeqnIMEX(teqn);
     }

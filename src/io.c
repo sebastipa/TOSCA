@@ -193,7 +193,7 @@ PetscErrorCode UpdateInput(io_ *io, word &modified)
 
     // read equation tolerances
     ueqn_ *ueqn = io->access->ueqn;
-    if(ueqn->ddtScheme == "crankNicholson")
+    if(ueqn->ddtScheme == "CN")
     {
         PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-relTolU",  &(ueqn->relExitTol), PETSC_NULL);
         PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-absTolU",  &(ueqn->absExitTol), PETSC_NULL);
@@ -203,7 +203,7 @@ PetscErrorCode UpdateInput(io_ *io, word &modified)
     if(flags->isTeqnActive)
     {
         teqn_ *teqn = io->access->teqn;
-        if(teqn->ddtScheme == "backwardEuler" || teqn->ddtScheme == "crankNicholson")
+        if(teqn->ddtScheme == "BE" || teqn->ddtScheme == "BDF2")
         {
             PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-absTolT",  &(teqn->absExitTol), PETSC_NULL);
             PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-relTolT",  &(teqn->relExitTol), PETSC_NULL);

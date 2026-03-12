@@ -127,7 +127,7 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
 		VecDuplicate(mesh->Cent, &(ueqn->dPAGW));        VecSet(ueqn->dPAGW,      0.0);
 	}
 
-    if(ueqn->ddtScheme == "crankNicholson")
+    if(ueqn->ddtScheme == "CN")
     {
         ueqn->snesType     = "NEWTONTR";     // NEWTONLS
         SNESType snesType  = SNESNEWTONTR;   // SNESNEWTONLS
@@ -141,8 +141,11 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
         PetscOptionsGetInt (PETSC_NULL, PETSC_NULL, "-snesMaxItersU",    &(ueqn->snesMaxIter),  PETSC_NULL);
         PetscOptionsGetInt (PETSC_NULL, PETSC_NULL, "-kspGMRESRestartU", &(ueqn->gmresRestart), PETSC_NULL);
 
-        // KSP type: BiCGStab or GMRES — set via -kspTypeU in control.dat
-        readDictWord("control.dat", "-kspTypeU", &(ueqn->kspType));
+        // KSP type: BiCGStab or GMRES — optional, defaults to BiCGStab
+        PetscBool found;
+        char kspTypeBuf[256] = "BiCGStab";
+        PetscOptionsGetString(PETSC_NULL, PETSC_NULL, "-kspTypeU", kspTypeBuf, sizeof(kspTypeBuf), &found);
+        ueqn->kspType = kspTypeBuf;
 
         if(ueqn->kspType != "BiCGStab" && ueqn->kspType != "GMRES")
         {
@@ -216,7 +219,7 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
             PetscPrintf(mesh->MESH_COMM, " > kspGMRESRestartU = %d\n", ueqn->gmresRestart);
         }
     }
-    else if(ueqn->ddtScheme == "IMEX")
+    else if(ueqn->ddtScheme == "CNAB")
     {
         // IMEX-CNAB: Adams-Bashforth 2 for convection (explicit) + Crank-Nicolson for viscosity (implicit).
         //            solved using a standalone KSP for the linear system A*U^{n+1} = b, where A*v = v - dt*scale*Visc(v) 
@@ -229,10 +232,13 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
         PetscOptionsGetInt (PETSC_NULL, PETSC_NULL, "-snesMaxItersU",    &(ueqn->snesMaxIter),  PETSC_NULL);
         PetscOptionsGetInt (PETSC_NULL, PETSC_NULL, "-kspGMRESRestartU", &(ueqn->gmresRestart), PETSC_NULL);
 
-        // KSP type: BiCGStab or GMRES set via -kspTypeU in control.dat
+        // KSP type: BiCGStab or GMRES — optional, defaults to BiCGStab
         //           BiCGStab is more expensive but more stable (CFL<0.6)
         //           GMRES is less expensive but less stable (CFL<0.5)
-        readDictWord("control.dat", "-kspTypeU", &(ueqn->kspType));
+        PetscBool found;
+        char kspTypeBuf[256] = "GMRES";
+        PetscOptionsGetString(PETSC_NULL, PETSC_NULL, "-kspTypeU", kspTypeBuf, sizeof(kspTypeBuf), &found);
+        ueqn->kspType = kspTypeBuf;
 
         if(ueqn->kspType != "BiCGStab" && ueqn->kspType != "GMRES")
         {
@@ -299,9 +305,6 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
         VecDuplicate(ueqn->Ucont, &(ueqn->RhsConv_o)); VecSet(ueqn->RhsConv_o, 0.0);
 
         // Explicit biharmonic (4th-order index-space) hyperviscosity.
-        // Each direction is activated independently: i (streamwise), j (spanwise), k (vertical).
-        // Suppresses checkerboard / Nyquist-frequency modes in the chosen directions.
-        // Use small values (0.01–0.1), 0 disables the direction entirely.
         ueqn->hyperVisc4i = 0.0;
         ueqn->hyperVisc4j = 0.0;
         ueqn->hyperVisc4k = 0.0;
@@ -329,7 +332,7 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
         PetscPrintf(mesh->MESH_COMM, " > imexHyperVisc4U_j = %f\n", ueqn->hyperVisc4j);
         PetscPrintf(mesh->MESH_COMM, " > imexHyperVisc4U_k = %f\n", ueqn->hyperVisc4k);
     }
-    else if(ueqn->ddtScheme == "forwardEuler" || ueqn->ddtScheme == "rungeKutta4")
+    else if(ueqn->ddtScheme == "FE" || ueqn->ddtScheme == "RK4")
     {
         // print info 
         PetscPrintf(mesh->MESH_COMM, "selected %s time scheme for U equation\n", ueqn->ddtScheme.c_str());
@@ -337,7 +340,7 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
     else
     {
         char error[512];
-        sprintf(error, "unknown ddtScheme %s for U equation, available schemes are\n    1. crankNicholson\n    2. forwardEuler\n    3. rungeKutta4\n    4. IMEX", ueqn->ddtScheme.c_str());
+        sprintf(error, "unknown ddtScheme %s for U equation, available schemes are\n    1. CN\n    2. FE\n    3. RK4\n    4. CNAB", ueqn->ddtScheme.c_str());
         fatalErrorInFunction("InitializeUEqn", error);
     }
 
@@ -1050,7 +1053,7 @@ PetscErrorCode SolveUEqn(ueqn_ *ueqn)
     // set the right hand side to zero
     VecSet (ueqn->Rhs, 0.0);
 
-    if(ueqn->ddtScheme == "crankNicholson")
+    if(ueqn->ddtScheme == "CN")
     {
         PetscReal     norm;
         PetscInt      iter;
@@ -1130,15 +1133,15 @@ PetscErrorCode SolveUEqn(ueqn_ *ueqn)
         PetscTime(&te);
         PetscPrintf(mesh->MESH_COMM,"Final residual = %e, Iterations = %ld, Linear iterations = %ld, Elapsed Time = %lf\n", norm, iter, linIter, te-ts);
     }
-    else if (ueqn->ddtScheme == "forwardEuler")
+    else if (ueqn->ddtScheme == "FE")
     {
         UeqnEuler(ueqn);
     }
-    else if (ueqn->ddtScheme == "rungeKutta4")
+    else if (ueqn->ddtScheme == "RK4")
     {
         UeqnRK4(ueqn);
     }
-    else if (ueqn->ddtScheme == "IMEX")
+    else if (ueqn->ddtScheme == "CNAB")
     {
         UeqnIMEX(ueqn);
     }
