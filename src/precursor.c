@@ -1020,7 +1020,7 @@ PetscErrorCode concurrentPrecursorSolve(abl_ *abl)
         ContinuityErrorsOptimized(domain->peqn);
 
         // save momentum right hand side
-        if(domain->ueqn->ddtScheme=="crankNicholson")
+        if(domain->ueqn->ddtScheme=="CN")
         {
             VecSet(domain->ueqn->Rhs_o, 0.0);
 

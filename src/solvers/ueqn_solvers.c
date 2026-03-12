@@ -915,7 +915,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
                     );
                 }
 
-                // handle periodicity regardless of formMode
+                // apply zero-gradient on non-periodic boundaries 
                 if( (i == 1) && !(mesh->i_periodic) && !(mesh->ii_periodic))
                 {
                     fp[k][j][i-1].x = fp[k][j][i].x;
@@ -966,12 +966,12 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
     DMLocalToLocalBegin(fda, ueqn->lFp, INSERT_VALUES, ueqn->lFp);
     DMLocalToLocalEnd  (fda, ueqn->lFp, INSERT_VALUES, ueqn->lFp);
 
+    // handle periodic boundaries 
     resetCellPeriodicFluxes(mesh, ueqn->lFp, ueqn->lFp, "vector", "localToLocal");
 
     DMDAVecGetArray(fda, ueqn->lFp, &fp);
 
     // projection loop: fp (cell-centred combined flux) → face contravariant RHS.
-    // Dead code removed: v0/v3 and d0-d3 cell-width computations were computed
     // but unused (only central(v1, v2) appears in the rhs assignment).
     for (k=lzs; k<lze; k++)
     {
@@ -1413,9 +1413,23 @@ PetscErrorCode hyperViscosityU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 {
     if(ueqn->hyperVisc4i == 0.0 && ueqn->hyperVisc4j == 0.0 && ueqn->hyperVisc4k == 0.0) return(0);
 
-    // Explicit biharmonic (4th-order, index-space) hyperviscosity for the IMEX scheme.
+    // Explicit triharmonic (6th-order, index-space) hyperviscosity for the IMEX scheme.
+    // Stencil: δ⁶f_i = f_{i-3} - 6f_{i-2} + 15f_{i-1} - 20f_i + 15f_{i+1} - 6f_{i+2} + f_{i+3}
     // Each index direction has an independent coefficient, allowing e.g. horizontal-only
     // damping (i+j) without touching vertical (k) turbulence transport.
+    //
+    // Index layout for face-centered ucont in TOSCA (stencil width s=3):
+    //   i_periodic  : single-process periodic, 1 ghost layer at 0 and mx-1.
+    //                 Boundary faces: 0 and mx-2.  Loop runs 1..mx-3.
+    //                 Wrap: im3→mx-4, im2→mx-3, im1→mx-2(=0), ip1→(mx-1)=0, ip2→2, ip3→3.
+    //   ii_periodic : multi-process, DM_BOUNDARY_PERIODIC fills ghost layers [-3..-1] and
+    //                 [mx..mx+2] with the real cells at the opposite boundary.
+    //                 Boundary faces: 0 and mx-2.  Loop runs 1..mx-3.
+    //                 All ±3 ghost accesses are within the 3-layer ghost band → no clamping needed.
+    //   non-periodic: clamp to valid face range [1, mx-2].  The 4th-order stencil
+    //                 additionally needed im1/ip1 clamped to [1,mx-2], which is correct since
+    //                 face index 0 is the boundary face and has physical meaning; however the
+    //                 filter should not reach across the wall, so clamping is appropriate.
 
     mesh_        *mesh  = ueqn->access->mesh;
     clock_       *clock = ueqn->access->clock;
@@ -1437,7 +1451,7 @@ PetscErrorCode hyperViscosityU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     PetscScalar solid = 0.5;
 
     // eps_{i,j,k}/dt: after VecScale(Rhs, dt) the net effect is
-    //   Rhs += scale*dt * ( eps_i*δ⁴_i(U) + eps_j*δ⁴_j(U) + eps_k*δ⁴_k(U) )
+    //   Rhs += scale*dt * ( eps_i*δ⁶_i(U) + eps_j*δ⁶_j(U) + eps_k*δ⁶_k(U) )
     PetscReal eps_i = scale * ueqn->hyperVisc4i / clock->dt;
     PetscReal eps_j = scale * ueqn->hyperVisc4j / clock->dt;
     PetscReal eps_k = scale * ueqn->hyperVisc4k / clock->dt;
@@ -1450,95 +1464,100 @@ PetscErrorCode hyperViscosityU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     for(j = lys; j < lye; j++)
     for(i = lxs; i < lxe; i++)
     {
-        PetscInt im2 = i-2, im1 = i-1, ip1 = i+1, ip2 = i+2;
+        // ---- i-direction stencil indices ----
+        PetscInt im3 = i-3, im2 = i-2, im1 = i-1, ip1 = i+1, ip2 = i+2, ip3 = i+3;
         if(mesh->i_periodic)
         {
-            if     (i == 1)    { im2 = mx-3; }               // im1=0 is already correct
-            else if(i == mx-2) { ip2 = 2; }                  // ip1=mx-1 (ghost) is fine
+            // single-process periodic: ghost at 0 == face mx-2, ghost at mx-1 == face 1.
+            // Faces run 0..mx-2; loop is 1..mx-3.
+            // im1=0 already wraps to the left boundary face; ip1/ip2 wrap at mx-1.
+            if(i == 1)    { im3 = mx-4; im2 = mx-3; }   // im1=0 is the boundary face (correct)
+            if(i == 2)    { im3 = mx-3; }
+            if(i == mx-3) { ip3 = 2; }
+            if(i == mx-2) { ip2 = 2;   ip3 = 3; }       // ip1=mx-1 is the right ghost (=face 1)
         }
         else if(mesh->ii_periodic)
         {
-            if     (i == 1)    { im1 = -2;   im2 = -3; }
-            else if(i == 2)    { im2 = -2; }                  // 0 → -2 for ii_periodic
-            else if(i == mx-3) { ip1 = mx-2; ip2 = mx+1; }
-            else if(i == mx-2) { ip1 = mx+1; ip2 = mx+2; }   // mx-1→mx+1, mx→mx+2
+            // multi-process periodic: DM_BOUNDARY_PERIODIC with s=3 fills ghost indices
+            // [-1..-3] and [mx..mx+2] correctly.  No manual wrapping needed.
+            // Nothing to do — all ±3 accesses land in valid ghost layers.
         }
         else
         {
-            // non-periodic: pad with the nearest interior value (zero-gradient / slip)
+            // non-periodic: clamp to interior face range [1, mx-2]
+            if(im3 < 1)    im3 = 1;
             if(im2 < 1)    im2 = 1;
             if(im1 < 1)    im1 = 1;
             if(ip1 > mx-2) ip1 = mx-2;
             if(ip2 > mx-2) ip2 = mx-2;
+            if(ip3 > mx-2) ip3 = mx-2;
         }
 
-        PetscInt jm2 = j-2, jm1 = j-1, jp1 = j+1, jp2 = j+2;
+        // ---- j-direction stencil indices ----
+        PetscInt jm3 = j-3, jm2 = j-2, jm1 = j-1, jp1 = j+1, jp2 = j+2, jp3 = j+3;
         if(mesh->j_periodic)
         {
-            if     (j == 1)    { jm2 = my-3; }
-            else if(j == my-2) { jp2 = 2; }
+            if(j == 1)    { jm3 = my-4; jm2 = my-3; }
+            if(j == 2)    { jm3 = my-3; }
+            if(j == my-3) { jp3 = 2; }
+            if(j == my-2) { jp2 = 2;   jp3 = 3; }
         }
         else if(mesh->jj_periodic)
         {
-            if     (j == 1)    { jm1 = -2;   jm2 = -3; }
-            else if(j == 2)    { jm2 = -2; }
-            else if(j == my-3) { jp1 = my-2; jp2 = my+1; }
-            else if(j == my-2) { jp1 = my+1; jp2 = my+2; }
+            // nothing to do
         }
         else
         {
+            if(jm3 < 1)    jm3 = 1;
             if(jm2 < 1)    jm2 = 1;
             if(jm1 < 1)    jm1 = 1;
             if(jp1 > my-2) jp1 = my-2;
             if(jp2 > my-2) jp2 = my-2;
+            if(jp3 > my-2) jp3 = my-2;
         }
 
-        PetscInt km2 = k-2, km1 = k-1, kp1 = k+1, kp2 = k+2;
+        // ---- k-direction stencil indices ----
+        PetscInt km3 = k-3, km2 = k-2, km1 = k-1, kp1 = k+1, kp2 = k+2, kp3 = k+3;
         if(mesh->k_periodic)
         {
-            if     (k == 1)    { km2 = mz-3; }
-            else if(k == mz-2) { kp2 = 2; }
+            if(k == 1)    { km3 = mz-4; km2 = mz-3; }
+            if(k == 2)    { km3 = mz-3; }
+            if(k == mz-3) { kp3 = 2; }
+            if(k == mz-2) { kp2 = 2;   kp3 = 3; }
         }
         else if(mesh->kk_periodic)
         {
-            if     (k == 1)    { km1 = -2;   km2 = -3; }
-            else if(k == 2)    { km2 = -2; }
-            else if(k == mz-3) { kp1 = mz-2; kp2 = mz+1; }
-            else if(k == mz-2) { kp1 = mz+1; kp2 = mz+2; }
+            // nothing to do
         }
         else
         {
+            if(km3 < 1)    km3 = 1;
             if(km2 < 1)    km2 = 1;
             if(km1 < 1)    km1 = 1;
             if(kp1 > mz-2) kp1 = mz-2;
             if(kp2 > mz-2) kp2 = mz-2;
+            if(kp3 > mz-2) kp3 = mz-2;
         }
 
-        // i-face flux (ucont.x)
+        // i-face flux (ucont.x): contravariant flux in i-direction → filter only in i
         if(nvert[k][j][i] + nvert[k][j][i+1] < 2.0 * solid)
         {
             rhs[k][j][i].x -=
-                  eps_i * (ucont[k  ][j  ][ip2].x - 4.0*ucont[k  ][j  ][ip1].x + 6.0*ucont[k][j][i].x - 4.0*ucont[k  ][j  ][im1].x + ucont[k  ][j  ][im2].x)
-                + eps_j * (ucont[k  ][jp2][i  ].x - 4.0*ucont[k  ][jp1][i  ].x + 6.0*ucont[k][j][i].x - 4.0*ucont[k  ][jm1][i  ].x + ucont[k  ][jm2][i  ].x)
-                + eps_k * (ucont[kp2][j  ][i  ].x - 4.0*ucont[kp1][j  ][i  ].x + 6.0*ucont[k][j][i].x - 4.0*ucont[km1][j  ][i  ].x + ucont[km2][j  ][i  ].x);
+                eps_i * (ucont[k][j][ip3].x - 6.0*ucont[k][j][ip2].x + 15.0*ucont[k][j][ip1].x - 20.0*ucont[k][j][i].x + 15.0*ucont[k][j][im1].x - 6.0*ucont[k][j][im2].x + ucont[k][j][im3].x);
         }
 
-        // j-face flux (ucont.y)
+        // j-face flux (ucont.y): contravariant flux in j-direction → filter only in j
         if(nvert[k][j][i] + nvert[k][j+1][i] < 2.0 * solid)
         {
             rhs[k][j][i].y -=
-                  eps_i * (ucont[k  ][j  ][ip2].y - 4.0*ucont[k  ][j  ][ip1].y + 6.0*ucont[k][j][i].y - 4.0*ucont[k  ][j  ][im1].y + ucont[k  ][j  ][im2].y)
-                + eps_j * (ucont[k  ][jp2][i  ].y - 4.0*ucont[k  ][jp1][i  ].y + 6.0*ucont[k][j][i].y - 4.0*ucont[k  ][jm1][i  ].y + ucont[k  ][jm2][i  ].y)
-                + eps_k * (ucont[kp2][j  ][i  ].y - 4.0*ucont[kp1][j  ][i  ].y + 6.0*ucont[k][j][i].y - 4.0*ucont[km1][j  ][i  ].y + ucont[km2][j  ][i  ].y);
+                eps_j * (ucont[k][jp3][i].y - 6.0*ucont[k][jp2][i].y + 15.0*ucont[k][jp1][i].y - 20.0*ucont[k][j][i].y + 15.0*ucont[k][jm1][i].y - 6.0*ucont[k][jm2][i].y + ucont[k][jm3][i].y);
         }
 
-        // k-face flux
+        // k-face flux (ucont.z): contravariant flux in k-direction → filter only in k
         if(nvert[k][j][i] + nvert[k+1][j][i] < 2.0 * solid)
         {
             rhs[k][j][i].z -=
-                  eps_i * (ucont[k  ][j  ][ip2].z - 4.0*ucont[k  ][j  ][ip1].z + 6.0*ucont[k][j][i].z - 4.0*ucont[k  ][j  ][im1].z + ucont[k  ][j  ][im2].z)
-                + eps_j * (ucont[k  ][jp2][i  ].z - 4.0*ucont[k  ][jp1][i  ].z + 6.0*ucont[k][j][i].z - 4.0*ucont[k  ][jm1][i  ].z + ucont[k  ][jm2][i  ].z)
-                + eps_k * (ucont[kp2][j  ][i  ].z - 4.0*ucont[kp1][j  ][i  ].z + 6.0*ucont[k][j][i].z - 4.0*ucont[km1][j  ][i  ].z + ucont[km2][j  ][i  ].z);
+                eps_k * (ucont[kp3][j][i].z - 6.0*ucont[kp2][j][i].z + 15.0*ucont[kp1][j][i].z - 20.0*ucont[k][j][i].z + 15.0*ucont[km1][j][i].z - 6.0*ucont[km2][j][i].z + ucont[km3][j][i].z);
         }
     }
 

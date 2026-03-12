@@ -79,6 +79,13 @@ int main(int argc, char **argv)
 
             if(flags.isTeqnActive)
             {
+                // save T^{n-1} for backward differentiation formula
+                if(domain[d].teqn->ddtScheme == "BDF2")
+                {
+                    // note: T^{n-1} also stores the BCs, so that in the end when solving in SNES
+                    //       T^{n+1}_ghost = 4/3 T^{n-} - 1/3 T^{n-1} (difference from the true BCs by O(dt**2))
+                    VecCopy(domain[d].teqn->Tmprt_o, domain[d].teqn->Tmprt_oo); 
+                }
                 VecCopy(domain[d].teqn->Tmprt, domain[d].teqn->Tmprt_o);
             }
 
@@ -143,8 +150,8 @@ int main(int argc, char **argv)
 
             if(flags.isTeqnActive)
             {
-                if(domain[d].ueqn->ddtScheme == "crankNicholson" ||
-                   domain[d].ueqn->ddtScheme == "IMEX")
+                if(domain[d].ueqn->ddtScheme == "CN" ||
+                   domain[d].ueqn->ddtScheme == "CNAB")
                 {
                     // AB2 buoyancy: rotate history then evaluate b(T^n).
                     // Works for both CN and IMEX-CNAB — both extrapolate buoyancy to t^{n+1/2}.
@@ -160,7 +167,7 @@ int main(int argc, char **argv)
                 }
                 else
                 {
-                    // forwardEuler / rungeKutta4: evaluate b(T^n), no history needed
+                    // forwardEuler / RK4: evaluate b(T^n), no history needed
                     if(domain[d].teqn->pTildeFormulation)
                         ghGradRhoK(domain[d].teqn);
                     else
@@ -201,7 +208,7 @@ int main(int argc, char **argv)
             ContinuityErrorsOptimized(domain[d].peqn);
 
             // save momentum right hand side
-            if(domain[d].ueqn->ddtScheme=="crankNicholson")
+            if(domain[d].ueqn->ddtScheme=="CN")
             {
                 //interpolate IBM cells before computing the forces and moments on the IBM
                 if(flags.isIBMActive)
@@ -261,13 +268,6 @@ int main(int argc, char **argv)
 
             if(flags.isTeqnActive)
             {
-                if(domain[d].teqn->ddtScheme == "crankNicholson")
-                {
-                    // save right hand side (both convection and diffusion) next iter 
-                    VecSet(domain[d].teqn->Rhs_o, 0.0);
-                    FormT(domain[d].teqn, domain[d].teqn->Rhs_o, 1.0, 0);
-                }
-
                 // update temperature BC
                 UpdateTemperatureBCs(domain[d].teqn);
             }

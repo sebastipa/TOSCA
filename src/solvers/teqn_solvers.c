@@ -706,19 +706,7 @@ PetscErrorCode TeqnSNES(SNES snes, Vec T, Vec Rhs, void *ptr)
 
     // get time step
     PetscReal dt = clock->dt;
-    PetscReal scale;
-    
-    if(teqn->ddtScheme == "backwardEuler" || clock->it == clock->itStart)
-    {
-        scale = 1.0;
-    }
-    else if(teqn->ddtScheme == "crankNicholson")
-    {
-        scale = 0.5;
-
-        // add 0.5*T^n contribution to RHS for Crank-Nicolson
-        VecAXPY(Rhs, 0.5, teqn->Rhs_o); 
-    }
+    PetscReal scale = 1.0;
 
     // convection and diffusion terms
     FormT(teqn, Rhs, scale);
@@ -743,9 +731,18 @@ PetscErrorCode TeqnSNES(SNES snes, Vec T, Vec Rhs, void *ptr)
     // set to zero at non-resolved cell faces
     resetNonResolvedCellCentersScalar(mesh, Rhs);
 
-    // add time derivative term
-    VecAXPY(Rhs, -1.0, T);
-    VecAXPY(Rhs,  1.0, teqn->Tmprt_o);
+    // add time derivative term: BDF2 uses three-level formula, otherwise two-level
+    if(teqn->ddtScheme == "BDF2" && clock->it > clock->itStart)
+    {
+        VecAXPY(Rhs, -3.0/2.0, T);
+        VecAXPY(Rhs,  2.0,     teqn->Tmprt_o);
+        VecAXPY(Rhs, -1.0/2.0, teqn->Tmprt_oo);
+    }
+    else
+    {
+        VecAXPY(Rhs, -1.0, T);
+        VecAXPY(Rhs,  1.0, teqn->Tmprt_o);
+    }
 
     return(0);
 }
