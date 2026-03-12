@@ -145,17 +145,19 @@ Fully implicit first-order scheme.  The nonlinear residual
 
 is solved using PETSc's SNES with the same Newton–Krylov configuration used for the momentum equation.  Unconditionally stable; first-order accurate in time.
 
-**Crank–Nicolson**
+**BDF2 (Second-order Backward Differentiation Formula)**
 
-Second-order implicit scheme that averages :math:`\mathcal{F}` at the old and new time levels:
+Second-order fully implicit scheme that uses a three-level time-derivative approximation.  The nonlinear residual is
 
 .. math::
 
-    \frac{T^{n+1} - T^n}{\Delta t}
-    = \tfrac{1}{2}\,\mathcal{F}(T^{n+1}) + \tfrac{1}{2}\,\mathcal{F}(T^n).
+    \mathcal{G}(T^{n+1}) = -\frac{\tfrac{3}{2}T^{n+1} - 2T^n + \tfrac{1}{2}T^{n-1}}{\Delta t}
+    + \mathcal{F}(T^{n+1}) = 0,
 
-The explicit contribution :math:`\tfrac{1}{2}\mathcal{F}(T^n)` is precomputed and stored in the buffer ``Rhs_o`` before the SNES nonlinear solve, which uses the
-same Newton–Krylov configuration as Backward Euler.  Unconditionally stable and second-order accurate in time. 
+which is solved with the same Newton–Krylov SNES configuration as Backward Euler.  On the first time step BDF2 falls back to Backward Euler (only :math:`T^n` is
+available).  BDF2 is A-stable and mildly dissipative at high wavenumbers (:math:`|G| < 1`), unlike Crank–Nicolson which has :math:`|G| = 1` exactly and
+can accumulate high-frequency errors in stratified LES.  An extra storage vector :math:`T^{n-1}` (``Tmprt_oo``) is allocated only when this scheme is selected.
+Recommended for stable stratification runs where second-order accuracy in time is required.
 
 **IMEX-BEAB (Implicit–Explicit Backward Euler Adams–Bashforth 2)**
 
@@ -200,10 +202,10 @@ In the following table, the recommended combinations of momentum and temperature
      - N/A
      - :math:`\mathrm{CFL} < 1`. Conditionally stable, fourth-order accurate in time. Suitable for non-turbulent or idealized runs.
    * - Crank–Nicolson
-     - Crank–Nicolson / Backward Euler
+     - BDF2 / Backward Euler
      - BiCGStab inside SNES, GMRES as fallback.
-     - *robust choice*, conditionally stable (:math:`\mathrm{CFL} \gtrsim 0.9`). Production runs where the nonlinear-solve cost is offset by large time steps, second-order accurate in time.
+     - *robust choice*, unconditionally stable (:math:`\mathrm{CFL} \gtrsim 0.9`). Production runs where the nonlinear-solve cost is offset by large time steps. BDF2 gives second-order accuracy in time with mild A-stable dissipation; Backward Euler is first-order but simpler.
    * - IMEX-CNAB
-     - Crank–Nicolson / Backward Euler
-     - *fastest choiche*, standalone GMRES KSP; BiCGStab as a fallback.
+     - BDF2 / Backward Euler
+     - *fastest choice*, standalone GMRES KSP; BiCGStab as a fallback.
      - :math:`\mathrm{CFL} \leq 0.5` without any hyperviscosity, :math:`\mathrm{CFL} \leq 0.6`–:math:`0.7` with explicit filtering (recommended horizontal coefficient around 0.003; set via ``-imexHyperVisc4U_i/j/k``) or added advection scheme viscosity (only for ``-central4``). Production runs balancing stability and efficiency; second-order accurate in time.
