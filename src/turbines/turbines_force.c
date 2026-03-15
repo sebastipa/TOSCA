@@ -98,11 +98,11 @@ PetscErrorCode computeBladeForce(farm_ *farm)
                             // and pitch angles. Direction of the helix rotation is 1.0 for ccw and -1.0 for cw.
                             if(wt->dipcHelixDir == "cw") 
                             {
-                                dicControlPitch = (wt->dipcHelixAmp*wt->deg2rad * std::sin(azim + (2.0*M_PI*wt->dipcHelixFreq*clock->time))) * wt->rad2deg;
+                                dicControlPitch = (wt->dipcHelixAmp*wt->deg2rad * std::sin(azim + (-2.0*M_PI*wt->dipcHelixFreq*clock->time))) * wt->rad2deg;
                             }
                             else if(wt->dipcHelixDir == "ccw")
                             {
-                                dicControlPitch = (wt->dipcHelixAmp*wt->deg2rad * std::sin(azim + (-2.0*M_PI*wt->dipcHelixFreq*clock->time))) * wt->rad2deg;
+                                dicControlPitch = (wt->dipcHelixAmp*wt->deg2rad * std::sin(azim + (2.0*M_PI*wt->dipcHelixFreq*clock->time))) * wt->rad2deg;
                             }
                         }  
 
@@ -113,7 +113,7 @@ PetscErrorCode computeBladeForce(farm_ *farm)
                         PetscReal ub_y = nDot(wt->adm.U[p], yb_hat);
 
                         // compute angle of angle of attack in degrees: alpha = phi - twist - pitch
-                        wt->adm.alpha[p] = wt->rad2deg * std::atan2(ub_x, ub_y) - wt->adm.twist[p] - wt->collPitch * wt->rad2deg - wfControlPitch;
+                        wt->adm.alpha[p] = wt->rad2deg * std::atan2(ub_x, ub_y) - wt->adm.twist[p] - wt->collPitch * wt->rad2deg - wfControlPitch - dicControlPitch;
 
                         // The idea is to interpolate the aero coeffs for the computed
                         // angle of attack, but the airfoils are discrete in radius.
