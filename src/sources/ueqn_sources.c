@@ -3858,3 +3858,406 @@ PetscErrorCode meanGradPForcing(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
 //***************************************************************************************************************//
 
+PetscErrorCode hyperViscosityU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
+{
+    // based on Knievel et al 2007 and adapted to TOSCA's staggered-hybrid contravaiant-cartesian formulation 
+    // 1. transform cell-centered cartesian velocity to contravariant 
+    // 2. compute 6th order diffusion fluxes and apply them at cell centers 
+    // 3. interpolate the cell centered rhs to the faces
+    
+    if(ueqn->hyperVisc4i == 0.0 && ueqn->hyperVisc4j == 0.0 && ueqn->hyperVisc4k == 0.0) return(0);
+
+    mesh_        *mesh  = ueqn->access->mesh;
+    clock_       *clock = ueqn->access->clock;
+    DM            fda   = mesh->fda;
+    DM            da    = mesh->da;
+    DMDALocalInfo info  = mesh->info;
+    PetscInt xs = info.xs, xe = info.xs + info.xm;
+    PetscInt ys = info.ys, ye = info.ys + info.ym;
+    PetscInt zs = info.zs, ze = info.zs + info.zm;
+    PetscInt mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt lxs = xs; if(lxs == 0) lxs=lxs+1; PetscInt lxe = xe; if(lxe == mx) lxe=lxe-1;
+    PetscInt lys = ys; if(lys == 0) lys=lys+1; PetscInt lye = ye; if(lye == my) lye=lye-1;
+    PetscInt lzs = zs; if(lzs == 0) lzs=lzs+1; PetscInt lze = ze; if(lze == mz) lze=lze-1;
+
+    Cmpnts           ***csi,  ***eta,  ***zet;
+    Cmpnts           ***icsi, ***ieta, ***izet;
+    Cmpnts           ***jcsi, ***jeta, ***jzet;
+    Cmpnts           ***kcsi, ***keta, ***kzet;
+
+    PetscInt    i, j, k;
+    Vec         Ucont_c, Rhs_c;
+    Cmpnts      ***ucont, ***ucat, ***ucont_c, ***rhs, ***rhs_c;
+    PetscReal   ***nvert;
+    PetscScalar solid = 0.5;
+
+    PetscReal eps_i = scale * 0.015625 * ueqn->hyperVisc4i;
+    PetscReal eps_j = scale * 0.015625 * ueqn->hyperVisc4j;
+    PetscReal eps_k = scale * 0.015625 * ueqn->hyperVisc4k;
+
+    DMDAVecGetArray(fda, mesh->lCsi, &csi);
+    DMDAVecGetArray(fda, mesh->lEta, &eta);
+    DMDAVecGetArray(fda, mesh->lZet, &zet);
+
+    DMDAVecGetArray(fda, ueqn->lUcont, &ucont);
+    DMDAVecGetArray(fda, ueqn->lUcat,  &ucat);
+    DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+
+    VecDuplicate( ueqn->lUcont, &Ucont_c); VecSet(Ucont_c, 0.0);
+    VecDuplicate( ueqn->lUcont, &Rhs_c); VecSet(Rhs_c, 0.0);
+    DMDAVecGetArray(fda, Ucont_c, &ucont_c);
+
+    // 1. transform cartesian velocity to contravariant at face centers 
+    for(k = lzs; k < lze; k++)
+    for(j = lys; j < lye; j++)
+    for(i = lxs; i < lxe; i++)
+    {
+        ucont_c[k][j][i].x  = csi[k][j][i].x * ucat[k][j][i].x + csi[k][j][i].y * ucat[k][j][i].y + csi[k][j][i].z * ucat[k][j][i].z;
+        ucont_c[k][j][i].y  = eta[k][j][i].x * ucat[k][j][i].x + eta[k][j][i].y * ucat[k][j][i].y + eta[k][j][i].z * ucat[k][j][i].z;
+        ucont_c[k][j][i].z  = zet[k][j][i].x * ucat[k][j][i].x + zet[k][j][i].y * ucat[k][j][i].y + zet[k][j][i].z * ucat[k][j][i].z;
+
+        // handle zerogradient and no penetration boundaries 
+        if(!(mesh->i_periodic) && !(mesh->ii_periodic))
+        {
+            if (i == 1)
+            {
+                // generic zero gradient 
+                ucont_c[k][j][i-1].x = ucont_c[k][j][i].x;
+                ucont_c[k][j][i-1].y = ucont_c[k][j][i].y;
+                ucont_c[k][j][i-1].z = ucont_c[k][j][i].z;
+
+                // no penetration 
+                if(mesh->boundaryU.iLeftPatchType == 1) // no penetration
+                {
+                    ucont_c[k][j][i-1].x = -ucont_c[k][j][i].x;
+                }
+            }
+            else if(i == mx-2)
+            {
+                // generic zero gradient 
+                ucont_c[k][j][i+1].x = ucont_c[k][j][i].x;
+                ucont_c[k][j][i+1].y = ucont_c[k][j][i].y;
+                ucont_c[k][j][i+1].z = ucont_c[k][j][i].z;
+
+                // no penetration 
+                if(mesh->boundaryU.iRightPatchType == 1) // no penetration
+                {
+                    ucont_c[k][j][i+1].x = -ucont_c[k][j][i].x;
+                }
+            }
+        }
+
+        if(!(mesh->j_periodic) && !(mesh->jj_periodic))
+        {
+            if (j == 1)
+            {
+                // generic zero gradient 
+                ucont_c[k][j-1][i].x = ucont_c[k][j][i].x;
+                ucont_c[k][j-1][i].y = ucont_c[k][j][i].y;
+                ucont_c[k][j-1][i].z = ucont_c[k][j][i].z;
+
+                // no penetration 
+                if(mesh->boundaryU.jLeftPatchType == 1) // no penetration
+                {
+                    ucont_c[k][j-1][i].y = -ucont_c[k][j][i].y;
+                }
+            }
+            else if(j == my-2)
+            {
+                // generic zero gradient 
+                ucont_c[k][j+1][i].x = ucont_c[k][j][i].x;
+                ucont_c[k][j+1][i].y = ucont_c[k][j][i].y;
+                ucont_c[k][j+1][i].z = ucont_c[k][j][i].z;
+
+                // no penetration 
+                if(mesh->boundaryU.jRightPatchType == 1) // no penetration
+                {
+                    ucont_c[k][j+1][i].y = -ucont_c[k][j][i].y;
+                }
+            }
+        }
+
+        if(!(mesh->k_periodic) && !(mesh->kk_periodic))
+        {
+            if (k == 1)
+            {
+                // generic zero gradient 
+                ucont_c[k-1][j][i].x = ucont_c[k][j][i].x;
+                ucont_c[k-1][j][i].y = ucont_c[k][j][i].y;
+                ucont_c[k-1][j][i].z = ucont_c[k][j][i].z;
+
+                // no penetration 
+                if(mesh->boundaryU.kLeftPatchType == 1) // no penetration
+                {
+                    ucont_c[k-1][j][i].z = -ucont_c[k][j][i].z;
+                }
+            }
+            else if(k == mz-2)
+            {
+                // generic zero gradient 
+                ucont_c[k+1][j][i].x = ucont_c[k][j][i].x;
+                ucont_c[k+1][j][i].y = ucont_c[k][j][i].y;
+                ucont_c[k+1][j][i].z = ucont_c[k][j][i].z;
+
+                // no penetration 
+                if(mesh->boundaryU.kRightPatchType == 1) // no penetration
+                {
+                    ucont_c[k+1][j][i].z = -ucont_c[k][j][i].z;
+                }
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(fda, Ucont_c, &ucont_c);
+    DMLocalToLocalBegin(fda, Ucont_c, INSERT_VALUES, Ucont_c);
+    DMLocalToLocalEnd  (fda, Ucont_c, INSERT_VALUES, Ucont_c);
+
+    resetCellPeriodicFluxes(mesh, Ucont_c, Ucont_c, "vector", "localToLocal");
+
+    // 2. compute diffusion term at cell centers (stay on internal faces)
+    DMDAVecGetArray(fda, Rhs_c, &rhs_c);
+    DMDAVecGetArray(fda, Ucont_c, &ucont_c);
+
+    lxs = xs; if(lxs == 0) lxs=lxs+3;  lxe = xe; if(lxe == mx) lxe=lxe-3;
+    lys = ys; if(lys == 0) lys=lys+3;  lye = ye; if(lye == my) lye=lye-3;
+    lzs = zs; if(lzs == 0) lzs=lzs+3;  lze = ze; if(lze == mz) lze=lze-3;
+
+    for(k = lzs; k < lze; k++)
+    for(j = lys; j < lye; j++)
+    for(i = lxs; i < lxe; i++)
+    {
+
+        // damping i direction
+        PetscInt im3, im2, im1, ip1, ip2, ip3;
+        getCell2Cell7StencilCsi(mesh, i, mx, &im3, &im2, &im1, &ip1, &ip2, &ip3);
+
+        PetscReal ux_ip1 = ucont_c[k][j][ip1].x, uy_ip1 = ucont_c[k][j][ip1].y, uz_ip1 = ucont_c[k][j][ip1].z,
+                  ux_im1 = ucont_c[k][j][im1].x, uy_im1 = ucont_c[k][j][im1].y, uz_im1 = ucont_c[k][j][im1].z,
+                  ux_ip2 = ucont_c[k][j][ip2].x, uy_ip2 = ucont_c[k][j][ip2].y, uz_ip2 = ucont_c[k][j][ip2].z,
+                  ux_im2 = ucont_c[k][j][im2].x, uy_im2 = ucont_c[k][j][im2].y, uz_im2 = ucont_c[k][j][im2].z, 
+                  ux_ip3 = ucont_c[k][j][ip3].x, uy_ip3 = ucont_c[k][j][ip3].y, uz_ip3 = ucont_c[k][j][ip3].z, 
+                  ux_im3 = ucont_c[k][j][im3].x, uy_im3 = ucont_c[k][j][im3].y, uz_im3 = ucont_c[k][j][im3].z,
+                  ux_i   = ucont_c[k][j][i  ].x, uy_i   = ucont_c[k][j][i  ].y, uz_i   = ucont_c[k][j][i  ].z;
+
+        if(nvert[k][j][i] + nvert[k][j][i+1] < 2.0 * solid)
+        {
+            PetscReal Fp_x = 10.0*(ux_ip1 - ux_i) -5.0*(ux_ip2 - ux_im1) + (ux_ip3 - ux_im2);
+            PetscReal Fm_x = 10.0*(ux_i - ux_im1) -5.0*(ux_ip1 - ux_im2) + (ux_ip2 - ux_im3);
+            PetscReal Fp_y = 10.0*(uy_ip1 - uy_i) -5.0*(uy_ip2 - uy_im1) + (uy_ip3 - uy_im2);
+            PetscReal Fm_y = 10.0*(uy_i - uy_im1) -5.0*(uy_ip1 - uy_im2) + (uy_ip2 - uy_im3);
+            PetscReal Fp_z = 10.0*(uz_ip1 - uz_i) -5.0*(uz_ip2 - uz_im1) + (uz_ip3 - uz_im2);
+            PetscReal Fm_z = 10.0*(uz_i - uz_im1) -5.0*(uz_ip1 - uz_im2) + (uz_ip2 - uz_im3);
+
+            if((ux_ip1 - ux_i) * Fp_x <= 0.0) Fp_x = 0.0;
+            if((ux_i - ux_im1) * Fm_x <= 0.0) Fm_x = 0.0;
+            if((uy_ip1 - uy_i) * Fp_y <= 0.0) Fp_y = 0.0;
+            if((uy_i - uy_im1) * Fm_y <= 0.0) Fm_y = 0.0;
+            if((uz_ip1 - uz_i) * Fp_z <= 0.0) Fp_z = 0.0;
+            if((uz_i - uz_im1) * Fm_z <= 0.0) Fm_z = 0.0;
+
+            rhs_c[k][j][i].x += eps_i * (Fp_x - Fm_x);
+            rhs_c[k][j][i].y += eps_i * (Fp_y - Fm_y);
+            rhs_c[k][j][i].z += eps_i * (Fp_z - Fm_z);
+        }   
+
+        // damping in j direction 
+        PetscInt jm3, jm2, jm1, jp1, jp2, jp3;
+        getCell2Cell7StencilEta(mesh, j, my, &jm3, &jm2, &jm1, &jp1, &jp2, &jp3);
+
+        PetscReal ux_jp1 = ucont_c[k][jp1][i].x, uy_jp1 = ucont_c[k][jp1][i].y, uz_jp1 = ucont_c[k][jp1][i].z,
+                  ux_jm1 = ucont_c[k][jm1][i].x, uy_jm1 = ucont_c[k][jm1][i].y, uz_jm1 = ucont_c[k][jm1][i].z,
+                  ux_jp2 = ucont_c[k][jp2][i].x, uy_jp2 = ucont_c[k][jp2][i].y, uz_jp2 = ucont_c[k][jp2][i].z,
+                  ux_jm2 = ucont_c[k][jm2][i].x, uy_jm2 = ucont_c[k][jm2][i].y, uz_jm2 = ucont_c[k][jm2][i].z, 
+                  ux_jp3 = ucont_c[k][jp3][i].x, uy_jp3 = ucont_c[k][jp3][i].y, uz_jp3 = ucont_c[k][jp3][i].z, 
+                  ux_jm3 = ucont_c[k][jm3][i].x, uy_jm3 = ucont_c[k][jm3][i].y, uz_jm3 = ucont_c[k][jm3][i].z,
+                  ux_j   = ucont_c[k][j  ][i].x, uy_j   = ucont_c[k][j  ][i].y, uz_j   = ucont_c[k][j  ][i].z;
+
+        if(nvert[k][j][i] + nvert[k][j+1][i] < 2.0 * solid)
+        {
+            PetscReal Fp_x = 10.0*(ux_jp1 - ux_j) -5.0*(ux_jp2 - ux_jm1) + (ux_jp3 - ux_jm2);
+            PetscReal Fm_x = 10.0*(ux_j - ux_jm1) -5.0*(ux_jp1 - ux_jm2) + (ux_jp2 - ux_jm3);
+            PetscReal Fp_y = 10.0*(uy_jp1 - uy_j) -5.0*(uy_jp2 - uy_jm1) + (uy_jp3 - uy_jm2);
+            PetscReal Fm_y = 10.0*(uy_j - uy_jm1) -5.0*(uy_jp1 - uy_jm2) + (uy_jp2 - uy_jm3);
+            PetscReal Fp_z = 10.0*(uz_jp1 - uz_j) -5.0*(uz_jp2 - uz_jm1) + (uz_jp3 - uz_jm2);
+            PetscReal Fm_z = 10.0*(uz_j - uz_jm1) -5.0*(uz_jp1 - uz_jm2) + (uz_jp2 - uz_jm3);
+
+            if((ux_jp1 - ux_j) * Fp_x <= 0.0) Fp_x = 0.0;
+            if((ux_j - ux_jm1) * Fm_x <= 0.0) Fm_x = 0.0;
+            if((uy_jp1 - uy_j) * Fp_y <= 0.0) Fp_y = 0.0;
+            if((uy_j - uy_jm1) * Fm_y <= 0.0) Fm_y = 0.0;
+            if((uz_jp1 - uz_j) * Fp_z <= 0.0) Fp_z = 0.0;
+            if((uz_j - uz_jm1) * Fm_z <= 0.0) Fm_z = 0.0;
+
+            rhs_c[k][j][i].x += eps_j * (Fp_x - Fm_x);
+            rhs_c[k][j][i].y += eps_j * (Fp_y - Fm_y);
+            rhs_c[k][j][i].z += eps_j * (Fp_z - Fm_z);
+        }
+
+        // damping k direction
+        PetscInt km3, km2, km1, kp1, kp2, kp3;
+        getCell2Cell7StencilZet(mesh, k, mz, &km3, &km2, &km1, &kp1, &kp2, &kp3);
+
+        PetscReal ux_kp1 = ucont_c[kp1][j][i].x, uy_kp1 = ucont_c[kp1][j][i].y, uz_kp1 = ucont_c[kp1][j][i].z,
+                  ux_km1 = ucont_c[km1][j][i].x, uy_km1 = ucont_c[km1][j][i].y, uz_km1 = ucont_c[km1][j][i].z,
+                  ux_kp2 = ucont_c[kp2][j][i].x, uy_kp2 = ucont_c[kp2][j][i].y, uz_kp2 = ucont_c[kp2][j][i].z,
+                  ux_km2 = ucont_c[km2][j][i].x, uy_km2 = ucont_c[km2][j][i].y, uz_km2 = ucont_c[km2][j][i].z, 
+                  ux_kp3 = ucont_c[kp3][j][i].x, uy_kp3 = ucont_c[kp3][j][i].y, uz_kp3 = ucont_c[kp3][j][i].z, 
+                  ux_km3 = ucont_c[km3][j][i].x, uy_km3 = ucont_c[km3][j][i].y, uz_km3 = ucont_c[km3][j][i].z,
+                  ux_k   = ucont_c[k  ][j][i].x, uy_k   = ucont_c[k  ][j][i].y, uz_k   = ucont_c[k  ][j][i].z;
+
+        if(nvert[k][j][i] + nvert[k+1][j][i] < 2.0 * solid)
+        {
+            PetscReal Fp_x = 10.0*(ux_kp1 - ux_k) -5.0*(ux_kp2 - ux_km1) + (ux_kp3 - ux_km2);
+            PetscReal Fm_x = 10.0*(ux_k - ux_km1) -5.0*(ux_kp1 - ux_km2) + (ux_kp2 - ux_km3);
+            PetscReal Fp_y = 10.0*(uy_kp1 - uy_k) -5.0*(uy_kp2 - uy_km1) + (uy_kp3 - uy_km2);
+            PetscReal Fm_y = 10.0*(uy_k - uy_km1) -5.0*(uy_kp1 - uy_km2) + (uy_kp2 - uy_km3);
+            PetscReal Fp_z = 10.0*(uz_kp1 - uz_k) -5.0*(uz_kp2 - uz_km1) + (uz_kp3 - uz_km2);
+            PetscReal Fm_z = 10.0*(uz_k - uz_km1) -5.0*(uz_kp1 - uz_km2) + (uz_kp2 - uz_km3);   
+
+            if((ux_kp1 - ux_k) * Fp_x <= 0.0) Fp_x = 0.0;
+            if((ux_k - ux_km1) * Fm_x <= 0.0) Fm_x = 0.0;
+            if((uy_kp1 - uy_k) * Fp_y <= 0.0) Fp_y = 0.0;
+            if((uy_k - uy_km1) * Fm_y <= 0.0) Fm_y = 0.0;
+            if((uz_kp1 - uz_k) * Fp_z <= 0.0) Fp_z = 0.0;
+            if((uz_k - uz_km1) * Fm_z <= 0.0) Fm_z = 0.0;
+
+            rhs_c[k][j][i].x += eps_k * (Fp_x - Fm_x);
+            rhs_c[k][j][i].y += eps_k * (Fp_y - Fm_y);
+            rhs_c[k][j][i].z += eps_k * (Fp_z - Fm_z);
+        }
+
+        // handle zerogradient and no penetration boundaries 
+        if(!(mesh->i_periodic) && !(mesh->ii_periodic))
+        {
+            if (i == 1)
+            {
+                // generic zero gradient 
+                rhs_c[k][j][i-1].x = rhs_c[k][j][i].x;
+                rhs_c[k][j][i-1].y = rhs_c[k][j][i].y;
+                rhs_c[k][j][i-1].z = rhs_c[k][j][i].z;
+
+                // no penetration 
+                if(mesh->boundaryU.iLeftPatchType == 1) // no penetration
+                {
+                    rhs_c[k][j][i-1].x = -rhs_c[k][j][i].x;
+                }
+            }
+            else if(i == mx-2)
+            {
+                // generic zero gradient 
+                rhs_c[k][j][i+1].x = rhs_c[k][j][i].x;
+                rhs_c[k][j][i+1].y = rhs_c[k][j][i].y;
+                rhs_c[k][j][i+1].z = rhs_c[k][j][i].z;
+
+                // no penetration 
+                if(mesh->boundaryU.iRightPatchType == 1) // no penetration
+                {
+                    rhs_c[k][j][i+1].x = -rhs_c[k][j][i].x;
+                }
+            }
+        }
+
+        if(!(mesh->j_periodic) && !(mesh->jj_periodic))
+        {
+            if (j == 1)
+            {
+                // generic zero gradient 
+                rhs_c[k][j-1][i].x = rhs_c[k][j][i].x;
+                rhs_c[k][j-1][i].y = rhs_c[k][j][i].y;
+                rhs_c[k][j-1][i].z = rhs_c[k][j][i].z;
+
+                // no penetration 
+                if(mesh->boundaryU.jLeftPatchType == 1) // no penetration
+                {
+                    rhs_c[k][j-1][i].y = -rhs_c[k][j][i].y;
+                }
+            }
+            else if(j == my-2)
+            {
+                // generic zero gradient 
+                rhs_c[k][j+1][i].x = rhs_c[k][j][i].x;
+                rhs_c[k][j+1][i].y = rhs_c[k][j][i].y;
+                rhs_c[k][j+1][i].z = rhs_c[k][j][i].z;
+
+                // no penetration 
+                if(mesh->boundaryU.jRightPatchType == 1) // no penetration
+                {
+                    rhs_c[k][j+1][i].y = -rhs_c[k][j][i].y;
+                }
+            }
+        }
+
+        if(!(mesh->k_periodic) && !(mesh->kk_periodic))
+        {
+            if (k == 1)
+            {
+                // generic zero gradient 
+                rhs_c[k-1][j][i].x = rhs_c[k][j][i].x;
+                rhs_c[k-1][j][i].y = rhs_c[k][j][i].y;
+                rhs_c[k-1][j][i].z = rhs_c[k][j][i].z;
+
+                // no penetration 
+                if(mesh->boundaryU.kLeftPatchType == 1) // no penetration
+                {
+                    rhs_c[k-1][j][i].z = -rhs_c[k][j][i].z;
+                }
+            }
+            else if(k == mz-2)
+            {
+                // generic zero gradient 
+                rhs_c[k+1][j][i].x = rhs_c[k][j][i].x;
+                rhs_c[k+1][j][i].y = rhs_c[k][j][i].y;
+                rhs_c[k+1][j][i].z = rhs_c[k][j][i].z;
+
+                // no penetration 
+                if(mesh->boundaryU.kRightPatchType == 1) // no penetration
+                {
+                    rhs_c[k+1][j][i].z = -rhs_c[k][j][i].z;
+                }
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(fda, Ucont_c, &ucont_c);
+    DMDAVecRestoreArray(fda, Rhs_c, &rhs_c);
+    DMLocalToLocalBegin(fda, Rhs_c, INSERT_VALUES, Rhs_c);
+    DMLocalToLocalEnd  (fda, Rhs_c, INSERT_VALUES, Rhs_c);
+
+    resetCellPeriodicFluxes(mesh, Rhs_c, Rhs_c, "vector", "localToLocal");
+
+    // 3. interpolate back to faces and add to rhs
+    DMDAVecGetArray(fda, Rhs,     &rhs);
+    DMDAVecGetArray(fda, Rhs_c, &rhs_c);
+
+    lxs = xs; if(lxs == 0) lxs=lxs+1;  lxe = xe; if(lxe == mx) lxe=lxe-1;
+    lys = ys; if(lys == 0) lys=lys+1;  lye = ye; if(lye == my) lye=lye-1;
+    lzs = zs; if(lzs == 0) lzs=lzs+1;  lze = ze; if(lze == mz) lze=lze-1;
+
+    for(k = lzs; k < lze; k++)
+    for(j = lys; j < lye; j++)
+    for(i = lxs; i < lxe; i++)
+    {
+            rhs[k][j][i].x += scale * 0.5 * (rhs_c[k][j][i+1].x + rhs_c[k][j][i].x);
+            rhs[k][j][i].y += scale * 0.5 * (rhs_c[k][j+1][i].y + rhs_c[k][j][i].y);
+            rhs[k][j][i].z += scale * 0.5 * (rhs_c[k+1][j][i].z + rhs_c[k][j][i].z);
+    }
+
+    DMDAVecRestoreArray(fda, Rhs_c, &rhs_c);
+    DMDAVecRestoreArray(fda, Rhs,     &rhs);
+
+    DMDAVecRestoreArray(fda, mesh->lCsi, &csi);
+    DMDAVecRestoreArray(fda, mesh->lEta, &eta);
+    DMDAVecRestoreArray(fda, mesh->lZet, &zet);
+
+    DMDAVecRestoreArray(fda, ueqn->lUcont, &ucont);
+    DMDAVecRestoreArray(fda, ueqn->lUcat,  &ucat);
+    DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
+
+    VecDestroy(&Ucont_c);
+    VecDestroy(&Rhs_c);
+
+    return(0);
+}
+
+//***************************************************************************************************************//

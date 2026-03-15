@@ -909,4 +909,118 @@ PetscErrorCode sourceT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
 
 //***************************************************************************************************************//
 
+PetscErrorCode hyperViscosityT(teqn_ *teqn, Vec &Rhs, PetscReal scale)  
+{
+    if(teqn->hyperVisc4i == 0.0 && teqn->hyperVisc4j == 0.0 && teqn->hyperVisc4k == 0.0) return(0);
 
+    mesh_        *mesh  = teqn->access->mesh;
+    ueqn_        *ueqn  = teqn->access->ueqn;
+    clock_       *clock = teqn->access->clock;
+    DM            fda   = mesh->fda;
+    DM            da    = mesh->da;
+    DMDALocalInfo info  = mesh->info;
+    PetscInt xs = info.xs, xe = info.xs + info.xm;
+    PetscInt ys = info.ys, ye = info.ys + info.ym;
+    PetscInt zs = info.zs, ze = info.zs + info.zm;
+    PetscInt mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt lxs = xs; if(lxs == 0) lxs=lxs+3; PetscInt lxe = xe; if(lxe == mx) lxe=lxe-3;
+    PetscInt lys = ys; if(lys == 0) lys=lys+3; PetscInt lye = ye; if(lye == my) lye=lye-3;
+    PetscInt lzs = zs; if(lzs == 0) lzs=lzs+3; PetscInt lze = ze; if(lze == mz) lze=lze-3;
+
+    PetscInt    i, j, k;
+    PetscReal ***t, ***rhs;
+    PetscReal ***nvert;
+    PetscScalar solid = 0.5;
+
+    PetscReal eps_i = scale * 0.015625 * teqn->hyperVisc4i;
+    PetscReal eps_j = scale * 0.015625 * teqn->hyperVisc4j;
+    PetscReal eps_k = scale * 0.015625 * teqn->hyperVisc4k;
+
+    DMDAVecGetArray(da, teqn->lTmprt, &t);
+    DMDAVecGetArray(da, Rhs,          &rhs);
+    DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+
+    for(k = lzs; k < lze; k++)
+    for(j = lys; j < lye; j++)
+    for(i = lxs; i < lxe; i++)
+    {
+        // damping i direction
+        PetscInt im3, im2, im1, ip1, ip2, ip3;
+        getCell2Cell7StencilCsi(mesh, i, mx, &im3, &im2, &im1, &ip1, &ip2, &ip3);
+
+        PetscReal t_ip1 = t[k][j][ip1],
+                  t_im1 = t[k][j][im1],
+                  t_ip2 = t[k][j][ip2],
+                  t_im2 = t[k][j][im2], 
+                  t_ip3 = t[k][j][ip3], 
+                  t_im3 = t[k][j][im3],
+                  t_i   = t[k][j][i  ];
+
+        if(nvert[k][j][i] + nvert[k][j][i+1] < 2.0 * solid)
+        {
+            PetscReal Fp = 10.0*(t_ip1 - t_i) -5.0*(t_ip2 - t_im1) + (t_ip3 - t_im2);
+            PetscReal Fm = 10.0*(t_i - t_im1) -5.0*(t_ip1 - t_im2) + (t_ip2 - t_im3);
+
+
+            if((t_ip1 - t_i) * Fp <= 0.0) Fp = 0.0;
+            if((t_i - t_im1) * Fm <= 0.0) Fm = 0.0;
+
+            rhs[k][j][i] += eps_i * (Fp - Fm);
+        }   
+
+        // damping in j direction 
+        PetscInt jm3, jm2, jm1, jp1, jp2, jp3;
+        getCell2Cell7StencilEta(mesh, j, my, &jm3, &jm2, &jm1, &jp1, &jp2, &jp3);
+
+        PetscReal t_jp1 = t[k][jp1][i],
+                  t_jm1 = t[k][jm1][i],
+                  t_jp2 = t[k][jp2][i],
+                  t_jm2 = t[k][jm2][i], 
+                  t_jp3 = t[k][jp3][i], 
+                  t_jm3 = t[k][jm3][i],
+                  t_j   = t[k][j][i  ];
+
+        if(nvert[k][j][i] + nvert[k][j+1][i] < 2.0 * solid)
+        {
+            PetscReal Fp = 10.0*(t_jp1 - t_j) -5.0*(t_jp2 - t_jm1) + (t_jp3 - t_jm2);
+            PetscReal Fm = 10.0*(t_j - t_jm1) -5.0*(t_jp1 - t_jm2) + (t_jp2 - t_jm3);
+
+            if((t_jp1 - t_j) * Fp <= 0.0) Fp = 0.0;
+            if((t_j - t_jm1) * Fm <= 0.0) Fm = 0.0;
+
+            rhs[k][j][i] += eps_j * (Fp - Fm);
+        }
+
+        // damping k direction
+        PetscInt km3, km2, km1, kp1, kp2, kp3;
+        getCell2Cell7StencilZet(mesh, k, mz, &km3, &km2, &km1, &kp1, &kp2, &kp3);
+
+        PetscReal t_kp1 = t[kp1][j][i],
+                  t_km1 = t[km1][j][i],
+                  t_kp2 = t[kp2][j][i],
+                  t_km2 = t[km2][j][i], 
+                  t_kp3 = t[kp3][j][i], 
+                  t_km3 = t[km3][j][i],
+                  t_k   = t[k][j][i  ];
+
+        if(nvert[k][j][i] + nvert[k+1][j][i] < 2.0 * solid)
+        {
+            PetscReal Fp = 10.0*(t_kp1 - t_k) -5.0*(t_kp2 - t_km1) + (t_kp3 - t_km2);
+            PetscReal Fm = 10.0*(t_k - t_km1) -5.0*(t_kp1 - t_km2) + (t_kp2 - t_km3);
+
+            if((t_kp1 - t_k) * Fp <= 0.0) Fp = 0.0;
+            if((t_k - t_km1) * Fm <= 0.0) Fm = 0.0;
+
+            rhs[k][j][i] += eps_k * (Fp - Fm);
+        }
+    }
+
+    DMDAVecRestoreArray(da, teqn->lTmprt, &t);
+    DMDAVecRestoreArray(da, Rhs,          &rhs);
+    DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
+
+    return(0);
+}
+
+//***************************************************************************************************************//

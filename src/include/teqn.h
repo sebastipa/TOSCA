@@ -7,6 +7,9 @@
 //! \brief struct storing temperature equation
 struct teqn_
 {
+    // solver name 
+    word          solverType;                 //!< solver type (kept for logging)
+    
     // temperature variables
     SNES          snesT;                      //!< non linear matrix free context
     Mat           JT;                         //!< non linear matrix free preconditioner
@@ -33,10 +36,16 @@ struct teqn_
     Vec           ghGradRhok;                 //!< buoyancy term for momentum equation (current step)
     Vec           ghGradRhok_o;               //!< buoyancy term for momentum equation (previous step, for AB2)
 
+    Vec           expFilterT;                 //!< explicit filter for momentum equation (e.g. for LES)
+
     PetscReal     absExitTol;                 //!< absolute exit tolerance
     PetscReal     relExitTol;                 //!< relative exit tolerance
 
     word          ddtScheme;                  //!< time derivative scheme
+
+    PetscReal     hyperVisc4i;                //!< IMEX biharmonic hyperviscosity along i (ξ) index direction (-imexHyperVisc4U_i, default 0)
+    PetscReal     hyperVisc4j;                //!< IMEX biharmonic hyperviscosity along j (η) index direction (-imexHyperVisc4U_j, default 0)
+    PetscReal     hyperVisc4k;                //!< IMEX biharmonic hyperviscosity along k (ζ) index direction, typically vertical (-imexHyperVisc4U_k, default 0)
 
     // wall model patch
     wallModel     *iLWM;                      //!< wall model on the i-left patch

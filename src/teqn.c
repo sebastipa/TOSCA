@@ -41,6 +41,7 @@ PetscErrorCode InitializeTEqn(teqn_ *teqn)
         VecDuplicate(mesh->Nvert, &(teqn->TmprtTmp));    VecSet(teqn->TmprtTmp, 0.0);
         VecDuplicate(mesh->Nvert, &(teqn->Tmprt));       VecSet(teqn->Tmprt,    0.0);
         VecDuplicate(mesh->Nvert, &(teqn->Tmprt_o));     VecSet(teqn->Tmprt_o,  0.0);
+        VecDuplicate(mesh->Nvert, &(teqn->bT));          VecSet(teqn->bT,        0.0);
         VecDuplicate(mesh->Nvert, &(teqn->Rhs));         VecSet(teqn->Rhs,      0.0);
         VecDuplicate(mesh->lAj,   &(teqn->lTmprt));      VecSet(teqn->lTmprt,   0.0);
         VecDuplicate(mesh->lAj,   &(teqn->lTmprt_o));    VecSet(teqn->lTmprt_o, 0.0);
@@ -68,6 +69,7 @@ PetscErrorCode InitializeTEqn(teqn_ *teqn)
         if(teqn->ddtScheme=="BE" || teqn->ddtScheme=="BDF2")
         {
             // default parameters
+            teqn->solverType       = "SNES";
             teqn->absExitTol        = 1e-5;
             teqn->relExitTol        = 1e-30;
 
@@ -78,15 +80,15 @@ PetscErrorCode InitializeTEqn(teqn_ *teqn)
             SNESMonitorSet(teqn->snesT, SNESMonitorT, (void*)&(mesh->MESH_COMM), PETSC_NULL);
 
             // set the SNES evaluating function
-            SNESSetFunction(teqn->snesT, teqn->Rhs, TeqnSNES, (void *)teqn);
+            SNESSetFunction(teqn->snesT, teqn->Rhs, SNESFuncEvalT, (void *)teqn);
 
             // create jacobian matrix
             MatCreateSNESMF(teqn->snesT, &(teqn->JT));
             SNESSetJacobian(teqn->snesT, teqn->JT, teqn->JT, MatMFFDComputeJacobian, (void *)teqn);
 
             // set SNES solver type
-            //SNESSetType(teqn->snesT, SNESNEWTONTR);           //SNESTR
-            SNESSetType(teqn->snesT, SNESNEWTONLS);        //SNESLS is better for stiff PDEs such as the one including IB but slower
+            SNESSetType(teqn->snesT, SNESNEWTONTR);           //SNESTR
+            //SNESSetType(teqn->snesT, SNESNEWTONLS);         //SNESLS is better for stiff PDEs such as the one including IB but slower
 
             // set SNES solve and step failures
             SNESSetMaxLinearSolveFailures(teqn->snesT,10000);
@@ -139,26 +141,28 @@ PetscErrorCode InitializeTEqn(teqn_ *teqn)
         }
         else if (teqn->ddtScheme=="RK4")
         {
-
+            teqn->solverType       = "EXP";
         }
         else if (teqn->ddtScheme=="BEAB")
         {
-            // IMEX-CNAB: Adams-Bashforth 2 for convection (explicit) + backward-Euler for diffusion (implicit).
-            // Solved using a standalone KSP for the linear system A*T^{n+1} = b,
-            // where A*v = v - dt*D(v) is assembled via MatShell, and
-            //       b = T^n + dt*bT is prebuilt once per time step.
-
+            // KSP type: BiCGStab or GMRES — optional, defaults to GMRES
+            //           BiCGStab is more expensive and less stable
+            //           GMRES is less expensive but more stable
+        
+            PetscBool found;
+            char kspTypeBuf[256] = "GMRES";
+            PetscOptionsGetString(PETSC_NULL, PETSC_NULL, "-kspTypeT", kspTypeBuf, sizeof(kspTypeBuf), &found);
+            teqn->kspType      = kspTypeBuf;
+            teqn->solverType   = teqn->kspType;
             teqn->gmresRestart = 30;
-            PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-kspGMRESRestartT", &(teqn->gmresRestart), PETSC_NULL);
 
-            // KSP type: BiCGStab or GMRES set via -kspTypeT in control.dat
-            readDictWord("control.dat", "-kspTypeT", &(teqn->kspType));
+            PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-kspGMRESRestartT", &(teqn->gmresRestart), PETSC_NULL);
 
             if(teqn->kspType != "BiCGStab" && teqn->kspType != "GMRES")
             {
                 char error[512];
                 sprintf(error,
-                    "unknown kspTypeT %s for T equation (IMEX), available types are\n"
+                    "unknown kspTypeT %s for T equation, available types are\n"
                     "    BiCGStab\n"
                     "    GMRES",
                     teqn->kspType.c_str());
@@ -171,13 +175,13 @@ PetscErrorCode InitializeTEqn(teqn_ *teqn)
             PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-relTolT", &(teqn->relExitTol), PETSC_NULL);
             PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-absTolT", &(teqn->absExitTol), PETSC_NULL);
 
-            // Create standalone KSP for the IMEX linear system A*T^{n+1} = b.
+            // Create standalone KSP for the linear system A*T^{n+1} = b.
             {
                 PetscInt n, N;
                 VecGetLocalSize(teqn->Tmprt, &n);
                 VecGetSize(teqn->Tmprt, &N);
                 MatCreateShell(mesh->MESH_COMM, n, n, N, N, (void*)teqn, &(teqn->JvIMEX));
-                MatShellSetOperation(teqn->JvIMEX, MATOP_MULT, (void(*)(void))IMEXTMatVec);
+                MatShellSetOperation(teqn->JvIMEX, MATOP_MULT, (void(*)(void))BEABMatVec);
             }
 
             KSPCreate(mesh->MESH_COMM, &(teqn->kspIMEX));
@@ -191,6 +195,11 @@ PetscErrorCode InitializeTEqn(teqn_ *teqn)
 
             if(teqn->kspType == "BiCGStab")
             {
+                // KSPBCGS (standard BiCGStab) can break down for the IMEX operator
+                // A = I - dt*scale*L because its Petrov-Galerkin shadow residual may
+                // become nearly orthogonal to the residual when dt is large or the
+                // discrete L is mildly non-symmetric on curvilinear meshes.
+                // BiCGStab(L=2) eliminates these breakdown modes 
                 KSPSetType(teqn->kspIMEX, KSPBCGSL);
                 KSPBCGSLSetEll(teqn->kspIMEX, 2);
             }
@@ -204,16 +213,15 @@ PetscErrorCode InitializeTEqn(teqn_ *teqn)
             KSPSetInitialGuessNonzero(teqn->kspIMEX, PETSC_TRUE);
             KSPSetTolerances(teqn->kspIMEX, teqn->relExitTol, teqn->absExitTol, 1e30, 1000);
 
-            // allocate IMEX buffers
-            VecDuplicate(mesh->Nvert, &(teqn->bT));        VecSet(teqn->bT,        0.0);
+            // allocate buffers
             VecDuplicate(mesh->Nvert, &(teqn->RhsConv));   VecSet(teqn->RhsConv,   0.0);
             VecDuplicate(mesh->Nvert, &(teqn->RhsConv_o)); VecSet(teqn->RhsConv_o, 0.0);
 
             // print info
             PetscPrintf(mesh->MESH_COMM, "selected IMEX time scheme for T equation\n");
-            PetscPrintf(mesh->MESH_COMM, " > scheme: IMEX-CNAB (AB2 conv + backward-Euler diff)\n");
-            PetscPrintf(mesh->MESH_COMM, " > relTolT = %e\n", teqn->relExitTol);
-            PetscPrintf(mesh->MESH_COMM, " > absTolT = %e\n", teqn->absExitTol);
+            PetscPrintf(mesh->MESH_COMM, " > scheme: BEAB (AB2 conv + backward-Euler diff)\n");
+            PetscPrintf(mesh->MESH_COMM, " > relTolT  = %e\n", teqn->relExitTol);
+            PetscPrintf(mesh->MESH_COMM, " > absTolT  = %e\n", teqn->absExitTol);
             PetscPrintf(mesh->MESH_COMM, " > kspTypeT = %s\n", teqn->kspType.c_str());
             if(teqn->kspType == "GMRES")
             {
@@ -225,6 +233,25 @@ PetscErrorCode InitializeTEqn(teqn_ *teqn)
             char error[512];
             sprintf(error, "unknown ddtScheme %s for T equation, available schemes are\n    1. BE\n    2. RK4\n    3. BEAB\n    4. BDF2", teqn->ddtScheme.c_str());
             fatalErrorInFunction("InitializeTEqn", error);
+        }
+
+        // Explicit biharmonic (4th-order index-space) hyperviscosity.
+        teqn->hyperVisc4i = 0.0; teqn->hyperVisc4j = 0.0; teqn->hyperVisc4k = 0.0;
+        PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-hyperViscT_i", &(teqn->hyperVisc4i), PETSC_NULL);
+        PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-hyperViscT_j", &(teqn->hyperVisc4j), PETSC_NULL);
+        PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-hyperViscT_k", &(teqn->hyperVisc4k), PETSC_NULL);
+        if(teqn->hyperVisc4i < 0.0 || teqn->hyperVisc4j < 0.0 || teqn->hyperVisc4k < 0.0)
+        {
+            char error[512];
+            sprintf(error, "-imexHyperViscT_{i,j,k} must be >= 0\n");
+            fatalErrorInFunction("InitializeTEqn", error);
+        }
+        if(teqn->hyperVisc4i > 0.0 || teqn->hyperVisc4j > 0.0 || teqn->hyperVisc4k > 0.0)
+        {
+            PetscPrintf(mesh->MESH_COMM, "explicit hyperviscosity factor for T equation:\n");
+            if(teqn->hyperVisc4i > 0.0) { PetscPrintf(mesh->MESH_COMM, " > hyperViscT_i = %e\n", teqn->hyperVisc4i); }
+            if(teqn->hyperVisc4j > 0.0) { PetscPrintf(mesh->MESH_COMM, " > hyperViscT_j = %e\n", teqn->hyperVisc4j); }
+            if(teqn->hyperVisc4k > 0.0) { PetscPrintf(mesh->MESH_COMM, " > hyperViscT_k = %e\n", teqn->hyperVisc4k); }
         }
     }
 
@@ -242,44 +269,11 @@ PetscErrorCode SolveTEqn(teqn_ *teqn)
     VecSet (teqn->Rhs, 0.0);
 
     if(teqn->ddtScheme=="BE" || teqn->ddtScheme=="BDF2")
-    {
-        PetscReal     norm;
-        PetscInt      iter;
-        PetscReal     ts, te;
-
-        PetscTime(&ts);
-        PetscPrintf(mesh->MESH_COMM, "TRSNES: Solving for T, Initial residual = ");
-   
-        // compute initial guess: conv-only forward Euler (avoids explicit diffusion instability)
-        // VecSet(teqn->Rhs, 0.0);
-        // FormT(teqn, teqn->Rhs, 1.0, 1);                    // conv-only, scale=1
-        VecCopy(teqn->Tmprt_o, teqn->TmprtTmp);            // TmprtTmp = T^n
-        //VecAXPY(teqn->TmprtTmp, clock->dt, teqn->Rhs);     // TmprtTmp = T^n + dt * N(T^n)
-
-        SNESSolve(teqn->snesT, PETSC_NULL, teqn->TmprtTmp);
-        SNESGetFunctionNorm(teqn->snesT, &norm);
-        SNESGetIterationNumber(teqn->snesT, &iter);
-
-        // report total inner linear iterations (= total MatMFFD FormT calls for J*v)
-        PetscInt linIter = 0;
-        SNESGetLinearSolveIterations(teqn->snesT, &linIter);
-
-        VecCopy(teqn->TmprtTmp, teqn->Tmprt);
-
-        DMGlobalToLocalBegin(mesh->da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
-        DMGlobalToLocalEnd  (mesh->da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
-
-        PetscTime(&te);
-        PetscPrintf(mesh->MESH_COMM, "Final residual = %e, Iterations = %ld, Linear iterations = %ld, Elapsed Time = %lf\n", norm, iter, linIter, te-ts);
-    }
+        TeqnSNES(teqn);
     else if (teqn->ddtScheme=="RK4")
-    {
         TeqnRK4(teqn);
-    }
     else if (teqn->ddtScheme=="BEAB")
-    {
-        TeqnIMEX(teqn);
-    }
+        TeqnBEAB(teqn);
 
     resetCellPeriodicFluxes(mesh, teqn->Tmprt, teqn->lTmprt, "scalar", "globalToLocal");
 

@@ -30,57 +30,6 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
     mesh_  *mesh  = ueqn->access->mesh;
     flags_ *flags = ueqn->access->flags;
 
-    // input file
-    PetscOptionsInsertFile(mesh->MESH_COMM, PETSC_NULL, "control.dat", PETSC_TRUE);
-
-    // default parameters
-    ueqn->inviscid          = 0;
-    ueqn->centralDiv        = 0;
-    ueqn->central4Div       = 0;
-    ueqn->centralUpwindDiv  = 0;
-    ueqn->centralUpwindWDiv = 0;
-    ueqn->weno3Div          = 0;
-    ueqn->quickDiv          = 0;
-
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL,  "-inviscid", &(ueqn->inviscid),   PETSC_NULL);
-
-    // read time discretization scheme
-    readDictWord("control.dat", "-dUdtScheme", &(ueqn->ddtScheme));
-
-    // read divergence scheme
-    readDictWord("control.dat", "-divScheme", &(ueqn->divScheme));
-
-    if      (ueqn->divScheme == "centralUpwind")   ueqn->centralUpwindDiv  = 1;
-    else if (ueqn->divScheme == "centralUpwindW")  ueqn->centralUpwindWDiv = 1;
-    else if (ueqn->divScheme == "central")         ueqn->centralDiv        = 1;
-    else if (ueqn->divScheme == "central4")        ueqn->central4Div       = 1;
-    else if (ueqn->divScheme == "weno3")           ueqn->weno3Div          = 1;
-    else if (ueqn->divScheme == "quickDiv")        ueqn->quickDiv          = 1;
-    else
-    {
-        char error[512];
-        sprintf(error,
-            "unknown divScheme %s for U equation, available schemes are\n"
-            "    1. centralUpwind\n"
-            "    2. centralUpwindW\n"
-            "    3. central\n"
-            "    4. central4\n"
-            "    5. weno3\n"
-            "    6. quickDiv",
-            ueqn->divScheme.c_str());
-        fatalErrorInFunction("InitializeUEqn", error);
-    }
-
-    PetscPrintf(mesh->MESH_COMM, "selected %s divergence scheme for U equation\n", ueqn->divScheme.c_str());
-
-    // read hyperviscosity parameter for central4Div 
-    if(ueqn->central4Div)
-    {
-        ueqn->hyperVisc = 1.0;
-        PetscOptionsGetReal(PETSC_NULL, PETSC_NULL,  "-hyperVisc", &(ueqn->hyperVisc),   PETSC_NULL);
-        PetscPrintf(PETSC_COMM_WORLD, "Hyperviscosity parameter = %lf\n", ueqn->hyperVisc);
-    }
-
     VecDuplicate(mesh->Cent, &(ueqn->Utmp));      VecSet(ueqn->Utmp,    0.0);
     VecDuplicate(mesh->Cent, &(ueqn->Rhs));       VecSet(ueqn->Rhs,     0.0);
     VecDuplicate(mesh->Cent, &(ueqn->Rhs_o));     VecSet(ueqn->Rhs_o,   0.0);
@@ -127,9 +76,60 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
 		VecDuplicate(mesh->Cent, &(ueqn->dPAGW));        VecSet(ueqn->dPAGW,      0.0);
 	}
 
+    // read additional input parameters 
+    PetscOptionsInsertFile(mesh->MESH_COMM, PETSC_NULL, "control.dat", PETSC_TRUE);
+
+    // default parameters
+    ueqn->inviscid          = 0;
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL,  "-inviscid", &(ueqn->inviscid),   PETSC_NULL);
+
+    ueqn->centralDiv        = 0;
+    ueqn->central4Div       = 0;
+    ueqn->centralUpwindDiv  = 0;
+    ueqn->centralUpwindWDiv = 0;
+    ueqn->weno3Div          = 0;
+    ueqn->quickDiv          = 0;
+
+    // read divergence scheme
+    readDictWord("control.dat", "-divScheme", &(ueqn->divScheme));
+
+    if      (ueqn->divScheme == "centralUpwind")   ueqn->centralUpwindDiv  = 1;
+    else if (ueqn->divScheme == "centralUpwindW")  ueqn->centralUpwindWDiv = 1;
+    else if (ueqn->divScheme == "central")         ueqn->centralDiv        = 1;
+    else if (ueqn->divScheme == "central4")        ueqn->central4Div       = 1;
+    else if (ueqn->divScheme == "weno3")           ueqn->weno3Div          = 1;
+    else if (ueqn->divScheme == "quickDiv")        ueqn->quickDiv          = 1;
+    else
+    {
+        char error[512];
+        sprintf(error,
+            "unknown divScheme %s for U equation, available schemes are\n"
+            "    1. centralUpwind\n"
+            "    2. centralUpwindW\n"
+            "    3. central\n"
+            "    4. central4\n"
+            "    5. weno3\n"
+            "    6. quickDiv",
+            ueqn->divScheme.c_str());
+        fatalErrorInFunction("InitializeUEqn", error);
+    }
+
+    PetscPrintf(mesh->MESH_COMM, "selected %s divergence scheme for U equation\n", ueqn->divScheme.c_str());
+
+    // read hyperviscosity parameter for central4Div 
+    if(ueqn->central4Div)
+    {
+        ueqn->hyperVisc = 1.0;
+        PetscOptionsGetReal(PETSC_NULL, PETSC_NULL,  "-hyperVisc", &(ueqn->hyperVisc),   PETSC_NULL);
+        PetscPrintf(PETSC_COMM_WORLD, " > hyperviscosity parameter = %lf\n", ueqn->hyperVisc);
+    }
+
+    // read time discretization scheme
+    readDictWord("control.dat", "-dUdtScheme", &(ueqn->ddtScheme));
+
     if(ueqn->ddtScheme == "CN")
     {
-        ueqn->snesType     = "NEWTONTR";     // NEWTONLS
+        ueqn->solverType   = "SNES";
         SNESType snesType  = SNESNEWTONTR;   // SNESNEWTONLS
         ueqn->relExitTol   = 1e-30;
         ueqn->absExitTol   = 1e-5;
@@ -152,8 +152,8 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
             char error[512];
             sprintf(error,
                 "unknown kspTypeU %s for U equation, available types are\n"
-                "    1. BiCGStab\n"
-                "    2. GMRES",
+                "    BiCGStab\n"
+                "    GMRES",
                 ueqn->kspType.c_str());
             fatalErrorInFunction("InitializeUEqn", error);
         }
@@ -163,7 +163,7 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
         SNESMonitorSet(ueqn->snesU, SNESMonitorU, (void*)&(mesh->MESH_COMM), PETSC_NULL);
 
         // set the SNES evaluating function
-        SNESSetFunction(ueqn->snesU, ueqn->Rhs, UeqnSNES, (void *)ueqn);
+        SNESSetFunction(ueqn->snesU, ueqn->Rhs, SNESFuncEval, (void *)ueqn);
 
         // Newton trust-region
         SNESSetType(ueqn->snesU, snesType);
@@ -209,7 +209,6 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
 
         // print information
         PetscPrintf(mesh->MESH_COMM, "selected %s time scheme for U equation\n", ueqn->ddtScheme.c_str());
-        PetscPrintf(mesh->MESH_COMM, " > SNES type: %s\n", ueqn->snesType.c_str());
         PetscPrintf(mesh->MESH_COMM, " > relTolU = %e\n", ueqn->relExitTol);
         PetscPrintf(mesh->MESH_COMM, " > absTolU = %e\n", ueqn->absExitTol);
         PetscPrintf(mesh->MESH_COMM, " > snesMaxIterU = %d\n", ueqn->snesMaxIter);
@@ -221,30 +220,26 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
     }
     else if(ueqn->ddtScheme == "CNAB")
     {
-        // IMEX-CNAB: Adams-Bashforth 2 for convection (explicit) + Crank-Nicolson for viscosity (implicit).
-        //            solved using a standalone KSP for the linear system A*U^{n+1} = b, where A*v = v - dt*scale*Visc(v) 
-        //            is assembled via MatShell and b = U^n + dt*bU is prebuilt once per time step.
+        // KSP type: BiCGStab or GMRES — optional, defaults to GMRES
+        //           BiCGStab is more expensive and less stable
+        //           GMRES is less expensive but more stable
         
-        ueqn->snesType     = "IMEX-CNAB";
+        PetscBool found;
+        char kspTypeBuf[256] = "GMRES";
+        PetscOptionsGetString(PETSC_NULL, PETSC_NULL, "-kspTypeU", kspTypeBuf, sizeof(kspTypeBuf), &found);
+        ueqn->kspType      = kspTypeBuf;
+        ueqn->solverType   = ueqn->kspType;
         ueqn->snesMaxIter  = 5;
         ueqn->gmresRestart = 30;
 
         PetscOptionsGetInt (PETSC_NULL, PETSC_NULL, "-snesMaxItersU",    &(ueqn->snesMaxIter),  PETSC_NULL);
         PetscOptionsGetInt (PETSC_NULL, PETSC_NULL, "-kspGMRESRestartU", &(ueqn->gmresRestart), PETSC_NULL);
 
-        // KSP type: BiCGStab or GMRES — optional, defaults to BiCGStab
-        //           BiCGStab is more expensive but more stable (CFL<0.6)
-        //           GMRES is less expensive but less stable (CFL<0.5)
-        PetscBool found;
-        char kspTypeBuf[256] = "GMRES";
-        PetscOptionsGetString(PETSC_NULL, PETSC_NULL, "-kspTypeU", kspTypeBuf, sizeof(kspTypeBuf), &found);
-        ueqn->kspType = kspTypeBuf;
-
         if(ueqn->kspType != "BiCGStab" && ueqn->kspType != "GMRES")
         {
             char error[512];
             sprintf(error,
-                "unknown kspTypeU %s for U equation (IMEX), available types are\n"
+                "unknown kspTypeU %s for U equation, available types are\n"
                 "    BiCGStab\n"
                 "    GMRES",
                 ueqn->kspType.c_str());
@@ -257,7 +252,7 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
         PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-relTolU", &(ueqn->relExitTol), PETSC_NULL);
         PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-absTolU", &(ueqn->absExitTol), PETSC_NULL);
 
-        // Create a standalone KSP for the IMEX linear system A*U^{n+1} = b.
+        // Create a standalone KSP for the linear system A*U^{n+1} = b.
         // A*v = v - dt*scale*Visc(v) (linear operator, assembled via MatShell).
         // b   = U^n + dt*bU          (explicit RHS, prebuilt once per time step).
         {
@@ -265,7 +260,7 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
             VecGetLocalSize(ueqn->Ucont, &n);
             VecGetSize(ueqn->Ucont, &N);
             MatCreateShell(mesh->MESH_COMM, n, n, N, N, (void*)ueqn, &(ueqn->JvIMEX));
-            MatShellSetOperation(ueqn->JvIMEX, MATOP_MULT, (void(*)(void))IMEXMatVec);
+            MatShellSetOperation(ueqn->JvIMEX, MATOP_MULT, (void(*)(void))CNABMatVec);
         }
 
         KSPCreate(mesh->MESH_COMM, &(ueqn->kspIMEX));
@@ -303,38 +298,22 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
         // allocate Adams-Bashforth 2 convective RHS history buffers
         VecDuplicate(ueqn->Ucont, &(ueqn->RhsConv));   VecSet(ueqn->RhsConv,   0.0);
         VecDuplicate(ueqn->Ucont, &(ueqn->RhsConv_o)); VecSet(ueqn->RhsConv_o, 0.0);
-
-        // Explicit biharmonic (4th-order index-space) hyperviscosity.
-        ueqn->hyperVisc4i = 0.0;
-        ueqn->hyperVisc4j = 0.0;
-        ueqn->hyperVisc4k = 0.0;
-        PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-imexHyperVisc4U_i", &(ueqn->hyperVisc4i), PETSC_NULL);
-        PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-imexHyperVisc4U_j", &(ueqn->hyperVisc4j), PETSC_NULL);
-        PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-imexHyperVisc4U_k", &(ueqn->hyperVisc4k), PETSC_NULL);
-        if(ueqn->hyperVisc4i < 0.0 || ueqn->hyperVisc4j < 0.0 || ueqn->hyperVisc4k < 0.0)
-        {
-            char error[512];
-            sprintf(error, "-imexHyperVisc4U_{i,j,k} must be >= 0\n");
-            fatalErrorInFunction("InitializeUEqn", error);
-        }
+        VecDuplicate(ueqn->Ucont, &(ueqn->RhsVisc));   VecSet(ueqn->RhsVisc,   0.0);
 
         // print info 
         PetscPrintf(mesh->MESH_COMM, "selected %s time scheme for U equation\n", ueqn->ddtScheme.c_str());
-        PetscPrintf(mesh->MESH_COMM, " > direct KSP = %s\n", ueqn->snesType.c_str());
-        PetscPrintf(mesh->MESH_COMM, " > relTolU = %e\n", ueqn->relExitTol);
-        PetscPrintf(mesh->MESH_COMM, " > absTolU = %e\n", ueqn->absExitTol);
+        PetscPrintf(mesh->MESH_COMM, " > relTolU  = %e\n", ueqn->relExitTol);
+        PetscPrintf(mesh->MESH_COMM, " > absTolU  = %e\n", ueqn->absExitTol);
         PetscPrintf(mesh->MESH_COMM, " > kspTypeU = %s\n", ueqn->kspType.c_str());
         if(ueqn->kspType == "GMRES")
         {
             PetscPrintf(mesh->MESH_COMM, " > kspGMRESRestartU = %d\n", ueqn->gmresRestart);
         }
-        PetscPrintf(mesh->MESH_COMM, " > imexHyperVisc4U_i = %f\n", ueqn->hyperVisc4i);
-        PetscPrintf(mesh->MESH_COMM, " > imexHyperVisc4U_j = %f\n", ueqn->hyperVisc4j);
-        PetscPrintf(mesh->MESH_COMM, " > imexHyperVisc4U_k = %f\n", ueqn->hyperVisc4k);
     }
     else if(ueqn->ddtScheme == "FE" || ueqn->ddtScheme == "RK4")
     {
         // print info 
+        ueqn->solverType   = "EXP";
         PetscPrintf(mesh->MESH_COMM, "selected %s time scheme for U equation\n", ueqn->ddtScheme.c_str());
     }
     else
@@ -343,6 +322,68 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
         sprintf(error, "unknown ddtScheme %s for U equation, available schemes are\n    1. CN\n    2. FE\n    3. RK4\n    4. CNAB", ueqn->ddtScheme.c_str());
         fatalErrorInFunction("InitializeUEqn", error);
     }
+
+    // Explicit biharmonic (4th-order index-space) hyperviscosity.
+    ueqn->hyperVisc4i = 0.0; ueqn->hyperVisc4j = 0.0; ueqn->hyperVisc4k = 0.0;
+    PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-hyperViscU_i", &(ueqn->hyperVisc4i), PETSC_NULL);
+    PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-hyperViscU_j", &(ueqn->hyperVisc4j), PETSC_NULL);
+    PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-hyperViscU_k", &(ueqn->hyperVisc4k), PETSC_NULL);
+    if(ueqn->hyperVisc4i < 0.0 || ueqn->hyperVisc4j < 0.0 || ueqn->hyperVisc4k < 0.0)
+    {
+        char error[512];
+        sprintf(error, "-imexHyperViscU_{i,j,k} must be >= 0\n");
+        fatalErrorInFunction("InitializeUEqn", error);
+    }
+    if(ueqn->hyperVisc4i > 0.0 || ueqn->hyperVisc4j > 0.0 || ueqn->hyperVisc4k > 0.0)
+    {
+        PetscPrintf(mesh->MESH_COMM, "explicit hyperviscosity factor for U equation:\n");
+        if(ueqn->hyperVisc4i > 0.0) { PetscPrintf(mesh->MESH_COMM, " > hyperViscU_i = %e\n", ueqn->hyperVisc4i); }
+        if(ueqn->hyperVisc4j > 0.0) { PetscPrintf(mesh->MESH_COMM, " > hyperViscU_j = %e\n", ueqn->hyperVisc4j); }
+        if(ueqn->hyperVisc4k > 0.0) { PetscPrintf(mesh->MESH_COMM, " > hyperViscU_k = %e\n", ueqn->hyperVisc4k); }
+    }
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode SolveUEqn(ueqn_ *ueqn)
+{
+    mesh_          *mesh = ueqn->access->mesh;
+    clock_         *clock = ueqn->access->clock;
+
+    // set the right hand side to zero
+    VecSet (ueqn->Rhs, 0.0);
+
+    if      (ueqn->ddtScheme == "CN")
+        UeqnSNES(ueqn);
+    else if (ueqn->ddtScheme == "CNAB")
+        UeqnCNAB(ueqn);
+    else if (ueqn->ddtScheme == "FE")
+        UeqnFE(ueqn);
+    else if (ueqn->ddtScheme == "RK4")
+        UeqnRK4(ueqn);
+    
+    // reset no penetration fluxes to zero (override numerical errors)
+    resetNoPenetrationFluxes(ueqn);
+
+    // reset periodic fluxes to be consistent if the flow is periodic
+    resetFacePeriodicFluxesVector(mesh, ueqn->Ucont, ueqn->lUcont, "globalToLocal");
+
+    // apply IBM boundary condition to reset fluxes at IBM interface
+    if(ueqn->access->flags->isIBMActive)
+    {
+        UpdateImmersedBCs(ueqn->access->ibm);
+    }    
+
+    // updates BCs around blanked cells
+    if(ueqn->access->flags->isOversetActive)
+    {
+        setBackgroundBC(mesh);
+    }
+
+    // adjust inflow/outflow fluxes to ensure mass conservation
+    adjustFluxesLocal(ueqn);
 
     return(0);
 }
@@ -1044,128 +1085,3 @@ PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn)
 
 //***************************************************************************************************************//
 
-// formMode: 0=full (conv+visc), 1=conv-only (divergence only), 2=visc-only
-PetscErrorCode SolveUEqn(ueqn_ *ueqn)
-{
-    mesh_          *mesh = ueqn->access->mesh;
-    clock_         *clock = ueqn->access->clock;
-
-    // set the right hand side to zero
-    VecSet (ueqn->Rhs, 0.0);
-
-    if(ueqn->ddtScheme == "CN")
-    {
-        PetscReal     norm;
-        PetscInt      iter;
-        PetscReal     ts,te;
-
-        PetscTime(&ts);
-        PetscPrintf(mesh->MESH_COMM, "%sSNES: Solving for Ucont, Initial residual = ", ueqn->snesType.c_str());
-
-        // build the constant-RHS buffer for this time step
-
-        // 1. pressure gradient
-        VecCopy(ueqn->dP, ueqn->bU);
-        VecScale(ueqn->bU, -1.0);
-
-        // 2. buoyancy
-        if(ueqn->access->flags->isTeqnActive)
-        {
-            teqn_ *teqn = ueqn->access->teqn;
-            if(teqn->pTildeFormulation)
-            {
-                if(clock->it > clock->itStart)
-                {
-                    // AB2 extrapolation: -(1.5*ghGradRhok - 0.5*ghGradRhok_o)
-                    VecAXPY(ueqn->bU, -1.5, teqn->ghGradRhok);
-                    VecAXPY(ueqn->bU,  0.5, teqn->ghGradRhok_o);
-                }
-                else
-                {
-                    VecAXPY(ueqn->bU, -1.0, teqn->ghGradRhok);
-                }
-            }
-            else if(clock->it > clock->itStart)
-            {
-                // AB2 extrapolation to t^{n+1/2}: b = 1.5*b(T^n) - 0.5*b(T^{n-1})
-                VecAXPY(ueqn->bU,  1.5, ueqn->bTheta);
-                VecAXPY(ueqn->bU, -0.5, ueqn->bTheta_o);
-            }
-            else
-            {
-                VecAXPY(ueqn->bU, 1.0, ueqn->bTheta);
-            }
-        }
-
-        // 3. half Rhs for Crank-Nicolson time stepping 
-        if(clock->it > clock->itStart)
-            VecAXPY(ueqn->bU, 0.5, ueqn->Rhs_o);
-
-        // 4. wind farm source
-        if(ueqn->access->flags->isWindFarmActive)
-            VecAXPY(ueqn->bU, 1.0, ueqn->access->farm->sourceFarmCont);
-
-        // Predictor: 
-        // it > 0 : Utmp = Ucont_o + dt * (-dP ± buoy + Rhs_o + farm)
-        // it = 0 : Utmp = Ucont_o + dt * (-dP ± buoy + farm)       
-        
-        // compute initial guess (forward Euler predictor):
-        // FormExplicitRhsU(ueqn);
-        VecCopy(ueqn->Ucont_o, ueqn->Utmp);
-        //VecAXPY(ueqn->Utmp, clock->dt, ueqn->Rhs);
-
-        // solve momentum equation 
-        SNESSolve(ueqn->snesU, PETSC_NULL, ueqn->Utmp);
-        SNESGetFunctionNorm(ueqn->snesU, &norm);
-        SNESGetIterationNumber(ueqn->snesU, &iter);
-
-        // report total inner linear iterations (= total MatMFFD FormU calls for J*v)
-        PetscInt linIter = 0;
-        SNESGetLinearSolveIterations(ueqn->snesU, &linIter);
-
-        // store the solution and global to local scatter
-        VecCopy(ueqn->Utmp, ueqn->Ucont);
-
-        // scatter
-        DMGlobalToLocalBegin(mesh->fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
-        DMGlobalToLocalEnd  (mesh->fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
-
-        PetscTime(&te);
-        PetscPrintf(mesh->MESH_COMM,"Final residual = %e, Iterations = %ld, Linear iterations = %ld, Elapsed Time = %lf\n", norm, iter, linIter, te-ts);
-    }
-    else if (ueqn->ddtScheme == "FE")
-    {
-        UeqnEuler(ueqn);
-    }
-    else if (ueqn->ddtScheme == "RK4")
-    {
-        UeqnRK4(ueqn);
-    }
-    else if (ueqn->ddtScheme == "CNAB")
-    {
-        UeqnIMEX(ueqn);
-    }
-
-    // reset no penetration fluxes to zero (override numerical errors)
-    resetNoPenetrationFluxes(ueqn);
-
-    // reset periodic fluxes to be consistent if the flow is periodic
-    resetFacePeriodicFluxesVector(mesh, ueqn->Ucont, ueqn->lUcont, "globalToLocal");
-
-    // apply IBM boundary condition to reset fluxes at IBM interface
-    if(ueqn->access->flags->isIBMActive)
-    {
-        UpdateImmersedBCs(ueqn->access->ibm);
-    }    
-
-    // updates BCs around blanked cells
-    if(ueqn->access->flags->isOversetActive)
-    {
-        setBackgroundBC(mesh);
-    }
-
-    // adjust inflow/outflow fluxes to ensure mass conservation
-    adjustFluxesLocal(ueqn);
-
-    return(0);
-}

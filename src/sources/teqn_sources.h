@@ -21,4 +21,7 @@ PetscErrorCode dampingSourceT(teqn_ *teqn, Vec &Rhs, PetscReal scale);
 //! \brief Apply temperature control
 PetscErrorCode sourceT(teqn_ *teqn, Vec &Rhs, PetscReal scale);
 
+//! \brief Apply biharmonic hyperviscosity to the T equation RHS 
+PetscErrorCode hyperViscosityT(teqn_ *teqn, Vec &Rhs, PetscReal scale);
+
 #endif
