@@ -147,15 +147,15 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
                     getFace2Cell4StencilCsi(mesh, k, j, i, mx, &iL, &iR, &denom, nvert, meshTag);
 
                     div[k][j][i].x =
-                    - ucont[k][j][i].x
-                    * centralUpwind
+                    - ucont[k][j][i].x  
+                    * weno3
                     (
                         tmprt[k][j][iL],
                         tmprt[k][j][i],
                         tmprt[k][j][i+1],
                         tmprt[k][j][iR],
                         ucont[k][j][i].x
-                        ,limiter[k][j][i].x
+                        //,limiter[k][j][i].x
                     );
 
                     PetscReal nu = cst->nu, nut;
@@ -264,15 +264,15 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
                     getFace2Cell4StencilEta(mesh, k, j, i, my, &jL, &jR, &denom, nvert, meshTag);
 
                     div[k][j][i].y =
-                    - ucont[k][j][i].y
-                    * centralUpwind
+                    - ucont[k][j][i].y 
+                    * weno3
                     (
                         tmprt[k][jL][i],
                         tmprt[k][j][i],
                         tmprt[k][j+1][i],
                         tmprt[k][jR][i],
                         ucont[k][j][i].y
-                        ,limiter[k][j][i].y
+                        //,limiter[k][j][i].y
                     );
 
                     PetscReal nu = cst->nu, nut;
@@ -380,15 +380,15 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
                     getFace2Cell4StencilZet(mesh, k, j, i, mz, &kL, &kR, &denom, nvert, meshTag);
 
                     div[k][j][i].z =
-                    - ucont[k][j][i].z
-                    * centralUpwind
+                    - ucont[k][j][i].z 
+                    * weno3
                     (
                         tmprt[kL][j][i],
                         tmprt[k][j][i],
                         tmprt[k+1][j][i],
                         tmprt[kR][j][i],
                         ucont[k][j][i].z
-                        ,limiter[k][j][i].z
+                        //,limiter[k][j][i].z
                     );
 
                     PetscReal nu = cst->nu, nut;
@@ -569,121 +569,68 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
 
 //***************************************************************************************************************//
 
-PetscErrorCode IMEXTMatVec(Mat A, Vec v, Vec Av)
-{
-    // IMEX MatShell operator: A*v = v - dt*D(v)
-    // D(v) is the diffusion-only operator evaluated at the current iterate v.
-    // Used by kspIMEX to solve the linear IMEX system A*T^{n+1} = T^n + dt*bT.
-    // Called by PETSc KSP for every matrix-vector product during the iterative solve.
-    // Note: backward Euler for diffusion (scale=1.0 always) avoids velocity-temperature coupling issues of CN.
-
-    teqn_  *teqn;
-    MatShellGetContext(A, (void**)&teqn);
-
-    mesh_  *mesh  = teqn->access->mesh;
-    clock_ *clock = teqn->access->clock;
-    PetscReal dt  = clock->dt;
-
-    // sync v → Tmprt/lTmprt so FormT reads the correct state
-    VecCopy(v, teqn->Tmprt);
-    DMGlobalToLocalBegin(mesh->da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
-    DMGlobalToLocalEnd  (mesh->da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
-
-    // reset periodic BCs
-    resetCellPeriodicFluxes(mesh, teqn->Tmprt, teqn->lTmprt, "scalar", "globalToLocal");
-
-    // compute D(v) into scratch buffer Rhs (diffusion-only, formMode=2, scale=1.0 backward Euler)
-    VecSet(teqn->Rhs, 0.0);
-    FormT(teqn, teqn->Rhs, 1.0, 2);
-    VecScale(teqn->Rhs, dt);                // Rhs = dt*D(v)
-    resetNonResolvedCellCentersScalar(mesh, teqn->Rhs);
-
-    // Av = v - dt*D(v)
-    VecCopy(v, Av);
-    VecAXPY(Av, -1.0, teqn->Rhs);
-
-    return(0);
-}
-
-//***************************************************************************************************************//
-
-PetscErrorCode TeqnIMEX(teqn_ *teqn)
+PetscErrorCode TeqnSNES(teqn_ *teqn)
 {
     mesh_  *mesh  = teqn->access->mesh;
     clock_ *clock = teqn->access->clock;
 
-    PetscReal ts, te;
+    PetscReal     norm;
+    PetscInt      iter;
+    PetscReal     ts, te;
+
     PetscTime(&ts);
-    PetscPrintf(mesh->MESH_COMM, "IMEX-CNAB: Solving for T, ");
+    PetscPrintf(mesh->MESH_COMM, "%s%s: Solving for T, Initial residual = ", teqn->ddtScheme.c_str() ,teqn->solverType.c_str());
 
-    // Step 1: ensure T^n state is synchronised (lTmprt current)
-    resetCellPeriodicFluxes(mesh, teqn->Tmprt, teqn->lTmprt, "scalar", "globalToLocal");
+    // build the constant-RHS buffer for this time step
 
-    // Step 2: convective RHS at T^n → RhsConv (conv-only, formMode=1)
-    VecSet(teqn->RhsConv, 0.0);
-    FormT(teqn, teqn->RhsConv, 1.0, 1);
-
-    // Step 3: build bT = AB2 convection + dampingSourceT + sourceT/dt
-    //         (no explicit diffusion: full backward-Euler diffusion is handled by the linear operator A)
+    // initialize to zero
     VecSet(teqn->bT, 0.0);
 
-    // AB2 convection extrapolation: c1=3/2, c2=-1/2 (Forward Euler on first step)
-    if(clock->it > clock->itStart)
+    // biharmonic hyperviscosity: damp checkerboard / Nyquist modes.
+    if
+    (
+        teqn->hyperVisc4i > 0.0 || 
+        teqn->hyperVisc4j > 0.0 || 
+        teqn->hyperVisc4k > 0.0
+    )
     {
-        VecAXPY(teqn->bT,  1.5, teqn->RhsConv);     // (3/2) * Conv^n
-        VecAXPY(teqn->bT, -0.5, teqn->RhsConv_o);   // (-1/2) * Conv^{n-1}
-    }
-    else
-    {
-        VecAXPY(teqn->bT, 1.0, teqn->RhsConv);      // Forward Euler on first step
+        hyperViscosityT(teqn, teqn->bT, 1.0);
     }
 
-    // sponge/Rayleigh damping contribution (T/time units, added to bT)
-    if(teqn->access->flags->isXDampingActive)
-        dampingSourceT(teqn, teqn->bT, 1.0);
-
-    // Step 4: build RHS b = T^n + dt*bT
-    //         sourceT is added WITHOUT dt scaling, matching TeqnSNES convention
-    VecCopy(teqn->Tmprt_o, teqn->TmprtTmp);
-    VecAXPY(teqn->TmprtTmp, clock->dt, teqn->bT);
-
+    // add driving source terms (scale by 1/dt as it will be multiplied by dt in the time-stepping)
     if(teqn->access->flags->isAblActive)
+    {
         if(teqn->access->abl->controllerActiveT)
-            sourceT(teqn, teqn->TmprtTmp, 1.0);
+        {
+            sourceT(teqn, teqn->bT, 1.0/clock->dt);
+        }
+    }
+    
+    // compute initial guess
+    VecCopy(teqn->Tmprt_o, teqn->TmprtTmp);    
 
-    resetNonResolvedCellCentersScalar(mesh, teqn->TmprtTmp);
+    SNESSolve(teqn->snesT, PETSC_NULL, teqn->TmprtTmp);
+    SNESGetFunctionNorm(teqn->snesT, &norm);
+    SNESGetIterationNumber(teqn->snesT, &iter);
 
-    // Step 5: KSP direct solve: A*T^{n+1} = TmprtTmp
-    // RhsConv_o is used as the solution buffer because:
-    //   - its AB2 history value was already consumed into bT above,
-    //   - IMEXTMatVec writes to Tmprt/lTmprt as workspace (different from the solution buffer),
-    //   - Step 7 will overwrite RhsConv_o with RhsConv, so order matters.
-    VecCopy(teqn->TmprtTmp, teqn->RhsConv_o);         // non-zero initial guess
-    KSPSolve(teqn->kspIMEX, teqn->TmprtTmp, teqn->RhsConv_o);
+    // report total inner linear iterations (= total MatMFFD FormT calls for J*v)
+    PetscInt linIter = 0;
+    SNESGetLinearSolveIterations(teqn->snesT, &linIter);
 
-    PetscReal norm;  PetscInt iter;
-    KSPGetResidualNorm(teqn->kspIMEX, &norm);
-    KSPGetIterationNumber(teqn->kspIMEX, &iter);
+    VecCopy(teqn->TmprtTmp, teqn->Tmprt);
 
-    // Step 6: copy solution back and scatter
-    VecCopy(teqn->RhsConv_o, teqn->Tmprt);
     DMGlobalToLocalBegin(mesh->da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
     DMGlobalToLocalEnd  (mesh->da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
 
-    // Step 7: rotate Conv buffer for AB2 at the next step (must follow Step 6)
-    VecCopy(teqn->RhsConv, teqn->RhsConv_o);
-
     PetscTime(&te);
-    PetscPrintf(mesh->MESH_COMM,
-        "Final residual = %e, Iterations = %ld, Elapsed Time = %lf\n",
-        norm, iter, te-ts);
+    PetscPrintf(mesh->MESH_COMM, "Final residual = %e, Iterations = %ld (linear = %ld), Elapsed Time = %lf\n", norm, iter, linIter, te-ts);
 
     return(0);
 }
 
 //***************************************************************************************************************//
 
-PetscErrorCode TeqnSNES(SNES snes, Vec T, Vec Rhs, void *ptr)
+PetscErrorCode SNESFuncEvalT(SNES snes, Vec T, Vec Rhs, void *ptr)
 {
     teqn_ *teqn   = (teqn_*)ptr;
     mesh_ *mesh   = teqn->access->mesh;
@@ -701,8 +648,8 @@ PetscErrorCode TeqnSNES(SNES snes, Vec T, Vec Rhs, void *ptr)
     // update wall model (optional)
     // UpdateWallModelsT(teqn);
 
-    // initialize the rhs vector
-    VecSet(Rhs, 0.0);
+    // initialize Rhs from the prebuilt constant-RHS buffer (bU).
+    VecCopy(teqn->bT, Rhs);
 
     // get time step
     PetscReal dt = clock->dt;
@@ -718,15 +665,6 @@ PetscErrorCode TeqnSNES(SNES snes, Vec T, Vec Rhs, void *ptr)
     }
 
     VecScale(Rhs, dt);
-
-    // add driving source terms after as it is not scaled by 1/dt
-    if(teqn->access->flags->isAblActive)
-    {
-        if(teqn->access->abl->controllerActiveT)
-        {
-            sourceT(teqn, Rhs, 1.0);
-        }
-    }
 
     // set to zero at non-resolved cell faces
     resetNonResolvedCellCentersScalar(mesh, Rhs);
@@ -752,6 +690,7 @@ PetscErrorCode TeqnSNES(SNES snes, Vec T, Vec Rhs, void *ptr)
 PetscErrorCode FormExplicitRhsT(teqn_ *teqn)
 {
     mesh_ *mesh   = teqn->access->mesh;
+    clock_ *clock = teqn->access->clock;
 
     // reset temperature periodic fluxes to be consistent if the flow is periodic
     resetCellPeriodicFluxes(mesh, teqn->Tmprt, teqn->lTmprt, "scalar", "globalToLocal");
@@ -772,12 +711,16 @@ PetscErrorCode FormExplicitRhsT(teqn_ *teqn)
         dampingSourceT(teqn, teqn->Rhs, 1.0);
     }
 
-    // add driving source terms (not scaled by 1/dt)
+    // biharmonic hyperviscosity: damp checkerboard / Nyquist modes.
+    if(teqn->hyperVisc4i > 0.0 || teqn->hyperVisc4j > 0.0 || teqn->hyperVisc4k > 0.0)
+        hyperViscosityT(teqn, teqn->Rhs, 1.0);
+
+    // add driving source terms (scale by 1/dt as it will be multiplied by dt in the time-stepping)
     if(teqn->access->flags->isAblActive)
     {
         if(teqn->access->abl->controllerActiveT)
         {
-            sourceT(teqn, teqn->Rhs, 1.0 / teqn->access->clock->dt);
+            sourceT(teqn, teqn->Rhs, 1.0 / clock->dt);
         }
     }
 
@@ -851,3 +794,126 @@ PetscErrorCode TeqnRK4(teqn_ *teqn)
 
 //***************************************************************************************************************//
 
+PetscErrorCode BEABMatVec(Mat A, Vec v, Vec Av)
+{
+    // IMEX MatShell operator: A*v = v - dt*D(v)
+    // D(v) is the diffusion-only operator evaluated at the current iterate v.
+    // Used by kspIMEX to solve the linear IMEX system A*T^{n+1} = T^n + dt*bT.
+    // Called by PETSc KSP for every matrix-vector product during the iterative solve.
+    // Note: backward Euler for diffusion (scale=1.0 always) avoids velocity-temperature coupling issues of CN.
+
+    teqn_  *teqn;
+    MatShellGetContext(A, (void**)&teqn);
+
+    mesh_  *mesh  = teqn->access->mesh;
+    clock_ *clock = teqn->access->clock;
+    PetscReal dt  = clock->dt;
+
+    // sync v → Tmprt/lTmprt so FormT reads the correct state
+    VecCopy(v, teqn->Tmprt);
+    DMGlobalToLocalBegin(mesh->da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
+    DMGlobalToLocalEnd  (mesh->da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
+
+    // reset periodic BCs
+    resetCellPeriodicFluxes(mesh, teqn->Tmprt, teqn->lTmprt, "scalar", "globalToLocal");
+
+    // compute D(v) into scratch buffer Rhs (diffusion-only, formMode=2, scale=1.0 backward Euler)
+    VecSet(teqn->Rhs, 0.0);
+    FormT(teqn, teqn->Rhs, 1.0, 2);
+    VecScale(teqn->Rhs, dt);                // Rhs = dt*D(v)
+    resetNonResolvedCellCentersScalar(mesh, teqn->Rhs);
+
+    // Av = v - dt*D(v)
+    VecCopy(v, Av);
+    VecAXPY(Av, -1.0, teqn->Rhs);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode TeqnBEAB(teqn_ *teqn)
+{
+    mesh_  *mesh  = teqn->access->mesh;
+    clock_ *clock = teqn->access->clock;
+
+    PetscReal ts, te;
+    PetscTime(&ts);
+    PetscPrintf(mesh->MESH_COMM, "IMEX-CNAB: Solving for T, ");
+
+    // Step 1: ensure T^n state is synchronised (lTmprt current)
+    resetCellPeriodicFluxes(mesh, teqn->Tmprt, teqn->lTmprt, "scalar", "globalToLocal");
+
+    // Step 2: convective RHS at T^n → RhsConv (conv-only, formMode=1)
+    VecSet(teqn->RhsConv, 0.0);
+    FormT(teqn, teqn->RhsConv, 1.0, 1);
+
+    // Step 3: build bT = AB2 convection + dampingSourceT + sourceT/dt
+    //         (no explicit diffusion: full backward-Euler diffusion is handled by the linear operator A)
+    VecSet(teqn->bT, 0.0);
+
+    // AB2 convection extrapolation: c1=3/2, c2=-1/2 (Forward Euler on first step)
+    if(clock->it > clock->itStart)
+    {
+        VecAXPY(teqn->bT,  1.5, teqn->RhsConv);     // (3/2) * Conv^n
+        VecAXPY(teqn->bT, -0.5, teqn->RhsConv_o);   // (-1/2) * Conv^{n-1}
+    }
+    else
+    {
+        VecAXPY(teqn->bT, 1.0, teqn->RhsConv);      // Forward Euler on first step
+    }
+
+    // sponge/Rayleigh damping contribution (T/time units, added to bT)
+    if(teqn->access->flags->isXDampingActive)
+        dampingSourceT(teqn, teqn->bT, 1.0);
+
+    // biharmonic hyperviscosity: damp checkerboard / Nyquist modes.
+    if(teqn->hyperVisc4i > 0.0 || teqn->hyperVisc4j > 0.0 || teqn->hyperVisc4k > 0.0)
+        hyperViscosityT(teqn, teqn->bT, 1.0);
+
+    // Step 4: build RHS b = T^n + dt*bT
+
+    // b = dt*bT
+    VecCopy(teqn->bT, teqn->TmprtTmp);
+    VecScale(teqn->TmprtTmp, clock->dt);
+
+    // add driving source terms after as it is not scaled by 1/dt
+    if(teqn->access->flags->isAblActive)
+        if(teqn->access->abl->controllerActiveT)
+            sourceT(teqn, teqn->TmprtTmp, 1.0);
+
+    // set to zero at non-resolved cell faces
+    resetNonResolvedCellCentersScalar(mesh, teqn->TmprtTmp);
+
+    // add T^n to bT to form the final RHS b for the linear system A*T^{n+1} = b
+    VecAXPY(teqn->TmprtTmp, 1.0, teqn->Tmprt_o);
+
+    // Step 5: KSP direct solve: A*T^{n+1} = TmprtTmp
+    // RhsConv_o is used as the solution buffer because:
+    //   - its AB2 history value was already consumed into bT above,
+    //   - IMEXTMatVec writes to Tmprt/lTmprt as workspace (different from the solution buffer),
+    //   - Step 7 will overwrite RhsConv_o with RhsConv, so order matters.
+    VecCopy(teqn->TmprtTmp, teqn->RhsConv_o);         // non-zero initial guess
+    KSPSolve(teqn->kspIMEX, teqn->TmprtTmp, teqn->RhsConv_o);
+
+    PetscReal norm;  PetscInt iter;
+    KSPGetResidualNorm(teqn->kspIMEX, &norm);
+    KSPGetIterationNumber(teqn->kspIMEX, &iter);
+
+    // Step 6: copy solution back and scatter
+    VecCopy(teqn->RhsConv_o, teqn->Tmprt);
+    DMGlobalToLocalBegin(mesh->da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
+    DMGlobalToLocalEnd  (mesh->da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
+
+    // Step 7: rotate Conv buffer for AB2 at the next step (must follow Step 6)
+    VecCopy(teqn->RhsConv, teqn->RhsConv_o);
+
+    PetscTime(&te);
+    PetscPrintf(mesh->MESH_COMM,
+        "Final residual = %e, Iterations = %ld, Elapsed Time = %lf\n",
+        norm, iter, te-ts);
+
+    return(0);
+}
+
+//***************************************************************************************************************//

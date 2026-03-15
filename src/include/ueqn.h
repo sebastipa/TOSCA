@@ -7,6 +7,9 @@
 //! \brief structure storing momentum equation
 struct ueqn_
 {
+    // solver name 
+    word          solverType;                 //!< solver type (kept for logging)
+
     // implicit time stepping
     SNES          snesU;                      //!< non linear matrix free context for momentum equation
     Mat           JU;                         //!< non linear matrix free preconditioner
@@ -15,7 +18,6 @@ struct ueqn_
     PC            pc;
     KSP           kspIMEX;                    //!< standalone direct KSP for IMEX scheme (no SNES wrapper)
     Mat           JvIMEX;                     //!< MatShell for IMEX operator A*v = v - dt*scale*Visc(v)
-    word          snesType;                   //!< SNES solver type (kept for logging)
     PetscInt      snesMaxIter;                //!< max SNES outer iterations (-snesMaxItersU in control.dat)
     word          kspType;                    //!< KSP solver type: BiCGStab or GMRES (-kspTypeU in control.dat)
     PetscInt      gmresRestart;               //!< GMRES restart parameter (-kspGMRESRestartU in control.dat, default 30)
@@ -31,7 +33,7 @@ struct ueqn_
     Vec           dP;                               //!< pressure term of the momentum equation
 	Vec           dPAGW;                            //!< pressure term of the momentum equation as calculated from provided atmopsheric gravity waves pressure
     Vec           bTheta;                           //!< buoyancy field at current T (T^{n+1}* after predictor)
-    Vec           bTheta_o;                          //!< buoyancy field at T^n — used for CN-consistent 0.5*b^n + 0.5*b^{n+1} splitting
+    Vec           bTheta_o;                         //!< buoyancy field at T^n — used for CN-consistent 0.5*b^n + 0.5*b^{n+1} splitting
     Vec           sourceU;                          //!< source term to drive Uref at Zref with periodic BCs
     Vec           gCont;                            //!< gravity vector in cuvilinear coordinates
     Vec           Ucont, lUcont;                    //!< contravariant fluxes (contravariant velocity / J)
@@ -39,6 +41,7 @@ struct ueqn_
     Vec           Ucont_o;                          //!< contravariant fluxes at the previous time step
     Vec           bU;                               //!< precomputed constant-RHS contributions (crankNicholson/IMEX): built once per time step in SolveUEqn
     Vec           RhsConv;                          //!< convective-only RHS at current step n  (IMEX-CNAB: Adams-Bashforth 2)
+    Vec           RhsVisc;                          //!< viscous-only RHS at current step n  (IMEX-CNAB: Crank-Nicolson implicit half)
     Vec           RhsConv_o;                        //!< convective-only RHS at previous step n-1 (IMEX-CNAB: Adams-Bashforth 2)
 
     Vec           lUstar;
@@ -65,9 +68,9 @@ struct ueqn_
     PetscInt      weno3Div;                   //!< 3rd order WENO scheme
 
     PetscReal     hyperVisc;                  //!< hyperviscocity parameter to add artificial diffusion - (b = 0 is blend between 3rd order upwind and 4th order, b = 1 is central 4th order, b = 0.8 is hybrid 3-4 scheme)
-    PetscReal     hyperVisc4i;                //!< IMEX biharmonic hyperviscosity along i (ξ) index direction (-imexHyperVisc4U_i, default 0)
-    PetscReal     hyperVisc4j;                //!< IMEX biharmonic hyperviscosity along j (η) index direction (-imexHyperVisc4U_j, default 0)
-    PetscReal     hyperVisc4k;                //!< IMEX biharmonic hyperviscosity along k (ζ) index direction, typically vertical (-imexHyperVisc4U_k, default 0)
+    PetscReal     hyperVisc4i;                //!< biharmonic hyperviscosity along csi direction 
+    PetscReal     hyperVisc4j;                //!< biharmonic hyperviscosity along eta direction 
+    PetscReal     hyperVisc4k;                //!< biharmonic hyperviscosity along zeta direction
                                               
     // wall model patch
     wallModel     *iLWM;                      //!< wall model on the i-left patch

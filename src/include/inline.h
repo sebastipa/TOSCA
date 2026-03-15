@@ -1578,6 +1578,62 @@ inline void resetNonResolvedCellCentersScalar(mesh_ *mesh,  Vec &V)
 
 //***************************************************************************************************************//
 
+//! \brief Resets the value at the non-solved centers to zero 
+inline void scaleNonResolvedCellCentersScalar(mesh_ *mesh,  Vec &V, PetscReal scale)
+{
+    DMDALocalInfo    info = mesh->info;
+    PetscInt         xs = info.xs, xe = info.xs + info.xm;
+    PetscInt         ys = info.ys, ye = info.ys + info.ym;
+    PetscInt         zs = info.zs, ze = info.zs + info.zm;
+
+    PetscInt         mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt         i, j, k;
+
+    PetscReal        ***nvert, ***s, ***meshTag;
+
+    DMDAVecGetArray(mesh->da, mesh->lNvert, &nvert);
+    DMDAVecGetArray(mesh->da, mesh->lmeshTag, &meshTag);
+    DMDAVecGetArray(mesh->da, V, &s);
+
+    // Resets to zero the values of a scalar field at the non-resolved
+    // faces of the mesh. Note: doesn't scatter to local.
+
+
+    for (k=zs; k<ze; k++)
+    {
+        for (j=ys; j<ye; j++)
+        {
+            for (i=xs; i<xe; i++)
+            {
+                if
+                (
+                    i==0 ||
+                    i==mx-1 ||
+                    j==0 ||
+                    j==my-1 ||
+                    k==0 ||
+                    k==mz-1 ||
+                    isIBMCell(k, j, i, nvert) || 
+                    isOversetCell(k, j, i, meshTag)
+                )
+                {
+                    s[k][j][i] = scale * s[k][j][i];
+                }
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(mesh->da, V, &s);
+    DMDAVecRestoreArray(mesh->da, mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(mesh->da, mesh->lmeshTag, &meshTag);
+
+    return;
+
+}
+
+//***************************************************************************************************************//
+
 //! \brief Interpolates cartesian velocity at cell center from the contravariant flux around a cell
 inline void ContravariantToCartesianPoint(Cmpnts &csi, Cmpnts &eta, Cmpnts &zet, Cmpnts &ucont, Cmpnts *ucat)
 {
@@ -2441,6 +2497,246 @@ inline void getFace2Face3StencilZet(mesh_ *mesh, PetscInt k, PetscInt mz, PetscI
     else
     {
         *kL = k-1, *kR = k+1;
+    }
+
+    return;
+}
+
+//***************************************************************************************************************//
+
+//! \brief Get neighboring face idxs of a 7 face-sencil in csi direction given the central face idx
+inline void getFace2Face7StencilCsi(mesh_ *mesh, PetscInt i, PetscInt mx, 
+                                    PetscInt *m3, PetscInt *m2, PetscInt *m1, 
+                                    PetscInt *p1, PetscInt *p2, PetscInt *p3)
+{
+    *m3 = i-3, *m2 = i-2, *m1 = i-1, *p1 = i+1, *p2 = i+2, *p3 = i+3;
+    if(mesh->i_periodic)
+    {
+        if(i == 0)    { *m3 = mx-5; *m2 = mx-4; *m1 = mx-3;}
+        if(i == 1)    { *m3 = mx-4; *m2 = mx-3;            }
+        if(i == 2)    { *m3 = mx-3;                        }
+        if(i == mx-4) { *p3 = 1;                           }
+        if(i == mx-3) { *p2 = 1;    *p3 = 2;               }
+        if(i == mx-2) { *p1 = 1;    *p2 = 2; *p3 = 3;      }
+    }
+    else if(mesh->ii_periodic)
+    {
+        if(i == 0)    { *m3 = -3;   *m2 = -3;   *m1 = -3;  }
+        if(i == 1)    { *m3 = -3;   *m2 = -3;              }
+        if(i == 2)    { *m3 = -3;                          }
+        if(i == mx-4) { *p3 = mx+1;                        }
+        if(i == mx-3) { *p2 = mx+1; *p3 = mx+2;            }
+        if(i == mx-2) { *p1 = mx+1; *p2 = mx+2; *p3 = mx+2;}
+    }
+    else
+    {
+        // Non-periodic: clamp to valid face range [0, mx-2].
+        if(*m3 < 0)    *m3 = 0;
+        if(*m2 < 0)    *m2 = 0;
+        if(*m1 < 0)    *m1 = 0;
+        if(*p1 > mx-2) *p1 = mx-2;
+        if(*p2 > mx-2) *p2 = mx-2;
+        if(*p3 > mx-2) *p3 = mx-2;
+    }
+
+    return;
+}
+
+//***************************************************************************************************************//
+
+//! \brief Get neighboring face idxs of a 7 face-sencil in eta direction given the central face idx
+inline void getFace2Face7StencilEta(mesh_ *mesh, PetscInt j, PetscInt my,  
+                                    PetscInt *m3, PetscInt *m2, PetscInt *m1, 
+                                    PetscInt *p1, PetscInt *p2, PetscInt *p3)
+{
+    *m3 = j-3, *m2 = j-2, *m1 = j-1, *p1 = j+1, *p2 = j+2, *p3 = j+3;
+    if(mesh->j_periodic)
+    {
+        if(j == 0)    { *m3 = my-5; *m2 = my-4; *m1 = my-3;}
+        if(j == 1)    { *m3 = my-4; *m2 = my-3;            }
+        if(j == 2)    { *m3 = my-3;                        }
+        if(j == my-4) { *p3 = 1;                           }
+        if(j == my-3) { *p2 = 1;    *p3 = 2;               }
+        if(j == my-2) { *p1 = 1;    *p2 = 2; *p3 = 3;      }
+    }
+    else if(mesh->jj_periodic)
+    {
+        if(j == 0)    { *m3 = -3;   *m2 = -3;   *m1 = -3;  }
+        if(j == 1)    { *m3 = -3;   *m2 = -3;              }
+        if(j == 2)    { *m3 = -3;                          }
+        if(j == my-4) { *p3 = my+1;                        }
+        if(j == my-3) { *p2 = my+1; *p3 = my+2;            }
+        if(j == my-2) { *p1 = my+1; *p2 = my+2; *p3 = my+2;}
+    }
+    else
+    {
+        // Non-periodic: clamp to valid face range [0, my-2].
+        if(*m3 < 0)    *m3 = 0;
+        if(*m2 < 0)    *m2 = 0;
+        if(*m1 < 0)    *m1 = 0;
+        if(*p1 > my-2) *p1 = my-2;
+        if(*p2 > my-2) *p2 = my-2;
+        if(*p3 > my-2) *p3 = my-2;
+    }
+
+    return;
+}
+
+//***************************************************************************************************************//
+
+//! \brief Get neighboring face idxs of a 7 face-sencil in zeta direction given the central face idx
+inline void getFace2Face7StencilZet(mesh_ *mesh, PetscInt k, PetscInt mz,  
+                                    PetscInt *m3, PetscInt *m2, PetscInt *m1, 
+                                    PetscInt *p1, PetscInt *p2, PetscInt *p3)
+{
+    *m3 = k-3, *m2 = k-2, *m1 = k-1, *p1 = k+1, *p2 = k+2, *p3 = k+3;
+    if(mesh->k_periodic)
+    {
+        if(k == 0)    { *m3 = mz-5; *m2 = mz-4; *m1 = mz-3;}
+        if(k == 1)    { *m3 = mz-4; *m2 = mz-3;            }
+        if(k == 2)    { *m3 = mz-3;                        }
+        if(k == mz-4) { *p3 = 1;                           }
+        if(k == mz-3) { *p2 = 1;    *p3 = 2;               }
+        if(k == mz-2) { *p1 = 1;    *p2 = 2; *p3 = 3;      }
+    }
+    else if(mesh->kk_periodic)
+    {
+        if(k == 0)    { *m3 = -3;   *m2 = -3;   *m1 = -3;  }
+        if(k == 1)    { *m3 = -3;   *m2 = -3;              }
+        if(k == 2)    { *m3 = -3;                          }
+        if(k == mz-4) { *p3 = mz+1;                        }
+        if(k == mz-3) { *p2 = mz+1; *p3 = mz+2;            }
+        if(k == mz-2) { *p1 = mz+1; *p2 = mz+2; *p3 = mz+2;}
+    }
+    else
+    {
+        // Non-periodic: clamp to valid face range [0, my-2].
+        if(*m3 < 0)    *m3 = 0;
+        if(*m2 < 0)    *m2 = 0;
+        if(*m1 < 0)    *m1 = 0;
+        if(*p1 > mz-2) *p1 = mz-2;
+        if(*p2 > mz-2) *p2 = mz-2;
+        if(*p3 > mz-2) *p3 = mz-2;
+    }
+
+    return;
+}
+
+//***************************************************************************************************************//
+
+//! \brief Get neighboring cell idxs of a 7 face-sencil in csi direction given the central cell idx
+inline void getCell2Cell7StencilCsi(mesh_ *mesh, PetscInt i, PetscInt mx, 
+                                    PetscInt *m3, PetscInt *m2, PetscInt *m1, 
+                                    PetscInt *p1, PetscInt *p2, PetscInt *p3)
+{
+    *m3 = i-3, *m2 = i-2, *m1 = i-1, *p1 = i+1, *p2 = i+2, *p3 = i+3;
+    if(mesh->i_periodic)
+    {
+        if(i == 0)    { *m3 = mx-4; *m2 = mx-3; *m1 = mx-2;}
+        if(i == 1)    { *m3 = mx-3; *m2 = mx-2;            }
+        if(i == 2)    { *m3 = mx-2;                        }
+        if(i == mx-3) { *p3 = 2;                           }
+        if(i == mx-2) { *p2 = 2;    *p3 = 3;               }
+        if(i == mx-1) { *p1 = 2;    *p2 = 3; *p3 = 4;      }
+    }
+    else if(mesh->ii_periodic)
+    {
+        if(i == 0)    { *m3 = -3;   *m2 = -3;   *m1 = -3;  }
+        if(i == 1)    { *m3 = -3;   *m2 = -3;              }
+        if(i == 2)    { *m3 = -3;                          }
+        if(i == mx-3) { *p3 = mx+2;                        }
+        if(i == mx-2) { *p2 = mx+2; *p3 = mx+2;            }
+        if(i == mx-1) { *p1 = mx+2; *p2 = mx+2; *p3 = mx+2;}
+    }
+    else
+    {
+        // Non-periodic: clamp to valid face range [0, mx-1].
+        if(*m3 < 1)    *m3 = 1;
+        if(*m2 < 1)    *m2 = 1;
+        if(*m1 < 1)    *m1 = 1;
+        if(*p1 > mx-2) *p1 = mx-2;
+        if(*p2 > mx-2) *p2 = mx-2;
+        if(*p3 > mx-2) *p3 = mx-2;
+    }
+
+    return;
+}
+
+//***************************************************************************************************************//
+
+//! \brief Get neighboring cell idxs of a 7 face-sencil in eta direction given the central cell idx
+inline void getCell2Cell7StencilEta(mesh_ *mesh, PetscInt j, PetscInt my,  
+                                    PetscInt *m3, PetscInt *m2, PetscInt *m1, 
+                                    PetscInt *p1, PetscInt *p2, PetscInt *p3)
+{
+    *m3 = j-3, *m2 = j-2, *m1 = j-1, *p1 = j+1, *p2 = j+2, *p3 = j+3;
+    if(mesh->j_periodic)
+    {
+        if(j == 0)    { *m3 = my-4; *m2 = my-3; *m1 = my-2;}
+        if(j == 1)    { *m3 = my-3; *m2 = my-2;            }
+        if(j == 2)    { *m3 = my-2;                        }
+        if(j == my-3) { *p3 = 2;                           }
+        if(j == my-2) { *p2 = 2;    *p3 = 3;               }
+        if(j == my-1) { *p1 = 2;    *p2 = 3; *p3 = 4;      }
+    }
+    else if(mesh->jj_periodic)
+    {
+        if(j == 0)    { *m3 = -3;   *m2 = -3;   *m1 = -3;  }
+        if(j == 1)    { *m3 = -3;   *m2 = -3;              }
+        if(j == 2)    { *m3 = -3;                          }
+        if(j == my-3) { *p3 = my+2;                        }
+        if(j == my-2) { *p2 = my+2; *p3 = my+2;            }
+        if(j == my-1) { *p1 = my+2; *p2 = my+2; *p3 = my+2;}
+    }
+    else
+    {
+        // Non-periodic: clamp to valid face range [0, mx-1].
+        if(*m3 < 1)    *m3 = 1;
+        if(*m2 < 1)    *m2 = 1;
+        if(*m1 < 1)    *m1 = 1;
+        if(*p1 > my-2) *p1 = my-2;
+        if(*p2 > my-2) *p2 = my-2;
+        if(*p3 > my-2) *p3 = my-2;
+    }
+
+    return;
+}
+
+//***************************************************************************************************************//
+
+//! \brief Get neighboring cell idxs of a 7 face-sencil in zeta direction given the central cell idx
+inline void getCell2Cell7StencilZet(mesh_ *mesh, PetscInt k, PetscInt mz,  
+                                    PetscInt *m3, PetscInt *m2, PetscInt *m1, 
+                                    PetscInt *p1, PetscInt *p2, PetscInt *p3)
+{
+    *m3 = k-3, *m2 = k-2, *m1 = k-1, *p1 = k+1, *p2 = k+2, *p3 = k+3;
+    if(mesh->k_periodic)
+    {
+        if(k == 0)    { *m3 = mz-4; *m2 = mz-3; *m1 = mz-2;}
+        if(k == 1)    { *m3 = mz-3; *m2 = mz-2;            }
+        if(k == 2)    { *m3 = mz-2;                        }
+        if(k == mz-3) { *p3 = 2;                           }
+        if(k == mz-2) { *p2 = 2;    *p3 = 3;               }
+        if(k == mz-1) { *p1 = 2;    *p2 = 3; *p3 = 4;      }
+    }
+    else if(mesh->kk_periodic)
+    {
+        if(k == 0)    { *m3 = -3;   *m2 = -3;   *m1 = -3;  }
+        if(k == 1)    { *m3 = -3;   *m2 = -3;              }
+        if(k == 2)    { *m3 = -3;                          }
+        if(k == mz-3) { *p3 = mz+2;                        }
+        if(k == mz-2) { *p2 = mz+2; *p3 = mz+2;            }
+        if(k == mz-1) { *p1 = mz+2; *p2 = mz+2; *p3 = mz+2;}
+    }
+    else
+    {
+        // Non-periodic: clamp to valid face range [0, mx-1].
+        if(*m3 < 1)    *m3 = 1;
+        if(*m2 < 1)    *m2 = 1;
+        if(*m1 < 1)    *m1 = 1;
+        if(*p1 > mz-2) *p1 = mz-2;
+        if(*p2 > mz-2) *p2 = mz-2;
+        if(*p3 > mz-2) *p3 = mz-2;
     }
 
     return;
@@ -4599,6 +4895,31 @@ inline PetscReal centralUpwind
 	return
     (
        C + (1.0-limiter)*corr
+    );
+}
+
+//***************************************************************************************************************//
+
+inline PetscReal upwind
+(
+    PetscReal f1, PetscReal f2,
+    PetscReal wavespeed
+)
+{
+    PetscReal fU, fD;
+
+    if(wavespeed>0)
+    {
+        fU  = f1;
+	}
+	else
+    {
+        fU  = f2;
+	}
+
+	return
+    (
+       fU
     );
 }
 

@@ -85,8 +85,16 @@ int main(int argc, char **argv)
                     // note: T^{n-1} also stores the BCs, so that in the end when solving in SNES
                     //       T^{n+1}_ghost = 4/3 T^{n-} - 1/3 T^{n-1} (difference from the true BCs by O(dt**2))
                     VecCopy(domain[d].teqn->Tmprt_o, domain[d].teqn->Tmprt_oo); 
+                    resetNonResolvedCellCentersScalar(domain[d].mesh,  domain[d].teqn->Tmprt_oo);
+
+                    VecCopy(domain[d].teqn->Tmprt, domain[d].teqn->Tmprt_o);
+                    scaleNonResolvedCellCentersScalar(domain[d].mesh,  domain[d].teqn->Tmprt_o, 3.0/4.0);
                 }
-                VecCopy(domain[d].teqn->Tmprt, domain[d].teqn->Tmprt_o);
+                else
+                {
+                    VecCopy(domain[d].teqn->Tmprt, domain[d].teqn->Tmprt_o);
+                }
+                
             }
 
             if(domain[d].ueqn->centralUpwindDiv || domain[d].ueqn->centralUpwindWDiv || flags.isTeqnActive)
@@ -150,30 +158,20 @@ int main(int argc, char **argv)
 
             if(flags.isTeqnActive)
             {
-                if(domain[d].ueqn->ddtScheme == "CN" ||
-                   domain[d].ueqn->ddtScheme == "CNAB")
+                // save the old buoyancy term for the AB2 time stepping
+                if(clock.it > clock.itStart)
                 {
-                    // AB2 buoyancy: rotate history then evaluate b(T^n).
-                    // Works for both CN and IMEX-CNAB — both extrapolate buoyancy to t^{n+1/2}.
-                    VecCopy(domain[d].ueqn->bTheta, domain[d].ueqn->bTheta_o);
-
                     if(domain[d].teqn->pTildeFormulation)
-                    {
                         VecCopy(domain[d].teqn->ghGradRhok, domain[d].teqn->ghGradRhok_o);
-                        ghGradRhoK(domain[d].teqn);
-                    }
                     else
-                        Buoyancy(domain[d].ueqn, 1.0);   // bTheta = b(T^n)
-                }
-                else
-                {
-                    // forwardEuler / RK4: evaluate b(T^n), no history needed
-                    if(domain[d].teqn->pTildeFormulation)
-                        ghGradRhoK(domain[d].teqn);
-                    else
-                        Buoyancy(domain[d].ueqn, 1.0);
+                        VecCopy(domain[d].ueqn->bTheta, domain[d].ueqn->bTheta_o);
                 }
 
+                // compute the new buoyancy term
+                if(domain[d].teqn->pTildeFormulation)
+                    ghGradRhoK(domain[d].teqn);
+                else
+                    Buoyancy(domain[d].ueqn, 1.0);
             }
 
             // Predictor Step (adjusts fluxes)
