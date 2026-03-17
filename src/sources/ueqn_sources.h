@@ -40,4 +40,5 @@ PetscErrorCode meanGradPForcing(ueqn_ *ueqn, Vec &Rhs, PetscReal scale);
 //! \brief Apply hyper-viscosity to momentum equation
 PetscErrorCode hyperViscosityU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale);
 
+
 #endif

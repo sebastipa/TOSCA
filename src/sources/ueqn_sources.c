@@ -3896,6 +3896,13 @@ PetscErrorCode hyperViscosityU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     PetscReal eps_j = scale * 0.015625 * ueqn->hyperVisc4j;
     PetscReal eps_k = scale * 0.015625 * ueqn->hyperVisc4k;
 
+    PetscReal Fp_x;
+    PetscReal Fm_x;
+    PetscReal Fp_y;
+    PetscReal Fm_y;
+    PetscReal Fp_z;
+    PetscReal Fm_z;
+
     DMDAVecGetArray(fda, mesh->lCsi, &csi);
     DMDAVecGetArray(fda, mesh->lEta, &eta);
     DMDAVecGetArray(fda, mesh->lZet, &zet);
@@ -3908,7 +3915,7 @@ PetscErrorCode hyperViscosityU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     VecDuplicate( ueqn->lUcont, &Rhs_c); VecSet(Rhs_c, 0.0);
     DMDAVecGetArray(fda, Ucont_c, &ucont_c);
 
-    // 1. transform cartesian velocity to contravariant at face centers 
+    // 1. transform cartesian velocity to contravariant at internal face centers 
     for(k = lzs; k < lze; k++)
     for(j = lys; j < lye; j++)
     for(i = lxs; i < lxe; i++)
@@ -4013,15 +4020,16 @@ PetscErrorCode hyperViscosityU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     DMLocalToLocalBegin(fda, Ucont_c, INSERT_VALUES, Ucont_c);
     DMLocalToLocalEnd  (fda, Ucont_c, INSERT_VALUES, Ucont_c);
 
+    // handle periodic values and populate stencils
     resetCellPeriodicFluxes(mesh, Ucont_c, Ucont_c, "vector", "localToLocal");
 
     // 2. compute diffusion term at cell centers (stay on internal faces)
     DMDAVecGetArray(fda, Rhs_c, &rhs_c);
     DMDAVecGetArray(fda, Ucont_c, &ucont_c);
 
-    lxs = xs; if(lxs == 0) lxs=lxs+3;  lxe = xe; if(lxe == mx) lxe=lxe-3;
-    lys = ys; if(lys == 0) lys=lys+3;  lye = ye; if(lye == my) lye=lye-3;
-    lzs = zs; if(lzs == 0) lzs=lzs+3;  lze = ze; if(lze == mz) lze=lze-3;
+    lxs = xs; if(lxs == 0) lxs=lxs+1;  lxe = xe; if(lxe == mx) lxe=lxe-1;
+    lys = ys; if(lys == 0) lys=lys+1;  lye = ye; if(lye == my) lye=lye-1;
+    lzs = zs; if(lzs == 0) lzs=lzs+1;  lze = ze; if(lze == mz) lze=lze-1;
 
     for(k = lzs; k < lze; k++)
     for(j = lys; j < lye; j++)
@@ -4042,12 +4050,36 @@ PetscErrorCode hyperViscosityU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
         if(nvert[k][j][i] + nvert[k][j][i+1] < 2.0 * solid)
         {
-            PetscReal Fp_x = 10.0*(ux_ip1 - ux_i) -5.0*(ux_ip2 - ux_im1) + (ux_ip3 - ux_im2);
-            PetscReal Fm_x = 10.0*(ux_i - ux_im1) -5.0*(ux_ip1 - ux_im2) + (ux_ip2 - ux_im3);
-            PetscReal Fp_y = 10.0*(uy_ip1 - uy_i) -5.0*(uy_ip2 - uy_im1) + (uy_ip3 - uy_im2);
-            PetscReal Fm_y = 10.0*(uy_i - uy_im1) -5.0*(uy_ip1 - uy_im2) + (uy_ip2 - uy_im3);
-            PetscReal Fp_z = 10.0*(uz_ip1 - uz_i) -5.0*(uz_ip2 - uz_im1) + (uz_ip3 - uz_im2);
-            PetscReal Fm_z = 10.0*(uz_i - uz_im1) -5.0*(uz_ip1 - uz_im2) + (uz_ip2 - uz_im3);
+            // sixth order 
+            if(i > 2 && i < mx-3) 
+            {
+                Fp_x = 10.0*(ux_ip1 - ux_i) -5.0*(ux_ip2 - ux_im1) + (ux_ip3 - ux_im2);
+                Fm_x = 10.0*(ux_i - ux_im1) -5.0*(ux_ip1 - ux_im2) + (ux_ip2 - ux_im3);
+                Fp_y = 10.0*(uy_ip1 - uy_i) -5.0*(uy_ip2 - uy_im1) + (uy_ip3 - uy_im2);
+                Fm_y = 10.0*(uy_i - uy_im1) -5.0*(uy_ip1 - uy_im2) + (uy_ip2 - uy_im3);
+                Fp_z = 10.0*(uz_ip1 - uz_i) -5.0*(uz_ip2 - uz_im1) + (uz_ip3 - uz_im2);
+                Fm_z = 10.0*(uz_i - uz_im1) -5.0*(uz_ip1 - uz_im2) + (uz_ip2 - uz_im3);
+            }
+            // fourth order
+            else if(i > 1 && i < mx-2) 
+            {
+                Fp_x = -(ux_ip2 - ux_im1) + 3.0*(ux_ip1 - ux_i);
+                Fm_x = -(ux_ip1 - ux_im2) + 3.0*(ux_i - ux_im1);
+                Fp_y = -(uy_ip2 - uy_im1) + 3.0*(uy_ip1 - uy_i);
+                Fm_y = -(uy_ip1 - uy_im2) + 3.0*(uy_i - uy_im1);
+                Fp_z = -(uz_ip2 - uz_im1) + 3.0*(uz_ip1 - uz_i);
+                Fm_z = -(uz_ip1 - uz_im2) + 3.0*(uz_i - uz_im1);
+            }
+            // second order
+            else
+            {
+                Fp_x = ux_ip1 - ux_i;
+                Fm_x = ux_i - ux_im1;
+                Fp_y = uy_ip1 - uy_i;
+                Fm_y = uy_i - uy_im1;
+                Fp_z = uz_ip1 - uz_i;
+                Fm_z = uz_i - uz_im1;
+            }
 
             if((ux_ip1 - ux_i) * Fp_x <= 0.0) Fp_x = 0.0;
             if((ux_i - ux_im1) * Fm_x <= 0.0) Fm_x = 0.0;
@@ -4075,12 +4107,36 @@ PetscErrorCode hyperViscosityU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
         if(nvert[k][j][i] + nvert[k][j+1][i] < 2.0 * solid)
         {
-            PetscReal Fp_x = 10.0*(ux_jp1 - ux_j) -5.0*(ux_jp2 - ux_jm1) + (ux_jp3 - ux_jm2);
-            PetscReal Fm_x = 10.0*(ux_j - ux_jm1) -5.0*(ux_jp1 - ux_jm2) + (ux_jp2 - ux_jm3);
-            PetscReal Fp_y = 10.0*(uy_jp1 - uy_j) -5.0*(uy_jp2 - uy_jm1) + (uy_jp3 - uy_jm2);
-            PetscReal Fm_y = 10.0*(uy_j - uy_jm1) -5.0*(uy_jp1 - uy_jm2) + (uy_jp2 - uy_jm3);
-            PetscReal Fp_z = 10.0*(uz_jp1 - uz_j) -5.0*(uz_jp2 - uz_jm1) + (uz_jp3 - uz_jm2);
-            PetscReal Fm_z = 10.0*(uz_j - uz_jm1) -5.0*(uz_jp1 - uz_jm2) + (uz_jp2 - uz_jm3);
+            // sixth order
+            if(j > 2 && j < my-3)
+            {
+                Fp_x = 10.0*(ux_jp1 - ux_j) -5.0*(ux_jp2 - ux_jm1) + (ux_jp3 - ux_jm2);
+                Fm_x = 10.0*(ux_j - ux_jm1) -5.0*(ux_jp1 - ux_jm2) + (ux_jp2 - ux_jm3);
+                Fp_y = 10.0*(uy_jp1 - uy_j) -5.0*(uy_jp2 - uy_jm1) + (uy_jp3 - uy_jm2);
+                Fm_y = 10.0*(uy_j - uy_jm1) -5.0*(uy_jp1 - uy_jm2) + (uy_jp2 - uy_jm3);
+                Fp_z = 10.0*(uz_jp1 - uz_j) -5.0*(uz_jp2 - uz_jm1) + (uz_jp3 - uz_jm2);
+                Fm_z = 10.0*(uz_j - uz_jm1) -5.0*(uz_jp1 - uz_jm2) + (uz_jp2 - uz_jm3);
+            }
+            // fourth order
+            else if(j > 1 && j < my-2)
+            {
+                Fp_x = -(ux_jp2 - ux_jm1) + 3.0*(ux_jp1 - ux_j);
+                Fm_x = -(ux_jp1 - ux_jm2) + 3.0*(ux_j - ux_jm1);
+                Fp_y = -(uy_jp2 - uy_jm1) + 3.0*(uy_jp1 - uy_j);
+                Fm_y = -(uy_jp1 - uy_jm2) + 3.0*(uy_j - uy_jm1);
+                Fp_z = -(uz_jp2 - uz_jm1) + 3.0*(uz_jp1 - uz_j);
+                Fm_z = -(uz_jp1 - uz_jm2) + 3.0*(uz_j - uz_jm1);
+            }
+            // second order
+            else
+            {
+                Fp_x = ux_jp1 - ux_j;
+                Fm_x = ux_j - ux_jm1;
+                Fp_y = uy_jp1 - uy_j;
+                Fm_y = uy_j - uy_jm1;
+                Fp_z = uz_jp1 - uz_j;
+                Fm_z = uz_j - uz_jm1;
+            }
 
             if((ux_jp1 - ux_j) * Fp_x <= 0.0) Fp_x = 0.0;
             if((ux_j - ux_jm1) * Fm_x <= 0.0) Fm_x = 0.0;
@@ -4108,12 +4164,33 @@ PetscErrorCode hyperViscosityU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
         if(nvert[k][j][i] + nvert[k+1][j][i] < 2.0 * solid)
         {
-            PetscReal Fp_x = 10.0*(ux_kp1 - ux_k) -5.0*(ux_kp2 - ux_km1) + (ux_kp3 - ux_km2);
-            PetscReal Fm_x = 10.0*(ux_k - ux_km1) -5.0*(ux_kp1 - ux_km2) + (ux_kp2 - ux_km3);
-            PetscReal Fp_y = 10.0*(uy_kp1 - uy_k) -5.0*(uy_kp2 - uy_km1) + (uy_kp3 - uy_km2);
-            PetscReal Fm_y = 10.0*(uy_k - uy_km1) -5.0*(uy_kp1 - uy_km2) + (uy_kp2 - uy_km3);
-            PetscReal Fp_z = 10.0*(uz_kp1 - uz_k) -5.0*(uz_kp2 - uz_km1) + (uz_kp3 - uz_km2);
-            PetscReal Fm_z = 10.0*(uz_k - uz_km1) -5.0*(uz_kp1 - uz_km2) + (uz_kp2 - uz_km3);   
+            if(k > 2 && k < mz-3)
+            {
+                Fp_x = 10.0*(ux_kp1 - ux_k) -5.0*(ux_kp2 - ux_km1) + (ux_kp3 - ux_km2);
+                Fm_x = 10.0*(ux_k - ux_km1) -5.0*(ux_kp1 - ux_km2) + (ux_kp2 - ux_km3);
+                Fp_y = 10.0*(uy_kp1 - uy_k) -5.0*(uy_kp2 - uy_km1) + (uy_kp3 - uy_km2);
+                Fm_y = 10.0*(uy_k - uy_km1) -5.0*(uy_kp1 - uy_km2) + (uy_kp2 - uy_km3);
+                Fp_z = 10.0*(uz_kp1 - uz_k) -5.0*(uz_kp2 - uz_km1) + (uz_kp3 - uz_km2);
+                Fm_z = 10.0*(uz_k - uz_km1) -5.0*(uz_kp1 - uz_km2) + (uz_kp2 - uz_km3);  
+            }
+            else if(k > 1 && k < mz-2)
+            {
+                Fp_x = -(ux_kp2 - ux_km1) + 3.0*(ux_kp1 - ux_k);
+                Fm_x = -(ux_kp1 - ux_km2) + 3.0*(ux_k - ux_km1);
+                Fp_y = -(uy_kp2 - uy_km1) + 3.0*(uy_kp1 - uy_k);
+                Fm_y = -(uy_kp1 - uy_km2) + 3.0*(uy_k - uy_km1);
+                Fp_z = -(uz_kp2 - uz_km1) + 3.0*(uz_kp1 - uz_k);
+                Fm_z = -(uz_kp1 - uz_km2) + 3.0*(uz_k - uz_km1);
+            }
+            else
+            {
+                Fp_x = ux_kp1 - ux_k;
+                Fm_x = ux_k - ux_km1;
+                Fp_y = uy_kp1 - uy_k;
+                Fm_y = uy_k - uy_km1;
+                Fp_z = uz_kp1 - uz_k;
+                Fm_z = uz_k - uz_km1;
+            } 
 
             if((ux_kp1 - ux_k) * Fp_x <= 0.0) Fp_x = 0.0;
             if((ux_k - ux_km1) * Fm_x <= 0.0) Fm_x = 0.0;
@@ -4238,9 +4315,9 @@ PetscErrorCode hyperViscosityU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     for(j = lys; j < lye; j++)
     for(i = lxs; i < lxe; i++)
     {
-            rhs[k][j][i].x += scale * 0.5 * (rhs_c[k][j][i+1].x + rhs_c[k][j][i].x);
-            rhs[k][j][i].y += scale * 0.5 * (rhs_c[k][j+1][i].y + rhs_c[k][j][i].y);
-            rhs[k][j][i].z += scale * 0.5 * (rhs_c[k+1][j][i].z + rhs_c[k][j][i].z);
+            rhs[k][j][i].x += 0.5 * (rhs_c[k][j][i+1].x + rhs_c[k][j][i].x);
+            rhs[k][j][i].y += 0.5 * (rhs_c[k][j+1][i].y + rhs_c[k][j][i].y);
+            rhs[k][j][i].z += 0.5 * (rhs_c[k+1][j][i].z + rhs_c[k][j][i].z);
     }
 
     DMDAVecRestoreArray(fda, Rhs_c, &rhs_c);
@@ -4261,3 +4338,4 @@ PetscErrorCode hyperViscosityU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 }
 
 //***************************************************************************************************************//
+

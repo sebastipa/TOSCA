@@ -26,10 +26,10 @@ PetscErrorCode FormExplicitRhsT(teqn_ *teqn);
 //! \brief Solve Teqn using RungeKutta 4
 PetscErrorCode TeqnRK4(teqn_ *teqn);
 
-//! \brief IMEX-CNAB time step for T equation (AB2 convection + backward-Euler diffusion)
-PetscErrorCode TeqnBEAB(teqn_ *teqn);
+//! \brief IMEX time step for T equation (AB2 convection + backward-Euler BDF1 diffusion)
+PetscErrorCode TeqnABBE(teqn_ *teqn);
 
-//! \brief MatShell operator for IMEX system: A*v = v - dt*D(v)
-PetscErrorCode BEABMatVec(Mat A, Vec v, Vec Av);
+//! \brief MatShell operator for ABBE linear system: A*v = v - dt*D(v)
+PetscErrorCode ABBEMatVec(Mat A, Vec v, Vec Av);
 
 #endif

@@ -924,9 +924,9 @@ PetscErrorCode hyperViscosityT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
     PetscInt zs = info.zs, ze = info.zs + info.zm;
     PetscInt mx = info.mx, my = info.my, mz = info.mz;
 
-    PetscInt lxs = xs; if(lxs == 0) lxs=lxs+3; PetscInt lxe = xe; if(lxe == mx) lxe=lxe-3;
-    PetscInt lys = ys; if(lys == 0) lys=lys+3; PetscInt lye = ye; if(lye == my) lye=lye-3;
-    PetscInt lzs = zs; if(lzs == 0) lzs=lzs+3; PetscInt lze = ze; if(lze == mz) lze=lze-3;
+    PetscInt lxs = xs; if(lxs == 0) lxs=lxs+1; PetscInt lxe = xe; if(lxe == mx) lxe=lxe-1;
+    PetscInt lys = ys; if(lys == 0) lys=lys+1; PetscInt lye = ye; if(lye == my) lye=lye-1;
+    PetscInt lzs = zs; if(lzs == 0) lzs=lzs+1; PetscInt lze = ze; if(lze == mz) lze=lze-1;
 
     PetscInt    i, j, k;
     PetscReal ***t, ***rhs;
@@ -936,6 +936,8 @@ PetscErrorCode hyperViscosityT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
     PetscReal eps_i = scale * 0.015625 * teqn->hyperVisc4i;
     PetscReal eps_j = scale * 0.015625 * teqn->hyperVisc4j;
     PetscReal eps_k = scale * 0.015625 * teqn->hyperVisc4k;
+
+    PetscReal Fp, Fm;
 
     DMDAVecGetArray(da, teqn->lTmprt, &t);
     DMDAVecGetArray(da, Rhs,          &rhs);
@@ -959,9 +961,24 @@ PetscErrorCode hyperViscosityT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
 
         if(nvert[k][j][i] + nvert[k][j][i+1] < 2.0 * solid)
         {
-            PetscReal Fp = 10.0*(t_ip1 - t_i) -5.0*(t_ip2 - t_im1) + (t_ip3 - t_im2);
-            PetscReal Fm = 10.0*(t_i - t_im1) -5.0*(t_ip1 - t_im2) + (t_ip2 - t_im3);
-
+            // sixth order
+            if(i > 2 && i < mx - 3)
+            {
+                Fp = 10.0*(t_ip1 - t_i) -5.0*(t_ip2 - t_im1) + (t_ip3 - t_im2);
+                Fm = 10.0*(t_i - t_im1) -5.0*(t_ip1 - t_im2) + (t_ip2 - t_im3);
+            }
+            // fourth order
+            else if(j > 1 && j < my-2)
+            {
+                Fp = -(t_ip2 - t_im1) + 3.0*(t_ip1 - t_i);
+                Fm = -(t_ip1 - t_im2) + 3.0*(t_i - t_im1);
+            }
+            // second order
+            else
+            {
+                Fp = t_ip1 - t_i;
+                Fm = t_i - t_im1;
+            }
 
             if((t_ip1 - t_i) * Fp <= 0.0) Fp = 0.0;
             if((t_i - t_im1) * Fm <= 0.0) Fm = 0.0;
@@ -983,8 +1000,24 @@ PetscErrorCode hyperViscosityT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
 
         if(nvert[k][j][i] + nvert[k][j+1][i] < 2.0 * solid)
         {
-            PetscReal Fp = 10.0*(t_jp1 - t_j) -5.0*(t_jp2 - t_jm1) + (t_jp3 - t_jm2);
-            PetscReal Fm = 10.0*(t_j - t_jm1) -5.0*(t_jp1 - t_jm2) + (t_jp2 - t_jm3);
+            // sixth order
+            if (j > 2 && j < my - 3)
+            {
+                Fp = 10.0*(t_jp1 - t_j) -5.0*(t_jp2 - t_jm1) + (t_jp3 - t_jm2);
+                Fm = 10.0*(t_j - t_jm1) -5.0*(t_jp1 - t_jm2) + (t_jp2 - t_jm3);
+            }
+            // fourth order
+            else if(j > 1 && j < my-2)
+            {
+                Fp = -(t_jp2 - t_jm1) + 3.0*(t_jp1 - t_j);
+                Fm = -(t_jp1 - t_jm2) + 3.0*(t_j - t_jm1);
+            }
+            // second order
+            else            
+            {
+                Fp = t_jp1 - t_j;
+                Fm = t_j - t_jm1;
+            }
 
             if((t_jp1 - t_j) * Fp <= 0.0) Fp = 0.0;
             if((t_j - t_jm1) * Fm <= 0.0) Fm = 0.0;
@@ -1006,8 +1039,24 @@ PetscErrorCode hyperViscosityT(teqn_ *teqn, Vec &Rhs, PetscReal scale)
 
         if(nvert[k][j][i] + nvert[k+1][j][i] < 2.0 * solid)
         {
-            PetscReal Fp = 10.0*(t_kp1 - t_k) -5.0*(t_kp2 - t_km1) + (t_kp3 - t_km2);
-            PetscReal Fm = 10.0*(t_k - t_km1) -5.0*(t_kp1 - t_km2) + (t_kp2 - t_km3);
+            // sixth order
+            if (k > 2 && k < mz - 3)
+            {
+                Fp = 10.0*(t_kp1 - t_k) -5.0*(t_kp2 - t_km1) + (t_kp3 - t_km2);
+                Fm = 10.0*(t_k - t_km1) -5.0*(t_kp1 - t_km2) + (t_kp2 - t_km3);
+            }
+            // fourth order
+            else if(k > 1 && k < mz-2)
+            {
+                Fp = -(t_kp2 - t_km1) + 3.0*(t_kp1 - t_k);
+                Fm = -(t_kp1 - t_km2) + 3.0*(t_k - t_km1);
+            }
+            // second order
+            else
+            {
+                Fp = t_kp1 - t_k;
+                Fm = t_k - t_km1;
+            }
 
             if((t_kp1 - t_k) * Fp <= 0.0) Fp = 0.0;
             if((t_k - t_km1) * Fm <= 0.0) Fm = 0.0;

@@ -472,8 +472,8 @@ PetscErrorCode SetUniformFieldU(ueqn_ *ueqn, Cmpnts &uRef, PetscInt &addPerturba
                     PetscReal zPeak    = 0.05;
                     PetscReal deltaV   = 0.1*nMag(uRef);
                     PetscReal deltaU   = 0.1*nMag(uRef);
-                    PetscReal Uperiods = 12;
-                    PetscReal Vperiods = 12;
+                    PetscReal Uperiods = 6;
+                    PetscReal Vperiods = 6;
 
                     // perturbations to trigger turbulence
                     ucat[k][j][i].x
@@ -689,8 +689,8 @@ PetscErrorCode SetABLInitialFlowU(ueqn_ *ueqn)
                     PetscReal zPeak    = 0.05;
                     PetscReal deltaV   = 0.1*uRef;
                     PetscReal deltaU   = 0.1*uRef;
-                    PetscReal Uperiods = 12;
-                    PetscReal Vperiods = 12;
+                    PetscReal Uperiods = 6;
+                    PetscReal Vperiods = 6;
 
                     // perturbations to trigger turbulence
                     uCell.z
@@ -934,8 +934,8 @@ PetscErrorCode SetABLInitialFlowUZilitinkevich(ueqn_ *ueqn)
                     PetscReal zPeak    = 0.05;
                     PetscReal deltaV   = 0.1*uRef;
                     PetscReal deltaU   = 0.1*uRef;
-                    PetscReal Uperiods = 12;
-                    PetscReal Vperiods = 12;
+                    PetscReal Uperiods = 6;
+                    PetscReal Vperiods = 6;
 
                     // perturbations to trigger turbulence
                     uCell.z

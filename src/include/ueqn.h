@@ -23,26 +23,26 @@ struct ueqn_
     PetscInt      gmresRestart;               //!< GMRES restart parameter (-kspGMRESRestartU in control.dat, default 30)
 
     // momentum variables
-    Vec           Utmp;                             //!< temporary solution passed to the SNES evaluation function or used for RK4
+    Vec           Utmp;                             //!< temporary solution passed to the SNES/KSP evaluation function
     Vec           Rhs;                              //!< rhs of the momentum equation (stores transport and viscous fluxes), low level use in FormU
-    Vec           Rhs_o;                            //!< rhs of the momentum equation at previous time step
+    Vec           Rhs_o;                            //!< rhs of the momentum equation at previous time step (used by many time schemes)
     Vec           lFp;                              //!< rhs of the momentum equation prior to dotting with curv. coords basis (becomes Rhs)
     Vec           lDiv1, lDiv2, lDiv3;              //!< Components of the convective term in momentum equation
     Vec           lVisc1, lVisc2, lVisc3;           //!< Components of the viscous term in the momentum equation
     Vec           lViscIBM1, lViscIBM2, lViscIBM3;  //!< Components of the viscous term in the momentum equation for IBM faces
     Vec           dP;                               //!< pressure term of the momentum equation
 	Vec           dPAGW;                            //!< pressure term of the momentum equation as calculated from provided atmopsheric gravity waves pressure
-    Vec           bTheta;                           //!< buoyancy field at current T (T^{n+1}* after predictor)
-    Vec           bTheta_o;                         //!< buoyancy field at T^n — used for CN-consistent 0.5*b^n + 0.5*b^{n+1} splitting
+    Vec           bTheta;                           //!< buoyancy field at current time (used for AB2 buoyancy term extrapolation)
+    Vec           bTheta_o;                         //!< buoyancy field at previous time (used for AB2 buoyancy term extrapolation)
     Vec           sourceU;                          //!< source term to drive Uref at Zref with periodic BCs
     Vec           gCont;                            //!< gravity vector in cuvilinear coordinates
     Vec           Ucont, lUcont;                    //!< contravariant fluxes (contravariant velocity / J)
     Vec           Ucat, lUcat;                      //!< cartesian velocity
-    Vec           Ucont_o;                          //!< contravariant fluxes at the previous time step
-    Vec           bU;                               //!< precomputed constant-RHS contributions (crankNicholson/IMEX): built once per time step in SolveUEqn
-    Vec           RhsConv;                          //!< convective-only RHS at current step n  (IMEX-CNAB: Adams-Bashforth 2)
-    Vec           RhsVisc;                          //!< viscous-only RHS at current step n  (IMEX-CNAB: Crank-Nicolson implicit half)
-    Vec           RhsConv_o;                        //!< convective-only RHS at previous step n-1 (IMEX-CNAB: Adams-Bashforth 2)
+    Vec           Ucont_o;                          //!< contravariant fluxes at the previous time step (old solution, contains BCs)
+    Vec           bU;                               //!< precomputed constant-RHS contributions for CN, RHS of the linear system for IMEX schemes
+    Vec           RhsVisc;                          //!< viscous-part of the RHS at current step (used in IMEX schemes)
+    Vec           RhsConv;                          //!< convective-only RHS at current step (used by ABCN IMEX scheme to build AB2 explicit part)
+    Vec           RhsConv_o;                        //!< convective-only RHS at previous step (used by ABCN IMEX scheme to build AB2 explicit part)
 
     Vec           lUstar;
     Cmpnts        meanGradP;
@@ -51,9 +51,9 @@ struct ueqn_
     // momentum settings
     word          ddtScheme;                  //!< time derivative scheme
     word          divScheme;                  //!< divergence scheme
-    word          viscScheme;
-    PetscReal     relExitTol;                 //!< relative exit tolerance
-    PetscReal     absExitTol;                 //!< absolute exit tolerance
+    word          viscScheme;                 //<! viscous gradient scheme
+    PetscReal     relExitTol;                 //!< relative exit tolerance for SNES/KSP solvers
+    PetscReal     absExitTol;                 //!< absolute exit tolerance for SNES/KSP solvers
     PetscInt      inviscid;                   //!< inviscid run
     PetscInt      buoyancy;                   //!< buoyancy term
     PetscInt      coriolis;                   //!< coriolis term

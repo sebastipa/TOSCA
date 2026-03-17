@@ -16,27 +16,26 @@ struct teqn_
     Mat           AT, CT;
     KSP           ksp;                        //!< linear krylov-subspace context (backwardEuler/BDF2 SNES inner KSP)
     PC            pc;
-    KSP           kspIMEX;                    //!< standalone direct KSP for IMEX scheme (no SNES wrapper)
-    Mat           JvIMEX;                     //!< MatShell for IMEX operator A*v = v - dt*D(v)
-    word          kspType;                    //!< KSP solver type for IMEX: BiCGStab or GMRES (-kspTypeT in control.dat)
-    PetscInt      gmresRestart;               //!< GMRES restart parameter for IMEX (-kspGMRESRestartT in control.dat, default 30)
-    Vec           Rhs;
-    Vec           bT;                         //!< explicit-half RHS buffer: prebuilt once per step for IMEX
-    Vec           RhsConv;                    //!< convective RHS at T^n (for AB2 blending)
-    Vec           RhsConv_o;                  //!< convective RHS at T^{n-1} (for AB2 blending)
+    KSP           kspIMEX;                    //!< standalone direct KSP for IMEX schemes
+    Mat           JvIMEX;                     //!< MatShell for IMEX operator A*v 
+    word          kspType;                    //!< KSP solver type for SNES/IMEX
+    PetscInt      gmresRestart;               //!< GMRES restart parameter for SNES/IMEX
+    Vec           Rhs;                        //!< rhs of the temperature equation 
+    Vec           bT;                         //!< rhs of the linear system in IMEX schemes
+    Vec           RhsConv;                    //!< convective RHS at current time (for AB2 blending in ABBE)
+    Vec           RhsConv_o;                  //!< convective RHS at previous time (for AB2 blending in ABBE)
 
     Vec           TmprtTmp;                   //!< temporary solution
     Vec           Tmprt, lTmprt,
                   Tmprt_o, lTmprt_o;
-    Vec           Tmprt_oo;                   //!< T^{n-1} (two-steps-back) for BDF2
-    Vec           lDivT, lViscT, lViscIBMT;              //!< viscous and divergence temperature equation fluxes
+    Vec           Tmprt_oo;                   //!< previous solution for BDF2
+
+    Vec           lDivT, lViscT, lViscIBMT;   //!< viscous and divergence temperature equation fluxes
     Vec           sourceT;                    //!< temperature sources
 
     Vec           lRhoK;                      //!< rhok / rho0 field
     Vec           ghGradRhok;                 //!< buoyancy term for momentum equation (current step)
     Vec           ghGradRhok_o;               //!< buoyancy term for momentum equation (previous step, for AB2)
-
-    Vec           expFilterT;                 //!< explicit filter for momentum equation (e.g. for LES)
 
     PetscReal     absExitTol;                 //!< absolute exit tolerance
     PetscReal     relExitTol;                 //!< relative exit tolerance
