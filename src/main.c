@@ -68,40 +68,41 @@ int main(int argc, char **argv)
             // reset flags based on domain preferences
             flags = domain[d].flags;
 
-            //update the IBM position and interpolate based on it before the start of solution
+            // update the IBM position and interpolate based on it before the start of solution
             if(flags.isIBMActive)
             {
                 UpdateIBM(domain[d].ibm);
             }
 
-            // copy old fields - contains all the bc for this time step - after all the boundary updates
+            // snapshot old fields: they contain BCs for this time step as boundary conditions have been updated
             VecCopy(domain[d].ueqn->Ucont, domain[d].ueqn->Ucont_o);
 
             if(flags.isTeqnActive)
             {
-                // save T^{n-1} for backward differentiation formula
+                // save temperature at old time step for BDF2
                 if(domain[d].teqn->ddtScheme == "BDF2")
                 {
-                    // note: T^{n-1} also stores the BCs, so that in the end when solving in SNES
-                    //       T^{n+1}_ghost = 4/3 T^{n-} - 1/3 T^{n-1} (difference from the true BCs by O(dt**2))
+                    // T^{n+1}_ghost = 4/3 T^{n-} - 1/3 T^{n-1} (difference from the true BCs by O(dt**2))
+                    // for now accept it as this is consistent with the fields they are carrying
                     VecCopy(domain[d].teqn->Tmprt_o, domain[d].teqn->Tmprt_oo); 
-                    resetNonResolvedCellCentersScalar(domain[d].mesh,  domain[d].teqn->Tmprt_oo);
+                    //resetNonResolvedCellCentersScalar(domain[d].mesh,  domain[d].teqn->Tmprt_oo);
 
                     VecCopy(domain[d].teqn->Tmprt, domain[d].teqn->Tmprt_o);
-                    scaleNonResolvedCellCentersScalar(domain[d].mesh,  domain[d].teqn->Tmprt_o, 3.0/4.0);
+                    //scaleNonResolvedCellCentersScalar(domain[d].mesh,  domain[d].teqn->Tmprt_o, 3.0/4.0);
                 }
                 else
                 {
                     VecCopy(domain[d].teqn->Tmprt, domain[d].teqn->Tmprt_o);
                 }
-                
             }
 
-            if(domain[d].ueqn->centralUpwindDiv || domain[d].ueqn->centralUpwindWDiv || flags.isTeqnActive)
+            // update flux limiter
+            if(domain[d].ueqn->centralUpwindDiv || domain[d].ueqn->centralUpwindWDiv)
             {
                 UpdateFluxLimiter(domain[d].ueqn);
             }
 
+            // update SGS models
             if(flags.isLesActive)
             {
                 UpdateCs (domain[d].les);
@@ -117,11 +118,13 @@ int main(int argc, char **argv)
                 }
             }
 
+            // correct damping layers/fringe regions
             if(flags.isXDampingActive || flags.isZDampingActive)
             {
                 correctDampingSources(domain[d].ueqn);
             }
 
+            // update flow controllers source terms
             if(flags.isAblActive)
             {
                 if(domain[d].abl->controllerActive)
@@ -156,6 +159,7 @@ int main(int argc, char **argv)
                 mapYDamping(domain[d].ueqn);
             }
 
+            // handle buoyancy term
             if(flags.isTeqnActive)
             {
                 // save the old buoyancy term for the AB2 time stepping
@@ -174,13 +178,13 @@ int main(int argc, char **argv)
                     Buoyancy(domain[d].ueqn, 1.0);
             }
 
-            // Predictor Step (adjusts fluxes)
+            // solve U and adjust global mass conservation
             SolveUEqn(domain[d].ueqn);
 
-            // Pressure Correction
+            // correct pressure and enforce local mass conservation
             SolvePEqn(domain[d].peqn);
 
-            // transform contravariant to cartesian
+            // update cartesian velocity
             contravariantToCartesian(domain[d].ueqn);
 
             // temperature step
@@ -208,7 +212,7 @@ int main(int argc, char **argv)
             // save momentum right hand side
             if(domain[d].ueqn->ddtScheme=="CN")
             {
-                //interpolate IBM cells before computing the forces and moments on the IBM
+                // interpolate IBM cells before computing the forces and moments on the IBM
                 if(flags.isIBMActive)
                 {
 
@@ -259,9 +263,9 @@ int main(int argc, char **argv)
                     UpdateImmersedBCs(domain[d].ibm);
                 }
 
-                // save right hand side (both convection and diffusion) next iter 
+                // save full right hand side for next iteration
                 VecSet(domain[d].ueqn->Rhs_o, 0.0);
-                FormU (domain[d].ueqn, domain[d].ueqn->Rhs_o, 1.0, 0);
+                FormU (domain[d].ueqn, domain[d].ueqn->Rhs_o, 1.0);
             }
 
             if(flags.isTeqnActive)

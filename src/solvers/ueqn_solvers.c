@@ -1228,7 +1228,7 @@ PetscErrorCode SNESFuncEval(SNES snes, Vec Ucont, Vec Rhs, void *ptr)
 
 //***************************************************************************************************************//
 
-PetscErrorCode ExplicitRhsU(ueqn_ *ueqn)
+PetscErrorCode ExplicitRhsU(ueqn_ *ueqn, PetscInt formMode)
 {
     mesh_  *mesh  = ueqn->access->mesh;
     clock_ *clock = ueqn->access->clock;
@@ -1298,7 +1298,7 @@ PetscErrorCode ExplicitRhsU(ueqn_ *ueqn)
     }
 
     // add convection and diffusion terms
-    FormU(ueqn, ueqn->Rhs, 1.0);
+    FormU(ueqn, ueqn->Rhs, 1.0, formMode);
 
     // add coriolis term
     if(ueqn->access->flags->isAblActive)
@@ -1347,6 +1347,7 @@ PetscErrorCode ExplicitRhsU(ueqn_ *ueqn)
     if(ueqn->hyperVisc4i > 0.0 || ueqn->hyperVisc4j > 0.0 || ueqn->hyperVisc4k > 0.0)
         hyperViscosityU(ueqn, ueqn->Rhs, 1.0);
 
+    
     // set the Rhs to zero at non-resolved cell faces (override numerical errors)
     resetNonResolvedCellFaces(mesh, ueqn->Rhs);
 
@@ -1450,140 +1451,196 @@ PetscErrorCode UeqnRK4(ueqn_ *ueqn)
     return(0);
 }
 
+PetscErrorCode UeqnRK3CN_W(ueqn_ *ueqn)
+{
+    mesh_  *mesh  = ueqn->access->mesh;
+    clock_ *clock = ueqn->access->clock;
+    
+    PetscReal ts, te;
+    PetscTime(&ts);
+    PetscPrintf(mesh->MESH_COMM, "RK3WCN%s: Solving for Ucont, Stage ",ueqn->solverType.c_str());
+
+    PetscInt  s = 3;
+    PetscReal beta[3]   = {8.0/15.0,  5.0/12.0, 3.0/4.0 };
+    PetscReal gamma[3]  = {4.0/15.0,  1.0/15.0, 1.0/6.0 };
+    PetscReal delta[3]  = {0.0     , 17.0/60.0, 5.0/12.0};
+
+    PetscReal dt = clock->dt;
+
+    // initialize old explicit convective terms (and others)
+    VecSet(ueqn->Rhs_o, 0.0); 
+
+    for (PetscInt i=0; i<s; i++)
+    {
+        PetscPrintf(mesh->MESH_COMM, "%ld, ", i+1);
+
+        // compute advection and other explicit using Ucont from previous stage (U^n at stage 1)
+        ExplicitRhsU(ueqn, 1); 
+
+        // compute viscous and other explicit using Ucont from previous stage (U^n at stage 1)
+        VecSet(ueqn->RhsVisc, 0.0); 
+        FormU(ueqn, ueqn->RhsVisc, 1.0, 2);
+
+        // contribution from previous stage solution (U^n at stage 1, alpha = 1 for all stages)
+        VecCopy(ueqn->Ucont, ueqn->bU); 
+
+        // contribution from beta * dt * advection (and other explicit terms)
+        VecAXPY(ueqn->bU, dt * beta[i], ueqn->Rhs); // explicit part 
+
+        // contribution from DELTA * dt * advection_old (and other explicit terms)
+        VecAXPY(ueqn->bU, -1.0 * dt * delta[i], ueqn->Rhs_o); // explicit part 
+        
+        // conntribution from gamma * dt * viscosity
+        VecAXPY(ueqn->bU, dt * gamma[i], ueqn->RhsVisc); 
+
+		// initial guess for KSP solve: explicit Euler 
+        VecCopy(ueqn->bU, ueqn->Utmp);  
+        VecAXPY(ueqn->Utmp, dt * gamma[i], ueqn->RhsVisc); 
+
+        // change dt 
+        clock->dt = dt * gamma[i];
+
+		// solve linear system
+        KSPSolve(ueqn->kspIMEX, ueqn->bU, ueqn->Utmp);
+
+        // reset dt 
+        clock->dt = dt;
+
+        // store the solution 
+        VecCopy(ueqn->Utmp, ueqn->Ucont);
+        DMGlobalToLocalBegin(mesh->fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
+        DMGlobalToLocalEnd(mesh->fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
+
+        // save explicit convective terms (and others) for next stage
+        VecCopy(ueqn->Rhs, ueqn->Rhs_o);
+	}
+
+    PetscReal norm;  PetscInt iter;
+    KSPGetResidualNorm(ueqn->kspIMEX, &norm);
+    KSPGetIterationNumber(ueqn->kspIMEX, &iter);
+
+    // compute elapsed time
+    PetscTime(&te);
+    PetscPrintf(mesh->MESH_COMM, "Final Residual = %e, iterations = %ld, , Elapsed Time = %f\n", norm, iter, te-ts);
+    
+    return(0);
+}
+
+
+PetscErrorCode UeqnRK3CN_SO(ueqn_ *ueqn)
+{
+    mesh_  *mesh  = ueqn->access->mesh;
+    clock_ *clock = ueqn->access->clock;
+    
+    PetscReal ts, te;
+    PetscTime(&ts);
+    PetscPrintf(mesh->MESH_COMM, "RK3SOCN%s: Solving for Ucont, Stage ",ueqn->solverType.c_str());
+
+    PetscInt  s = 3;
+    PetscReal alpha[3]  = {1.0, 3.0/4.0, 1.0/3.0};
+    PetscReal beta[3]   = {1.0, 1.0/4.0, 2.0/3.0};
+    PetscReal gamma[3]  = {1.0/2.0, 1.0/8.0, 1.0/3.0};
+
+    PetscReal dt = clock->dt;
+
+    for (PetscInt i=0; i<s; i++)
+    {
+        
+        PetscPrintf(mesh->MESH_COMM, "%ld, ", i+1);
+
+        // compute advection and other explicit using Ucont from previous stage U^n at stage 1)
+        ExplicitRhsU(ueqn, 1);  // also syncs cartesian to contravariant velocity 
+
+        // compute viscous and other explicit using Ucont from previous stage (U^n at stage 1)
+        // for increased stability ueqn->RhsVisc may be made constant and always based on U^n 
+        // instead of being updated at each stage based on the current stage solution guess.
+        VecSet(ueqn->RhsVisc, 0.0); 
+        FormU(ueqn, ueqn->RhsVisc, 1.0, 2);
+
+        // contribution from alpha * U^n
+        VecCopy(ueqn->Ucont_o, ueqn->bU); 
+        VecScale(ueqn->bU, alpha[i]);
+
+        // contribution from previous stage solution
+        if(i > 0)
+        {   
+            PetscReal om_alpha = 1.0 - alpha[i];
+            VecAXPY (ueqn->bU, om_alpha, ueqn->Ucont);
+        }  
+
+        // contribution from beta * dt * advection (and other explicit terms)
+        VecAXPY(ueqn->bU, dt * beta[i], ueqn->Rhs); // explicit part 
+        
+        // conntribution from gamma * dt * viscosity
+        VecAXPY(ueqn->bU, dt * gamma[i], ueqn->RhsVisc); 
+
+		// initial guess for KSP solve: explicit Euler 
+        VecCopy(ueqn->bU, ueqn->Utmp);  
+        VecAXPY(ueqn->Utmp, dt * gamma[i], ueqn->RhsVisc); 
+
+        // change dt 
+        clock->dt = dt * gamma[i];
+
+		// solve linear system
+        KSPSolve(ueqn->kspIMEX, ueqn->bU, ueqn->Utmp);
+
+        // reset dt 
+        clock->dt = dt;
+
+        // store the solution 
+        VecCopy(ueqn->Utmp, ueqn->Ucont);
+        DMGlobalToLocalBegin(mesh->fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
+        DMGlobalToLocalEnd(mesh->fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
+
+	}
+
+    PetscReal norm;  PetscInt iter;
+    KSPGetResidualNorm(ueqn->kspIMEX, &norm);
+    KSPGetIterationNumber(ueqn->kspIMEX, &iter);
+
+    // compute elapsed time
+    PetscTime(&te);
+    PetscPrintf(mesh->MESH_COMM, "Final Residual = %e, iterations = %ld, , Elapsed Time = %f\n", norm, iter, te-ts);
+	
+	return(0);
+}
+
 //***************************************************************************************************************//
 
-PetscErrorCode UeqnCNAB(ueqn_ *ueqn)
+PetscErrorCode UeqnABCN(ueqn_ *ueqn)
 {
     mesh_  *mesh  = ueqn->access->mesh;
     clock_ *clock = ueqn->access->clock;
 
     PetscReal ts, te;
     PetscTime(&ts);
-    PetscPrintf(mesh->MESH_COMM, "CNAB%s: Solving for Ucont, ",ueqn->solverType.c_str());
+    PetscPrintf(mesh->MESH_COMM, "ABCN%s: Solving for Ucont, ",ueqn->solverType.c_str());
 
-    // reset no penetration fluxes to zero (override numerical errors)
-    resetNoPenetrationFluxes(ueqn);
-
-    // reset contravariant periodic fluxes to be consistent if the flow is periodic
-    resetFacePeriodicFluxesVector(mesh, ueqn->Ucont, ueqn->lUcont, "globalToLocal");
-    
-    // transform to cartesian
-    contravariantToCartesian(ueqn);
-
-    // if(ueqn->access->flags->isIBMActive)
-    // {
-    //     UpdateImmersedBCs(ueqn->access->ibm);
-    // }
-
-    if(ueqn->access->flags->isOversetActive)
-    {
-        setBackgroundBC(mesh);;
-    }
-
-    // reset cartesian periodic fluxes to be consistent if the flow is periodic
-    resetCellPeriodicFluxes(mesh, ueqn->Ucat, ueqn->lUcat, "vector", "globalToLocal");
+    ExplicitRhsU(ueqn, 1);
 
     // set convective and viscous RHS at U^n then build the right and side
-    VecSet(ueqn->RhsConv, 0.0); FormU(ueqn, ueqn->RhsConv, 1.0, 1);
     VecSet(ueqn->RhsVisc, 0.0); FormU(ueqn, ueqn->RhsVisc, 1.0, 2);
-
-    // pressure gradient
-    VecCopy(ueqn->dP, ueqn->bU);
-    VecScale(ueqn->bU, -1.0);
-
-    // add buoyancy gradient term
-    if(ueqn->access->flags->isTeqnActive)
-    {
-        teqn_ *teqn = ueqn->access->teqn;
-        if(teqn->pTildeFormulation)
-        {
-            if(clock->it > clock->itStart)
-            {
-                VecAXPY(ueqn->bU, -3.0/2.0, teqn->ghGradRhok);
-                VecAXPY(ueqn->bU,  1.0/2.0, teqn->ghGradRhok_o);
-            }
-            else
-            {
-                VecAXPY(ueqn->bU, -1.0, teqn->ghGradRhok);
-            }
-        }
-        else
-        {
-            if(clock->it > clock->itStart)
-            {
-                VecAXPY(ueqn->bU, 3.0/2.0, ueqn->bTheta);
-                VecAXPY(ueqn->bU, -1.0/2.0, ueqn->bTheta_o);
-            }
-            else
-            {
-                VecAXPY(ueqn->bU, 1.0, ueqn->bTheta);
-            }
-        }
-    }
-
-    // wind farm source
-    if(ueqn->access->flags->isWindFarmActive)
-        VecAXPY(ueqn->bU, 1.0, ueqn->access->farm->sourceFarmCont);
-
+    VecSet(ueqn->RhsConv, 0.0); FormU(ueqn, ueqn->RhsConv, 1.0, 1);
+    
+    // form explicit rhs 
+    VecCopy(ueqn->Rhs, ueqn->bU);
     
     // add convection
     if(clock->it > clock->itStart)
     {
-        // AB2: c1=3/2, c2=-1/2 
-        VecAXPY(ueqn->bU,  1.5, ueqn->RhsConv);   
+        // AB2: c1=3/2 (1.0 is already added by ExplicitRhsU), c2=-1/2 
+        VecAXPY(ueqn->bU,  0.5, ueqn->RhsConv);   
         VecAXPY(ueqn->bU, -0.5, ueqn->RhsConv_o);
     }
     else
     {
         // forward Euler on first step 
-        VecAXPY(ueqn->bU, 1.0, ueqn->RhsConv);   
+        VecAXPY(ueqn->bU, 1.0, ueqn->Rhs);   
     }
 
     // add Crank-Nicolson viscous half (at the start this is fully implicit)
     if(clock->it > clock->itStart)
         VecAXPY(ueqn->bU, 0.5, ueqn->RhsVisc);
-
-    // add coriolis term
-    if(ueqn->access->flags->isAblActive)
-        if(ueqn->access->abl->coriolisActive)
-            Coriolis(ueqn, ueqn->bU, 1.0);
-
-    // add canopy force
-    if(ueqn->access->flags->isCanopyActive)
-        CanopyForce(ueqn, ueqn->bU, 1.0);
-
-    // ABL driving source 
-    if(ueqn->access->flags->isAblActive)
-        if(ueqn->access->abl->controllerActive)
-            sourceU(ueqn, ueqn->bU, 1.0);
-
-    // sponge/Rayleigh damping
-    if(ueqn->access->flags->isXDampingActive ||
-       ueqn->access->flags->isYDampingActive ||
-       ueqn->access->flags->isZDampingActive ||
-       ueqn->access->flags->isKLeftRayleighDampingActive ||
-       ueqn->access->flags->isKRightRayleighDampingActive)
-    {
-        dampingSourceU(ueqn, ueqn->bU, 1.0);
-    }
-
-    // mean-gradient pressure forcing
-    if(ueqn->access->flags->isMeangradPForcingActive)
-        meanGradPForcing(ueqn, ueqn->bU, 1.0);
-
-    // biharmonic hyperviscosity: damp checkerboard / Nyquist modes.
-    if
-    (
-        ueqn->hyperVisc4i > 0.0 || 
-        ueqn->hyperVisc4j > 0.0 || 
-        ueqn->hyperVisc4k > 0.0
-    )
-    {
-        hyperViscosityU(ueqn, ueqn->bU, 1.0);
-    }
-
-    // set the Rhs to zero at non-resolved cell faces (override numerical errors)
-    resetNonResolvedCellFaces(mesh, ueqn->bU);
 
     // multiply by dt
     VecScale(ueqn->bU, clock->dt);
@@ -1593,10 +1650,10 @@ PetscErrorCode UeqnCNAB(ueqn_ *ueqn)
 
     // form initial guess as explicit Euler estimate
     VecCopy(ueqn->bU, ueqn->Utmp);
-
-    // add missing viscous hal:  Utmp = U^n + dt*bU + 0.5*dt*Visc^n 
-    // note: this is essential to get good convergence from the KSP solver
-    VecAXPY(ueqn->Utmp, 0.5, ueqn->RhsVisc);
+    if(clock->it > clock->itStart)
+        VecAXPY(ueqn->Utmp, 0.5*clock->dt, ueqn->RhsVisc);
+    else 
+        VecAXPY(ueqn->Utmp, clock->dt, ueqn->RhsVisc);
 
     // solve linear system
     KSPSolve(ueqn->kspIMEX, ueqn->bU, ueqn->Utmp);
@@ -1610,24 +1667,18 @@ PetscErrorCode UeqnCNAB(ueqn_ *ueqn)
     DMGlobalToLocalBegin(mesh->fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
     DMGlobalToLocalEnd  (mesh->fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
 
-    // update the cartesian velocity (this is actually required, as there is no guarantee that MatMult is called on the last Ucont)
-    contravariantToCartesian(ueqn);
-
-    // reset cartesian periodic fluxes to be consistent if the flow is periodic
-    resetCellPeriodicFluxes(mesh, ueqn->Ucat, ueqn->lUcat, "vector", "globalToLocal");
-
-    // rotate Conv buffer for AB2 at next step.
-    VecCopy(ueqn->RhsConv, ueqn->RhsConv_o);
-
     PetscTime(&te);
     PetscPrintf(mesh->MESH_COMM, "Final residual = %e, Iterations = %ld, Elapsed Time = %lf\n", norm, iter, te-ts);
+
+    // save convection terms for next step (if using the most up to date after pressure and T it crashes)
+    VecCopy(ueqn->RhsConv, ueqn->RhsConv_o);
 
     return(0);
 }
 
 //***************************************************************************************************************//
 
-PetscErrorCode CNABMatVec(Mat A, Vec v, Vec Av)
+PetscErrorCode IMEXMatVec(Mat A, Vec v, Vec Av)
 {
 
     // IMEX MatShell operator: A*v = v - dt*scale*Visc(v)
@@ -1639,15 +1690,16 @@ PetscErrorCode CNABMatVec(Mat A, Vec v, Vec Av)
     mesh_  *mesh    = ueqn->access->mesh;
     clock_ *clock   = ueqn->access->clock;
     PetscReal dt    = clock->dt;
-    PetscReal scale;
+    PetscReal scale = 1.0;
 
-    if (clock->it > clock->itStart)
+    if 
+    (
+        clock->it > clock->itStart && 
+        ueqn->ddtScheme != "RK3WCN" &&  // already scaled in clock->dt for RK3Wray/Spalart
+        ueqn->ddtScheme != "RK3SOCN"    // already scaled in clock->dt for RK3 Shu-Osher
+    )
     {
         scale = 0.5;   // Crank-Nicolson implicit half for subsequent steps
-    }
-    else
-    {
-        scale = 1.0;   // full backward-Euler implicit viscosity for first step to initialize the IMEX scheme
     }
 
     VecCopy(v, ueqn->Ucont);

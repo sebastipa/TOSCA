@@ -586,7 +586,7 @@ PetscErrorCode TeqnSNES(teqn_ *teqn)
     // initialize to zero
     VecSet(teqn->bT, 0.0);
 
-    // biharmonic hyperviscosity: damp checkerboard / Nyquist modes.
+    // add biharmonic hyperviscosity
     if
     (
         teqn->hyperVisc4i > 0.0 || 
@@ -794,45 +794,7 @@ PetscErrorCode TeqnRK4(teqn_ *teqn)
 
 //***************************************************************************************************************//
 
-PetscErrorCode BEABMatVec(Mat A, Vec v, Vec Av)
-{
-    // IMEX MatShell operator: A*v = v - dt*D(v)
-    // D(v) is the diffusion-only operator evaluated at the current iterate v.
-    // Used by kspIMEX to solve the linear IMEX system A*T^{n+1} = T^n + dt*bT.
-    // Called by PETSc KSP for every matrix-vector product during the iterative solve.
-    // Note: backward Euler for diffusion (scale=1.0 always) avoids velocity-temperature coupling issues of CN.
-
-    teqn_  *teqn;
-    MatShellGetContext(A, (void**)&teqn);
-
-    mesh_  *mesh  = teqn->access->mesh;
-    clock_ *clock = teqn->access->clock;
-    PetscReal dt  = clock->dt;
-
-    // sync v → Tmprt/lTmprt so FormT reads the correct state
-    VecCopy(v, teqn->Tmprt);
-    DMGlobalToLocalBegin(mesh->da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
-    DMGlobalToLocalEnd  (mesh->da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
-
-    // reset periodic BCs
-    resetCellPeriodicFluxes(mesh, teqn->Tmprt, teqn->lTmprt, "scalar", "globalToLocal");
-
-    // compute D(v) into scratch buffer Rhs (diffusion-only, formMode=2, scale=1.0 backward Euler)
-    VecSet(teqn->Rhs, 0.0);
-    FormT(teqn, teqn->Rhs, 1.0, 2);
-    VecScale(teqn->Rhs, dt);                // Rhs = dt*D(v)
-    resetNonResolvedCellCentersScalar(mesh, teqn->Rhs);
-
-    // Av = v - dt*D(v)
-    VecCopy(v, Av);
-    VecAXPY(Av, -1.0, teqn->Rhs);
-
-    return(0);
-}
-
-//***************************************************************************************************************//
-
-PetscErrorCode TeqnBEAB(teqn_ *teqn)
+PetscErrorCode TeqnABBE(teqn_ *teqn)
 {
     mesh_  *mesh  = teqn->access->mesh;
     clock_ *clock = teqn->access->clock;
@@ -912,6 +874,44 @@ PetscErrorCode TeqnBEAB(teqn_ *teqn)
     PetscPrintf(mesh->MESH_COMM,
         "Final residual = %e, Iterations = %ld, Elapsed Time = %lf\n",
         norm, iter, te-ts);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode ABBEMatVec(Mat A, Vec v, Vec Av)
+{
+    // IMEX MatShell operator: A*v = v - dt*D(v)
+    // D(v) is the diffusion-only operator evaluated at the current iterate v.
+    // Used by kspIMEX to solve the linear IMEX system A*T^{n+1} = T^n + dt*bT.
+    // Called by PETSc KSP for every matrix-vector product during the iterative solve.
+    // Note: backward Euler for diffusion (scale=1.0 always) avoids velocity-temperature coupling issues of CN.
+
+    teqn_  *teqn;
+    MatShellGetContext(A, (void**)&teqn);
+
+    mesh_  *mesh  = teqn->access->mesh;
+    clock_ *clock = teqn->access->clock;
+    PetscReal dt  = clock->dt;
+
+    // sync v → Tmprt/lTmprt so FormT reads the correct state
+    VecCopy(v, teqn->Tmprt);
+    DMGlobalToLocalBegin(mesh->da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
+    DMGlobalToLocalEnd  (mesh->da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
+
+    // reset periodic BCs
+    resetCellPeriodicFluxes(mesh, teqn->Tmprt, teqn->lTmprt, "scalar", "globalToLocal");
+
+    // compute D(v) into scratch buffer Rhs (diffusion-only, formMode=2, scale=1.0 backward Euler)
+    VecSet(teqn->Rhs, 0.0);
+    FormT(teqn, teqn->Rhs, 1.0, 2);
+    VecScale(teqn->Rhs, dt);                // Rhs = dt*D(v)
+    resetNonResolvedCellCentersScalar(mesh, teqn->Rhs);
+
+    // Av = v - dt*D(v)
+    VecCopy(v, Av);
+    VecAXPY(Av, -1.0, teqn->Rhs);
 
     return(0);
 }

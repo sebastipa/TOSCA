@@ -83,15 +83,15 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
     ueqn->inviscid          = 0;
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL,  "-inviscid", &(ueqn->inviscid),   PETSC_NULL);
 
+    // read divergence scheme
+    readDictWord("control.dat", "-divScheme", &(ueqn->divScheme));
+
     ueqn->centralDiv        = 0;
     ueqn->central4Div       = 0;
     ueqn->centralUpwindDiv  = 0;
     ueqn->centralUpwindWDiv = 0;
     ueqn->weno3Div          = 0;
     ueqn->quickDiv          = 0;
-
-    // read divergence scheme
-    readDictWord("control.dat", "-divScheme", &(ueqn->divScheme));
 
     if      (ueqn->divScheme == "centralUpwind")   ueqn->centralUpwindDiv  = 1;
     else if (ueqn->divScheme == "centralUpwindW")  ueqn->centralUpwindWDiv = 1;
@@ -104,19 +104,17 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
         char error[512];
         sprintf(error,
             "unknown divScheme %s for U equation, available schemes are\n"
-            "    1. centralUpwind\n"
-            "    2. centralUpwindW\n"
-            "    3. central\n"
-            "    4. central4\n"
-            "    5. weno3\n"
-            "    6. quickDiv",
+            "    - centralUpwind\n"
+            "    - centralUpwindW\n"
+            "    - central\n"
+            "    - central4\n"
+            "    - weno3\n"
+            "    - quickDiv",
             ueqn->divScheme.c_str());
         fatalErrorInFunction("InitializeUEqn", error);
     }
 
-    PetscPrintf(mesh->MESH_COMM, "selected %s divergence scheme for U equation\n", ueqn->divScheme.c_str());
-
-    // read hyperviscosity parameter for central4Div 
+    // read hyperviscosity parameter if applicable
     if(ueqn->central4Div)
     {
         ueqn->hyperVisc = 1.0;
@@ -124,35 +122,39 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
         PetscPrintf(PETSC_COMM_WORLD, " > hyperviscosity parameter = %lf\n", ueqn->hyperVisc);
     }
 
+    PetscPrintf(mesh->MESH_COMM, "selected %s divergence scheme for U equation\n", ueqn->divScheme.c_str());
+
     // read time discretization scheme
     readDictWord("control.dat", "-dUdtScheme", &(ueqn->ddtScheme));
 
     if(ueqn->ddtScheme == "CN")
     {
         ueqn->solverType   = "SNES";
-        SNESType snesType  = SNESNEWTONTR;   // SNESNEWTONLS
         ueqn->relExitTol   = 1e-30;
         ueqn->absExitTol   = 1e-5;
         ueqn->snesMaxIter  = 20;
         ueqn->gmresRestart = 30;
 
+        SNESType snesType  = SNESNEWTONTR;   // SNESNEWTONLS
+
+        // read optional parameters for SNES solver
         PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-relTolU",          &(ueqn->relExitTol),   PETSC_NULL);
         PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-absTolU",          &(ueqn->absExitTol),   PETSC_NULL);
         PetscOptionsGetInt (PETSC_NULL, PETSC_NULL, "-snesMaxItersU",    &(ueqn->snesMaxIter),  PETSC_NULL);
         PetscOptionsGetInt (PETSC_NULL, PETSC_NULL, "-kspGMRESRestartU", &(ueqn->gmresRestart), PETSC_NULL);
 
-        // KSP type: BiCGStab or GMRES — optional, defaults to BiCGStab
+        // KSP type: BiCGStab (default) or GMRES
         PetscBool found;
         char kspTypeBuf[256] = "BiCGStab";
         PetscOptionsGetString(PETSC_NULL, PETSC_NULL, "-kspTypeU", kspTypeBuf, sizeof(kspTypeBuf), &found);
-        ueqn->kspType = kspTypeBuf;
+        ueqn->kspType        = kspTypeBuf;
 
         if(ueqn->kspType != "BiCGStab" && ueqn->kspType != "GMRES")
         {
             char error[512];
             sprintf(error,
                 "unknown kspTypeU %s for U equation, available types are\n"
-                "    BiCGStab\n"
+                "    BiCGStab (default)\n"
                 "    GMRES",
                 ueqn->kspType.c_str());
             fatalErrorInFunction("InitializeUEqn", error);
@@ -165,35 +167,35 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
         // set the SNES evaluating function
         SNESSetFunction(ueqn->snesU, ueqn->Rhs, SNESFuncEval, (void *)ueqn);
 
-        // Newton trust-region
+        // set the newton algorithm used to solve the nonlinear system (SNESNEWTONTR/SNESNEWTONLS)
         SNESSetType(ueqn->snesU, snesType);
 
         // create matrix-free Jacobian
         MatCreateSNESMF(ueqn->snesU, &(ueqn->JU));
-        MatMFFDSetType(ueqn->JU, MATMFFD_WP);
+        MatMFFDSetType (ueqn->JU, MATMFFD_WP);
         SNESSetJacobian(ueqn->snesU, ueqn->JU, ueqn->JU, MatMFFDComputeJacobian, (void *)ueqn);
 
         // set SNES solve and step failures
-        SNESSetMaxLinearSolveFailures(ueqn->snesU,10000);
+        SNESSetMaxLinearSolveFailures  (ueqn->snesU,10000);
         SNESSetMaxNonlinearStepFailures(ueqn->snesU,10000);
 
         // enable Eisenstat-Walker for adaptive KSP tolerances
-        SNESKSPSetUseEW(ueqn->snesU, PETSC_TRUE);
+        SNESKSPSetUseEW       (ueqn->snesU, PETSC_TRUE);
         SNESKSPSetParametersEW(ueqn->snesU, 3, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT);
 
-        // SNES tolerances (snesMaxIter configurable via -snesMaxItersU in control.dat)
+        // SNES tolerances 
         SNESSetTolerances(ueqn->snesU, ueqn->absExitTol, ueqn->relExitTol, 1e-30, ueqn->snesMaxIter, 1000);
 
         // get KSP and PC
         SNESGetKSP(ueqn->snesU, &(ueqn->ksp));
-        KSPGetPC(ueqn->ksp, &(ueqn->pc));
+        KSPGetPC  (ueqn->ksp, &(ueqn->pc));
 
         // KSP solver
         if(ueqn->kspType == "BiCGStab")
         {
             KSPSetType(ueqn->ksp, KSPBCGS);
         }
-        else 
+        else if(ueqn->kspType == "GMRES")
         {
             KSPSetType(ueqn->ksp, KSPGMRES);
             KSPGMRESSetRestart(ueqn->ksp, ueqn->gmresRestart);
@@ -204,9 +206,8 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
         KSPSetTolerances(ueqn->ksp, rtol, atol, dtol, 1000);
 
         // allocate the constant-RHS precomputation buffer
-        VecDuplicate(ueqn->Ucont, &(ueqn->bU));
-        VecSet(ueqn->bU, 0.0);
-
+        VecDuplicate(ueqn->Ucont, &(ueqn->bU)); VecSet(ueqn->bU, 0.0);
+        
         // print information
         PetscPrintf(mesh->MESH_COMM, "selected %s time scheme for U equation\n", ueqn->ddtScheme.c_str());
         PetscPrintf(mesh->MESH_COMM, " > relTolU = %e\n", ueqn->relExitTol);
@@ -218,11 +219,15 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
             PetscPrintf(mesh->MESH_COMM, " > kspGMRESRestartU = %d\n", ueqn->gmresRestart);
         }
     }
-    else if(ueqn->ddtScheme == "CNAB")
+    else if
+    (
+        ueqn->ddtScheme == "ABCN" || 
+        ueqn->ddtScheme == "RK3SOCN" || 
+        ueqn->ddtScheme == "RK3WCN"
+    )
     {
-        // KSP type: BiCGStab or GMRES — optional, defaults to GMRES
-        //           BiCGStab is more expensive and less stable
-        //           GMRES is less expensive but more stable
+        // KSP type: BiCGStab or GMRES (default)
+        //           BiCGStab did not show to work properly
         
         PetscBool found;
         char kspTypeBuf[256] = "GMRES";
@@ -232,7 +237,6 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
         ueqn->snesMaxIter  = 5;
         ueqn->gmresRestart = 30;
 
-        PetscOptionsGetInt (PETSC_NULL, PETSC_NULL, "-snesMaxItersU",    &(ueqn->snesMaxIter),  PETSC_NULL);
         PetscOptionsGetInt (PETSC_NULL, PETSC_NULL, "-kspGMRESRestartU", &(ueqn->gmresRestart), PETSC_NULL);
 
         if(ueqn->kspType != "BiCGStab" && ueqn->kspType != "GMRES")
@@ -241,7 +245,7 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
             sprintf(error,
                 "unknown kspTypeU %s for U equation, available types are\n"
                 "    BiCGStab\n"
-                "    GMRES",
+                "    GMRES (default)",
                 ueqn->kspType.c_str());
             fatalErrorInFunction("InitializeUEqn", error);
         }
@@ -252,54 +256,46 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
         PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-relTolU", &(ueqn->relExitTol), PETSC_NULL);
         PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-absTolU", &(ueqn->absExitTol), PETSC_NULL);
 
-        // Create a standalone KSP for the linear system A*U^{n+1} = b.
-        // A*v = v - dt*scale*Visc(v) (linear operator, assembled via MatShell).
-        // b   = U^n + dt*bU          (explicit RHS, prebuilt once per time step).
-        {
-            PetscInt n, N;
-            VecGetLocalSize(ueqn->Ucont, &n);
-            VecGetSize(ueqn->Ucont, &N);
-            MatCreateShell(mesh->MESH_COMM, n, n, N, N, (void*)ueqn, &(ueqn->JvIMEX));
-            MatShellSetOperation(ueqn->JvIMEX, MATOP_MULT, (void(*)(void))CNABMatVec);
-        }
-
+        // Create a standalone KSP for the linear system A*U^{n+1} = b
+        PetscInt n, N;
+        VecGetLocalSize(ueqn->Ucont, &n);
+        VecGetSize(ueqn->Ucont, &N);
+        MatCreateShell(mesh->MESH_COMM, n, n, N, N, (void*)ueqn, &(ueqn->JvIMEX));
+        MatShellSetOperation(ueqn->JvIMEX, MATOP_MULT, (void(*)(void))IMEXMatVec);
         KSPCreate(mesh->MESH_COMM, &(ueqn->kspIMEX));
         KSPSetOperators(ueqn->kspIMEX, ueqn->JvIMEX, ueqn->JvIMEX);
 
-        {
-            PC pcIMEX;
-            KSPGetPC(ueqn->kspIMEX, &pcIMEX);
-            PCSetType(pcIMEX, PCNONE);
-        }
+        // one day: add a preconditioner (at least Jacobi)
+        PC pcIMEX;
+        KSPGetPC(ueqn->kspIMEX, &pcIMEX);
+        PCSetType(pcIMEX, PCNONE); 
 
         if(ueqn->kspType == "BiCGStab")
         {
-            // KSPBCGS (standard BiCGStab) can break down for the IMEX operator
-            // A = I - dt*scale*L because its Petrov-Galerkin shadow residual may
-            // become nearly orthogonal to the residual when dt is large or the
-            // discrete L is mildly non-symmetric on curvilinear meshes.
-            // BiCGStab(L=2) eliminates these breakdown modes 
             KSPSetType(ueqn->kspIMEX, KSPBCGSL);
             KSPBCGSLSetEll(ueqn->kspIMEX, 2);
         }
-        else
+        else if(ueqn->kspType == "GMRES")
         {
             KSPSetType(ueqn->kspIMEX, KSPGMRES);
             KSPGMRESSetRestart(ueqn->kspIMEX, ueqn->gmresRestart);
         }
 
-        // use the explicit-Euler estimate (copied into the solution vec before KSPSolve)
+        // activate initial guess nonzero
         KSPSetInitialGuessNonzero(ueqn->kspIMEX, PETSC_TRUE);
         KSPSetTolerances(ueqn->kspIMEX, ueqn->relExitTol, ueqn->absExitTol, 1e30, 1000);
 
-        // allocate the constant-RHS buffer (explicit RHS, prebuilt once per step)
-        VecDuplicate(ueqn->Ucont, &(ueqn->bU));       VecSet(ueqn->bU, 0.0);
-
-        // allocate Adams-Bashforth 2 convective RHS history buffers
-        VecDuplicate(ueqn->Ucont, &(ueqn->RhsConv));   VecSet(ueqn->RhsConv,   0.0);
-        VecDuplicate(ueqn->Ucont, &(ueqn->RhsConv_o)); VecSet(ueqn->RhsConv_o, 0.0);
+        // allocate the constant-RHS buffer 
+        VecDuplicate(ueqn->Ucont, &(ueqn->bU));        VecSet(ueqn->bU, 0.0);
         VecDuplicate(ueqn->Ucont, &(ueqn->RhsVisc));   VecSet(ueqn->RhsVisc,   0.0);
 
+        // allocate Adams-Bashforth 2 convective RHS history buffers
+        if(ueqn->ddtScheme == "ABCN")
+        {
+            VecDuplicate(ueqn->Ucont, &(ueqn->RhsConv));   VecSet(ueqn->RhsConv,   0.0);
+            VecDuplicate(ueqn->Ucont, &(ueqn->RhsConv_o)); VecSet(ueqn->RhsConv_o, 0.0);
+        }
+        
         // print info 
         PetscPrintf(mesh->MESH_COMM, "selected %s time scheme for U equation\n", ueqn->ddtScheme.c_str());
         PetscPrintf(mesh->MESH_COMM, " > relTolU  = %e\n", ueqn->relExitTol);
@@ -319,27 +315,38 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
     else
     {
         char error[512];
-        sprintf(error, "unknown ddtScheme %s for U equation, available schemes are\n    1. CN\n    2. FE\n    3. RK4\n    4. CNAB", ueqn->ddtScheme.c_str());
+        sprintf(error, "unknown ddtScheme %s for U equation, available schemes are\n"
+                       "    - CN (Crank Nicolson)\n"
+                       "    - FE (Forward Euler)\n"
+                       "    - RK4 (Runge Kutta 4)\n"
+                       "    - ABCN (Crank Nicolson - Adam Bashforth IMEX)\n"
+                       "    - RK3SOCN (Sor-Osher Runge Kutta 3 (TVD) - Crank Nicolson IMEX)\n"
+                       "    - RK3WCN (Wray-Lund Runge Kutta 3 - Crank Nicolson IMEX)\n",
+                       ueqn->ddtScheme.c_str());
         fatalErrorInFunction("InitializeUEqn", error);
     }
 
-    // Explicit biharmonic (4th-order index-space) hyperviscosity.
+    // explicit  6th order hyperviscosity.
     ueqn->hyperVisc4i = 0.0; ueqn->hyperVisc4j = 0.0; ueqn->hyperVisc4k = 0.0;
     PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-hyperViscU_i", &(ueqn->hyperVisc4i), PETSC_NULL);
     PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-hyperViscU_j", &(ueqn->hyperVisc4j), PETSC_NULL);
     PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-hyperViscU_k", &(ueqn->hyperVisc4k), PETSC_NULL);
-    if(ueqn->hyperVisc4i < 0.0 || ueqn->hyperVisc4j < 0.0 || ueqn->hyperVisc4k < 0.0)
+    if
+    (
+        ueqn->hyperVisc4i < 0.0 || ueqn->hyperVisc4j < 0.0 || ueqn->hyperVisc4k < 0.0 ||
+        ueqn->hyperVisc4i >= 1.0 || ueqn->hyperVisc4j >= 1.0 || ueqn->hyperVisc4k >= 1.0
+    )
     {
         char error[512];
-        sprintf(error, "-imexHyperViscU_{i,j,k} must be >= 0\n");
+        sprintf(error, "-hyperViscU_{i,j,k} must be > 0 and < 1\n");
         fatalErrorInFunction("InitializeUEqn", error);
     }
     if(ueqn->hyperVisc4i > 0.0 || ueqn->hyperVisc4j > 0.0 || ueqn->hyperVisc4k > 0.0)
     {
         PetscPrintf(mesh->MESH_COMM, "explicit hyperviscosity factor for U equation:\n");
-        if(ueqn->hyperVisc4i > 0.0) { PetscPrintf(mesh->MESH_COMM, " > hyperViscU_i = %e\n", ueqn->hyperVisc4i); }
-        if(ueqn->hyperVisc4j > 0.0) { PetscPrintf(mesh->MESH_COMM, " > hyperViscU_j = %e\n", ueqn->hyperVisc4j); }
-        if(ueqn->hyperVisc4k > 0.0) { PetscPrintf(mesh->MESH_COMM, " > hyperViscU_k = %e\n", ueqn->hyperVisc4k); }
+        if(ueqn->hyperVisc4i > 0.0) { PetscPrintf(mesh->MESH_COMM, " > hyperViscU_i = %f\n", ueqn->hyperVisc4i); }
+        if(ueqn->hyperVisc4j > 0.0) { PetscPrintf(mesh->MESH_COMM, " > hyperViscU_j = %f\n", ueqn->hyperVisc4j); }
+        if(ueqn->hyperVisc4k > 0.0) { PetscPrintf(mesh->MESH_COMM, " > hyperViscU_k = %f\n", ueqn->hyperVisc4k); }
     }
 
     return(0);
@@ -349,16 +356,14 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
 
 PetscErrorCode SolveUEqn(ueqn_ *ueqn)
 {
-    mesh_          *mesh = ueqn->access->mesh;
-    clock_         *clock = ueqn->access->clock;
-
-    // set the right hand side to zero
-    VecSet (ueqn->Rhs, 0.0);
-
     if      (ueqn->ddtScheme == "CN")
         UeqnSNES(ueqn);
-    else if (ueqn->ddtScheme == "CNAB")
-        UeqnCNAB(ueqn);
+    else if (ueqn->ddtScheme == "ABCN")
+        UeqnABCN(ueqn);
+    else if (ueqn->ddtScheme == "RK3WCN")
+        UeqnRK3CN_W(ueqn);
+    else if (ueqn->ddtScheme == "RK3SOCN")
+        UeqnRK3CN_SO(ueqn);
     else if (ueqn->ddtScheme == "FE")
         UeqnFE(ueqn);
     else if (ueqn->ddtScheme == "RK4")
@@ -368,7 +373,7 @@ PetscErrorCode SolveUEqn(ueqn_ *ueqn)
     resetNoPenetrationFluxes(ueqn);
 
     // reset periodic fluxes to be consistent if the flow is periodic
-    resetFacePeriodicFluxesVector(mesh, ueqn->Ucont, ueqn->lUcont, "globalToLocal");
+    resetFacePeriodicFluxesVector(ueqn->access->mesh, ueqn->Ucont, ueqn->lUcont, "globalToLocal");
 
     // apply IBM boundary condition to reset fluxes at IBM interface
     if(ueqn->access->flags->isIBMActive)
@@ -379,7 +384,7 @@ PetscErrorCode SolveUEqn(ueqn_ *ueqn)
     // updates BCs around blanked cells
     if(ueqn->access->flags->isOversetActive)
     {
-        setBackgroundBC(mesh);
+        setBackgroundBC(ueqn->access->mesh);
     }
 
     // adjust inflow/outflow fluxes to ensure mass conservation
