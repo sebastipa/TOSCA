@@ -7653,5 +7653,65 @@ inline void mult_mats3_lin(PetscReal **inv_A,PetscReal **B,PetscInt nsupport,Pet
   return;
 }
 
+//***************************************************************************************************************//
+//inlines for synthetic turbulence
+// Stateless 64-bit mix used as a tiny RNG: given integer keys (seed, mode, time bin),
+// it produces reproducible pseudo-random bits without shared state or platform-dependent generators.
+static inline unsigned long long inflowMix64(unsigned long long x)
+{
+    x += 0x9e3779b97f4a7c15ULL;
+    x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9ULL;
+    x = (x ^ (x >> 27)) * 0x94d049bb133111ebULL;
+    x = x ^ (x >> 31);
+    return x;
+}
 
+static inline PetscReal inflowHash01(unsigned long long x)
+{
+    return (PetscReal)((inflowMix64(x) >> 11) * (1.0 / 9007199254740992.0));
+}
+
+static inline PetscReal inflowHashSigned(unsigned long long x)
+{
+    return 2.0 * inflowHash01(x) - 1.0;
+}
+
+static inline PetscReal syntheticSmoothstep(PetscReal a)
+{
+    a = PetscMax(0.0, PetscMin(1.0, a));
+    return a * a * (3.0 - 2.0 * a);
+}
+
+static inline void syntheticProjectScaledMode
+(
+    PetscReal kx, PetscReal ky, PetscReal kz,
+    PetscReal ex, PetscReal ey, PetscReal ez,
+    PetscReal sx, PetscReal sy, PetscReal sz,
+    PetscReal *px, PetscReal *py, PetscReal *pz
+)
+{
+    PetscReal km = sqrt(kx * kx + ky * ky + kz * kz);
+    if (km < 1.e-20)
+    {
+        *px = 0.0;
+        *py = 0.0;
+        *pz = 0.0;
+        return;
+    }
+
+    PetscReal khx = kx / km;
+    PetscReal khy = ky / km;
+    PetscReal khz = kz / km;
+
+    PetscReal vx = sx * ex;
+    PetscReal vy = sy * ey;
+    PetscReal vz = sz * ez;
+
+    PetscReal dot = vx * khx + vy * khy + vz * khz;
+
+    *px = vx - dot * khx;
+    *py = vy - dot * khy;
+    *pz = vz - dot * khz;
+}
+//***************************************************************************************************************//
 #endif

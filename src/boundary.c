@@ -1297,6 +1297,12 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                         PetscReal uMag     = (1.0 + ifPtr->amplitude*std::cos(ifPtr->periods * 2.0 * M_PI * fraction)) * nMag(ifPtr->Uref);
                         ucat[k-1][j][i]    = nScale(uMag, ifPtr->Udir);
                     }
+                    // divergence-free synthetic Fourier inflow
+                    else if (ifPtr->typeU == 8)
+                    {
+                        Cmpnts uPrime = SyntheticFourierInflowEvaluate(ifPtr, cent[k][j][i], ueqn->access->clock->time);
+                        ucat[k-1][j][i] = nSum(ifPtr->Uref, uPrime);
+                    }
                     // unsteady mapped inflow
                     else if (ifPtr->typeU == 3)
                     {

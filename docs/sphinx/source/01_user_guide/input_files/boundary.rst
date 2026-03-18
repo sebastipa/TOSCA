@@ -351,6 +351,33 @@ condition. These are summarized in the following table:
                                                          periods   scalar
                                                       }
                                                       
+   ----------- ----------------------------------- --------------------------------------------------
+   8           synthetic turbulence inflow         Velocity-only, divergence-free synthetic turbulence built from 
+                                                   random Fourier modes with a von Karman spectrum 
+                                                   :math:`\Phi(k)=\frac{4}{9}\,u'^2 L\,(1+(kL)^2)^{-17/6}`. 
+                                                   Matches component-wise RMS and length scales, 
+                                                   convects modes along ``Uref`` with ``convSpeed`` 
+                                                   and decorrelates over ``timeScale``. Requires 
+                                                   ``nModes`` >= 8 (higher ``nModes`` smooths 
+                                                   the spectrum; use >= 1024 when feasible); 
+                                                   ``seed`` makes it repeatable.
+                                                   
+                                                   Usage:
+                                                    
+                                                   .. code-block:: C
+                                                    
+                                                      inletFunction
+                                                      {
+                                                         type          8
+                                                         Uref          vector
+                                                         uPrimeRMSVec  vector
+                                                         lengthScale   vector
+                                                         nModes        integer
+                                                         seed          integer
+                                                         timeScale     scalar
+                                                         convSpeed     scalar
+                                                      }
+                                                      
    =========== =================================== ==================================================
 
 The different entries required in the ``inletFunction`` dictionary for each function type are detailed below:
@@ -442,8 +469,24 @@ The different entries required in the ``inletFunction`` dictionary for each func
    ``amplitude``            scalar             amplitude of the spanwise velocity oscillation in m/s
    ------------------------ ------------------ -------------------------------------------------------------------------------------
    ``periods``              scalar             number of periods contained in the domain length along the i curvilinear direction
+   ------------------------ ------------------ -------------------------------------------------------------------------------------
+   *type 8 - synthetic turbulence (Fourier modes)*
+   ---------------------------------------------------------------------------------------------------------------------------------
+   ``Uref``                 vector             mean inlet velocity (m/s); its direction sets the convection direction
+   ------------------------ ------------------ -------------------------------------------------------------------------------------
+   ``uPrimeRMSVec``         vector             target RMS fluctuations (x,y,z) in m/s (components >= 0)
+   ------------------------ ------------------ -------------------------------------------------------------------------------------
+   ``lengthScale``          vector             characteristic length scales (x,y,z) in m (components > 0)
+   ------------------------ ------------------ -------------------------------------------------------------------------------------
+   ``nModes``               integer            number of Fourier modes (must be >= 8)
+   ------------------------ ------------------ -------------------------------------------------------------------------------------
+   ``seed``                 integer            random seed for deterministic mode generation
+   ------------------------ ------------------ -------------------------------------------------------------------------------------
+   ``timeScale``            scalar             temporal decorrelation scale in s (must be > 0; limited by the time step)
+   ------------------------ ------------------ -------------------------------------------------------------------------------------
+   ``convSpeed``            scalar             convection speed along ``Uref`` in m/s (0 disables convective sweep; must be >= 0)
    ======================== ================== =====================================================================================
-      
+
 As an example, a logarithmic profile on the ``kLeft`` patch is prescribed as follows
 
    .. code-block:: C
@@ -531,5 +574,3 @@ available within TOSCA are summarized in the following table:
                                               hRef   scalar 
                                            }                 
    ==================================== ============================================================================
-
-

@@ -343,10 +343,10 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
         clock->dt = clock->acquisitionDt;
     }
 
-    // make sure to hit last time
+    // make sure to hit (but not step past) last time: clamp dt if the next step would overshoot endTime
     if(clock->time + clock->dt > clock->endTime)
     {
-        clock->dt = clock->endTime - clock->time;
+        clock->dt = PetscMax(clock->endTime - clock->time, 0.0);
     }
 
     if(flags->isAdjustableTime)
@@ -355,10 +355,10 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
     }
     else 
     {
-        //to exit when reaching end time 
-        if(clock->time + clock->dt > clock->endTime)
+        // fixed dt: stop exactly at endTime instead of wrapping when dt == 0
+        if(clock->time + clock->dt >= clock->endTime - 1e-12)
         {
-            clock->time = clock->time + clock->dt;
+            clock->time = clock->endTime;
         }
         else 
         {

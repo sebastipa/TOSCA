@@ -9,6 +9,388 @@
 #include "include/inflow.h"
 
 //***************************************************************************************************************//
+// synthetic turbulence functions for inletFunction type 8
+
+static PetscReal syntheticSpectrumVonKarman(PetscReal k, PetscReal k0)
+{
+    PetscReal kk = PetscMax(k / PetscMax(k0, 1.e-12), 1.e-10);
+    PetscReal num = pow(kk, 4.0);
+    PetscReal den = pow(1.0 + kk * kk, 17.0 / 6.0);
+    return num / den;
+}
+
+static void syntheticFourierDestroy(inletFunctionTypes *ifPtr)
+{
+    if (ifPtr->sfmKx)   { PetscFree(ifPtr->sfmKx);   ifPtr->sfmKx   = NULL; }
+    if (ifPtr->sfmKy)   { PetscFree(ifPtr->sfmKy);   ifPtr->sfmKy   = NULL; }
+    if (ifPtr->sfmKz)   { PetscFree(ifPtr->sfmKz);   ifPtr->sfmKz   = NULL; }
+    if (ifPtr->sfmEx)   { PetscFree(ifPtr->sfmEx);   ifPtr->sfmEx   = NULL; }
+    if (ifPtr->sfmEy)   { PetscFree(ifPtr->sfmEy);   ifPtr->sfmEy   = NULL; }
+    if (ifPtr->sfmEz)   { PetscFree(ifPtr->sfmEz);   ifPtr->sfmEz   = NULL; }
+    if (ifPtr->sfmAmp)  { PetscFree(ifPtr->sfmAmp);  ifPtr->sfmAmp  = NULL; }
+    if (ifPtr->sfmPhi0) { PetscFree(ifPtr->sfmPhi0); ifPtr->sfmPhi0 = NULL; }
+}
+
+static inline PetscReal syntheticFourierTemporalPhase(inletFunctionTypes *ifPtr, PetscInt m, PetscReal time)
+{
+    PetscReal tau = PetscMax(ifPtr->sfmTimeScale, 1.e-12);
+    PetscReal s   = time / tau;
+    long long i0  = (long long)std::floor(s);
+    PetscReal a   = s - (PetscReal)i0;
+    PetscReal w   = syntheticSmoothstep(a);
+
+    unsigned long long b  = (unsigned long long)(ifPtr->sfmSeed + 11) * 1099511628211ULL + (unsigned long long)(m + 1) * 1469598103934665603ULL;
+    unsigned long long t0 = inflowMix64((unsigned long long)i0);
+    unsigned long long t1 = inflowMix64((unsigned long long)(i0 + 1));
+    PetscReal p0 = M_PI * inflowHashSigned(b ^ t0);
+    PetscReal p1 = M_PI * inflowHashSigned(b ^ t1);
+
+    // Smooth interpolation gives continuous phase and continuous first derivative at bin boundaries.
+    return (1.0 - w) * p0 + w * p1;
+}
+
+static PetscErrorCode syntheticFourierInitialize(mesh_ *mesh, inletFunctionTypes *ifPtr)
+{
+    PetscFunctionBegin;
+
+    PetscInt M = ifPtr->sfmNModes;
+    if (M < 8)
+    {
+        char error[512];
+        sprintf(error, "inletFunction type 8 requires nModes >= 8\n");
+        fatalErrorInFunction("syntheticFourierInitialize", error);
+    }
+
+    if
+    (
+        !std::isfinite(ifPtr->sfmRMS.x) || !std::isfinite(ifPtr->sfmRMS.y) || !std::isfinite(ifPtr->sfmRMS.z) ||
+        !std::isfinite(ifPtr->sfmLength.x) || !std::isfinite(ifPtr->sfmLength.y) || !std::isfinite(ifPtr->sfmLength.z) ||
+        !std::isfinite(ifPtr->sfmTimeScale) || !std::isfinite(ifPtr->sfmConvSpeed)
+    )
+    {
+        char error[512];
+        sprintf(error, "inletFunction type 8 received non-finite input values\n");
+        fatalErrorInFunction("syntheticFourierInitialize", error);
+    }
+
+    if (ifPtr->sfmRMS.x < 0.0 || ifPtr->sfmRMS.y < 0.0 || ifPtr->sfmRMS.z < 0.0)
+    {
+        char error[512];
+        sprintf(error, "inletFunction type 8 requires uPrimeRMSVec components >= 0\n");
+        fatalErrorInFunction("syntheticFourierInitialize", error);
+    }
+
+    if (ifPtr->sfmLength.x <= 0.0 || ifPtr->sfmLength.y <= 0.0 || ifPtr->sfmLength.z <= 0.0)
+    {
+        char error[512];
+        sprintf(error, "inletFunction type 8 requires lengthScale components > 0\n");
+        fatalErrorInFunction("syntheticFourierInitialize", error);
+    }
+
+    if (ifPtr->sfmTimeScale <= 0.0)
+    {
+        char error[512];
+        sprintf(error, "inletFunction type 8 requires timeScale > 0\n");
+        fatalErrorInFunction("syntheticFourierInitialize", error);
+    }
+
+    if (ifPtr->sfmConvSpeed < 0.0)
+    {
+        char error[512];
+        sprintf(error, "inletFunction type 8 requires convSpeed >= 0\n");
+        fatalErrorInFunction("syntheticFourierInitialize", error);
+    }
+
+    PetscReal Lx = ifPtr->sfmLength.x;
+    PetscReal Ly = ifPtr->sfmLength.y;
+    PetscReal Lz = ifPtr->sfmLength.z;
+    PetscReal Lmax = PetscMax(Lx, PetscMax(Ly, Lz));
+    PetscReal Lmin = PetscMin(Lx, PetscMin(Ly, Lz));
+    PetscReal Lref = PetscMax((Lx + Ly + Lz) / 3.0, 1.e-12);
+
+    PetscReal kMin = 2.0 * M_PI / PetscMax(Lmax, 1.e-12);
+    PetscReal kMax = M_PI / PetscMax(Lmin, 1.e-12);
+    PetscReal k0   = 2.0 * M_PI / Lref;
+
+    DM            fda  = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    PetscReal lDyMin = 1.e20, lDzMin = 1.e20, gDyMin = 1.e20, gDzMin = 1.e20;
+    Cmpnts ***cent;
+    DMDAVecGetArray(fda, mesh->lCent, &cent);
+
+    if (zs == 0)
+    {
+        PetscInt k = lzs;
+        for (PetscInt j=lys; j<lye; j++)
+        {
+            for (PetscInt i=lxs; i<lxe-1; i++)
+            {
+                PetscReal dy = fabs(cent[k][j][i+1].y - cent[k][j][i].y);
+                if (dy > 1.e-12) lDyMin = PetscMin(lDyMin, dy);
+            }
+        }
+
+        for (PetscInt j=lys; j<lye-1; j++)
+        {
+            for (PetscInt i=lxs; i<lxe; i++)
+            {
+                PetscReal dz = fabs(cent[k][j+1][i].z - cent[k][j][i].z);
+                if (dz > 1.e-12) lDzMin = PetscMin(lDzMin, dz);
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(fda, mesh->lCent, &cent);
+
+    MPI_Allreduce(&lDyMin, &gDyMin, 1, MPIU_REAL, MPI_MIN, mesh->MESH_COMM);
+    MPI_Allreduce(&lDzMin, &gDzMin, 1, MPIU_REAL, MPI_MIN, mesh->MESH_COMM);
+
+    PetscReal dMin = PetscMin(gDyMin, gDzMin);
+    if (dMin > 1.e-12 && dMin < 1.e19)
+    {
+        PetscReal kMaxGrid = 0.8 * M_PI / dMin;
+        if (kMax > kMaxGrid)
+        {
+            PetscPrintf(mesh->MESH_COMM, "   -> type 8: reducing kMax from %.6e to %.6e to satisfy inlet-grid Nyquist\n", kMax, kMaxGrid);
+            kMax = kMaxGrid;
+        }
+    }
+
+    PetscReal dt       = PetscMax(mesh->access->clock->dt, 1.e-12);
+    PetscReal tau      = PetscMax(ifPtr->sfmTimeScale, 1.e-12);
+    PetscReal omegaNyq = 0.8 * M_PI / dt;
+    PetscReal omegaRnd = M_PI / tau;
+    PetscReal uConv    = ifPtr->sfmConvSpeed;
+
+    if (omegaRnd >= omegaNyq)
+    {
+        char error[512];
+        sprintf(error, "type 8 temporal scale unresolved: timeScale=%.6e with dt=%.6e violates Nyquist", tau, dt);
+        fatalErrorInFunction("syntheticFourierInitialize", error);
+    }
+
+    if (uConv > 1.e-12)
+    {
+        PetscReal kMaxTime = (omegaNyq - omegaRnd) / uConv;
+        if (kMax > kMaxTime)
+        {
+            PetscPrintf(mesh->MESH_COMM, "   -> type 8: reducing kMax from %.6e to %.6e to satisfy dt resolution\n", kMax, kMaxTime);
+            kMax = kMaxTime;
+        }
+    }
+
+    if (kMax <= 1.e-12)
+    {
+        char error[512];
+        sprintf(error, "type 8 resulted in non-positive resolved kMax, check lengthScale/timeScale/convSpeed/dt");
+        fatalErrorInFunction("syntheticFourierInitialize", error);
+    }
+
+    if (kMax <= kMin)
+    {
+        char error[1024];
+        sprintf
+        (
+            error,
+            "type 8 unresolved k-band after grid/time clipping: kMin=%.6e >= kMax=%.6e. "
+            "Requested lengthScale=(%.6e %.6e %.6e), dt=%.6e, timeScale=%.6e, convSpeed=%.6e. "
+            "Increase resolved length scales and/or reduce dt/convSpeed.",
+            kMin, kMax,
+            Lx, Ly, Lz,
+            dt, tau, uConv
+        );
+        fatalErrorInFunction("syntheticFourierInitialize", error);
+    }
+
+    syntheticFourierDestroy(ifPtr);
+
+    PetscMalloc(sizeof(PetscReal) * M, &(ifPtr->sfmKx));
+    PetscMalloc(sizeof(PetscReal) * M, &(ifPtr->sfmKy));
+    PetscMalloc(sizeof(PetscReal) * M, &(ifPtr->sfmKz));
+    PetscMalloc(sizeof(PetscReal) * M, &(ifPtr->sfmEx));
+    PetscMalloc(sizeof(PetscReal) * M, &(ifPtr->sfmEy));
+    PetscMalloc(sizeof(PetscReal) * M, &(ifPtr->sfmEz));
+    PetscMalloc(sizeof(PetscReal) * M, &(ifPtr->sfmAmp));
+    PetscMalloc(sizeof(PetscReal) * M, &(ifPtr->sfmPhi0));
+
+    std::vector<PetscReal> weight(M);
+    PetscReal sumW = 0.0;
+
+    for (PetscInt m = 0; m < M; m++)
+    {
+        unsigned long long b = (unsigned long long)(ifPtr->sfmSeed + 1) * 1000003ULL + (unsigned long long)(m + 1) * 1000033ULL;
+
+        PetscReal rx = inflowHashSigned(b + 0xA53A9D41ULL);
+        PetscReal ry = inflowHashSigned(b + 0xC1B84B35ULL);
+        PetscReal rz = inflowHashSigned(b + 0x8D12E4AFULL);
+        PetscReal nrm = sqrt(rx * rx + ry * ry + rz * rz);
+        if (nrm < 1.e-12) { rx = 1.0; ry = 0.0; rz = 0.0; nrm = 1.0; }
+        rx /= nrm; ry /= nrm; rz /= nrm;
+
+        PetscReal dx = rx / Lx;
+        PetscReal dy = ry / Ly;
+        PetscReal dz = rz / Lz;
+        PetscReal dnorm = sqrt(dx * dx + dy * dy + dz * dz);
+        if (dnorm < 1.e-12) { dx = 1.0; dy = 0.0; dz = 0.0; dnorm = 1.0; }
+        dx /= dnorm; dy /= dnorm; dz /= dnorm;
+
+        PetscReal kmag = kMin + (kMax - kMin) * inflowHash01(b + 0x9E3779B9ULL);
+        ifPtr->sfmKx[m] = kmag * dx;
+        ifPtr->sfmKy[m] = kmag * dy;
+        ifPtr->sfmKz[m] = kmag * dz;
+
+        PetscReal ax = inflowHashSigned(b + 0xDEADBEEFULL);
+        PetscReal ay = inflowHashSigned(b + 0xBADC0FFEEULL);
+        PetscReal az = inflowHashSigned(b + 0x12345678ULL);
+        Cmpnts a = nSetFromComponents(ax, ay, az);
+        Cmpnts k = nSetFromComponents(ifPtr->sfmKx[m], ifPtr->sfmKy[m], ifPtr->sfmKz[m]);
+        Cmpnts e = nCross(k, a);
+        PetscReal en = nMag(e);
+        if (en < 1.e-12)
+        {
+            a = nSetFromComponents(0.0, 0.0, 1.0);
+            e = nCross(k, a);
+            en = nMag(e);
+            if (en < 1.e-12)
+            {
+                a = nSetFromComponents(0.0, 1.0, 0.0);
+                e = nCross(k, a);
+                en = nMag(e);
+            }
+        }
+        if (en < 1.e-12) { e = nSetFromComponents(1.0, 0.0, 0.0); en = 1.0; }
+        mScale(1.0 / en, e);
+        ifPtr->sfmEx[m] = e.x;
+        ifPtr->sfmEy[m] = e.y;
+        ifPtr->sfmEz[m] = e.z;
+
+        PetscReal kEff = sqrt
+        (
+            pow(ifPtr->sfmKx[m] * Lx / Lref, 2.0) +
+            pow(ifPtr->sfmKy[m] * Ly / Lref, 2.0) +
+            pow(ifPtr->sfmKz[m] * Lz / Lref, 2.0)
+        );
+
+        weight[m] = syntheticSpectrumVonKarman(PetscMax(kEff, 1.e-12), k0);
+        sumW += weight[m];
+
+        ifPtr->sfmPhi0[m] = 2.0 * M_PI * inflowHash01(b + 0xFACEB00CULL);
+    }
+
+    if (sumW < 1.e-30) sumW = 1.0;
+
+    for (PetscInt m = 0; m < M; m++)
+    {
+        PetscReal wm = weight[m] / sumW;
+        ifPtr->sfmAmp[m] = sqrt(2.0 * wm);
+    }
+
+    // Fit anisotropic RMS by scaling modal polarizations and re-projecting each mode onto k.u = 0.
+    // This preserves the divergence-free property of each Fourier mode.
+    PetscReal anisoX = 1.0, anisoY = 1.0, anisoZ = 1.0;
+    PetscReal targetX = PetscMax(ifPtr->sfmRMS.x, 0.0);
+    PetscReal targetY = PetscMax(ifPtr->sfmRMS.y, 0.0);
+    PetscReal targetZ = PetscMax(ifPtr->sfmRMS.z, 0.0);
+
+    const PetscInt maxAnisoIters = 12;
+    for (PetscInt it = 0; it < maxAnisoIters; it++)
+    {
+        PetscReal sx = 0.0, sy = 0.0, sz = 0.0;
+
+        for (PetscInt m = 0; m < M; m++)
+        {
+            PetscReal px, py, pz;
+            syntheticProjectScaledMode
+            (
+                ifPtr->sfmKx[m], ifPtr->sfmKy[m], ifPtr->sfmKz[m],
+                ifPtr->sfmEx[m], ifPtr->sfmEy[m], ifPtr->sfmEz[m],
+                anisoX, anisoY, anisoZ,
+                &px, &py, &pz
+            );
+
+            sx += 0.5 * pow(ifPtr->sfmAmp[m] * px, 2.0);
+            sy += 0.5 * pow(ifPtr->sfmAmp[m] * py, 2.0);
+            sz += 0.5 * pow(ifPtr->sfmAmp[m] * pz, 2.0);
+        }
+
+        PetscReal rmsX = sqrt(PetscMax(sx, 0.0));
+        PetscReal rmsY = sqrt(PetscMax(sy, 0.0));
+        PetscReal rmsZ = sqrt(PetscMax(sz, 0.0));
+
+        PetscReal errX = (targetX > 1.e-12) ? fabs(rmsX - targetX) / targetX : fabs(rmsX - targetX);
+        PetscReal errY = (targetY > 1.e-12) ? fabs(rmsY - targetY) / targetY : fabs(rmsY - targetY);
+        PetscReal errZ = (targetZ > 1.e-12) ? fabs(rmsZ - targetZ) / targetZ : fabs(rmsZ - targetZ);
+        PetscReal maxErr = PetscMax(errX, PetscMax(errY, errZ));
+
+        if (maxErr < 1.e-3) break;
+
+        if (targetX <= 1.e-12) anisoX = 0.0;
+        else if (rmsX > 1.e-14) anisoX *= targetX / rmsX;
+
+        if (targetY <= 1.e-12) anisoY = 0.0;
+        else if (rmsY > 1.e-14) anisoY *= targetY / rmsY;
+
+        if (targetZ <= 1.e-12) anisoZ = 0.0;
+        else if (rmsZ > 1.e-14) anisoZ *= targetZ / rmsZ;
+    }
+
+    PetscReal achSX = 0.0, achSY = 0.0, achSZ = 0.0;
+    for (PetscInt m = 0; m < M; m++)
+    {
+        PetscReal px, py, pz;
+        syntheticProjectScaledMode
+        (
+            ifPtr->sfmKx[m], ifPtr->sfmKy[m], ifPtr->sfmKz[m],
+            ifPtr->sfmEx[m], ifPtr->sfmEy[m], ifPtr->sfmEz[m],
+            anisoX, anisoY, anisoZ,
+            &px, &py, &pz
+        );
+
+        ifPtr->sfmEx[m] = px;
+        ifPtr->sfmEy[m] = py;
+        ifPtr->sfmEz[m] = pz;
+
+        achSX += 0.5 * pow(ifPtr->sfmAmp[m] * ifPtr->sfmEx[m], 2.0);
+        achSY += 0.5 * pow(ifPtr->sfmAmp[m] * ifPtr->sfmEy[m], 2.0);
+        achSZ += 0.5 * pow(ifPtr->sfmAmp[m] * ifPtr->sfmEz[m], 2.0);
+    }
+
+    ifPtr->sfmScaleX = 1.0;
+    ifPtr->sfmScaleY = 1.0;
+    ifPtr->sfmScaleZ = 1.0;
+
+    PetscReal achX = sqrt(PetscMax(achSX, 0.0));
+    PetscReal achY = sqrt(PetscMax(achSY, 0.0));
+    PetscReal achZ = sqrt(PetscMax(achSZ, 0.0));
+    PetscReal relX = (targetX > 1.e-12) ? fabs(achX - targetX) / targetX : fabs(achX - targetX);
+    PetscReal relY = (targetY > 1.e-12) ? fabs(achY - targetY) / targetY : fabs(achY - targetY);
+    PetscReal relZ = (targetZ > 1.e-12) ? fabs(achZ - targetZ) / targetZ : fabs(achZ - targetZ);
+
+    if (PetscMax(relX, PetscMax(relY, relZ)) > 0.05)
+    {
+        PetscPrintf
+        (
+            mesh->MESH_COMM,
+            "   -> type 8: anisotropic RMS mismatch after divergence-free projection: "
+            "target=(%.6e %.6e %.6e), achieved=(%.6e %.6e %.6e)\n",
+            targetX, targetY, targetZ, achX, achY, achZ
+        );
+    }
+
+    PetscFunctionReturn(0);
+}
+
+//***************************************************************************************************************//
 
 PetscErrorCode SetInflowFunctions(mesh_ *mesh)
 {
@@ -43,6 +425,14 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
         mesh->inletF.kLeft->typeU   = -1;
         mesh->inletF.kLeft->typeT   = -1;
         mesh->inletF.kLeft->typeNut = -1;
+        mesh->inletF.kLeft->sfmKx   = NULL;
+        mesh->inletF.kLeft->sfmKy   = NULL;
+        mesh->inletF.kLeft->sfmKz   = NULL;
+        mesh->inletF.kLeft->sfmEx   = NULL;
+        mesh->inletF.kLeft->sfmEy   = NULL;
+        mesh->inletF.kLeft->sfmEz   = NULL;
+        mesh->inletF.kLeft->sfmAmp  = NULL;
+        mesh->inletF.kLeft->sfmPhi0 = NULL;
         inletFunctionsAllocated ++;
 
         // set local pointer to this inlet function type
@@ -828,10 +1218,31 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
             readSubDictDouble(fileName.c_str(), "inletFunction", "periods",    &(ifPtr->periods));
             ifPtr->Udir = nScale(1.0/nMag(ifPtr->Uref), ifPtr->Uref);
         }
+        else if (ifPtr->typeU == 8)
+        {
+            readSubDictVector(fileName.c_str(), "inletFunction", "Uref",         &(ifPtr->Uref));
+            readSubDictVector(fileName.c_str(), "inletFunction", "uPrimeRMSVec", &(ifPtr->sfmRMS));
+            readSubDictVector(fileName.c_str(), "inletFunction", "lengthScale",  &(ifPtr->sfmLength));
+            readSubDictInt   (fileName.c_str(), "inletFunction", "nModes",       &(ifPtr->sfmNModes));
+            readSubDictInt   (fileName.c_str(), "inletFunction", "seed",         &(ifPtr->sfmSeed));
+            readSubDictDouble(fileName.c_str(), "inletFunction", "timeScale",    &(ifPtr->sfmTimeScale));
+            readSubDictDouble(fileName.c_str(), "inletFunction", "convSpeed",    &(ifPtr->sfmConvSpeed));
+
+            PetscReal uMag = nMag(ifPtr->Uref);
+            if (uMag > 1.e-12)
+            {
+                ifPtr->Udir = nScale(1.0/uMag, ifPtr->Uref);
+            }
+            else
+            {
+                ifPtr->Udir = nSetFromComponents(1.0, 0.0, 0.0);
+            }
+            syntheticFourierInitialize(mesh, ifPtr);
+        }
         else
         {
             char error[512];
-            sprintf(error, "unknown inflow profile on k-left boundary, available profiles are:\n        1 : power law (alpha = 0.107027)\n        2 : log law according to ABLProperties.dat\n        3 : unsteady mapped inflow from database\n        4 : unsteady interpolated inflow from database\n        5 : Nieuwstadt inflow (with veer)\n        6 : Sinusoidal inflow varying in i-direction\n");
+            sprintf(error, "unknown inflow profile on k-left boundary, available profiles are:\n        1 : power law (alpha = 0.107027)\n        2 : log law according to ABLProperties.dat\n        3 : unsteady mapped inflow from database\n        4 : unsteady interpolated inflow from database\n        5 : Nieuwstadt inflow (with veer)\n        6 : Sinusoidal inflow varying in i-direction\n        8 : divergence-free synthetic Fourier inflow\n");
             fatalErrorInFunction("SetInflowFunctions",  error);
         }
 
@@ -853,6 +1264,14 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
                 mesh->inletF.kLeft->typeU   = -1;
                 mesh->inletF.kLeft->typeT   = -1;
                 mesh->inletF.kLeft->typeNut = -1;
+                mesh->inletF.kLeft->sfmKx   = NULL;
+                mesh->inletF.kLeft->sfmKy   = NULL;
+                mesh->inletF.kLeft->sfmKz   = NULL;
+                mesh->inletF.kLeft->sfmEx   = NULL;
+                mesh->inletF.kLeft->sfmEy   = NULL;
+                mesh->inletF.kLeft->sfmEz   = NULL;
+                mesh->inletF.kLeft->sfmAmp  = NULL;
+                mesh->inletF.kLeft->sfmPhi0 = NULL;
                 inletFunctionsAllocated++;
             }
 
@@ -2669,4 +3088,31 @@ Cmpnts NieuwstadtInflowEvaluate(inletFunctionTypes *ifPtr, PetscReal h)
     }
 
     return(nSetFromComponents(U,V,0.0));
+}
+
+Cmpnts SyntheticFourierInflowEvaluate(inletFunctionTypes *ifPtr, Cmpnts p, PetscReal time)
+{
+    PetscInt M = ifPtr->sfmNModes;
+    PetscReal ux = 0.0, uy = 0.0, uz = 0.0;
+
+    for (PetscInt m = 0; m < M; m++)
+    {
+        PetscReal kx = ifPtr->sfmKx[m];
+        PetscReal ky = ifPtr->sfmKy[m];
+        PetscReal kz = ifPtr->sfmKz[m];
+        PetscReal kDotU = ifPtr->sfmConvSpeed * (kx * ifPtr->Udir.x + ky * ifPtr->Udir.y + kz * ifPtr->Udir.z);
+        PetscReal phase = kx * p.x + ky * p.y + kz * p.z + ifPtr->sfmPhi0[m] - kDotU * time + syntheticFourierTemporalPhase(ifPtr, m, time);
+        PetscReal c = std::cos(phase);
+        PetscReal a = ifPtr->sfmAmp[m] * c;
+
+        ux += ifPtr->sfmEx[m] * a;
+        uy += ifPtr->sfmEy[m] * a;
+        uz += ifPtr->sfmEz[m] * a;
+    }
+
+    ux *= ifPtr->sfmScaleX;
+    uy *= ifPtr->sfmScaleY;
+    uz *= ifPtr->sfmScaleZ;
+
+    return nSetFromComponents(ux, uy, uz);
 }

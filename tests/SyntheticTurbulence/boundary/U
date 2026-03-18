@@ -1,0 +1,28 @@
+# TOSCA Input file - U boundary conditions 
+# -------------------------------------------
+
+internalField spreadInflow
+
+iLeft   periodic
+
+iRight  periodic
+
+jLeft   slip
+        
+jRight  slip
+
+kLeft   inletFunction
+        {
+            type 8
+            Uref (5.0 0.0 0.0)             # uniform
+            uPrimeRMSVec (0.25 0.20 0.125) #5% of uref in x anisotropic
+            lengthScale (80.0 40.0 20.0) #length scale choose anisotropic
+            nModes 1024  #higher modes smooth spectra cutoff by grid
+            seed 12345   #for reproducibility
+            timeScale 16 #timescale decorrelation
+            convSpeed 5.0 #how fast eddy convects
+        }
+
+kLeft   fixedValue (5.0 0.0 0.0)
+        
+kRight  zeroGradient   

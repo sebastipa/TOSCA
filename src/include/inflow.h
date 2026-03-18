@@ -37,3 +37,6 @@ PetscErrorCode setShiftedInflowNut(inletFunctionTypes *ifPtr, les_ *les);
 
 //! \brief Nieuwstadt model for velocity inflow type 5
 Cmpnts NieuwstadtInflowEvaluate(inletFunctionTypes *ifPtr, PetscReal h);
+
+//! \brief Divergence-free synthetic Fourier inflow model (type 8)
+Cmpnts SyntheticFourierInflowEvaluate(inletFunctionTypes *ifPtr, Cmpnts p, PetscReal time);

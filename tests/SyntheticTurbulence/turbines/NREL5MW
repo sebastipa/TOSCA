@@ -1,0 +1,143 @@
+# TOSCA Input file - Turbine Properties
+# -------------------------------------------
+
+# Global wind turbine parameters
+rTip                63.0
+rHub                1.5
+hTower              90.0
+overHang            5.01910
+precone             0.0
+towerDir            (0.0 0.0 1.0)
+rotorDir            (-1 0 0.000000)
+upTilt              0
+includeTower        1
+includeNacelle      1
+
+# Controllers 
+genControllerType   fiveRegionsNREL
+pitchControllerType fiveRegionsNREL
+yawControllerType   fiveRegionsNREL
+dipcControllerType  none
+
+# Actuator disk model parameters
+nBlades             3
+rotationDir         cw
+nRadPts             10
+nAziPts             50
+epsilon             20.0
+debug               0
+initialOmega        10.41
+projection          isotropic
+sampleType          rotorDisk
+CtType		    variable
+
+# Uniform actuator disk parameters
+Ct                  0.783
+#sampleType          rotorUpstream
+Uref                9.0
+
+# Tower properties 
+towerData
+{
+    Cd              0.8
+    epsilon         12.0
+    nLinPts         90
+    rBase           3
+    rTop            1.5
+}
+
+# Nacelle properties
+nacelleData
+{
+    Cd              4
+    epsilon         12
+}
+
+# names of the foils 
+airfoils
+{
+    Cylinder1 
+    Cylinder2 
+    DU40_A17  
+    DU35_A17  
+    DU30_A17  
+    DU25_A17  
+    DU21_A17  
+    NACA64_A17
+}
+
+
+# Blade parameters given as | radius(m) | c(m) | twist(deg) | airfoilID |
+bladeData
+{ 
+    (2.8667     3.542    13.308     0)
+    (5.6        3.854    13.308     0)
+    (8.3333     4.167    13.308     1)
+    (11.75      4.557    13.308     2)
+    (15.85      4.652    11.48      3)
+    (19.95      4.458    10.162     3)
+    (24.05      4.249    9.011      4) 
+    (28.15      4.007    7.795      5)
+    (32.25      3.748    6.544      5)
+    (36.35      3.502    5.361      6)
+    (40.45      3.256    4.188      6)
+    (44.55      3.01     3.125      7)
+    (48.65      2.764    2.319      7)
+    (52.75      2.518    1.526      7)
+    (56.1667    2.313    0.863      7)
+    (58.9       2.086    0.37       7)
+    (61.6333    1.419    0.106      7)
+}
+
+# | Reference Velocity (m/s) | Ct |
+# if Cp data available (not mandatory) | Uref(m/s) | Ct | Cp |
+
+CtTable
+{
+    (3.0    0.8068   0.3343)
+    (3.5    0.7935   0.3636)
+    (4.0    0.7803   0.3929)
+    (4.5    0.7678   0.4022)
+    (5.0    0.7553   0.4115)
+    (5.5    0.7516   0.4126)
+    (6.0    0.7479   0.4137)
+    (6.5    0.7479   0.4140)
+    (7.0    0.7479   0.4142)
+    (7.5    0.7386   0.4125)
+    (8.0    0.7294   0.4108)
+    (8.5    0.6780   0.3975)
+    (9.0    0.6266   0.3843)
+    (9.5    0.5657   0.3606)
+    (10.0   0.5047   0.3369)
+    (10.5   0.4476   0.3062)
+    (11.0   0.3905   0.2755)
+    (11.5   0.3452   0.2464)
+    (12.0   0.2998   0.2172)
+    (12.5   0.2638   0.1930)
+    (13.0   0.2278   0.1689)
+    (13.5   0.2049   0.1524)
+    (14.0   0.1820   0.1359)
+    (14.5   0.1646   0.1232)
+    (15.0   0.1473   0.1104)
+    (15.5   0.1340   0.1005)
+    (16.0   0.1208   0.09059)
+    (16.5   0.1111   0.08318)
+    (17.0   0.1013   0.07578)
+    (17.5   0.09336  0.06967)
+    (18.0   0.0854   0.06356)
+    (18.5   0.07928  0.05883)
+    (19.0   0.07316  0.05410)
+    (19.5   0.06820  0.05024)
+    (20.0   0.06324  0.04637)
+    (20.5   0.05911  0.04313)
+    (21.0   0.05498  0.03990)
+    (21.5   0.05179  0.03737)
+    (22.0   0.04861  0.03485)
+    (22.5   0.04569  0.03253)
+    (23.0   0.04277  0.03021)
+    (23.5   0.04065  0.02851)
+    (24.0   0.03852  0.02681)
+    (24.5   0.03640  0.02511)
+    (25.0   0.03428  0.02341)
+}
+

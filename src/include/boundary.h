@@ -127,6 +127,25 @@ struct inletFunctionTypes
     // type 6: i-dir sinusoidal inflow
     PetscReal    amplitude;                   //!< oscillation amplitude w.r.t. reference velocity magnitude
     PetscReal    periods;                     //!< number of periods in the spanwise direction
+
+    // type 8: divergence-free synthetic Fourier inflow
+    PetscInt     sfmNModes;                   //!< number of Fourier modes
+    PetscInt     sfmSeed;                     //!< deterministic seed
+    PetscReal    sfmTimeScale;                //!< temporal scale
+    Cmpnts       sfmLength;                   //!< characteristic length scales
+    Cmpnts       sfmRMS;                      //!< target RMS per component
+    PetscReal    sfmConvSpeed;                //!< convection speed
+    PetscReal    sfmScaleX;                   //!< component normalization factor x
+    PetscReal    sfmScaleY;                   //!< component normalization factor y
+    PetscReal    sfmScaleZ;                   //!< component normalization factor z
+    PetscReal    *sfmKx;                      //!< mode wavevector x component
+    PetscReal    *sfmKy;                      //!< mode wavevector y component
+    PetscReal    *sfmKz;                      //!< mode wavevector z component
+    PetscReal    *sfmEx;                      //!< divergence-free polarization x component
+    PetscReal    *sfmEy;                      //!< divergence-free polarization y component
+    PetscReal    *sfmEz;                      //!< divergence-free polarization z component
+    PetscReal    *sfmAmp;                     //!< mode amplitudes
+    PetscReal    *sfmPhi0;                    //!< mode initial phases
 };
 
 //! \brief Struct storing inlet functions data
