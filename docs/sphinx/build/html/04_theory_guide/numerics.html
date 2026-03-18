@@ -66,10 +66,11 @@
 <li class="toctree-l2"><a class="reference internal" href="time_integration.html">Time Integration Schemes</a></li>
 <li class="toctree-l2"><a class="reference internal" href="advection_schemes.html">Advection Schemes</a></li>
 <li class="toctree-l2"><a class="reference internal" href="parallel_efficiency.html">Parallel Efficiency</a></li>
-<li class="toctree-l2"><a class="reference internal" href="turbulence_models.html">Sub-grid Scale Model</a></li>
-<li class="toctree-l2"><a class="reference internal" href="flow_controllers.html">Controllers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="turbulence_models.html">Sub-grid Scale Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="flow_controllers.html">Flow Controllers and Mesoscale Coupling</a></li>
 <li class="toctree-l2"><a class="reference internal" href="precursor.html">Precursor, Fringe Regions &amp; Damping Layers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="turbine_models.html">Turbine Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ibm.html">Immersed Boundary Method</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../tosca_versions.html">Versions</a></li>
@@ -175,7 +176,8 @@ smoothly varying mesh.  The system reads:</p>
     &amp;\quad
     - \frac{J^2}{\rho_\text{ref}}\frac{\partial p_\infty}{\partial l_r}S^{rq}
     + S^q_i\frac{\rho_k}{\rho_\text{ref}}g_i
-    - 2 S^q_i\epsilon_{ijk}\Omega_j u_k
+    - 2 S^q_i\epsilon_{ijk}\Omega_j u_k \\
+    &amp;\quad
     + S^q_i\!\left(f_i + s^v_i + s^h_i\right), \\[6pt]
     \frac{\partial\theta}{\partial t}
     + \frac{\partial}{\partial l_r}\!\left(V^r\theta\right)

@@ -109,7 +109,8 @@ smoothly varying mesh.  The system reads:
         &\quad
         - \frac{J^2}{\rho_\text{ref}}\frac{\partial p_\infty}{\partial l_r}S^{rq}
         + S^q_i\frac{\rho_k}{\rho_\text{ref}}g_i
-        - 2 S^q_i\epsilon_{ijk}\Omega_j u_k
+        - 2 S^q_i\epsilon_{ijk}\Omega_j u_k \\
+        &\quad
         + S^q_i\!\left(f_i + s^v_i + s^h_i\right), \\[6pt]
         \frac{\partial\theta}{\partial t}
         + \frac{\partial}{\partial l_r}\!\left(V^r\theta\right)

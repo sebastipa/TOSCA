@@ -3,119 +3,147 @@
 Time Integration Schemes
 ------------------------
 
-Four time-stepping schemes are available for both the momentum and temperature equations.  The momentum scheme is selected via the keyword ``-dUdtScheme`` and
-the temperature scheme via ``-dTdtScheme`` in ``control.dat``.
+TOSCA features six time-stepping schemes for the momentum equation and four schemes for the temperature equation. These are selectable in the ``control.dat`` 
+file via the keywords ``-dUdtScheme`` and ``-dTdtScheme``, respectively. In the following sections, the mathematical formulation of each scheme is 
+presented, along with recommendations for their use in different types of simulations. Guidelines regarding their combination and usage for 
+production runs are also provided.
+
 
 Momentum Equation
 ~~~~~~~~~~~~~~~~~~
 
-Let :math:`\mathcal{H}^q_U = H^q_U + L^q` denote the full right-hand side of the momentum equation (advection, viscous diffusion, and all source terms, excluding
-the pressure gradient).  The pressure gradient :math:`G^q(p^n)` is always treated explicitly and removed by the projection step (see :ref:`numerics-section`).
+Let :math:`\mathcal{H}^q_U(V^q, u_k) = N^q_U + L^q_U + S^q_U` denote the full right-hand side of the momentum equation, where :math:`N^q_U`, :math:`L^q_U` and :math:`S^q_U`
+denote the advection, viscous and source terms, respectively. These are function of the staggered contravariant fluxes :math:`V^q` (the solved variable) and the 
+cell-centered cartesian velocity :math:`u_k`, interpolated from the contravariant fluxes. The pressure gradient, referred to as :math:`G^q`, is always treated explicitly and 
+then corrected, after the solution of the pressure equation, in the projection step to enforce mass conservation (see :ref:`numerics-section`). The index
+:math:`q` denotes the curvilinear components :math:`\xi`, :math:`\eta` and :math:`\zeta`, represented in the TOSCA code by indices i, j and k, respectively.  
 
-**Forward Euler**
+One of the following schemes can be selected to compute the predicted velocity field :math:`V^{q,*}` at the new time level :math:`n+1`, to be 
+used in the projection step:
 
-First-order explicit scheme:
 
-.. math::
+**Explicit Forward Euler**
 
-    V^{q,n+1}_* = V^{q,n} + \Delta t\,\left[\mathcal{H}^q_U(V^n, u^n) - G^q(p^n)\right].
-
-Conditionally stable; requires :math:`\mathrm{CFL} < 1`.  Recommended only for coarse (fast) exploratory runs.
-
-**Runge–Kutta 4**
-
-Classical four-stage explicit scheme:
+First-order explicit scheme, selectable with ``-dUdtScheme FE``. The velocity prediction reads:
 
 .. math::
 
-    V^{q,n+1}_* = V^{q,n} + \Delta t\sum_{s=1}^{4} b_s K_s,
+    V^{q,*} = V^{q,n} + \Delta t\,\left[\mathcal{H}^q_U(V^n, u^n) - G^q(p^n)\right].
+
+this method is conditionally stable, i.e. :math:`\mathrm{CFL} < 1`, but in practice it requires much lower CFL values. 
+This numerica scheme is only used for testing and it is not recommended for production cases, due to its low accuracy and stringent stability requirements.
+
+**Explicit Runge–Kutta 4**
+
+Fourth-order classical four-stage explicit Runge–Kutta scheme, selectable with ``-dUdtScheme RK4``. The velocity prediction reads:
+
+.. math::
+
+    V^{q,*} = V^{q,n} + \Delta t\sum_{s=1}^{4} b_s K_s,
     \qquad
     K_s = \mathcal{H}^q_U\bigl(V^n + a_s\,\Delta t\,K_{s-1},\,u^n + a_s\,\Delta t\,K_{s-1}\bigr),
 
 with Butcher coefficients :math:`\mathbf{b} = (\tfrac{1}{6},\tfrac{1}{3},\tfrac{1}{3},\tfrac{1}{6})^\top`
-and :math:`\mathbf{a} = (0,\tfrac{1}{2},\tfrac{1}{2},1)^\top`. Fourth-order accurate in time; conditionally stable. Requires four full
-right-hand-side evaluations per step.
+and :math:`\mathbf{a} = (0,\tfrac{1}{2},\tfrac{1}{2},1)^\top`. Fourth-order accurate in time, conditionally stable. Requires four full
+right-hand-side evaluations per step and :math:`\mathrm{CFL} < 1`. In practice, the scheme is unstable for CFL values greater than 0.5-0.6. 
 
 **Crank–Nicolson**
 
-Fully implicit second-order scheme solved with PETSc's Newton trust-region SNES solver.  The update reads:
+Fully implicit second-order scheme solved with PETSc's Newton trust-region SNESTR solver, selectable with ``-dUdtScheme CN``. The nonlinear residual is defined as
 
 .. math::
 
-    \frac{V^{q,n+1}_* - V^{q,n}}{\Delta t} = \frac{1}{2}\,\mathcal{H}^q_U(V^{n+1}_*, u^{n+1}_*)
-    + \frac{1}{2}\,\mathcal{H}^q_U(V^n, u^n) - G^q(p^n).
+    \frac{V^{q,*} - V^{q,n}}{\Delta t} = \frac{1}{2}\left(N^{q,*}_U + L^{q,*}_U\right)
+    + \frac{1}{2}\left(N^{q,n}_U + L^{q,n}_U\right) + S^{q,*/n}_U - G^{q,n} + B^{q,*},
 
-The nonlinear system is solved using Newton–Krylov iterations with a matrix-free Jacobian (MATMFFD) and a BiCGStab or GMRES (more robust slower) inner solver.  
+where convection and viscous terms use proper Crank Nicolson formula, while source terms are either fully implicit (where possible) or 
+explicit (e.g., as the wind farm body force). The buoyancy term :math:`B^q` is predicted at time level :math:`n+1` using second-order Adams–Bashforth (AB2) 
+extrapolation to enhance the coupling with the temperature equation, and it is calculated as 
+
+.. math::
+
+    B^q(T^{*}) = \frac{3}{2}B^q(T^n) - \frac{1}{2}B^q(T^{n-1}).
+
+The nonlinear system is solved using Newton–Krylov iterations with a matrix-free Jacobian (MATMFFD) and a BiCGStab (default) or GMRES inner solver.  
 To reduce the number of Newton iterations, a source buffer :math:`\mathbf{b}_U` precomputes all terms that are independent of the current iterate (pressure
-gradient, :math:`\tfrac{1}{2}\mathcal{H}^q_U(V^n,u^n)`, source terms), and an explicit Forward Euler prediction provides the initial guess.  The scheme is
-unconditionally stable and second-order accurate in time. Recommended for production runs where the cost of nonlinear solves is offset by the ability to use 
-large time steps (CFL :math:`\to 1`).
+gradient, half contribution of convection and advection and the some source terms), and an explicit Forward Euler prediction provides the initial guess.  
+The scheme is unconditionally stable and practically second-order accurate in time. This is among the recommended schemes for production runs, where the cost 
+of nonlinear solves is offset by the ability to use large time steps (CFL :math:`\to 1`). Notably, this has been the preferred scheme in TOSCA up to v1.2.0, after 
+which implicit-explicit (IMEX) time schemes have been implemented to further enhance the speed of the code, while maintaining comparable the maximum 
+CFL used for production runs.
 
-**IMEX-CNAB (Implicit–Explicit Crank–Nicolson Adams–Bashforth)**
+**IMEX-ABCN (Implicit–Explicit Adams–Bashforth/Crank–Nicolson)**
 
-A split scheme where convection is treated **explicitly** with Adams–Bashforth 2 (AB2) and viscous diffusion is treated **implicitly** with Crank–Nicolson.
-The update reads:
-
-.. math::
-
-    \frac{V^{q,n+1}_* - V^{q,n}}{\Delta t} = \mathbf{b}^q_U + \tfrac{1}{2}\,\mathcal{L}^q(V^{n+1}_*),
-
-where the **explicit buffer** :math:`\mathbf{b}^q_U` is assembled once per step from fields at time levels :math:`n` and :math:`n-1`:
+This is a split implicit-explicit (IMEX) scheme, where convection is treated explicitly with Adams–Bashforth 2 (AB2) and diffusion is treated implicitly 
+with Crank–Nicolson. It is selectable with ``-dUdtScheme ABCN`` and the velocity prediction reads:
 
 .. math::
 
-    \mathbf{b}^q_U
-    = -G^q(p^n)
-    + L^{q,\text{buoy}}
-    + \tfrac{3}{2}\,\mathcal{N}^q_U(V^n, u^n)
-    - \tfrac{1}{2}\,\mathcal{N}^q_U(V^{n-1}, u^{n-1})
-    + \tfrac{1}{2}\,\mathcal{L}^q(V^n)
-    + \mathcal{S}^q,
+    \frac{V^{q,*} - V^{q,n}}{\Delta t} = b^q_U + \tfrac{1}{2}\,L^{q,*}_U,
 
-with :math:`\mathcal{N}^q_U` the convective operator, :math:`\mathcal{L}^q` the viscous-diffusion operator, and :math:`\mathcal{S}^q` the remaining source terms.
-The first step uses Forward Euler for the AB2 convection stencil.  The resulting **linear** system
+where the explicit buffer :math:`\mathbf{b}^q_U` is assembled once per step from fields at time levels :math:`n` and :math:`n-1`:
 
 .. math::
 
-    A\,V^{q,n+1}_* = V^{q,n} + \Delta t\,\mathbf{b}^q_U,
-    \qquad A\,v \equiv v - \tfrac{\Delta t}{2}\,\mathcal{L}^q(v),
+    b^q_U
+    = - G^{q,n}
+    + \tfrac{3}{2}\left(N^{q,n}_U + B^{q,n}\right)
+    - \tfrac{1}{2}\left(N^{q,n-1}_U + B^{q,n-1}\right)
+    + \tfrac{1}{2}\,L^{q,n}_U
+    + S^{q,n}_U,
 
-is solved directly with a standalone PETSc KSP (GMRES or BiCGStab, with :math:`L=2`) solver. The scheme is second-order accurate in time and overall faster 
-than Crank-Nicholson in terms of time advancement of the simulation. However, because convection is treated explicitly, the scheme is only conditionally stable and 
-often requires stabilization through the ``-central4`` + ``-hyperVisc`` combination (see :ref:`advection-schemes-section`) or the addition of biharmonic hyperviscosity 
-(see :ref:`biharmonic-hyperviscosity` below) to suppress Nyquist-mode noise at high CFL numbers. The recommended CFL limit is :math:`\mathrm{CFL} \lesssim 0.5`, if no explicit
-filtering is used, or :math:`\mathrm{CFL} \lesssim 0.6` when biharmonic hyperviscosity is active (either as a standalone correction or as a mild filter on top of the ``-central4`` scheme).
-Running this scheme with CFL close to or above 1.0 will lead to numerical instability.
-
-.. _biharmonic-hyperviscosity:
-
-IMEX-CNAB Biharmonic Hyperviscosity
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-For the IMEX-CNAB scheme, an optional biharmonic (fourth-order) hyperviscosity correction is available to suppress odd–even checkerboard noise and instability
-at the Nyquist wavenumber.  The per-step flux correction is
+The first step uses Forward Euler for the AB2 convection stencil.  The resulting linear system
 
 .. math::
 
-    \Delta V^q_{\mathrm{hv}} = -\varepsilon_4
-    \bigl(\delta^4_\xi + \delta^4_\eta + \delta^4_\zeta\bigr)\,V^{q,n},
+    A\,V^{q,*} = V^{q,n} + \Delta t\,b^q_U,
+    \qquad A\,v = v - \tfrac{\Delta t}{2}\,L^{q}_U(v),
 
-where the one-dimensional fourth-order difference operator is
+is solved directly with a standalone PETSc KSP (GMRES - default - or BiCGStab with :math:`L=2`) solver. The scheme is second-order accurate in time for the convection and viscous terms,
+and in some cases faster than Crank Nicolson in terms of simulated time advancement. Notably, because convection is treated explicitly, the scheme is conditionally stable and 
+often requires stabilization through the addition of sixth-order explicit hyperviscosity to suppress Nyquist-mode noise at high CFL numbers. The recommended CFL limit is 
+:math:`\mathrm{CFL} \lesssim 0.5`, if no hyperviscosity is used, or :math:`\mathrm{CFL} \lesssim 0.6` when hyperviscosity is active (either as a standalone correction 
+or as a mild filter on top of the ``-central4`` scheme). Running this scheme with CFL close to or above 0.7 will likely lead to numerical instability.
+
+**IMEX-RK3SOCN (Sor-Osher Runge Kutta 3 (TVD)/Crank Nicolson)**
+
+This is a split implicit-explicit (IMEX) scheme, where convection is treated explicitly with Sor-Osher Runge Kutta 3 and diffusion is treated implicitly 
+with Crank–Nicolson. It is selectable with ``-dUdtScheme RK3SOCN``. Denoting 
 
 .. math::
 
-    \delta^4_d\,v_n = v_{n+2} - 4v_{n+1} + 6v_n - 4v_{n-1} + v_{n-2},
+    K^{q,stage}_U = N^{q,stage}_U + S^{q,stage}_U + B^{q,*} - G^{q,n},
 
-with Fourier symbol :math:`\widehat{\delta^4}(\kappa) = 4(\cos\kappa h - 1)^2`. The symbol vanishes at :math:`\kappa h = 0` (no effect on resolved scales) and
-reaches 16 at the Nyquist wavenumber :math:`\kappa h = \pi`.  For stable, non-amplifying operation the coefficient must satisfy
+where convection is evaluated at the current stage and the buoyancy term is predicted with AB2 extrapolation as in the Crank–Nicolson scheme, the velocity prediction reads:
+
+stage 1:
 
 .. math::
 
-    \varepsilon_4 \leq \frac{1}{48} \approx 0.021.
+    V^{q,(1)} = V^{q,n} + \Delta t\,K^{q,n}_U + \frac{1}{2}\Delta t\left(L^{q,(1)}_U + L^{q,n}_U\right),
 
-The coefficient is directional and it is set by the keywords ``-imexHyperVisc4U_i``, ``-imexHyperVisc4U_j`` and ``-imexHyperVisc4U_k`` in ``control.dat``. 
-When hyperviscosity is active, the effective CFL limit for IMEX-CNAB increases from 0.5 to approximately 0.6-0.7. Notably, hyperviscosity addition can be 
-directional, allowing for selective damping of the Nyquist mode in the horizontal or vertical directios. 
+stage 2:
+
+.. math::
+
+    V^{q,(2)} = \frac{3}{4}V^{q,n} + \frac{1}{4}V^{q,(1)} + \frac{1}{4}\Delta t\left[K^{q,n}_U + \frac{1}{2}\left(L^{q,(2)}_U + L^{q,n}_U\right)\right],
+
+stage 3:
+
+.. math::
+
+    V^{q,(3)} = \frac{1}{3}V^{q,n} + \frac{2}{3}V^{q,(2)} + \frac{2}{3}\Delta t\left[K^{q,n}_U + \frac{1}{2}\left(L^{q,(3)}_U + L^{q,n}_U\right)\right],
+
+Notbly, at each stage the diffusion term is treated implicitly with Crank–Nicolson, which requires the solution of a linear system with the same matrix :math:`A` as in the 
+IMEX-ABCN scheme, although with a different right-hand side. The scheme is third-order accurate in time for the convection and viscous terms, it is conditionally stable 
+with a recommended CFL limit of :math:`\mathrm{CFL} \lesssim 1.0`. Because the Sor-Osher RK3 is a TVD  scheme, it possesses a high non-linear stability limit for convection-dominated 
+flows, supporting a CFL number typically equal or higher than 1.0. In practice, the scheme is stable for CFL values up to around 0.9 and it advances the solution faster 
+than the classic Crank–Nicolson scheme. 
+
+**IMEX-RK3WCN (Wray-Lund Runge Kutta 3/Crank Nicolson)**
+
+This is a split implicit-explicit (IMEX) scheme, where convection is treated explicitly with Wray-Lund Runge Kutta 3 and diffusion is treated implicitly 
+with Crank–Nicolson. It is selectable with ``-dUdtScheme RK3WCN`` and the velocity prediction reads:
 
 Temperature Equation
 ~~~~~~~~~~~~~~~~~~~~~

@@ -193,13 +193,14 @@ Solution Controls
    ``-meshFileType``         Defines the format of the mesh input file. It can be set to ``cartesian`` or ``curvilinear``.
                              More details are given in Sec. :ref:`spatial-mesh-section`.
    ------------------------- ----------------------------------------------------------------------------------------------------
-   ``-dUdtScheme``           Time discretization scheme, it can be set to ``forwardEuler`` (explicit first order, usually 
-                             unstable), ``rungeKutta4`` (explicit fourth-order Runge-Kutta) or ``backwardEuler``, 
-                             which corresponds to the second-order implicit Crank-Nicholson scheme (explicit selection of 
-                             the Crank-Nicholson scheme will be made available). For long simulations the 
-                             ``backwardEuler`` scheme is preferred, as it can run with CFL greater than 1 and is 
-                             unconditionally stable. For simulations affected by constraints other than the CFL (e.g. blade 
-                             rotation in actuator line model), ``rungeKutta4`` is a good alternative.
+   ``-dUdtScheme``           Time discretization scheme, it can be set to ``FE`` (forward Euler) explicit first order, usually 
+                             unstable), ``RK4`` (Runge-Kutta 4) explicit fourth-order, ``CN`` (Crank-Nicolson) implicit 
+                             second-order, ``ABCN`` (Adam-Bashforth/Crank-Nicolson IMEX) implicit/explicit second order, 
+                             ``RK3SOCN`` (Sor-Osher Runge Kutta 3 (TVD)/Crank Nicolson IMEX) implicit/explicit third-order or 
+                             ``RK3WCN`` (Wray-Lund Runge Kutta 3/Crank Nicolson IMEX) implicit/explicit third-order.
+                             For long simulations the ``CN``, ``RK3SOCN`` or ``RK3WCN`` schemes are preferred, as they 
+                             can run with CFL close to 1. For simulations affected by constraints other than the CFL (e.g. blade 
+                             cell traversal in actuator line model), the ``RK4`` is a good alternative.
    ------------------------- ----------------------------------------------------------------------------------------------------
    ``-divScheme``            Determines which divergence scheme is used for the discretization of the advection fluxes. It 
                              can be set to ``central`` (second-order symmetric scheme, dispersive), ``quickDiv`` (third-order 
@@ -219,7 +220,8 @@ Solution Controls
                              default value 1e-5.
    ------------------------- ----------------------------------------------------------------------------------------------------
    ``-poissonSolver``        Allows to specify the library used to solve the pressure equation, it can be set to ``HYPRE`` or 
-                             ``PETSc``. ``HYPRE`` is suggested, as it has proved to work better than ``PETSc``.
+                             ``PETSc``. While ``HYPRE`` is suggested for most cases, ``PETSc`` mey work better for dynamic 
+                             immersed boundary simulations.
    ------------------------- ----------------------------------------------------------------------------------------------------
    ``-hypreSolverType``      Allows to choose the solution method for the linear system if ``-poissonSolver`` is set to 
                              ``HYPRE``, discarded otherwise. Set to 1 to use the Generalized Minimum Residual (GMRES), set 

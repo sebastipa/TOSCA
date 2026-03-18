@@ -331,13 +331,14 @@ sub-dictionary of the initial conditions file (<code class="docutils literal not
 More details are given in Sec. <a class="reference internal" href="../spatial_mesh.html#spatial-mesh-section"><span class="std std-ref">Spatial Mesh</span></a>.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-dUdtScheme</span></code></p></td>
-<td><p>Time discretization scheme, it can be set to <code class="docutils literal notranslate"><span class="pre">forwardEuler</span></code> (explicit first order, usually
-unstable), <code class="docutils literal notranslate"><span class="pre">rungeKutta4</span></code> (explicit fourth-order Runge-Kutta) or <code class="docutils literal notranslate"><span class="pre">backwardEuler</span></code>,
-which corresponds to the second-order implicit Crank-Nicholson scheme (explicit selection of
-the Crank-Nicholson scheme will be made available). For long simulations the
-<code class="docutils literal notranslate"><span class="pre">backwardEuler</span></code> scheme is preferred, as it can run with CFL greater than 1 and is
-unconditionally stable. For simulations affected by constraints other than the CFL (e.g. blade
-rotation in actuator line model), <code class="docutils literal notranslate"><span class="pre">rungeKutta4</span></code> is a good alternative.</p></td>
+<td><p>Time discretization scheme, it can be set to <code class="docutils literal notranslate"><span class="pre">FE</span></code> (forward Euler) explicit first order, usually
+unstable), <code class="docutils literal notranslate"><span class="pre">RK4</span></code> (Runge-Kutta 4) explicit fourth-order, <code class="docutils literal notranslate"><span class="pre">CN</span></code> (Crank-Nicolson) implicit
+second-order, <code class="docutils literal notranslate"><span class="pre">ABCN</span></code> (Adam-Bashforth/Crank-Nicolson IMEX) implicit/explicit second order,
+<code class="docutils literal notranslate"><span class="pre">RK3SOCN</span></code> (Sor-Osher Runge Kutta 3 (TVD)/Crank Nicolson IMEX) implicit/explicit third-order or
+<code class="docutils literal notranslate"><span class="pre">RK3WCN</span></code> (Wray-Lund Runge Kutta 3/Crank Nicolson IMEX) implicit/explicit third-order.
+For long simulations the <code class="docutils literal notranslate"><span class="pre">CN</span></code>, <code class="docutils literal notranslate"><span class="pre">RK3SOCN</span></code> or <code class="docutils literal notranslate"><span class="pre">RK3WCN</span></code> schemes are preferred, as they
+can run with CFL close to 1. For simulations affected by constraints other than the CFL (e.g. blade
+cell traversal in actuator line model), the <code class="docutils literal notranslate"><span class="pre">RK4</span></code> is a good alternative.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-divScheme</span></code></p></td>
 <td><p>Determines which divergence scheme is used for the discretization of the advection fluxes. It
@@ -361,7 +362,8 @@ default value 1e-5.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-poissonSolver</span></code></p></td>
 <td><p>Allows to specify the library used to solve the pressure equation, it can be set to <code class="docutils literal notranslate"><span class="pre">HYPRE</span></code> or
-<code class="docutils literal notranslate"><span class="pre">PETSc</span></code>. <code class="docutils literal notranslate"><span class="pre">HYPRE</span></code> is suggested, as it has proved to work better than <code class="docutils literal notranslate"><span class="pre">PETSc</span></code>.</p></td>
+<code class="docutils literal notranslate"><span class="pre">PETSc</span></code>. While <code class="docutils literal notranslate"><span class="pre">HYPRE</span></code> is suggested for most cases, <code class="docutils literal notranslate"><span class="pre">PETSc</span></code> mey work better for dynamic
+immersed boundary simulations.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-hypreSolverType</span></code></p></td>
 <td><p>Allows to choose the solution method for the linear system if <code class="docutils literal notranslate"><span class="pre">-poissonSolver</span></code> is set to
