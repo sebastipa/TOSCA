@@ -176,57 +176,74 @@ with Crank–Nicolson. It is selectable with <code class="docutils literal notra
 \[V^{q,(1)} = V^{q,n} + \Delta t\,K^{q,n}_U + \frac{1}{2}\Delta t\left(L^{q,(1)}_U + L^{q,n}_U\right),\]</div>
 <p>stage 2:</p>
 <div class="math notranslate nohighlight">
-\[V^{q,(2)} = \frac{3}{4}V^{q,n} + \frac{1}{4}V^{q,(1)} + \frac{1}{4}\Delta t\left[K^{q,n}_U + \frac{1}{2}\left(L^{q,(2)}_U + L^{q,n}_U\right)\right],\]</div>
+\[V^{q,(2)} = \frac{3}{4}V^{q,n} + \frac{1}{4}V^{q,(1)} + \frac{1}{4}\Delta t\left[K^{q,n}_U + \frac{1}{2}\left(L^{q,(2)}_U + L^{q,(2)}_U\right)\right],\]</div>
 <p>stage 3:</p>
 <div class="math notranslate nohighlight">
-\[V^{q,(3)} = \frac{1}{3}V^{q,n} + \frac{2}{3}V^{q,(2)} + \frac{2}{3}\Delta t\left[K^{q,n}_U + \frac{1}{2}\left(L^{q,(3)}_U + L^{q,n}_U\right)\right],\]</div>
-<p>Notbly, at each stage the diffusion term is treated implicitly with Crank–Nicolson, which requires the solution of a linear system with the same matrix <span class="math notranslate nohighlight">\(A\)</span> as in the
+\[V^{q,(3)} = \frac{1}{3}V^{q,n} + \frac{2}{3}V^{q,(2)} + \frac{2}{3}\Delta t\left[K^{q,n}_U + \frac{1}{2}\left(L^{q,(3)}_U + L^{q,(2)}_U\right)\right],\]</div>
+<p>Notably, at each stage the diffusion term is treated implicitly with Crank–Nicolson, which requires the solution of a linear system with the same matrix <span class="math notranslate nohighlight">\(A\)</span> as in the
 IMEX-ABCN scheme, although with a different right-hand side. The scheme is third-order accurate in time for the convection and viscous terms, it is conditionally stable
 with a recommended CFL limit of <span class="math notranslate nohighlight">\(\mathrm{CFL} \lesssim 1.0\)</span>. Because the Sor-Osher RK3 is a TVD  scheme, it possesses a high non-linear stability limit for convection-dominated
 flows, supporting a CFL number typically equal or higher than 1.0. In practice, the scheme is stable for CFL values up to around 0.9 and it advances the solution faster
 than the classic Crank–Nicolson scheme.</p>
 <p><strong>IMEX-RK3WCN (Wray-Lund Runge Kutta 3/Crank Nicolson)</strong></p>
 <p>This is a split implicit-explicit (IMEX) scheme, where convection is treated explicitly with Wray-Lund Runge Kutta 3 and diffusion is treated implicitly
-with Crank–Nicolson. It is selectable with <code class="docutils literal notranslate"><span class="pre">-dUdtScheme</span> <span class="pre">RK3WCN</span></code> and the velocity prediction reads:</p>
+with Crank–Nicolson. It is selectable with <code class="docutils literal notranslate"><span class="pre">-dUdtScheme</span> <span class="pre">RK3WCN</span></code>. Denoting <span class="math notranslate nohighlight">\(K^{q,stage}_U\)</span> as in the previous scheme, the
+velocity prediction reads:</p>
+<p>stage 1:</p>
+<div class="math notranslate nohighlight">
+\[V^{q,(1)} = V^{q,n} + \frac{8}{15}\Delta t\,K^{q,n}_U + \frac{4}{15}\Delta t\left(L^{q,(1)}_U + L^{q,n}_U\right),\]</div>
+<p>stage 2:</p>
+<div class="math notranslate nohighlight">
+\[V^{q,(2)} = V^{q,(1)} + \Delta t\left[\frac{5}{12}K^{q,(1)}_U - \frac{17}{60}K^{q,n}_U\right] + \frac{1}{15}\left(L^{q,(2)}_U + L^{q,(1)}_U\right),\]</div>
+<p>stage 3:</p>
+<div class="math notranslate nohighlight">
+\[V^{q,(3)} = V^{q,(2)} + \Delta t\left[\frac{3}{4}K^{q,(2)}_U - \frac{5}{12}K^{q,n}_U\right] + \frac{1}{6}\left(L^{q,(3)}_U + L^{q,(2)}_U\right),\]</div>
+<p>Also for this scheme, the implicit treatment of the diffusion term using Crank–Nicolson requires the solution of a linear system with the same matrix <span class="math notranslate nohighlight">\(A\)</span> as in the
+IMEX-RK3SOCN scheme, although with a different right-hand side. The scheme is third-order accurate in time and conditionally stable
+with a recommended CFL limit of <span class="math notranslate nohighlight">\(\mathrm{CFL} \lesssim 1.73\)</span>. The Wray-Lund RK3 scheme possesses better linear stability properties than the Sor-Osher scheme,
+although the latter has higher non-linear stability due to its TVD property. The Wray-Lund RK3 scheme is widely used for DNS/LES and it is expected to be
+the future preferred scheme for convection-dominated flows in TOSCA. In practice, the scheme is stable for CFL values up to around 1.4 and it advances the solution
+faster than the classic Crank–Nicolson scheme.</p>
 </section>
 <section id="temperature-equation">
 <h2>Temperature Equation<a class="headerlink" href="#temperature-equation" title="Link to this heading"></a></h2>
-<p>Let <span class="math notranslate nohighlight">\(\mathcal{F}(T) = \mathcal{N}(T) + \mathcal{D}(T)\)</span> be the full right-hand side of the temperature equation (convection <span class="math notranslate nohighlight">\(\mathcal{N}\)</span>
-plus diffusion <span class="math notranslate nohighlight">\(\mathcal{D}\)</span>), including Rayleigh-damping and source terms.</p>
+<p>Let <span class="math notranslate nohighlight">\(\mathcal{H}_T(T, V^q) = N_T + L_T + S_T\)</span> be the full right-hand side of the temperature equation, where <span class="math notranslate nohighlight">\(N_T\)</span>, <span class="math notranslate nohighlight">\(L_T\)</span>
+and <span class="math notranslate nohighlight">\(S_T\)</span> represent the convection, diffusion, and source terms (including Rayleigh-damping and temperature controllers).</p>
 <p><strong>Runge–Kutta 4</strong></p>
 <p>Four-stage explicit scheme, identical in structure to the momentum counterpart:</p>
 <div class="math notranslate nohighlight">
 \[T^{n+1} = T^n + \Delta t\sum_{s=1}^{4} b_s K_s,
 \qquad
 K_s = \mathcal{F}\!\bigl(T^n + a_s\,\Delta t\,K_{s-1}\bigr),\]</div>
-<p>with the same Butcher coefficients as above.  Conditionally stable; requires <span class="math notranslate nohighlight">\(\mathrm{CFL} &lt; 1\)</span>.</p>
+<p>with the same Butcher coefficients as above.  Conditionally stable, requires <span class="math notranslate nohighlight">\(\mathrm{CFL} &lt; 1\)</span>. In practice, especially under thermally unstable or convective boundary layers,
+the scheme is unstable for CFL values greater than 0.5-0.6.</p>
 <p><strong>Backward Euler</strong></p>
 <p>Fully implicit first-order scheme.  The nonlinear residual</p>
 <div class="math notranslate nohighlight">
-\[\mathcal{G}(T^{n+1}) = -\frac{T^{n+1} - T^n}{\Delta t} + \mathcal{F}(T^{n+1}) = 0\]</div>
-<p>is solved using PETSc’s SNES with the same Newton–Krylov configuration used for the momentum equation.  Unconditionally stable; first-order accurate in time.</p>
+\[\frac{T^{n+1} - T^n}{\Delta t} + \mathcal{H}^{n+1}_T) = 0,\]</div>
+<p>is solved using PETSc’s SNES with the same Newton–Krylov configuration used for the Crank Nicolson scheme in the momentum equation.  This scheme is unconditionally stable and first-order accurate in time.
+In practice, since the temperature equation is much smoother than the momentum equation, second-order accuracy in time of the temperature field is often not required as long as the velocity field is
+solved accurately. For this reason, Backward Euler is often used due to its robustess.</p>
 <p><strong>BDF2 (Second-order Backward Differentiation Formula)</strong></p>
 <p>Second-order fully implicit scheme that uses a three-level time-derivative approximation.  The nonlinear residual is</p>
 <div class="math notranslate nohighlight">
-\[\mathcal{G}(T^{n+1}) = -\frac{\tfrac{3}{2}T^{n+1} - 2T^n + \tfrac{1}{2}T^{n-1}}{\Delta t}
-+ \mathcal{F}(T^{n+1}) = 0,\]</div>
-<p>which is solved with the same Newton–Krylov SNES configuration as Backward Euler.  On the first time step BDF2 falls back to Backward Euler (only <span class="math notranslate nohighlight">\(T^n\)</span> is
-available).  BDF2 is A-stable and mildly dissipative at high wavenumbers (<span class="math notranslate nohighlight">\(|G| &lt; 1\)</span>), unlike Crank–Nicolson which has <span class="math notranslate nohighlight">\(|G| = 1\)</span> exactly and
-can accumulate high-frequency errors in stratified LES.  An extra storage vector <span class="math notranslate nohighlight">\(T^{n-1}\)</span> (<code class="docutils literal notranslate"><span class="pre">Tmprt_oo</span></code>) is allocated only when this scheme is selected.
-Recommended for stable stratification runs where second-order accuracy in time is required.</p>
+\[\frac{\tfrac{3}{2}T^{n+1} - 2T^n + \tfrac{1}{2}T^{n-1}}{\Delta t}
++ \mathcal{H}^{n+1}_T) = 0,\]</div>
+<p>which is solved with the same Newton–Krylov SNES configuration as Backward Euler.  On the first time step, BDF2 falls back to Backward Euler (only <span class="math notranslate nohighlight">\(T^n\)</span> is
+available).  BDF2 is A-stable and mildly dissipative at high wavenumbers, compared to e.g. the Crank Nicolson scheme, which is also second-order accurate. This is preferred for temperature, as high-frequency
+errors may accumulate in stratified LES, forming spurious gravity waves which could cause the simulation to diverge.  This scheme is recommended for stable stratification runs
+where second-order accuracy in time is required. If the simulation is unstable with BDF2, it is recommended to switch to Backward Euler, which is more robust but only first-order accurate in time.</p>
 <p><strong>IMEX-BEAB (Implicit–Explicit Backward Euler Adams–Bashforth 2)</strong></p>
-<p>Implicit–explicit scheme: convection treated explicitly with Adams–Bashforth 2 and diffusion treated implicitly with Backward Euler.  The scheme avoids the
-need for <span class="math notranslate nohighlight">\(\mathbf{u}^{n+1}\)</span> and yields a <strong>linear</strong> system in <span class="math notranslate nohighlight">\(T^{n+1}\)</span>:</p>
+<p>Implicit–explicit scheme: convection treated explicitly with Adams–Bashforth 2 and diffusion treated implicitly with Backward Euler.  The temperature update reads:</p>
 <div class="math notranslate nohighlight">
-\[\underbrace{\bigl(I - \Delta t\,\mathcal{D}\bigr)}_{A}\,T^{n+1}
+\[\underbrace{\bigl(T^{n+1} - \Delta t\,L^{n+1}_T\bigr)}_{Av}\,
 = T^n + \Delta t\,b_T,\]</div>
 <p>where the explicit buffer is</p>
 <div class="math notranslate nohighlight">
-\[b_T = c_1\,\mathcal{N}(T^n) + c_2\,\mathcal{N}(T^{n-1})
-    + \mathcal{D}_\text{damp}(T^n) + \frac{s_T}{\Delta t},\]</div>
-<p>with <span class="math notranslate nohighlight">\(c_1 = 3/2\)</span>, <span class="math notranslate nohighlight">\(c_2 = -1/2\)</span> (AB2; on the first step: <span class="math notranslate nohighlight">\(c_1 = 1\)</span>, <span class="math notranslate nohighlight">\(c_2 = 0\)</span>), <span class="math notranslate nohighlight">\(\mathcal{D}\)</span> the diffusion operator,
-<span class="math notranslate nohighlight">\(\mathcal{D}_\text{damp}\)</span> the Rayleigh damping operator, and <span class="math notranslate nohighlight">\(s_T\)</span> a prescribed source term.  The operator <span class="math notranslate nohighlight">\(A\)</span> is symmetric positive definite;
-the system is solved with the same standalone KSP (GMRES or BiCGStab) used for the IMEX momentum equation.</p>
+\[b_T = c_1\,N^n_T + c_2\,N^{n-1}_T
+    + S^n_T,\]</div>
+<p>with <span class="math notranslate nohighlight">\(c_1 = 3/2\)</span>, <span class="math notranslate nohighlight">\(c_2 = -1/2\)</span> (AB2; on the first step: <span class="math notranslate nohighlight">\(c_1 = 1\)</span>, <span class="math notranslate nohighlight">\(c_2 = 0\)</span>).  The operator <span class="math notranslate nohighlight">\(A\)</span> is symmetric positive definite,
+the system is solved with the same standalone KSP (GMRES - default - or BiCGStab) used for the IMEX momentum equation.</p>
 </section>
 <section id="practical-combination-of-schemes">
 <h2>Practical Combination of Schemes<a class="headerlink" href="#practical-combination-of-schemes" title="Link to this heading"></a></h2>
