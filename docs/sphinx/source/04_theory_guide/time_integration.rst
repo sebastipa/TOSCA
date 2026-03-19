@@ -168,7 +168,7 @@ Also for this scheme, the implicit treatment of the diffusion term using Crank�
 IMEX-RK3SOCN scheme, although with a different right-hand side. The scheme is third-order accurate in time and conditionally stable 
 with a recommended CFL limit of :math:`\mathrm{CFL} \lesssim 1.73`. The Wray-Lund RK3 scheme possesses better linear stability properties than the Sor-Osher scheme, 
 although the latter has higher non-linear stability due to its TVD property. The Wray-Lund RK3 scheme is widely used for DNS/LES and it is expected to be 
-the future preferred scheme for convection-dominated flows in TOSCA. In practice, the scheme is stable for CFL values up to around 1.4 and it advances the solution 
+the future preferred scheme for convection-dominated flows in TOSCA. In practice, the scheme is stable for CFL values up to around 1.1 and it advances the solution 
 faster than the classic Crank–Nicolson scheme.
 
 Temperature Equation
@@ -238,29 +238,59 @@ the system is solved with the same standalone KSP (GMRES - default - or BiCGStab
 Practical Combination of Schemes
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-In the following table, the recommended combinations of momentum and temperature time-stepping schemes are listed for different types of workflow.
+In the following table, some recommended combinations of momentum and temperature time-stepping schemes are listed for production runs, along with notes on their stability and accuracy properties. 
+The choice of the time-stepping scheme should be guided by the specific requirements of the simulation, such as the desired accuracy, computational resources, and the nature of the flow 
+(e.g., turbulent vs. laminar, stable vs. unstable stratification). Also, practical values of the maximum CFL number are given in order to allow users to minimize their compute time. 
+Notably, while some schemes are unconditionally stable or - even if explicit - possess a high stability limit, the presence of other physics in the simulation (e.g. strong convection,
+actuator lines, gravity waves etc.) may require the user to adopt a much lower CFL than practical limits. Moreover, while some schemes remain perfectly stable at 
+CFL numbers greater than unity, production simulations in TOSCA have always been conducted with CFL numbers around 0.9. On the one hand, if one constrants the CFL to the latter value, the RK3SOCN and 
+RK3WCN schemes for the momentum equation are about 1.5 times faster than the implicit CN scheme. On the other hand, considering the maximum time advancement achievable by each momentum time-stepping scheme,
+the speed of the CN scheme at CFL around 1.6 is comparable to the above-mentioned RK3 IMEX schemes, as these cannot exceed a practical CFL of around 1 and 1.1, respectively. 
+For temperature, because oscillations in the buoyancy term have a huge impact on momentum stability, an implicit scheme, like BE or BDF2,
+is always preferred to maintain the solution as stable as possible.
+
 
 .. list-table::
    :header-rows: 1
-   :widths: 17 16 19 48
+   :widths: 17 16 67
 
    * - U Scheme
      - T Scheme
-     - Linear Solver
      - Notes
-   * - Forward Euler
-     - Runge–Kutta 4
-     - N/A
-     - :math:`\mathrm{CFL} < 1`. Fast exploratory runs only, first-order accurate in time. Not recommended for production.
-   * - Runge–Kutta 4
-     - Runge–Kutta 4
-     - N/A
-     - :math:`\mathrm{CFL} < 1`. Conditionally stable, fourth-order accurate in time. Suitable for non-turbulent or idealized runs.
-   * - Crank–Nicolson
-     - BDF2 / Backward Euler
-     - BiCGStab inside SNES, GMRES as fallback.
-     - *robust choice*, unconditionally stable (:math:`\mathrm{CFL} \gtrsim 0.9`). Production runs where the nonlinear-solve cost is offset by large time steps. BDF2 gives second-order accuracy in time with mild A-stable dissipation; Backward Euler is first-order but simpler.
-   * - IMEX-CNAB
-     - BDF2 / Backward Euler
-     - *fastest choice*, standalone GMRES KSP; BiCGStab as a fallback.
-     - :math:`\mathrm{CFL} \leq 0.5` without any hyperviscosity, :math:`\mathrm{CFL} \leq 0.6`–:math:`0.7` with explicit filtering (recommended horizontal coefficient around 0.003; set via ``-imexHyperVisc4U_i/j/k``) or added advection scheme viscosity (only for ``-central4``). Production runs balancing stability and efficiency; second-order accurate in time.
+   * - RK4
+     - RK4
+     - practical CFL less than 0.5. Fourth-order accurate in time. Suitable for non-turbulent or idealized runs, e.g. isolated turbine or actuator line simulations, where a small time 
+       step is required anyway, satisfying CFL << 1.  
+   * - RK3SOCN
+     - RK4
+     - practical CFL of 0.6/0.7 because of fully-explicit temperature treatment. Third-order accurate and TVD. This may be faster than treating temperature implicitly, but might be unstable and require implicit temperature treatment.
+   * - CN
+     - BDF2/BE
+     - **robust choice**, practical CFL from 0.9 to 1.5. Preferred when the cost of the nonlinear-solve is offset by large time steps. BDF2 gives second-order accuracy in time with mild A-stable dissipation, BE is more dissipative but more robust.
+   * - RK3WCN
+     - BDF2/BE
+     - **robust choice**, practical CFL from 0.9 to 1.0. Production runs balancing stability and efficiency, slightly less than third-order accurate in time. Might provide a faster time 
+       advancement than CN in many cases. 
+
+To investigate the correctness of each time-scheme's implementation, as well as its stability properties for practical atmospheric boundary layer problems,
+a simple convenctionally neutral boundary layer has been simulated on a coarse grid, using the Smagorinsky LES model and standard wall modeling treatment, for many 
+different combinations of velocity and temperature time schemes. The grid is a simple Cartesian box with dimensions 1000 m x 1000 m x 1000 m, discretized with 20 x 20 x 20 cells, 
+and periodic boundary conditions are applied in the horizontal directions. The flow is initialized with a uniform horizontal velocity of 10 m/s and a vertical potential
+temperature profile characterized by a ground temperature of 290 K and a linear lapse rate of 10 K/Km. The roughness height is set to 0.01 m, simulations are run for 90000 
+seconds and data shown in the figure corresponds to the last 5000 s of simulation. The time step is adjusted depending on the chosen momentum scheme; specifically, a CFL number of 0.5 
+is set for the RK4 and ABCN schemes, and 0.9 is enforced for the RK3SOCN, RK3WCN and CN schemes. Although sinusoidal perturbations are set in the first 50 m of the domain to trigger turbulence, 
+different scheme result in different turbulence onset times. As a result, the final boundary layer height at the end of the 90000 s differs slightly from case to case, 
+with earlier turbulence onset generally corresponding to a more prolongated mixing of the boundary layer, hence to a higher final boundary layer height.
+In general, the results show that all schemes produce very similar mean velocity and temperature profiles, as well as shear stress profiles, that are in line with 
+each other and with expected results for a conventionally neutral boundary layer, even if the mesh is very coarse and the domain very small. 
+
+.. figure:: ./images/cnbl-tests.png   
+   :align: center
+   :width: 120%
+
+   Velocity magnitude (top-left), wind angle (top-right), potential temperature (bottom-left) and shear stress (bottom-right) profiles averaged horizontally and in time for 
+   the last 5000 s of simulation. Test cases are marked based on their momentum and temperature time-stepping schemes. 
+   
+.. raw:: html
+
+    <br><br>

@@ -271,28 +271,18 @@ Stage 1.</p>
 <p>Before the momentum solve, the buoyancy body-force vector
 <span class="math notranslate nohighlight">\(\mathbf{b}(\theta^n)\)</span> is computed from the current temperature field
 <span class="math notranslate nohighlight">\(\theta^n\)</span> and stored.  The previous step’s buoyancy
-<span class="math notranslate nohighlight">\(\mathbf{b}(\theta^{n-1})\)</span> is also retained.  The strategy depends on
-the momentum time-integration scheme selected:</p>
-<ul>
-<li><p><strong>Forward Euler and Runge–Kutta 4</strong> — buoyancy is an explicit source at the
-current time level:</p>
-<div class="math notranslate nohighlight">
-\[L^{q,\text{buoy}} = \mathbf{b}(\theta^n).\]</div>
-<p>This introduces a first-order <span class="math notranslate nohighlight">\(\mathcal{O}(\Delta t)\)</span> lag between the
-temperature field and its effect on the momentum.</p>
-</li>
-<li><p><strong>Crank–Nicolson/SNES and IMEX-CNAB</strong> — buoyancy is extrapolated to the
-mid-step level <span class="math notranslate nohighlight">\(n+\tfrac{1}{2}\)</span> using Adams–Bashforth 2:</p>
-<div class="math notranslate nohighlight">
-\[L^{q,\text{buoy}} = \tfrac{3}{2}\,\mathbf{b}(\theta^n)
-                  - \tfrac{1}{2}\,\mathbf{b}(\theta^{n-1}).\]</div>
+<span class="math notranslate nohighlight">\(\mathbf{b}(\theta^{n-1})\)</span> is also retained, so that buoyancy can be extrapolated to the
+mid-step level <span class="math notranslate nohighlight">\(n+\tfrac{1}{2}\)</span> using an Adams–Bashforth 2 formula, which reads:</p>
+<blockquote>
+<div><div class="math notranslate nohighlight">
+\[B^{q,*} = \tfrac{3}{2}\,B^{q}(\theta^n)
+                  - \tfrac{1}{2}\,B^{q}(\theta^{n-1}).\]</div>
+</div></blockquote>
 <p>For CN/SNES this is consistent with the Crank–Nicolson time-averaging of the
 advection and diffusion operators; for IMEX-CNAB it matches the AB2 treatment
 of the convective operator.  Both reduce the temporal coupling error to
 <span class="math notranslate nohighlight">\(\mathcal{O}(\Delta t^2)\)</span>.  On the first time step both formulae revert
 to Forward Euler.</p>
-</li>
-</ul>
 <p>No temperature predictor step is performed; the only temperature field available
 at the start of Stage 1 is <span class="math notranslate nohighlight">\(\theta^n\)</span>.</p>
 </section>

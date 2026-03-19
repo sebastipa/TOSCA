@@ -89,6 +89,7 @@ so that the upwind stencil dominates.  In smooth regions the weights recover the
 
 .. note::
 
-    Viscous-stress and pressure-gradient terms always use pure second-order central differences, regardless of the advection scheme selected.
+    Viscous-stress and pressure-gradient terms always use pure second-order central differences, regardless of the advection scheme selected. 
+    An exception is made for the fourth-order central scheme, which automatically switches to a fourth-order gradient scheme.
     The Laplacian on the curvilinear mesh couples all three coordinate directions through the off-diagonal metric tensor components :math:`S^{qr}` (see
     :ref:`numerics-section`).
