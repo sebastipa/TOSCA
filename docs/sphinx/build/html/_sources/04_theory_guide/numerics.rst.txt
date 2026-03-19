@@ -230,32 +230,19 @@ Stage 1.
 Before the momentum solve, the buoyancy body-force vector
 :math:`\mathbf{b}(\theta^n)` is computed from the current temperature field
 :math:`\theta^n` and stored.  The previous step's buoyancy
-:math:`\mathbf{b}(\theta^{n-1})` is also retained.  The strategy depends on
-the momentum time-integration scheme selected:
-
-- **Forward Euler and Runge–Kutta 4** — buoyancy is an explicit source at the
-  current time level:
+:math:`\mathbf{b}(\theta^{n-1})` is also retained, so that buoyancy can be extrapolated to the
+mid-step level :math:`n+\tfrac{1}{2}` using an Adams–Bashforth 2 formula, which reads:
 
   .. math::
 
-      L^{q,\text{buoy}} = \mathbf{b}(\theta^n).
+      B^{q,*} = \tfrac{3}{2}\,B^{q}(\theta^n)
+                        - \tfrac{1}{2}\,B^{q}(\theta^{n-1}).
 
-  This introduces a first-order :math:`\mathcal{O}(\Delta t)` lag between the
-  temperature field and its effect on the momentum.
-
-- **Crank–Nicolson/SNES and IMEX-CNAB** — buoyancy is extrapolated to the
-  mid-step level :math:`n+\tfrac{1}{2}` using Adams–Bashforth 2:
-
-  .. math::
-
-      L^{q,\text{buoy}} = \tfrac{3}{2}\,\mathbf{b}(\theta^n)
-                        - \tfrac{1}{2}\,\mathbf{b}(\theta^{n-1}).
-
-  For CN/SNES this is consistent with the Crank–Nicolson time-averaging of the
-  advection and diffusion operators; for IMEX-CNAB it matches the AB2 treatment
-  of the convective operator.  Both reduce the temporal coupling error to
-  :math:`\mathcal{O}(\Delta t^2)`.  On the first time step both formulae revert
-  to Forward Euler.
+For CN/SNES this is consistent with the Crank–Nicolson time-averaging of the
+advection and diffusion operators; for IMEX-CNAB it matches the AB2 treatment
+of the convective operator.  Both reduce the temporal coupling error to
+:math:`\mathcal{O}(\Delta t^2)`.  On the first time step both formulae revert
+to Forward Euler.
 
 No temperature predictor step is performed; the only temperature field available
 at the start of Stage 1 is :math:`\theta^n`.

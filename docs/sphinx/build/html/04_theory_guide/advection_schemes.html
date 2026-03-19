@@ -56,10 +56,11 @@
 <li class="toctree-l2"><a class="reference internal" href="time_integration.html">Time Integration Schemes</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Advection Schemes</a></li>
 <li class="toctree-l2"><a class="reference internal" href="parallel_efficiency.html">Parallel Efficiency</a></li>
-<li class="toctree-l2"><a class="reference internal" href="turbulence_models.html">Sub-grid Scale Model</a></li>
-<li class="toctree-l2"><a class="reference internal" href="flow_controllers.html">Controllers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="turbulence_models.html">Sub-grid Scale Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="flow_controllers.html">Flow Controllers and Mesoscale Coupling</a></li>
 <li class="toctree-l2"><a class="reference internal" href="precursor.html">Precursor, Fringe Regions &amp; Damping Layers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="turbine_models.html">Turbine Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ibm.html">Immersed Boundary Method</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../tosca_versions.html">Versions</a></li>
@@ -148,6 +149,7 @@ so that the upwind stencil dominates.  In smooth regions the weights recover the
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>Viscous-stress and pressure-gradient terms always use pure second-order central differences, regardless of the advection scheme selected.
+An exception is made for the fourth-order central scheme, which automatically switches to a fourth-order gradient scheme.
 The Laplacian on the curvilinear mesh couples all three coordinate directions through the off-diagonal metric tensor components <span class="math notranslate nohighlight">\(S^{qr}\)</span> (see
 <a class="reference internal" href="numerics.html#numerics-section"><span class="std std-ref">Numerical Method</span></a>).</p>
 </div>
