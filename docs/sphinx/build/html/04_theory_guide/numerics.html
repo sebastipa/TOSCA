@@ -58,7 +58,6 @@
 <li class="toctree-l4"><a class="reference internal" href="#governing-equations-in-curvilinear-form">Governing Equations in Curvilinear Form</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#staggered-grid-arrangement">Staggered Grid Arrangement</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#fractional-step-projection-method">Fractional-Step Projection Method</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#velocitytemperature-buoyancy-coupling">Velocity–Temperature Buoyancy Coupling</a></li>
 </ul>
 </li>
 </ul>
@@ -69,8 +68,8 @@
 <li class="toctree-l2"><a class="reference internal" href="turbulence_models.html">Sub-grid Scale Models</a></li>
 <li class="toctree-l2"><a class="reference internal" href="flow_controllers.html">Flow Controllers and Mesoscale Coupling</a></li>
 <li class="toctree-l2"><a class="reference internal" href="precursor.html">Precursor, Fringe Regions &amp; Damping Layers</a></li>
-<li class="toctree-l2"><a class="reference internal" href="turbine_models.html">Turbine Models</a></li>
 <li class="toctree-l2"><a class="reference internal" href="ibm.html">Immersed Boundary Method</a></li>
+<li class="toctree-l2"><a class="reference internal" href="turbine_models.html">Turbine Models</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../tosca_versions.html">Versions</a></li>
@@ -119,43 +118,44 @@ coordinates <span class="math notranslate nohighlight">\((x_1, x_2, x_3)\)</span
 unit normal of the <span class="math notranslate nohighlight">\(q\)</span>-th cell face scaled by the ratio of face area to cell
 volume.  The <strong>contravariant flux</strong> through the <span class="math notranslate nohighlight">\(q\)</span>-th face is</p>
 <div class="math notranslate nohighlight">
-\[V^q = J S^q_i\, u_i \equiv J\,\mathbf{S}^q \cdot \mathbf{u}.\]</div>
-<p>The <strong>contravariant metric tensor</strong> (absorbing <span class="math notranslate nohighlight">\(J\)</span> for numerical convenience)
-is the symmetric positive-definite tensor</p>
+\[V^q = S^q_i\, u_i \equiv \,\mathbf{S}^q \cdot \mathbf{u}.\]</div>
+<p>The <strong>contravariant metric tensor</strong>, multiplied by a factor <span class="math notranslate nohighlight">\(1/J^2\)</span> for numerical convenience, is the symmetric positive-definite tensor</p>
 <div class="math notranslate nohighlight">
-\[S^{qr} = J S^q_i S^r_i.\]</div>
+\[S^{qr} = S^q_i S^r_i.\]</div>
 <section id="differential-operators-in-curvilinear-coordinates">
 <h3>Differential Operators in Curvilinear Coordinates<a class="headerlink" href="#differential-operators-in-curvilinear-coordinates" title="Link to this heading"></a></h3>
 <p>The four fundamental operators used throughout the discretization are:</p>
 <p><strong>Gradient</strong> of a scalar <span class="math notranslate nohighlight">\(\phi\)</span>:</p>
 <div class="math notranslate nohighlight">
-\[\frac{\partial \phi}{\partial x_i} = S^q_i\,\frac{\partial \phi}{\partial l_q}
-\qquad (\text{sum over }q).\]</div>
+\[\frac{\partial \phi}{\partial x_i} = J S^k_i\,\frac{\partial \phi}{\partial l_k}\]</div>
+<p><strong>Gradient</strong> of a vector field <span class="math notranslate nohighlight">\(\mathbf{a}\)</span>:</p>
+<div class="math notranslate nohighlight">
+\[\frac{\partial a_j}{\partial x_i} = J S^k_i\,\frac{\partial a_j}{\partial l_k}\]</div>
 <p><strong>Divergence</strong> of a vector field <span class="math notranslate nohighlight">\(\mathbf{a}\)</span>:</p>
 <div class="math notranslate nohighlight">
 \[\frac{\partial a_i}{\partial x_i}
-= \frac{1}{J}\,\frac{\partial}{\partial l_q}\!\left(J S^q_i a_i\right)
-= \frac{1}{J}\,\frac{\partial V^q_a}{\partial l_q},\]</div>
-<p>where <span class="math notranslate nohighlight">\(V^q_a = J S^q_i a_i\)</span> is the contravariant flux of <span class="math notranslate nohighlight">\(\mathbf{a}\)</span>.
-For an incompressible velocity field this reduces to <span class="math notranslate nohighlight">\(\partial V^q/\partial l_q = 0\)</span>.</p>
-<p><strong>Divergence</strong> of a rank-2 tensor <span class="math notranslate nohighlight">\(T_{ij}\)</span>:</p>
+= J\,\frac{\partial}{\partial l_k}\!\left(J S^k_i a_i\right)
+= J\,\frac{\partial A^k}{\partial l_k},\]</div>
+<p>where <span class="math notranslate nohighlight">\(A^k = S^k_i a_i\)</span> is the contravariant flux of <span class="math notranslate nohighlight">\(\mathbf{a}\)</span>.
+For an incompressible velocity field this is equal to <span class="math notranslate nohighlight">\(\partial V^q/\partial l_q = 0\)</span>.</p>
+<p><strong>Divergence</strong> of a rank-2 tensor <span class="math notranslate nohighlight">\(\tau_{ij}\)</span>:</p>
 <div class="math notranslate nohighlight">
-\[\frac{\partial T_{ij}}{\partial x_j}
-= \frac{1}{J}\,\frac{\partial \tau^r_i}{\partial l_r},
-\qquad \tau^r_i = J S^r_j\, T_{ij}.\]</div>
-<p>The quantity <span class="math notranslate nohighlight">\(\tau^r_i\)</span> is the <span class="math notranslate nohighlight">\(r\)</span>-th contravariant flux of the
-<span class="math notranslate nohighlight">\(i\)</span>-th row of the tensor.  For the viscous stress
-<span class="math notranslate nohighlight">\(T_{ij} = \nu_\text{eff}(\partial u_i/\partial x_j + \partial u_j/\partial x_i)\)</span>,
-each component is evaluated using the gradient formula above, yielding the viscous
-flux terms of the momentum equation.</p>
-<p><strong>Laplacian</strong> of a scalar <span class="math notranslate nohighlight">\(\phi\)</span>:</p>
+\[\frac{\partial}{\partial x_i}\left(\tau_{ij}\right)
+= J\,\frac{\partial}{\partial l_k} \left(S^k_i \tau_{ij}\right)
+= J\,\frac{\partial}{\partial l_k} T^k_j,\]</div>
+<p>The quantity <span class="math notranslate nohighlight">\(T^k_j\)</span> is the <span class="math notranslate nohighlight">\(k\)</span>-th contravariant flux of the
+<span class="math notranslate nohighlight">\(j\)</span>-th row of the tensor.  Using the above formula, the divergence of the advection
+term in the momentum equation can be written as:</p>
 <div class="math notranslate nohighlight">
-\[\nabla^2\phi
-= \frac{1}{J}\,\frac{\partial}{\partial l_q}
-  \!\left(S^{qr}\,\frac{\partial \phi}{\partial l_r}\right).\]</div>
-<p>The diagonal entries of <span class="math notranslate nohighlight">\(S^{qr}\)</span> drive face-normal diffusion, while the
-off-diagonal entries couple adjacent curvilinear directions on non-orthogonal
-grids.</p>
+\[\frac{\partial}{\partial x_i}\!\left(u_i u_j\right)
+= J\,\frac{\partial}{\partial l_k} \left(S^k_i u_i u_j\right)
+= J\,\frac{\partial}{\partial l_k} \left(V^k u_j\right).\]</div>
+<p>Using the above rules, the full viscous term in the momentum equation can be rewritten as:</p>
+<div class="math notranslate nohighlight">
+\[\frac{\partial}{\partial x_j}\left[\nu_\text{eff}\left(\frac{\partial u_i}{\partial x_j} + \frac{\partial u_j}{\partial x_i}\right)\right]
+= J\frac{\partial}{\partial l_k}\left[\nu_\text{eff}\left(JS^{kn}\frac{\partial u_i}{\partial l_n} + JS^k_jR_{ij}\right)\right].\]</div>
+<p>where <span class="math notranslate nohighlight">\(R_{ij}\)</span>  is a non-symmetric tensor defined as <span class="math notranslate nohighlight">\(R_{ij}=S^m_i\partial u_j/\partial l_m\)</span>, and <span class="math notranslate nohighlight">\(S^{kn}\)</span> is the contravariant metric tensor evaluated
+with the face area vectors, namely <span class="math notranslate nohighlight">\(S^{kn} = S^k_i S^n_i = 1/J^2 \partial l_k/\partial x_i \partial l_n / \partial x_i\)</span>.</p>
 </section>
 <section id="governing-equations-in-curvilinear-form">
 <h3>Governing Equations in Curvilinear Form<a class="headerlink" href="#governing-equations-in-curvilinear-form" title="Link to this heading"></a></h3>
@@ -204,39 +204,47 @@ each face (which would triple the cost), TOSCA first assembles the momentum
 right-hand side at cell centers and then interpolates it to the faces using
 second-order linear interpolation along each grid direction.  After each step,
 Cartesian velocity is reconstructed at cell centers from the updated contravariant
-fluxes by inverting <span class="math notranslate nohighlight">\(V^q = J S^q_i u_i\)</span>.</p>
+fluxes by inverting <span class="math notranslate nohighlight">\(V^q = S^q_i u_i\)</span>.</p>
 </section>
 <section id="fractional-step-projection-method">
 <h3>Fractional-Step Projection Method<a class="headerlink" href="#fractional-step-projection-method" title="Link to this heading"></a></h3>
 <p>Pressure–velocity coupling uses a second-order <strong>fractional-step projection</strong>
-method (van Kan, 1986).  Given the state
+method.  Given the state
 <span class="math notranslate nohighlight">\((\mathbf{V}^n, p^n, \theta^n)\)</span> at time level <span class="math notranslate nohighlight">\(n\)</span>, one time step
 proceeds through the four stages below.</p>
-<p><strong>Stage 1 — Momentum predict.</strong>
-Advance the contravariant fluxes to a predicted state
-<span class="math notranslate nohighlight">\(\mathbf{V}^{n+1}_*\)</span> that satisfies the momentum equation but not yet the
-divergence-free constraint.  Schematically (Crank–Nicolson form):</p>
+<p><strong>Stage 1 — Momentum Predictor</strong>:</p>
+<p>Advance the contravariant fluxes to a predicted state
+<span class="math notranslate nohighlight">\(\mathbf{V}^{*}\)</span> that satisfies the momentum equation but not yet the
+divergence-free constraint.  Schematically, assuming to choose the Crank–Nicolson scheme (other time-stepping schemes, described in
+<a class="reference internal" href="time_integration.html#time-integration-section"><span class="std std-ref">Time Integration Schemes</span></a>, follow in a similar manner), the predictor step reads:</p>
 <div class="math notranslate nohighlight">
-\[\frac{V^{q,n+1}_* - V^{q,n}}{\Delta t}
-= \frac{1}{2}\!\left[H^q_U(\mathbf{V}^{n+1}_*,\mathbf{u}^{n+1}_*)
+\[\frac{V^{q,*} - V^{q,n}}{\Delta t}
+= \frac{1}{2}\!\left[H^q_U(\mathbf{V}^{*},\mathbf{u}^{*})
                    + H^q_U(\mathbf{V}^n,\mathbf{u}^n)\right]
-+ L^q(\mathbf{u}^n) + G^q(p^n).\]</div>
++ S^{q,n} + G^{q,n} + B^{q,*}.\]</div>
 <p>Here <span class="math notranslate nohighlight">\(H^q_U\)</span> contains the advection and viscous fluxes (see
-<a class="reference internal" href="advection_schemes.html#advection-schemes-section"><span class="std std-ref">Advection Schemes</span></a>); <span class="math notranslate nohighlight">\(L^q\)</span> contains buoyancy, Coriolis,
-turbine, and damping source terms; and <span class="math notranslate nohighlight">\(G^q(p)\)</span> is the discrete
-pressure-gradient operator evaluated at the <span class="math notranslate nohighlight">\(q\)</span>-th faces:</p>
+<a class="reference internal" href="advection_schemes.html#advection-schemes-section"><span class="std std-ref">Advection Schemes</span></a>); <span class="math notranslate nohighlight">\(S^q\)</span> contains buoyancy, Coriolis,
+turbine, and damping source terms; and <span class="math notranslate nohighlight">\(G^q\)</span> is the discrete
+pressure-gradient operator. The buoyancy source <span class="math notranslate nohighlight">\(B^{q}_U\)</span> in the momentum equation depends on
+the face-interpolated potential temperature through the Boussinesq density ratio.
+Because <span class="math notranslate nohighlight">\(\theta\)</span> is solved only in Stage 4, it cannot be used implicitly in
+Stage 1. Hence, before the momentum predictor step, the buoyancy body-force vector
+<span class="math notranslate nohighlight">\(B^{q,n}\)</span> is computed from the current temperature field
+<span class="math notranslate nohighlight">\(\theta^n\)</span> and stored.  The previous step’s buoyancy
+<span class="math notranslate nohighlight">\(B^{q,n-1}\)</span> is also retained, so that buoyancy can be extrapolated to the
+mid-step level <span class="math notranslate nohighlight">\(n+\tfrac{1}{2}\)</span> using an Adams–Bashforth 2 formula, which reads:</p>
+<blockquote>
+<div><div class="math notranslate nohighlight">
+\[B^{q,*} = \tfrac{3}{2}\,B^{q}(\theta^n)
+                  - \tfrac{1}{2}\,B^{q}(\theta^{n-1}).\]</div>
+</div></blockquote>
+<p>This approach reduces the temporal coupling error to
+<span class="math notranslate nohighlight">\(\mathcal{O}(\Delta t^2)\)</span> without the need to perform a temperature predictor step.
+On the first time step, a simple Forward Euler formula is used.</p>
+<p><strong>Stage 2 — Pressure Correction</strong>:</p>
+<p>The scalar correction <span class="math notranslate nohighlight">\(\phi^{n+1}\)</span> is calculated as:</p>
 <div class="math notranslate nohighlight">
-\[G^q(p)\big|_\text{face} = J\!\left(
-S^{q1}\frac{\partial p}{\partial l_1} +
-S^{q2}\frac{\partial p}{\partial l_2} +
-S^{q3}\frac{\partial p}{\partial l_3}
-\right)_\text{face}.\]</div>
-<p>A full description of the available time-stepping choices is given in
-<a class="reference internal" href="time_integration.html#time-integration-section"><span class="std std-ref">Time Integration Schemes</span></a>.</p>
-<p><strong>Stage 2 — Pressure correction (Poisson solve).</strong>
-Compute the scalar correction <span class="math notranslate nohighlight">\(\phi^{n+1}\)</span> from:</p>
-<div class="math notranslate nohighlight">
-\[D\!\left(G^q(\phi^{n+1})\right) = -\frac{1}{\Delta t}\,D\!\left(V^{q,n+1}_*\right),\]</div>
+\[D\!\left(G^q(\phi^{n+1})\right) = -\frac{1}{\Delta t}\,D\!\left(V^{q,*}\right),\]</div>
 <p>where the <strong>discrete divergence operator</strong> at cell <span class="math notranslate nohighlight">\((i,j,k)\)</span> is</p>
 <div class="math notranslate nohighlight">
 \[D_{ijk}(\gamma) =
@@ -251,40 +259,16 @@ Compute the scalar correction <span class="math notranslate nohighlight">\(\phi^
 cross-derivative contributions from <span class="math notranslate nohighlight">\(S^{qr}\)</span>).  The system is solved with
 HYPRE’s BoomerAMG algebraic multigrid preconditioner (GMRES or PCG outer Krylov
 method), providing <span class="math notranslate nohighlight">\(\mathcal{O}(N)\)</span> scalable performance.
-The constant mode of <span class="math notranslate nohighlight">\(\phi\)</span> is removed after the solve.</p>
-<p><strong>Stage 3 — Flux projection.</strong>
-Correct the predicted fluxes to enforce mass conservation:</p>
+The constant mode of <span class="math notranslate nohighlight">\(\phi\)</span> is removed after the solve by subtracting the domain-averaged value, ensuring that the pressure is defined up to a constant.</p>
+<p><strong>Stage 3 — Contravariant Flux Projection</strong>:</p>
+<p>The predicted contravariant fluxes are corrected to enforce mass conservation:</p>
 <div class="math notranslate nohighlight">
-\[V^{q,n+1} = V^{q,n+1}_* + \Delta t\, G^q(\phi^{n+1}).\]</div>
+\[V^{q,n+1} = V^{q,*} + \Delta t\, G^q(\phi^{n+1}).\]</div>
 <p>The pressure is updated as <span class="math notranslate nohighlight">\(p^{n+1} = p^n + \phi^{n+1}\)</span>.</p>
-<p><strong>Stage 4 — Temperature solve.</strong>
-With the divergence-free <span class="math notranslate nohighlight">\(\mathbf{V}^{n+1}\)</span> available, advance
-<span class="math notranslate nohighlight">\(\theta^n \to \theta^{n+1}\)</span> using the selected temperature
+<p><strong>Stage 4 — Temperature Solution</strong>:</p>
+<p>With the divergence-free <span class="math notranslate nohighlight">\(\mathbf{V}^{n+1}\)</span> available,
+<span class="math notranslate nohighlight">\(\theta^n\)</span> is advanced to  <span class="math notranslate nohighlight">\(\theta^{n+1}\)</span> using the selected temperature
 time-integration scheme (see <a class="reference internal" href="time_integration.html#time-integration-section"><span class="std std-ref">Time Integration Schemes</span></a>).</p>
-</section>
-<section id="velocitytemperature-buoyancy-coupling">
-<h3>Velocity–Temperature Buoyancy Coupling<a class="headerlink" href="#velocitytemperature-buoyancy-coupling" title="Link to this heading"></a></h3>
-<p>The buoyancy source <span class="math notranslate nohighlight">\(L^{q,\text{buoy}}\)</span> in the momentum equation depends on
-the face-interpolated potential temperature through the Boussinesq density ratio.
-Because <span class="math notranslate nohighlight">\(\theta\)</span> is solved only in Stage 4, it cannot be used implicitly in
-Stage 1.</p>
-<p>Before the momentum solve, the buoyancy body-force vector
-<span class="math notranslate nohighlight">\(\mathbf{b}(\theta^n)\)</span> is computed from the current temperature field
-<span class="math notranslate nohighlight">\(\theta^n\)</span> and stored.  The previous step’s buoyancy
-<span class="math notranslate nohighlight">\(\mathbf{b}(\theta^{n-1})\)</span> is also retained, so that buoyancy can be extrapolated to the
-mid-step level <span class="math notranslate nohighlight">\(n+\tfrac{1}{2}\)</span> using an Adams–Bashforth 2 formula, which reads:</p>
-<blockquote>
-<div><div class="math notranslate nohighlight">
-\[B^{q,*} = \tfrac{3}{2}\,B^{q}(\theta^n)
-                  - \tfrac{1}{2}\,B^{q}(\theta^{n-1}).\]</div>
-</div></blockquote>
-<p>For CN/SNES this is consistent with the Crank–Nicolson time-averaging of the
-advection and diffusion operators; for IMEX-CNAB it matches the AB2 treatment
-of the convective operator.  Both reduce the temporal coupling error to
-<span class="math notranslate nohighlight">\(\mathcal{O}(\Delta t^2)\)</span>.  On the first time step both formulae revert
-to Forward Euler.</p>
-<p>No temperature predictor step is performed; the only temperature field available
-at the start of Stage 1 is <span class="math notranslate nohighlight">\(\theta^n\)</span>.</p>
 </section>
 </section>
 </section>
