@@ -262,6 +262,7 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
         VecGetSize(ueqn->Ucont, &N);
         MatCreateShell(mesh->MESH_COMM, n, n, N, N, (void*)ueqn, &(ueqn->JvIMEX));
         MatShellSetOperation(ueqn->JvIMEX, MATOP_MULT, (void(*)(void))IMEXMatVec);
+        //MatShellSetOperation(ueqn->JvIMEX, MATOP_GET_DIAGONAL, (void(*)(void))IMEXMatGetDiagonal);
         KSPCreate(mesh->MESH_COMM, &(ueqn->kspIMEX));
         KSPSetOperators(ueqn->kspIMEX, ueqn->JvIMEX, ueqn->JvIMEX);
 
