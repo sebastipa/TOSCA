@@ -1746,3 +1746,41 @@ PetscErrorCode IMEXMatVec(Mat A, Vec v, Vec Av)
 
 //***************************************************************************************************************//
 
+PetscErrorCode IMEXMatGetDiagonal(Mat A, Vec diag)
+{
+    // this is a placeholder, this function is supposed to return the diagonal 
+    // of the IMEX operator A, which is needed for the Jacobi preconditioner.
+    ueqn_ *ueqn;
+    MatShellGetContext(A, (void**)&ueqn);
+
+    mesh_ *mesh = ueqn->access->mesh;
+    clock_ *clock = ueqn->access->clock;
+    PetscReal dt = clock->dt;
+    PetscReal scale = 1.0;
+
+    if (clock->it > clock->itStart &&
+        ueqn->ddtScheme != "RK3WCN" &&
+        ueqn->ddtScheme != "RK3SOCN")
+    {
+        scale = 0.5;
+    }
+
+    // Esempio: viscosità effettiva costante (puoi sostituire con un campo locale)
+    PetscReal nu_eff = 1.0; // Sostituisci con la tua stima di viscosità
+
+    PetscInt nlocal, i;
+    VecGetLocalSize(diag, &nlocal);
+    PetscScalar *d;
+    VecGetArray(diag, &d);
+
+    for (i = 0; i < nlocal; ++i)
+    {
+        // Diagonale: 1 + dt*scale*nu_eff (adatta se hai una stima locale)
+        d[i] = 1.0 - dt * nu_eff;
+    }
+
+    VecRestoreArray(diag, &d);
+    return 0;
+}
+
+//***************************************************************************************************************//
