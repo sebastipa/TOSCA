@@ -22,7 +22,5 @@ kLeft   inletFunction
             timeScale 16 #timescale decorrelation
             convSpeed 5.0 #how fast eddy convects
         }
-
-kLeft   fixedValue (5.0 0.0 0.0)
-        
+  
 kRight  zeroGradient   
