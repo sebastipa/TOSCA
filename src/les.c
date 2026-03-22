@@ -6,7 +6,6 @@
 #include "include/io.h"
 #include "include/inline.h"
 
-const PetscReal wall_cs   = 0.001;
 const PetscReal std_cs    = 0.0289;
 const PetscReal amd_cs    = 0.1;
 const PetscReal vreman_cs = 0.07225;
@@ -2134,7 +2133,7 @@ PetscErrorCode UpdateNut(les_ *les)
     PetscInt      i, j, k;
 
     PetscReal     ***Cs, ***lnu_t, ***nvert, ***meshTag, ***aj, ***lt, ***ksg, ***ltempDiff;
-    Cmpnts        ***csi, ***eta, ***zet, ***ucat;
+    Cmpnts        ***csi, ***eta, ***zet, ***ucat, ***cent;
 
     PetscReal     ajc;
 
@@ -2163,6 +2162,7 @@ PetscErrorCode UpdateNut(les_ *les)
     DMDAVecGetArray(da,  mesh->lNvert, &nvert);
     DMDAVecGetArray(da,  mesh->lmeshTag, &meshTag);
     DMDAVecGetArray(da,  mesh->lAj, &aj);
+    DMDAVecGetArray(fda, mesh->lCent, &cent);
 
     DMDAVecGetArray(da,  les->lNu_t, &lnu_t);
     DMDAVecGetArray(da,  les->lKsgs, &ksg);
@@ -2510,7 +2510,22 @@ PetscErrorCode UpdateNut(les_ *les)
         else
         {
             PetscReal filter = pow( 1./aj[k][j][i], 1./3.);
-            lnu_t[k][j][i] = Cs[k][j][i] * pow(filter, 2.0) * Sabs;
+            PetscReal Cs_sq = Cs[k][j][i];  // Cs0^2 = 0.0289
+
+            // Mason-Thomson (1992) wall damping: Cs = Cs0 / sqrt(1 + (Cs0*Delta/(kappa*(z+z0)))^2)
+            // Away from the wall it recovers the original Smagorinsky coefficient,
+            // while near the wall it reduces Cs to account for the damping of turbulence by the wall.
+            if(les->access->flags->isAblActive)
+            {
+                PetscReal kappa = les->access->abl->vkConst;
+                PetscReal z0 = les->access->abl->hRough;
+                PetscReal z = cent[k][j][i].z;
+
+                PetscReal ratio_sq = Cs_sq * pow(filter, 2.0) / pow(kappa * (z + z0), 2.0);
+                Cs_sq = Cs_sq / (1.0 + ratio_sq);
+            }
+
+            lnu_t[k][j][i] = Cs_sq * pow(filter, 2.0) * Sabs;
         }
 
         //compute the subgrid scale kinetic energy - from local equilibrium balance (https://caefn.com/openfoam/smagorinsky-sgs-model)
@@ -2543,6 +2558,7 @@ PetscErrorCode UpdateNut(les_ *les)
     DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
     DMDAVecRestoreArray(da,  mesh->lmeshTag, &meshTag);
     DMDAVecRestoreArray(da,  mesh->lAj, &aj);
+    DMDAVecRestoreArray(fda, mesh->lCent, &cent);
 
     DMDAVecRestoreArray(da,  les->lNu_t, &lnu_t);
     DMDAVecRestoreArray(da,  les->lKsgs, &ksg);
