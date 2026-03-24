@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2022/dev/Debian) (preloaded format=pdflatex 2026.1.30)  24 MAR 2026 13:19
+This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2022/dev/Debian) (preloaded format=pdflatex 2026.1.30)  24 MAR 2026 13:22
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -862,14 +862,16 @@ LaTeX Font Info:    Trying to load font information for U+wasy on input line 23
 (/usr/share/texlive/texmf-dist/tex/latex/wasysym/uwasy.fd
 File: uwasy.fd 2020/01/19 v2.4 Wasy-2 symbol font definitions
 )
+LaTeX Font Info:    Font shape `T1/phv/m/it' in size <10> not available
+(Font)              Font shape `T1/phv/m/sl' tried instead on input line 230.
+LaTeX Font Info:    Font shape `T1/phv/m/sl' will be
+(Font)              scaled to size 8.99994pt on input line 230.
 LaTeX Font Info:    Font shape `T1/phv/m/n' will be
 (Font)              scaled to size 6.29996pt on input line 230.
 LaTeX Font Info:    Font shape `T1/phv/b/n' will be
 (Font)              scaled to size 6.29996pt on input line 230.
  [1] [2] [3] [4]
-[5] [6] [7] [8] [9] [10
-
-]
+[5] [6] [7] [8]
 Package hyperref Info: Option `pageanchor' set `true' on input line 233.
  (./index.tex
 Chapter 1.
@@ -889,10 +891,6 @@ LaTeX Font Info:    Font shape `T1/phv/b/sl' will be
 Package hyperref Warning: Difference (2) between bookmark levels is greater 
 (hyperref)                than one, level fixed on input line 5.
 
-LaTeX Font Info:    Font shape `T1/phv/m/it' in size <10> not available
-(Font)              Font shape `T1/phv/m/sl' tried instead on input line 6.
-LaTeX Font Info:    Font shape `T1/phv/m/sl' will be
-(Font)              scaled to size 8.99994pt on input line 6.
 LaTeX Font Info:    Font shape `T1/phv/m/it' in size <7> not available
 (Font)              Font shape `T1/phv/m/sl' tried instead on input line 6.
 LaTeX Font Info:    Font shape `T1/phv/m/sl' will be
@@ -911,6 +909,7 @@ File: ts1phv.fd 2020/03/25 scalable font definitions for TS1/phv.
 LaTeX Font Info:    Font shape `TS1/phv/m/n' will be
 (Font)              scaled to size 8.99994pt on input line 14.
  [1
+
 
 ]
 Underfull \hbox (badness 10000) in paragraph at lines 20--21
@@ -2842,111 +2841,37 @@ pling.h,
 [300] [301
 
 ]) (./refman.aux)
-
-LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
-
-
-Package rerunfilecheck Warning: File `refman.out' has changed.
-(rerunfilecheck)                Rerun to get outlines right
-(rerunfilecheck)                or use package `bookmark'.
-
-Package rerunfilecheck Info: Checksums for `refman.out':
-(rerunfilecheck)             Before: DFFA8B3F3ED42C5D3B57ACF6B73A1B7C;82402
-(rerunfilecheck)             After:  51E50B0AC97AE376C2419611D7BF35F7;80569.
+Package rerunfilecheck Info: File `refman.out' has not changed.
+(rerunfilecheck)             Checksum: 51E50B0AC97AE376C2419611D7BF35F7;80569.
  ) 
 Here is how much of TeX's memory you used:
- 24916 strings out of 480247
- 545123 string characters out of 5896151
- 820074 words of memory out of 5000000
- 38841 multiletter control sequences out of 15000+600000
+ 24869 strings out of 480247
+ 544495 string characters out of 5896151
+ 817393 words of memory out of 5000000
+ 38816 multiletter control sequences out of 15000+600000
  527900 words of font info for 111 fonts, out of 8000000 for 9000
  14 hyphenation exceptions out of 8191
  99i,16n,117p,999b,572s stack positions out of 5000i,500n,10000p,200000b,80000s
-pdfTeX warning (dest): name{page.303} has been referenced but does not exist,
- replaced by a fixed one
-
-pdfTeX warning (dest): name{page.302} has been referenced but does not exist, r
-eplaced by a fixed one
-
-pdfTeX warning (dest): name{section.1.20} has been referenced but does not exis
-t, replaced by a fixed one
-
-pdfTeX warning (dest): name{section.1.19} has been referenced but does not exis
-t, replaced by a fixed one
-
-pdfTeX warning (dest): name{section.1.18} has been referenced but does not exis
-t, replaced by a fixed one
-
-pdfTeX warning (dest): name{section.1.17} has been referenced but does not exis
-t, replaced by a fixed one
-
-pdfTeX warning (dest): name{section.1.16} has been referenced but does not exis
-t, replaced by a fixed one
-
-pdfTeX warning (dest): name{section.1.15} has been referenced but does not exis
-t, replaced by a fixed one
-
-pdfTeX warning (dest): name{section.1.14} has been referenced but does not exis
-t, replaced by a fixed one
-
-pdfTeX warning (dest): name{section.1.13} has been referenced but does not exis
-t, replaced by a fixed one
-
-pdfTeX warning (dest): name{section.1.12} has been referenced but does not exis
-t, replaced by a fixed one
-
-pdfTeX warning (dest): name{section.1.11} has been referenced but does not exis
-t, replaced by a fixed one
-
-pdfTeX warning (dest): name{section.1.10} has been referenced but does not exis
-t, replaced by a fixed one
-
-pdfTeX warning (dest): name{section.1.9} has been referenced but does not exist
-, replaced by a fixed one
-
-pdfTeX warning (dest): name{section.1.8} has been referenced but does not exist
-, replaced by a fixed one
-
-pdfTeX warning (dest): name{section.1.7} has been referenced but does not exist
-, replaced by a fixed one
-
-pdfTeX warning (dest): name{section.1.6} has been referenced but does not exist
-, replaced by a fixed one
-
-pdfTeX warning (dest): name{section.1.5} has been referenced but does not exist
-, replaced by a fixed one
-
-pdfTeX warning (dest): name{section.1.4} has been referenced but does not exist
-, replaced by a fixed one
-
-pdfTeX warning (dest): name{section.1.3} has been referenced but does not exist
-, replaced by a fixed one
-
-pdfTeX warning (dest): name{section.1.2} has been referenced but does not exist
-, replaced by a fixed one
-
-pdfTeX warning (dest): name{section.1.1} has been referenced but does not exist
-, replaced by a fixed one
-
-{/usr/share/texlive/texmf-dist/fonts/enc/dvips/base/8r.enc}</usr/share/texlive/
-texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/share/texlive/texmf-
-dist/fonts/type1/public/amsfonts/cm/cmmi12.pfb></usr/share/texlive/texmf-dist/f
-onts/type1/public/amsfonts/cm/cmmi7.pfb></usr/share/texlive/texmf-dist/fonts/ty
-pe1/public/amsfonts/cm/cmmi8.pfb></usr/share/texlive/texmf-dist/fonts/type1/pub
-lic/amsfonts/cm/cmmi9.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/ams
-fonts/cm/cmsy10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/
-cm/cmsy6.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy
-7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb><
-/usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy9.pfb></usr/sh
-are/texlive/texmf-dist/fonts/type1/urw/courier/ucrr8a.pfb></usr/share/texlive/t
-exmf-dist/fonts/type1/urw/courier/ucrro8a.pfb></usr/share/texlive/texmf-dist/fo
-nts/type1/urw/helvetic/uhvb8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/ur
-w/helvetic/uhvbo8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/helvetic/
-uhvr8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/helvetic/uhvro8a.pfb>
-Output written on refman.pdf (313 pages, 977391 bytes).
+{/usr/share/texlive/texmf-dist/fonts/enc/dvips/base/8r.enc}</usr/share/texliv
+e/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/share/texlive/texm
+f-dist/fonts/type1/public/amsfonts/cm/cmmi12.pfb></usr/share/texlive/texmf-dist
+/fonts/type1/public/amsfonts/cm/cmmi7.pfb></usr/share/texlive/texmf-dist/fonts/
+type1/public/amsfonts/cm/cmmi8.pfb></usr/share/texlive/texmf-dist/fonts/type1/p
+ublic/amsfonts/cm/cmmi9.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/a
+msfonts/cm/cmsy10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfont
+s/cm/cmsy6.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cm
+sy7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb
+></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy9.pfb></usr/
+share/texlive/texmf-dist/fonts/type1/urw/courier/ucrr8a.pfb></usr/share/texlive
+/texmf-dist/fonts/type1/urw/courier/ucrro8a.pfb></usr/share/texlive/texmf-dist/
+fonts/type1/urw/helvetic/uhvb8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/
+urw/helvetic/uhvbo8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/helveti
+c/uhvr8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/helvetic/uhvro8a.pf
+b>
+Output written on refman.pdf (311 pages, 974614 bytes).
 PDF statistics:
- 11235 PDF objects out of 12825 (max. 8388607)
- 10780 compressed objects within 108 object streams
- 3282 named destinations out of 3580 (max. 500000)
- 2721 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 11154 PDF objects out of 12825 (max. 8388607)
+ 10701 compressed objects within 108 object streams
+ 3260 named destinations out of 3580 (max. 500000)
+ 2625 words of extra memory for PDF output out of 10000 (max. 10000000)
 
