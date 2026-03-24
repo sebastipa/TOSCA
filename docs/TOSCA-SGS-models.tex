@@ -1,0 +1,1318 @@
+%% 
+%% Copyright 2007-2025 Elsevier Ltd
+%% 
+%% This file is part of the 'Elsarticle Bundle'.
+%% ---------------------------------------------
+%% 
+%% It may be distributed under the conditions of the LaTeX Project Public
+%% License, either version 1.3 of this license or (at your option) any
+%% later version.  The latest version of this license is in
+%%    http://www.latex-project.org/lppl.txt
+%% and version 1.3 or later is part of all distributions of LaTeX
+%% version 1999/12/01 or later.
+%% 
+%% The list of all files belonging to the 'Elsarticle Bundle' is
+%% given in the file `manifest.txt'.
+%% 
+%% Template article for Elsevier's document class `elsarticle'
+%% with harvard style bibliographic references
+
+%\documentclass[preprint,10pt]{elsarticle}
+% \documentclass[final,1p, twocolume]{elsarticle}
+%\documentclass[final,5p,times]{elsarticle}
+
+%% Use the option review to obtain double line spacing
+%% \documentclass[preprint,review,12pt]{elsarticle}
+
+%% Use the options 1p,twocolumn; 3p; 3p,twocolumn; 5p; or 5p,twocolumn
+%% for a journal layout:
+%% \documentclass[final,1p,times]{elsarticle}
+%% \documentclass[final,1p,times,twocolumn]{elsarticle}
+%%\documentclass[final,3p,times]{elsarticle}
+\documentclass[final,3p]{elsarticle}
+%\usepackage{newtxtext,newtxmath}
+%% \documentclass[final,3p,times,twocolumn]{elsarticle}
+%% \documentclass[final,5p,times]{elsarticle}
+%% \documentclass[final,5p,times,twocolumn]{elsarticle}
+
+%% For including figures, graphicx.sty has been loaded in
+%% elsarticle.cls. If you prefer to use the old commands
+%% please give \usepackage{epsfig}
+
+%% The amssymb package provides various useful mathematical symbols
+\usepackage{amssymb}
+%% The amsmath package provides various useful equation environments.
+\usepackage{amsmath}
+\usepackage{bm}
+
+\usepackage{mathptmx}
+\usepackage{etoolbox}
+\usepackage{hyperref}
+\usepackage{mathtools}
+\usepackage{mathabx}
+\usepackage{tikz}
+\usepackage{yhmath} 
+
+\usepackage{geometry}
+\geometry{
+  top=2cm,
+  bottom=2cm,
+  left=2.5cm,
+  right=2.5cm,
+  marginparwidth=1.75cm
+}
+%% The amsthm package provides extended theorem environments
+%% \usepackage{amsthm}
+
+%% The lineno packages adds line numbers. Start line numbering with
+%% \begin{linenumbers}, end it with \end{linenumbers}. Or switch it on
+%% for the whole article with \linenumbers.
+%% \usepackage{lineno}
+
+\journal{Journal of Computational Physics}
+
+\begin{document}
+
+\begin{frontmatter}
+
+%% Title, authors and addresses
+
+%% use the tnoteref command within \title for footnotes;
+%% use the tnotetext command for theassociated footnote;
+%% use the fnref command within \author or \affiliation for footnotes;
+%% use the fntext command for theassociated footnote;
+%% use the corref command within \author for corresponding author footnotes;
+%% use the cortext command for theassociated footnote;
+%% use the ead command for the email address,
+%% and the form \ead[url] for the home page:
+%% \title{Title\tnoteref{label1}}
+%% \tnotetext[label1]{}
+%% \author{Name\corref{cor1}\fnref{label2}}
+%% \ead{email address}
+%% \ead[url]{home page}
+%% \fntext[label2]{}
+%% \cortext[cor1]{}
+%% \affiliation{organization={},
+%%             addressline={},
+%%             city={},
+%%             postcode={},
+%%             state={},
+%%             country={}}
+%% \fntext[label3]{}
+
+\title{Mixed Subgrid-Scale Models in Generalized Curvilinear Coordinates for Large-Eddy Simulations of Heterogeneous Turbulent Flows} %% Article title
+
+%% use optional labels to link authors explicitly to addresses:
+%3333 University Way, Kelowna, British Columbia, Canada, V1V 1V7
+\author[label1]{Arjun Ajay}
+   \affiliation[label1]{organization={The University of British Columbia},
+             addressline={3333 University Way},
+             city={Kelowna},
+             postcode={V1V 1V7},
+             state={British Columbia},
+             country={Canada}}
+\author[label1]{Jagdeep Singh \corref{cor1}}
+    \ead{jagdeep.singh@ubc.ca}
+    \cortext[cor1]{Corresponding author}
+%von Karman Institute for Fluid Dynamics, Waterloosesteenweg 72 B-1640 Sint-Genesius-Rode, Belgium
+
+\author[label2]{Sebastiano Stipa}
+     \affiliation[label2]{organization={von Karman Institute for Fluid Dynamics},
+             addressline={Waterloosesteenweg 72},
+             city={Sint-Genesius-Rode},
+             postcode={1640},
+             state={Flanders},
+             country={Belgium}}
+
+\author[label3]{Pierre Benard}
+ \affiliation[label3]{organization={INSA Rouen Normandie, Univ Rouen Normandie, CNRS},%Department and Organization
+             addressline={Normandie Univ, CORIA UMR 6614}, 
+             city={CORIA},
+             postcode={F-76000}, 
+             state={Rouen},
+             country={France}}
+             
+\author[label1]{Joshua Brinkerhoff}
+
+%% Abstract
+\begin{abstract}
+Atmospheric boundary layer (ABL) flows govern surface weather patterns, wind energy forecasting, and urban airflow modeling, making them critical to a wide range of meteorological, engineering and environmental applications. Many ABL flows are characterized by high levels of flow heterogeneity and turbulence anisotropy due to the complex shape of the local terrain, making analysis via large eddy simulation challenging. This study evaluates mixed subgrid-scale models and higher-order numerical schemes formulated in generalized curvilinear coordinates (GCC) aimed at simulating turbulent flows in heterogeneous conditions. The anisotropic minimum-dissipation model, its mixed-model variant (BAMD), and the baseline Bardina-Vreman model are formulated within GCC, which provides enhanced geometrical flexibility, enabling higher numerical accuracy and stability for resolving heterogeneous turbulent flows compared to traditional Cartesian grids. The mixed formulations combine the dissipative feature of functional subgrid closures with the structural accuracy of scale-similarity-based models. The mixed models are compared with the Lagrangian scale-dependent and localized dynamic Smagorinsky subgrid-scale models using five separate convection schemes: second-order central difference, fourth-order central difference, fourth-order central difference with hyper-viscosity (CD4H), third-order upwind-biased, and QUICK. Simulations are conducted for the classical Taylor–Green vortex case, turbulent channel flow at $Re_\tau = 395$, and a neutral atmospheric boundary layer over heterogeneous terrain. Results consisting of first-, second-, and third-order moments are presented alongside joint probability density functions of the resolved velocity gradient tensor and barycentric maps representing turbulence anisotropy. Among all tested combinations, the BAMD model coupled with the CD4H scheme shows the best balance between accuracy and efficiency, highlighting the effectiveness of combining mixed subgrid-scale models and high-order convective schemes with the geometrical flexibility of finite-volume methods constructed in generalized curvilinear coordinates.
+
+\end{abstract}
+
+%%Graphical abstract
+\begin{graphicalabstract}
+\begin{figure}[htb!]
+	\centering
+        (a)\\[4pt]
+        \includegraphics[width=0.2\linewidth]{Plots/TGV/tgvcolorhorizontal.png} \\[4pt]
+         
+	\begin{tabular}{ccc}
+       
+        \includegraphics[width=0.3\linewidth]{Plots/TGV/t1.png} & 
+        \includegraphics[width=0.3\linewidth]{Plots/TGV/t4.png} &
+        \includegraphics[width=0.3\linewidth]{Plots/TGV/t12.png} \\[2pt]
+	
+        $t/\tau_{ref} = 1$  & $t/\tau_{ref} = 4$ & $t/\tau_{ref} = 12$  \\ [3pt]
+	\end{tabular}
+        (b)\\[4pt]
+        \includegraphics[width=0.8\linewidth]{Plots/ABL/ABL.png} \\[2pt]
+    
+    \caption{
+        (a) Iso-surfaces of the second invariant of the velocity gradient tensor \( Q_g = 1.0 \), colored by the vertical vorticity component \( \omega_3 \). Positive and negative values of \( \omega_3 \) indicate anticlockwise and clockwise rotation, respectively. These snapshots at \( t/\tau_{\text{ref}} = 1, 4, 12 \) illustrate the transition from laminar to fully developed turbulence in a triply periodic box, simulated using the mixed SGS model Bardina-anisotropic minimum dissipation model with a hyper-viscosity variant of fourth-order central scheme.\\
+        (b) Instantaneous streamwise velocity magnitude in a neutrally stratified atmospheric boundary layer flow over complex terrain, highlighting the resolved flow structures and near-surface turbulence patterns.
+    }
+\end{figure}
+\end{graphicalabstract}
+
+
+
+
+%%Research highlights
+\begin{highlights}
+\item A family of mixed subgrid scale models combining Bardina and anisotropic minimum dissipation model are formulated and implemented in generalized curvilinear coordinates.
+\item The models are tested via large-eddy simulations of Taylor-Green vortex, turbulent channel flow, and atmospheric boundary layer flow over heterogeneous terrain.
+\item Spatial discretization schemes strongly influence the resolution of intense small-scale motions, while subgrid scale models are critical for near-surface turbulence.
+\item The Bardina–anisotropic minimum dissipation model combined with the fourth-order central difference scheme with hyper-viscosity parameter balances accuracy and computational cost across all test cases.
+
+\end{highlights}
+
+%% Keywords
+\begin{keyword}
+Subgrid-scale models \sep Large-eddy simulation \sep Generalized curvilinear coordinates  \sep Heterogeneous terrain \sep Atmospheric boundary layers
+%% keywords here, in the form: keyword \sep keyword
+
+%% PACS codes here, in the form: \PACS code \sep code
+
+%% MSC codes here, in the form: \MSC code \sep code
+%% or \MSC[2008] code \sep code (2000 is the default)
+
+\end{keyword}
+
+    
+\end{frontmatter}
+
+
+%% Add \usepackage{lineno} before \begin{document} and uncomment 
+%% following line to enable line numbers
+%% \linenumbers
+
+%% main text
+%%
+
+\section{\label{sec:introduction} Introduction}
+Turbulence remains one of the major challenges in computational fluid dynamics due to its wide range of spatial and temporal scales~\cite{johnson2024multiscale}. Resolving all the spatial and temporal scales of turbulence using direct numerical simulation (DNS) is computationally infeasible for most practical flows. Developing a coarse-grained formulation of the governing equations remains a central research problem in turbulence simulation. Large-eddy simulation (LES) is a promising coarse-grained approach that resolves the dominant energy-containing eddies while modeling the effects of unresolved small scales~\cite{sagaut2005,pope2001turbulent}.  
+
+In LES, spatial filtering of the governing equations results in a closure problem, where the subgrid-scale (SGS) stress tensor must be modeled to represent the influence of unresolved motions on the resolved flow. As emphasized by Moser et al.~\cite{moser2021statistical}, apart from Fourier spectral methods, other spatial discretization methods introduce numerical artifacts that could compromise Galilean invariance \cite{moser2021statistical,pletcher2012computational,pope2001turbulent,sagaut2005large}. When a filtered velocity field convects turbulence, the underlying dispersion relation among Fourier modes is distorted, causing increased aliasing errors that predominantly impact small-scale turbulent structures. To address this, particularly in scale-similarity and dynamic mixed models, an explicit secondary filter is often applied to enforce a clearer separation between resolved and subgrid scales~\cite{bardina1983improved, armenio2000lagrangian, zang1993dynamic}. In the absence of such filtering strategies, LES formulations typically require ad hoc modifications to SGS parameterizations to counterbalance the numerical dissipation introduced by spatial discretization~\cite{chow2003further,mosedale2007assessment,thornber2008numerical,chung2009large}. Therefore, assessing SGS models without considering the interplay with spatial discretization may lead to misleading conclusions about their performance and physical consistency~\cite{moser2021statistical,sagaut2005}.
+
+A wide range of SGS models have been developed, typically categorized as functional, structural, or mixed approaches~\cite{sagaut2005}. For a detailed mathematical treatment, readers may refer to \citet{berselli2006mathematics}. Functional models aim to reproduce the forward energy cascade by accounting for the energy dissipated from the resolved scales, while neglecting the structural information associated with the small scales. This is typically achieved either by adding an explicit subgrid term that introduces dissipation using eddy viscosity formulations \cite{smagorinsky1963,ghosal1995dynamic,germano1991dynamic, meneveau1996lagrangian} or through implicit means \cite{grinstein2007implicit}, where truncation errors generate similar effects. However, functional approaches do not capture the backscatter of energy from small to large scales. Consequently, the structure of the SGS stress tensor -- particularly its directional features -- is often poorly represented~\cite{sagaut2005large,bardina1980improved,liu1994properties,tao2002statistical,horiuti2003roles,moser2021statistical}.
+
+Unlike functional models, structural models are motivated by the idea that the subgrid scales resemble the structure of the resolved flow. This is often formalized through the scale-similarity hypothesis~\cite{bardina1980improved,liu1994properties,bardina1983improved}, which assumes a statistical resemblance between flow fields at different filtering levels, or derived through formal series expansions of various terms in the filtered Navier–-Stokes equations~\cite{carati2001modelling,winckelmans2002comparison}. While structural models are known for their ability to accurately reproduce the anisotropic and directional characteristics of the SGS stress tensor, they typically lack sufficient dissipation and therefore fail to capture the net energy transfer from resolved to unresolved scales.
+
+Functional and structural approaches to SGS stress parameterization offer distinct modeling perspectives, with their respective advantages and limitations closely interrelated. A systematic investigation of these approaches was first undertaken by \citet{bardina1983improved}, who evaluated several eddy-viscosity-based models—such as the Smagorinsky model~\cite{smagorinsky1963}, the vorticity model~\cite{kwak1975three}, and the turbulent kinetic energy model~\cite{bardina1983improved}—in conjunction with a structural formulation based on scale similarity, which has since become widely known as the Bardina model~\cite{bardina1983improved}.
+Their results demonstrated that functional models captured the dissipative behavior of turbulence but failed to reproduce the structural characteristics of the SGS tensor. Conversely, the Bardina model showed strong agreement with the structural features of the true SGS stress but lacked sufficient energy dissipation. To overcome these limitations, \citet{bardina1980improved} proposed a mixed formulation which is a linear combination of functional~\cite{smagorinsky1963} and structural components~\cite{bardina1983improved}, and showed that the resulting hybrid model was capable of accurately predicting both energy dissipation and SGS stress structure in simulations of homogeneous isotropic and sheared turbulence.
+
+Following the success of the mixed modeling approach introduced by \citet{bardina1983improved}, several other mixed models have since been developed. One notable development is the dynamic mixed model by \citet{zang1993dynamic}, which extended the original formulation by allowing the model coefficient to be computed dynamically based on the Germano identity~\cite{germano1991dynamic}. While their numerical tests were conducted at relatively low Reynolds numbers, the model exhibited compelling results in capturing both energy dissipation and structural features of the SGS stress.
+
+The dynamic mixed modeling framework was further advanced by the works of \citet{vreman1994formulation} and \citet{salvetti1995priori}. Notably, \citet{salvetti1995priori} proposed a two-parameter formulation in which the model coefficients of both the functional and scale-similarity components were determined dynamically. This approach showed significant improvements over the dynamic Smagorinsky model~\cite{germano1991dynamic}, offering sufficient energy dissipation while allowing backscatter. In addition, both models offered a more accurate representation of the SGS stress structure and outperformed earlier formulations, including the dynamic Smagorinsky model~\cite{germano1991dynamic} and the original dynamic mixed model~\cite{zang1993dynamic}.
+
+A range of mixed modeling strategies has been developed and explored in subsequent studies ~\cite{winckelmans2001explicit,vreman1994formulation,vreman1996large,horiuti1997new,vreman1997large,winckelmans1998testing}. Although these models often yield improved accuracy, they typically require multiple filtering operations, thereby increasing computational cost. Moreover, in the context of governing equations expressed in generalized curvilinear coordinates (GCC), the use of such mixed models has been relatively limited. One notable contribution is the study by \citet{armenio2000lagrangian}, which presented a Lagrangian-based mixed dynamic SGS model within the GCC framework. Nevertheless, systematic derivations and implementations of newer mixed models in GCC, especially for atmospheric flow applications, remain unexplored in the literature. The GCC framework offers significant flexibility for representing complex geometries while preserving structured mesh connectivity, making it particularly suitable for simulations of the ABL over heterogeneous terrain. Beyond atmospheric applications, GCC has also been employed in biomedical flows involving anatomically realistic and deformable domains, such as simulations of airflow through human airways or blood flow in compliant vessels \cite{Borazjani2008}. Despite its geometric adaptability, the combination of high-order numerical schemes, mixed SGS models, and GCC remains underdeveloped.
+
+In this study, we extend the mixed model methodology for GCC comprising of an eddy-viscosity term derived from the anisotropic minimum-dissipation (AMD) model of \citet{rozema2015minimum}, selected for its nature of low-dissipation, and a structural component based on the scale-similarity model of Bardina. This combination has been recently implemented and evaluated in Cartesian grids by \citet{streher2021mixed}, where it demonstrated enhanced structural accuracy with controlled dissipation. We also analyze a variant that combines Bardina with the Vreman model to establish a baseline mixed model. These formulations are systematically formulated within GCC and compared with advanced eddy-viscosity models such as the Lagrangian scale-dependent (LASD)~\cite{meneveau1996lagrangian, porte2000scale, bou2005scale} and the localized dynamic Smagorinsky (DSM)~\cite{germano1991dynamic, ghosal1995dynamic}. 
+
+Such modeling efforts are particularly relevant for simulating ABL flows using LES, where heterogeneity arising from complex terrain and atmospheric stability strongly influences turbulence structure and modeling accuracy. Spatial heterogeneity---especially due to complex orography---introduces strong local pressure gradients \cite{cai2021local}, terrain-induced shear, and flow separation, all of which alter turbulence characteristics and enhance anisotropy \cite{abedi2023assessment}. 
+In addition, thermal stratification significantly affects flow behavior; surface heating promotes buoyancy-driven plumes and deeper boundary layers, whereas surface cooling suppresses turbulence and promotes shallower boundary layers \cite{wurps2020grid,gadde2021large}. These complexities are especially pronounced in the surface layer--the lowest 10–20$\%$ of the ABL--where turbulence becomes highly anisotropic and sensitive to both grid resolution and SGS model performance. Consequently, resolving these scales becomes computationally expensive, and conventional SGS models based on isotropic assumptions often fail to capture the dynamics of such heterogeneous conditions. In this study, we incorporate heterogeneity induced by complex terrain only; effects due to thermal stability will be addressed in future work.
+
+The SGS models utilized in this study are implemented in Toolbox fOr Stratified Convective Atmosphere (TOSCA)~\cite{stipa2024tosca}, an LES code based on the finite-volume method formulated in GCC. In this context, the choice of numerical scheme plays a critical role in accurately capturing turbulence dynamics. As discussed earlier, with the exception of spectral methods, it is not possible to perfectly separate large and small scales in LES. In finite-volume methods, the spatial discretization itself becomes an integral part of the modeling, directly influencing the resolved-scale dynamics and the behavior of the subgrid-scale terms. To assess this influence, we investigate a range of spatial discretization schemes, including second-order central difference (CD2), fourth-order central difference (CD4) \cite{hundsdorfer1995positive,wicker2002time}, a stabilized fourth-order scheme with hyperviscosity (CD4H) \cite{kosovic2016improving,skamarock2011conservative}, third-order upwind-biased (UP3) \cite{skamarock2011conservative}, and the QUICK scheme \cite{leonard1979}. These schemes differ in terms of accuracy, numerical dissipation, and dispersion characteristics. Their comparative evaluation provides insights into how discretization errors -- particularly in GCC -- affect the accuracy of SGS models in the finite-volume framework.
+
+The remainder of this paper is organized as follows. In Section~\ref{sec:modeling}, we present the mathematical formulation employed in the finite-volume framework in GCC, including the governing equations, turbulence closure models, and details of the spatial and temporal discretization schemes. Section~\ref{sec:results} reports on the performance and evaluation of the proposed mixed models and numerical schemes through a series of canonical test cases, including the Taylor-Green vortex (TGV) problem and turbulent channel flow. This section also demonstrates the application of the models at high Reynolds numbers by simulating an ABL flow over heterogeneous terrain. Finally, concluding remarks and directions for future work are provided in Section~\ref{sec:conclusion}.
+
+
+\section{\label{sec:modeling} Mathematical Modeling}
+LES models small-scale turbulence effects on the resolved flow via a SGS model. However, the accuracy of LES depends on precise representation of the SGS stress tensor $\tau_{ij}$. The transfer of kinetic energy between resolved and unresolved scales is a central aspect of LES, and is dictated by the term $-\tau_{ij} S_{ij}$, where $S_{ij} = (1/2)(\partial_j\overline {u}_i + \partial_i\overline{u}_j)$ is the filtered strain-rate tensor, and $\overline{u}_i$ denotes the resolved velocity. Specifically, $-\tau_{ij} S_{ij}$ represents the work done by the SGS stresses on the resolved strain field, facilitating energy dissipation from resolved scales to subgrid scales or, in some cases, backscatter from subgrid to resolved scales \cite{lilly1967, leonard1974, meneveau2000}. 
+
+The evolution of the subgrid-scale fluctuations $u'_i(\bm x,t)$ depends on the strain tensor $S_{ij}$ such that 
+%
+\begin{equation}
+	\label{eq:up}
+	\frac{\partial u'_i}{\partial t}  + \bar u_j\frac{\partial u'_i}{\partial x_j} = - S_{ij}u'_j - W_{ij}u'_j - \frac{\partial p'}{\partial x_i} + \frac{\partial \tau_{ij}}{\partial x_j} + \nu \frac{\partial}{\partial x_j} \left(\frac{\partial u_i'}{\partial x_j} + \frac{\partial u_j'}{\partial x_i}\right) 
+\end{equation}
+where $W_{ij} = (1/2)(\partial_j\overline {u}_i - \partial_i\overline {u}_j)$ is the filtered rotation-rate tensor. Together, \(S_{ij}\) and \(W_{ij}\) form the filtered velocity gradient tensor, \(A_{ij} = S_{ij} + W_{ij}\) and the last three terms on the  right hand side represent the SGS pressure gradient, stress, and viscous dissipation, respectively.
+ 
+\citet{deardorff1974} showed that the stress tensor satisfying
+\begin{equation}
+	\label{eq:chap2T}
+	\frac{\partial\mathcal\tau_{ij}}{\partial t} + u_k\frac{\partial\mathcal\tau_{ij}}{\partial x_k} = - A_{ik}\mathcal\tau_{kj} - \mathcal\tau_{ik} A_{kj} + \cdots
+\end{equation}
+%
+evolves in an environment where the dynamics of the SGS fluctuations are dictated by the velocity gradient tensor $A_{ij}$ \cite{leonard1974, germano1991dynamic}. The additional terms represented by $\cdots$ include the triple correlation term, pressure-strain, and pressure-velocity correlations and dissipation, omitted for brevity. Eq~(\ref{eq:chap2T}) indicates that alignment of the stress tensor $\bm{\tau}_{ij}$ with the velocity gradient tensor $A_{ij}$ control the local derivative $\partial \tau_{ij}/\partial t$ and directional derivative $u_{k}\partial \tau_{ij}/\partial x_{k}$ of the SGS stresses. In other words, turbulence tends to amplify the local velocity fluctuations \( u'(\bm{x}, t) \) in directions orthogonal to regions of strong extensional strain. This structural information is best captured using structural models such as the Bardina scale-similarity model \cite{bardina1980improved} that effectively preserve flow features, but typically lack sufficient dissipation, which limits their ability to properly model the energy cascade. In contrast, functional models rely on the eddy-viscosity hypothesis to represent \( \tau_{ij} \), providing the necessary dissipation but at the cost of losing structural fidelity. Mixed models aim to combine the strengths of both approaches by incorporating a similarity-based component for accuracy and an eddy-viscosity term for reproducing the forward energy cascade. In the following sections, we reformulate these functional, structural, and mixed SGS models in Cartesian coordinates followed by generalized curvilinear coordinates to enable their application to turbulent flows in non-Cartesian geometries.
+
+\subsection{Formulation in Cartesian Coordinates}
+The incompressible Navier--Stokes equations in Cartesian coordinates are given by
+\begin{equation}
+	\frac{\partial u_{i}}{\partial x_i} = 0,
+	\label{eq:nseC}
+\end{equation}
+%
+\begin{equation}
+	\frac{\partial u_i}{\partial t} + \frac{\partial \left(u_{i}u_{j}\right)}{\partial x_j} = -\frac{\partial p}{\partial x_i} + \frac{\partial }{\partial x_j}\left[\nu\left(\frac{\partial u_i}{\partial x_j} + \frac{\partial u_j}{\partial x_i}\right)\right],
+	\label{eq:nseM}
+\end{equation}
+%
+where ${u}(\bm{x}, t)$ is a vector-valued function for all $\bm{x} \in \Omega \subset \mathbb{R}^3$, representing the exact solution of the Navier--Stokes equations; $p$ is the pressure divided by the fluid density $\rho_0$; and $\mathrm{\nu}$ is the kinematic viscosity. 
+
+The LES equations are formally derived by filtering the Navier--Stokes equations \citep{ferziger1977,lesieur1996,mason1994,rogallo1984,sagaut2005}. One considers a low-pass filter characterized by a cutoff length scale $\Delta_{\hbox{\tiny les}} = \sqrt[3]{\Delta_x\Delta_y\Delta_z}$, defined by the grid spacing in the $x$, $y$, and $z$ coordinate directions. Applying the low-pass filter to the Navier--Stokes equations Eqs.~(\ref{eq:nseC}-\ref{eq:nseM}) results in the filtered Navier--Stokes equations:
+%
+\begin{equation}
+	\frac{\partial \overline{u}_{i}}{\partial x_i} = 0,
+	\label{eq:nseLES1}
+\end{equation}
+%
+\begin{equation}
+	\frac{\partial \overline{u}_i}{\partial t} + \frac{\partial \left(\overline{u}_{i}\overline{u}_{j}\right)}{\partial x_j} = -\frac{\partial \overline{p}}{\partial x_i} + \frac{\partial }{\partial x_j}\left[\nu\left(\frac{\partial \overline{u}_i}{\partial x_j} + \frac{\partial \overline{u}_j}{\partial x_i}\right)\right] - \frac{\partial \tau_{ij}}{\partial x_j},
+	\label{eq:nseLES2}
+\end{equation}
+%
+where ($\overline{\cdot}$) represents the filtered quantity and  $\tau_{ij}$ is the SGS stress such that  $\tau_{ij} = \overline{u_{i} u_{j}}- \overline{u}_i \overline{u}_j$. The SGS stress can be written using Leonard's triple decomposition \cite{leonard1974} as
+\begin{equation}
+	\tau_{ij} =  \overline{u_iu_j}-\overline{u}_i\overline{u}_j \equiv L_{ij} + C_{ij} + R_{ij},
+	\label{eq:stdLES}
+\end{equation}
+which indicates the different interactions between the turbulent scales. Leonard stress tensor $L_{ij}$ represents interactions among large scales, $C_{ij}$ denotes cross-interaction terms between small and large scales, and Reynolds stress tensor $R_{ij}$ captures interactions among small scales. 
+
+In functional SGS models, such as eddy-viscosity models, the deviatoric part of the SGS stress tensor is modeled as a viscous-like term and combined with the kinematic viscous stress into an effective term, $\nabla \cdot \left(2 \nu_{\text{eff}} \, S_{ij} \right)$, where $\nu_{\text{eff}} = \nu + \nu_{\tau}$. Here, $\nu_{\tau}$ is the turbulent eddy viscosity determined by choosing an appropriate closure model. The relation $\tau_{ij}^{\hbox{\tiny dev}} = -2 \nu_{\tau} S_{ij}$, used to evaluate the deviatoric part of the stress tensor, is based on the assumption that the anisotropic turbulent stresses align proportionally with ${S}_{ij}$. The isotropic part, given as $\tau_{ij}^{\hbox{\tiny iso}} = \frac{1}{3}\delta_{ij} \tau_{kk}$, accounts for the unresolved normal stresses, and is typically absorbed into the filtered pressure term and not modeled explicitly. If the cutoff filter width $\Delta_{\hbox {\tiny LES}}$ approaches the Kolmogorov length scale $\eta$, the eddy-viscosity $\nu_{\tau}$ approaches zero. In local regions, such as thin layers between solid surfaces and fluid, where the flow is not turbulent, the value of $\nu_{\tau}$ must also drop to zero. 
+
+In mixed models, the subgrid-scale stress tensor is constructed by combining both functional (eddy-viscosity) and structural modeling approaches \cite{streher2021mixed}. The general form of the subgrid stress tensor is expressed as: 
+
+\begin{equation} 
+	\frac{\partial\tau_{ij}}{\partial x_j} = \frac{\partial}{\partial x_j} \left(\overline{u_iu_j}-\overline{u}_i\overline{u}_j\right) \equiv \frac{\partial}{\partial x_j} \left(\tau_{ij}^{\alpha}+   \tau_{ij}^{\beta}\right), 
+	\label{eq:contributionLES}
+\end{equation} 
+%
+where $\alpha$ and $\beta$ represent the contributions from the eddy-viscosity and structural models, respectively. 
+
+\subsection{Formulation in Generalized Curvilinear Coordinates}
+TOSCA employs a GCC mapping from Cartesian coordinates ($x_i$) to curvilinear coordinates ($l^{r}$), defined as $l^{r} = l^{r}(x_1, x_2, x_3)$. This mapping uses a partial transformation, where only the independent variables $x_i$ are transformed, while the dependent variables retain their Cartesian components. This approach eliminates the need to compute Christoffel symbols of the second kind that are present in the fully transformed equations as shown by \citet{ge2007numerical}, which are memory-intensive and computationally costly to compute. The filtered Navier--Stokes equations in GCC are expressed as:
+\begin{equation}
+	\frac{\partial }{\partial l^{r}}\left(\frac{\overline{U}^r}{J} \right) = 0,
+	\label{eq:genCONT}
+\end{equation}
+
+\begin{equation}
+	\begin{split}
+		\frac{\partial \overline{u}_i}{\partial t}
+		&\;+\;J\,\frac{\partial }{\partial l^{r}} \left( \frac{\overline{U}^{r} \overline{u}_i}{J}\right)
+		=\;-\frac{\partial \overline{p}}{\partial l^{r}} \frac{\partial l^{r}}{\partial x_i}\\
+		&\quad +\;J\,\frac{\partial} {\partial l^{r}} 
+		\left[\frac{\nu}{J} 
+		\left( g^{rm} \frac{\partial \overline{u}_i}{\partial l^{m}} 
+		+ \frac{\partial l^{r}}{\partial x_j}  \frac{\partial l^{m}}{\partial x_i} \frac{\partial \overline{u}_{j}}{\partial l^m}
+		\right) 
+		\right]\\
+		&\quad -\;J\,\frac{\partial T^r_i}{\partial l^{r}} 
+		,
+		\label{eq:genNSE}
+	\end{split}
+\end{equation}
+%
+where $\overline{U}^{r}$ represents the filtered contravariant velocity components, $J$ is the Jacobian of the geometric transformation $J = \partial (l^{1}, l^{2}, l^{3})/\partial (x_1, x_2, x_3)$, and $g^{rm}$ is the contravariant metric tensor, defined as $g^{rm} = \frac{\partial l^{r}}{\partial x_j} \frac{\partial l^{m}}{\partial x_j}$. The contravariant velocity components $\overline{U}^{r}$ are related to the Cartesian velocity components $\overline{u}_i$ and vice-versa by:
+\begin{equation}
+	\overline{U}^{r} =  \frac{\partial l^{r}}{\partial x_i}\overline{u}_i,~~~~~\overline{u}_{i} = \frac{\partial x_{r}}{\partial l^i}\overline{U}^{r}.
+\end{equation}
+%
+In Eq.~\ref{eq:genNSE}, \(T^r_i\) is the contravariant form of the SGS stress tensor
+\(\tau_{ij}\), defined as
+\begin{equation}
+    T^r_i = \frac{1}{J} \frac{\partial l^r}{\partial x_j} \tau_{ij} 
+    = \frac{1}{J} \left( \overline{U^r u_i} - \overline{U}^r \, \overline{u}_i \right).
+    \label{eq:recastCurv}
+\end{equation}
+%
+Equation~\eqref{eq:recastCurv} follows from the definition of the SGS tensor and
+the projection onto curvilinear coordinates, assuming that the metric terms
+can be taken inside the filtering operation. Specifically, this requires
+\begin{equation}
+    \overline{\frac{\partial l^r}{\partial x_j} u_i u_j} =
+    \frac{\partial l^r}{\partial x_j} \, \overline{u_i u_j},
+    \label{eq:metricFilterCommute}
+\end{equation}
+and similarly for the linear terms involving filtered velocities. This is justified by the fact that metric coefficients can be treated as filtered quantities due to the implicit filtering introduced by its numerical discretization. As shown by \citet{jordan1999large}, such numerical discretizations attenuate high-frequency fluctuations in the metric terms, allowing them to be treated as filtered quantities. In their work, \citet{jordan1999large} also examined the sequence of filtering and coordinate transformation operations, highlighting that the conventional approach---filtering in Cartesian coordinates followed by transformation to generalized curvilinear coordinates (GCC)---yields an ill-defined filter kernel, particularly for highly skewed grids, since the filtering is constrained to Cartesian directions. Conversely, transforming to GCC prior to filtering enables the explicit filter kernel to align with the curvilinear coordinate lines~\cite{jordan1999large, armenio2000lagrangian}. Accordingly, within TOSCA, Eqs. (\ref{eq:genCONT} \& \ref{eq:genNSE}) are derived by first carrying out a partial transformation to GCC and then applying the explicit filter. 
+
+The momentum equation for the filtered contravariant volume flux ($\overline{V}^q = \overline{U}^q/J$) is obtained by multiplying Eq. \ref{eq:genNSE} by $\frac{1}{J} \frac{\partial l^q}{\partial x_i}$ :
+\begin{equation}
+	\frac{\partial \overline{V}^{q}}{\partial t} = - R^{q} - \frac{1}{J} \frac{\partial l^q}{\partial x_i} \frac{\partial l^r}{\partial x_i}\frac{\partial \overline{p}}{\partial l^{r}} = - R^{q}-\frac{1}{J} g^{qr} \frac{\partial \overline{p}}{\partial l^{r}},
+	\label{eq:genContraVolFlux}
+\end{equation}
+where
+\begin{equation*}
+	\begin{split}
+		R^q ={}&
+		\underbrace{%
+			\frac{1}{J}\frac{\partial l^q}{\partial x_i}
+			\Bigl(J\frac{\partial}{\partial l^r}(\overline{V}^r \overline{u}_i)\Bigr)
+		}_{\mathcal{C}}
+		\\[1ex]
+		&- \underbrace{%
+			\frac{1}{J}\frac{\partial l^q}{\partial x_i}
+			\left[\,
+			J\frac{\partial}{\partial l^r}
+			\left(\tfrac{\nu}{J}\left(g^{rm}\tfrac{\partial \overline{u}_i}{\partial l^m}
+			+\tfrac{\partial l^r}{\partial x_j}\tfrac{\partial l^m}{\partial x_i}\tfrac{\partial \overline{u}_j}{\partial l^m}
+			\right)\right)
+			\right]
+		}_{\mathcal{D}}
+		\\[1ex]
+		&+ \underbrace{%
+			\frac{1}{J}\frac{\partial l^q}{\partial x_i}
+			\left[\,
+			J\frac{\partial T^r_i}{\partial l^r}
+			\right]
+		}_{\mathcal{D}^{\mathrm{SGS}}}\,,
+	\end{split}
+\end{equation*}
+with $\mathcal{C}$, $\mathcal{D}$, and $\mathcal{D}^{\hbox{\tiny SGS}}$ representing the contravariant fluxes of convective, viscous, and subgrid-scale stress tensors, respectively.
+
+For functional models, the viscous and subgrid-scale terms are combined as $\mathcal{D}^{\hbox{\tiny eff}}=\mathcal{D} + \mathcal{D^{\hbox{\tiny SGS}}}$, by using $T^r_i- \frac{1}{J}\frac{\partial l^{r}}{\partial x_i} \frac{\tau_{kk}}{3} = -2 \nu_{\tau} S^r_i$, where $S^r_i =  \frac{1}{J}\frac{\partial l^{r}}{\partial x_j} S_{ij}$ is the contravariant counterpart of the resolved strain-rate tensor $S_{ij}$ and $\nu_{\hbox{\tiny eff}} = \nu + \nu_{\tau}$, leading to the modified form of Eq. \ref{eq:genContraVolFlux}
+\begin{equation}
+	\frac{\partial \overline{V}^{q}}{\partial t} = - \left(\mathcal{C} + \mathcal{D}^{\hbox{\tiny eff}}\right) - \frac{1}{J} g^{qr} \frac{\partial \overline{p}}{\partial l^{r}},
+	\label{eq:genContraVolFlux2}
+\end{equation}
+where
+$$
+\mathcal{D}^{\hbox{\tiny eff}} = 
+\frac{1}{J}\frac{\partial l^q}{\partial x_i}
+\left[\,
+J\frac{\partial}{\partial l^r}
+\left(\tfrac{\nu_{\hbox{\tiny eff}}}{J}\left(g^{rm}\tfrac{\partial \overline{u}_i}{\partial l^m}
++\tfrac{\partial l^r}{\partial x_j}\tfrac{\partial l^m}{\partial x_i}\tfrac{\partial \overline{u}_j}{\partial l^m}
+\right)\right)
+\right].
+$$
+For mixed models, the subgrid-scale stress is decomposed as $T^r_{i} = {T^r_{i}}^{\alpha, \hbox{\tiny dev}} + {T^r_{i}}^{\alpha, \hbox{\tiny iso}} + {T^r_{i}}^{\beta}$. Assuming ${T^r_{i}}^{\alpha, \hbox{\tiny iso}}$ is absorbed into the pressure term; the formulation for ${T^r_{i}}^{\alpha, \hbox{\tiny dev}}$ follows the eddy viscosity model, yielding:
+\begin{equation}
+	\frac{\partial \overline{V}^{q}}{\partial t} = - \frac{1}{J} g^{qr} \frac{\partial \overline{p}}{\partial l^{r}} - \left(\mathcal{C} + \mathcal{D}^{\hbox{\tiny eff}}\right) + \frac{1}{J}\frac{\partial l^q}{\partial x_i} \left(J \frac{\partial {T^r_{i}}^{\beta}}{\partial l^r}\right)\,
+	\label{eq:genContraVolFluxMixedModel}
+\end{equation}
+where ${T^r_i}^{\beta}$ is the structural component of $T^r_i$. 
+
+Given the partial GCC transformation used in TOSCA, a hybrid staggered/non-staggered approach is employed for the field variables. Contravariant volume fluxes are computed at surface centers, while pressure is defined at cell centers. Unlike conventional staggered grid methods, this approach discretizes the convective and viscous terms at cell centers, as in a non-staggered grid, and subsequently interpolates these terms to surface centers. Discretization at cell centers requires reconstructing Cartesian velocities from interpolated contravariant fluxes. Although this introduces some computational overhead, it is significantly less compared to discretizing the three momentum equations at surface centers, which would triple the computational cost. As an example, Fig. \ref{fig:cellcenter} shows the hybrid staggered/non-staggered reconstruction of the term $\mathcal{C}$, the contravariant flux of convective term in Eq. \ref{eq:genContraVolFlux} at the surface centers. $\overline{V}^r \overline{u}_i$ is computed at the surface centers using different interpolation schemes for $\overline{u}$ discussed in section \ref{section:SpatialSchemes}. Then we discretize  $J \frac{\partial }{\partial l^r}\left(\overline{V}^r \overline{u}_i\right)$ at the cell centers using the discrete definition of the divergence operator:
+\begin{equation}
+	D_{i,j,k} (\mathcal{F}) = J\left(\frac{\mathcal{F}_{i+1/2,j,k} - \mathcal{F}_{i-1/2,j,k} + \cdots }{\Delta l^1}\right),
+\end{equation}
+where $\mathcal{F} = \overline{V}^r \overline{u}_i$. Finally, $\mathcal{C}$ is reconstructed at surface centers using linear interpolation of $D_{i,j,k}(\mathcal{F})$. Notably, the multiplication of the face area vector $\frac{1}{J}\frac{\partial l^q}{\partial x_i}$ with $D_{i,j,k}$ makes term $\mathcal{C}$ essentially a contravariant flux.
+\begin{figure}
+	\centering
+	\includegraphics[scale=0.4]{Plots/cellcenter.jpg}
+	\caption{Pictorial representation of the hybrid staggered/non-staggered reconstruction of the convective term $\mathcal{C}$ at the surface center.}
+	\label{fig:cellcenter}
+\end{figure}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%     TURBULENCE CLOSURE SCHEMES                                     %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Turbulence Closure Schemes}
+\subsubsection{Smagorinsky model}
+The deviatoric component of the SGS stress tensor is modeled as follows:
+\begin{equation}
+	\tau_{ij} - \frac{1}{3}\tau_{kk}\delta_{ij} = -2 \nu_{\tau} S_{ij} = -2 \left( C_s \Delta_{\hbox{\tiny LES}} \right)^2 |\overline{S}| S_{ij},
+	\label{eq:SmagorinskyModel}
+\end{equation}
+where $S_{ij}$ represents the filtered strain rate tensor, $\nu_{\tau}$ is the eddy viscosity, $C_s$ is the Smagorinsky constant, $\Delta_{\hbox{\tiny LES}}$ is the LES grid scale, and $\lvert {S} \rvert = \sqrt{2 S_{ij} S_{ij}}$ denotes the magnitude of the strain rate. This formulation, known as the Smagorinsky model \cite{smagorinsky1963}, is derived from the mixing length hypothesis. The eddy viscosity is expressed as $\nu_{\tau} = \left( C_s \Delta_{\hbox{\tiny LES}} \right)^2 |\overline{S}|$, where the strain rate is computed using grid-scale velocities. In curvilinear coordinates, the SGS parametrization using the eddy viscosity approach is recast in the contravariant form using Eq. \ref{eq:recastCurv} as:
+\begin{equation}
+	T^r_i- \frac{1}{J}\frac{\partial l^{r}}{\partial x_i} \frac{\tau_{kk}}{3} = -2 \nu_{\tau} S^r_i = -2 \left( C_s \Delta_{\hbox{\tiny LES}} \right)^2 |\overline{S}| S^r_{i},
+	\label{eq:SmagorinskyModel}
+\end{equation}
+
+In the classical Smagorinsky model, the constant \( C_s \) is assigned a fixed value~\cite{lilly1967}. A major limitation of the model is that the coefficient must be specified \textit{a priori}. The Smagorinsky constant \( C_s \) is typically determined using empirical formulations, field measurements, or theoretical considerations of turbulence physics. \citet{lilly1967} proposed a value of \( C_s = 0.17 \), assuming homogeneous isotropic turbulence and the existence of an inertial subrange in the energy spectrum. However, in wall-bounded flows, the Smagorinsky model tends to overestimate the SGS stresses and dissipation near the wall~\cite{piomelli1991large, meneveau2000scale}. To address this, \citet{moin1982numerical} introduced an \textit{ad hoc} wall damping function to reduce dissipation in the near-wall region. Nevertheless, this approach requires case-specific tuning of model parameters, limiting its general applicability. Extensive discussions of the Smagorinsky model can be found in earlier studies by \citet{moin1982numerical}, \citet{rogallo1984numerical}, and \citet{lesieur1996new}, with a comprehensive treatment provided by \citet{pope2001turbulent}.
+
+In contrast, advanced models such as the dynamic Smagorinsky model (DSM), and the Lagrangian-averaged scale-dependent (LASD) model compute $C_s$ dynamically to adapt to local flow conditions. It is noteworthy that the performance of the Smagorinsky model is highly sensitive to the choice of $C_s$, as demonstrated in prior studies~\cite{shi2018evaluation}.
+
+\subsubsection{Dynamic variants of the Smagorinsky model}
+A key improvement in SGS modeling came with the introduction of the dynamic approach~\cite{germano1991dynamic, germano1992turbulence, lilly1992proposed}. This method allows the model coefficient \( C_s \), which is constant in the classical Smagorinsky model, to be calculated directly from the resolved flow. The dynamic Smagorinsky model uses a space- and time-varying coefficient \( C_s(\bm{x}, t) \), making it suitable for a wide variety of turbulent flows. It assumes scale-invariance, meaning the coefficient estimated from resolved scales is also valid for subgrid scales.
+
+The dynamic Smagorinsky model (DSM) determines the coefficient \( C_s(\mathbf{x}, t) \) dynamically using the Germano identity~\cite{germano1992turbulence}. This method applies a test filter to the LES-resolved velocity field \( \overline{u}_i(\mathbf{x}, t) \) at a coarser scale \( \alpha \Delta_{\text{\tiny LES}} \) with \( \alpha > 1 \). The test-filtered velocity \( \widetilde{\overline{u}}_i(\mathbf{x}, t) \) satisfies the LES equations at both grid and test-filter scales. The Germano identity in GCC is given by:
+\begin{equation}
+    L^r_i = \mathcal{T}^r_i - \widetilde{T}^r_i,
+    \label{eq::germanoIdentity}
+\end{equation}
+where
+\begin{equation}
+    L^r_i = \widetilde{\overline{U^r} \overline{u}_i} - \widetilde{\overline{U^r}} \, \widetilde{\overline{u}}_i,
+\end{equation}
+is the contravariant Leonard tensor, computable directly from the resolved velocity fields. Here, \( \mathcal{T}^r_i = \widetilde{\overline{U^r u_i}} - \widetilde{\overline{U^r}} \, \widetilde{\overline{u}}_i \) is the contravariant form of the SGS stress at the test-filter scale and the term \( \widetilde{T}^r_i \) represents the SGS stress computed at the grid-filter level and subsequently filtered by the test filter.
+
+At the test-filter scale, the Smagorinsky model is expressed as
+\begin{equation}
+    \mathcal{T}^r_i - \frac{1}{J} \frac{\partial l^r}{\partial x_i} \frac{\mathcal{T}_{kk}}{3}
+    = -2 \left( C_s \widetilde{\overline{\Delta}} \right)^2
+    |\widetilde{\overline{S}}| \, \widetilde{S}^r_i,
+    \label{eq:testFilterstress}
+\end{equation}
+and at the grid-filter scale, the test filter applied to the SGS stress yields
+\begin{equation}
+    \widetilde{T}^r_i - \widetilde{\frac{1}{J} \frac{\partial l^r}{\partial x_i} \frac{\tau_{kk}}{3}} 
+    = -2 \left( C_s \Delta_{\text{\tiny LES}} \right)^2 \widetilde{|\overline{S}| S^r_i}.
+    \label{eq:gridFilterstress}
+\end{equation}
+
+Defining the tensor $M^r_i$ as 
+\begin{equation}
+    M^r_i = -2 \widetilde{\overline{\Delta}}^2 |\widetilde{\overline{S}}| \, \widetilde{S}^r_i
+    + 2 \Delta_{\text{\tiny LES}}^2 \, \widetilde{|\overline{S}| S^r_i} \, ,
+\end{equation}
+Assuming spatial uniformity of both the model coefficient and the LES filter width over the test filter, Eqs.~\ref{eq:testFilterstress} and~\ref{eq:gridFilterstress} lead to the Smagorinsky model for the deviatoric part of $L^r_i$ as
+\begin{equation}
+    L^r_i- \frac{1}{J} \frac{\partial l^r}{\partial x_i} \frac{L_{kk}}{3} =  C_s^2 M^r_i\, .
+    \label{eq:leonardSmagorinsky}
+\end{equation}
+The model coefficient \( C_s \) is then obtained using a least-squares minimization of Eq.~\ref{eq:leonardSmagorinsky}, resulting in
+\begin{equation}
+    C_s^2(\mathbf{x}, t)  = \frac{L^r_i M^r_i}{M^q_j M^q_j} \, .
+    \label{eq:dsmModel}
+\end{equation}
+$C_s$ obtained with this formulation is not invariant with respect to the rotation of the reference frame, as it implicitly contains the face area vectors $\frac{1}{J} \frac{\partial l^r}{\partial x_i} $, making them non-symmetric in the computational coordinate system. Hence, the numerator and denominator in Eq.~\ref{eq:dsmModel} must be transformed into physical space before computing $C_s$ as 
+\begin{equation}
+    C_s^2(\mathbf{x}, t)  = \frac{L^r_i M^m_i g_{rm}}{M^q_j M^n_j q_{qn}} \, .
+    \label{eq:dsmModelPhysical}
+\end{equation}
+where $g_{ij}$ is the covariant metric tensor. The locally evaluated model coefficient exhibits spatial oscillations, which are mitigated by applying spatial averaging to the numerator and denominator in Eq.~\ref{eq:dsmModelPhysical}. This yields the model coefficient as
+\begin{equation}
+    C_s^2(\mathbf{x}, t)  = \frac{\langle L^r_i M^m_i g_{rm}\rangle}{\langle M^q_j M^n_j q_{qn}\rangle} \, .
+    \label{eq:CsCoeff}
+\end{equation}
+Here, the angle brackets denote spatial averaging, typically performed in directions of statistical homogeneity~\cite{germano1991dynamic}. In the present work, we adopt the dynamic localization approach proposed by Ghosal~\cite{ghosal1995dynamic} and referred to as DSM. Additional averaging strategies have also been employed in the literature, such as averaging over planes~\cite{porte2000scale}, and Lagrangian averaging along fluid path lines~\cite{meneveau1996lagrangian}. 
+
+The dynamic Smagorinsky models discussed above are based on the assumption of scale invariance, which may break down in anisotropic flow conditions. To address the limitation of assuming scale invariance, the Lagrangian-Averaged Scale-Dependent (LASD) model introduces a second test filter~\cite{bou2005scale}. This approach allows the model to capture scale-dependence by minimizing the error along Lagrangian trajectories.
+
+To quantify the scale-dependence of SGS stresses, test filters of size \(2\Delta\) and \(4\Delta\) are employed. The scale-dependence parameter \(\beta\) is defined as:
+\begin{equation}
+	\beta = \frac{C^2_{s,4\Delta}}{C^2_{s,2\Delta}},
+\end{equation}
+where \(C^2_{s,2\Delta}\) and \(C^2_{s,4\Delta}\) are the modeled SGS stress coefficients at the respective filter scales. Assuming scale-invariance of \(\beta\) over the test-filter range, the SGS coefficient at grid scale \(\Delta\) is determined as:
+\begin{equation}
+	C^2_{s,\Delta} = \frac{C^2_{s,2\Delta}}{\max(\beta, 0.125)}.
+\end{equation}
+Although \(\beta\) can theoretically range from 0 to \(\infty\), small values of \(\beta\) lead to excessively large values of \(C^2_{s,\Delta}\), causing numerical instability. To avoid this, \(\beta\) is clipped at a minimum of 0.125~\cite{bou2005scale,stoll2008large}. This thresholding ensures stability without significantly affecting statistical accuracy.
+
+\subsubsection{Anisotropic minimum dissipation model}
+The principal assumption in the anisotropic minimum dissipation (AMD) model is that the energy of the sub-filter scales defined using a box filter with domain $\Omega_b$ must not grow over time. This upper bound for the sub-filter energy is computed using a Poincar\'e inequality, given by:
+\begin{equation}
+	\int_{\Omega_b} \frac{1}{2} \overline{u}_i' \overline{u}_i' \, \mathrm{d}x \leq \,  \int_{\Omega_b} \frac{1}{2} (\hat{\partial}_j \overline{u}_i)(\hat{\partial}_j \overline{u}_i) \, \mathrm{d}x \, ,
+\end{equation}
+where $\hat{\partial}_j = \sqrt{C_p} \delta_j \partial_j$ (for $j = 1, 2, 3$) denotes the scaled gradient operator, $\delta_j$ is the width of the filter box along the Cartesian direction and $C_p$ is a modified Poincar\'e constant. This model provides the minimum eddy dissipation required to dissipate the energy of the sub-filter scales to prevent their growth in time. Further details of the model are provided in \citet{rozema2015minimum} and \citet{abkar2016minimum}.
+
+In this framework, the eddy viscosity is modeled as:
+\begin{equation}
+	\nu_{\tau} = \frac{ -(\hat{\partial}_k \overline{u}_i)(\hat{\partial}_k \overline{u}_j) \overline{S}_{ij}}{(\partial_l \overline{u}_m)(\partial_l \overline{u}_m)} \, .
+	\label{eq:AMDmodel}
+\end{equation}
+Within the AMD model, the size of the box filter is taken equal to the size of the grid cell and the choice of the modified Poincar\'e constant $C_p$ depends on the numerical discretization scheme \cite{rozema2015minimum}. Finally, application of Eq. \ref{eq:AMDmodel} in curvilinear coordinates involves computation of the velocity gradients in curvilinear coordinates followed by transformation to the Cartesian gradients using the metric terms as $\frac{\partial \overline{u}_i}{\partial x_j} = \frac{\partial \overline{u}_i}{\partial l^r} \frac{\partial l^r}{\partial x_j}$.
+
+%In our implementation, we follow the setup of \citet{streher2021mixed}
+
+\subsubsection{Mixed models}
+
+To ensure both accurate structural representation and adequate energy dissipation, a functional subgrid-scale model can be combined with a structural model, commonly known as a mixed model. The first instance was introduced by \citet{bardina1980improved}, involving a combination of the Smagorinsky model~\cite{smagorinsky1963} and the scale-similarity model. The SGS stress tensor in curvilinear coordinates is expressed as:
+\begin{equation} 
+	T^r_{i} = {T^r_{i}}^{\alpha} + {T^r_{i}}^{\beta}, 
+	\label{eq:contributionLES2}
+\end{equation} 
+where 
+\begin{equation} 
+	{T^r_{i}}^{\alpha} = {T^r_{i}}^{\alpha, \hbox{\tiny dev}} + {T^r_{i}}^{\alpha, \hbox{\tiny iso}}. 
+	\label{eq:contributionLESalpha}
+\end{equation} 
+The functional component ${T^r_{i}}^{\alpha, \hbox{\tiny dev}}$ is the first model part defined by the eddy-viscosity model as
+\begin{equation}
+	{T^r_{i}}^{\alpha, \hbox{\tiny dev}} = -2\nu_{\tau}\overline{S}^r_{i},
+\end{equation}
+and ${T^r_{i}}^{\beta}$ is the second model part, representing the structural component defined as:
+\begin{equation}
+	{T^r_i}^{\beta} = C_b \left(\widetilde{ \overline{V^r}\overline{u}_i} -\widetilde{\overline{V^r}} \tilde{\overline{u}}_i \right),
+	\label{eq:bardina}
+\end{equation}
+The Bardina model constant $C_b$ is taken as $1.0$ to ensure that the model is Galilean invariant as suggested by \citet{speziale1985galilean}. Here primary filter $(\overline{\cdot})$ corresponds to the grid filter ($\Delta_{\hbox{\tiny LES}}$), while the secondary test filter $(\widetilde{\cdot})$ has a size of $2\Delta_{\hbox{\tiny LES}}$. 
+
+For the functional component, two formulations are considered for computing \( \nu_\tau \). For the baseline mixed model case, we adopt the Vreman model~\cite{vreman2004}, which provides an eddy-viscosity formulation that is frame-invariant and effective for wall-bounded turbulent flows. The Vreman model defines the eddy viscosity as:
+\begin{equation}
+    \nu_{\tau} = 2.5\,C_s^2 \sqrt{ \frac{B_{\beta_V}}{{A}_{ij} A_{ij}} },
+    \label{eq:sgs_viscosity}
+\end{equation}
+where $C_s$ is the Smagorinsky constant. The quantities in Eq.~\eqref{eq:sgs_viscosity} are defined as follows: $A_{ij} = \frac{\partial \overline{u}_i}{\partial l^r} \frac{\partial l^r}{\partial x_j}$ is the resolved velocity gradient tensor, ${\beta_V}_{ij} = \Delta_{\hbox{\tiny LES}}^2 A_{mi} A_{mj}$ is a tensor formed from the square of filtered velocity gradients and $B_{\beta_V} = {\beta_V}_{11} {\beta_V}_{12} - {\beta_V}_{12}^2 + {\beta_V}_{11} {\beta_V}_{33} - {\beta_V}_{13}^2 + {\beta_V}_{22} {\beta_V}_{33} - {\beta_V}_{23}^2$ represents an anisotropic combination of tensor components used to ensure frame invariance and proper near-wall scaling.
+
+
+The second formulation employed is the Bardina--Anisotropic Minimum Dissipation (BAMD) model, in which the AMD model (Eq.~\ref{eq:AMDmodel}) is used to compute \( \nu_\tau \).
+
+\subsection{Spatial Discretization} \label{section:SpatialSchemes}
+In this study, we explore four spatial discretization methods for the convective term. For brevity, we present only the one‑dimensional formulation, while the other two dimensions are treated in the same way. The convective term as shown in Eq.~\ref{eq:genContraVolFlux} involves the derivative term $\frac{\partial}{\partial l^r}(\overline{V}^r \overline{u}_i)$ which is discretized in the $i$-direction at the cell center as:
+\begin{equation}
+	\left.\frac{\partial \overline{V}\,\overline{u}}{\partial l}\right|_{i}
+	=
+	\frac{\overline{V}_{i+1/2}\,\overline{u}_{i+1/2} - \overline{V}_{i-1/2}\,\overline{u}_{i-1/2}}
+	{\Delta l}.
+\end{equation}
+The contravariant flux $\overline{V}$ is directly available at surface centers, whereas the Cartesian velocity $\overline{u}$ must be interpolated from surrounding cell values. The order of accuracy of the resulting discrete derivatives depends on both the number of interpolation points used and the specific formulation applied to estimate $\overline{u}$ at the surface centers.
+
+The first method is the standard central second-order scheme (CD$2$) defined as:
+\begin{equation}
+	\overline{u}_{i+1/2, \mathrm{CD2}} = \frac{\overline{u}_i + \overline{u}_{i+1}}{2}.
+\end{equation}
+The second method, is the third order accurate scheme QUICK (Quadratic Upstream Interpolation for Convective Kinematics)~\cite{leonard1979} which uses a quadratic polynomial fitting of three points, two upstream and one downstream such that the discretization of \( \overline{u} \) at face \( i+1/2 \) is given by:
+\begin{equation}
+	\overline{u}_{i+1/2, \mathrm{QUICK}} = \frac{1}{8}\left[6 \overline{u}_i+3 \overline{u}_{i+1}-\overline{u}_{i-1}\right]\, .
+\end{equation} 
+Next, a central fourth-order scheme~\cite{hundsdorfer1995positive, wicker2002time} (CD4) is utilized to achieve higher accuracy, expressed as:
+\begin{equation}
+	\overline{u}_{i+1/2, \mathrm{CD4}} = \frac{-\overline{u}_{i-1} + 7\overline{u}_i + 7\overline{u}_{i+1} - \overline{u}_{i+2}}{12}.
+\end{equation}
+However, this scheme is non-dissipative and can cause non-physical oscillations in the solution, which can be eliminated by adding a hyperviscosity term to it, such that 
+\begin{equation}
+	\overline{u}_{i+1/2, \mathrm{CD4H}} = \overline{u}_{i+1/2, CD4} + \text{sign}(\overline{V}_{i+1/2}) \frac{1-\gamma}{12}\left[\overline{u}_{i+2} - \overline{u}_{i-1} - 3(\overline{u}_{i+1} - \overline{u}_i)\right].
+\end{equation}
+where the parameter \( \gamma \) controls the added diffusion such that \( \gamma = 0 \) is an upwind third-order scheme (UP3)~\cite{skamarock2011conservative} and \( \gamma = 1 \) recovers the fourth-order central scheme. The diffusive nature of the third-order upwind scheme can be improved by using a value of \( \gamma = 0.8\)~\cite{kosovic2016improving}, or \( \gamma = 0.75\) \cite{skamarock2011conservative}, which was observed to improve the solution accuracy (compared to \( \gamma = 0 \)) and smoothness (compared to \( \gamma = 1 \)). In this study, we use \( \gamma = 0.8\) and the scheme is termed as CD4H. 
+
+Finally, time discretization in this study is carried out using a second-order accurate implicit Crank--Nicolson scheme~\cite{crankNicolson1947}. The Crank--Nicolson method has been shown to provide an effective balance between accuracy and stability at relatively larger time steps compared to forward-Euler scheme, making it particularly well-suited for simulations characterized by a large temporal scale~\cite{sun2025artificialeddyviscositylarge}.
+
+%%%%%%%% Results %%%%%%%%%%%%%%%%%%%%%%%
+
+\section{ \label{sec:results}
+        Results and Discussion}
+
+This section presents an evaluation of SGS models and spatial schemes within the TOSCA framework for LES of turbulent flows. We begin by validating the LES approach using the Taylor–Green vortex (TGV) problem at $Re = 1600$, for assessing numerical accuracy, energy transfer mechanisms, and development of small-scale structures. Model performance is evaluated using turbulence statistics and flow topology diagnostics via joint probability density function (JPDF) of invariants of the velocity gradient tensor.
+
+Next, we extend the analysis to a turbulent channel flow at $Re_\tau = 395$ to examine model behavior in a shear-driven wall-bounded configuration. A sensitivity analysis is performed for both AMD and BAMD models to identify optimal model constants under CD4H scheme. Finally, we conduct a performance analysis comparing numerical accuracy against computational cost across different SGS models and spatial schemes. These results inform the selection of numerical schemes and SGS models for high-fidelity simulation of realistic atmospheric flows. 
+
+\subsection{Taylor Green Vortex}
+\label{sec:tgv}
+The TGV problem is a widely used benchmark for studying vorticity dynamics \cite{orszag1974numerical, brachet1983small, sharma2019vorticity, engelmann2023direct} and for validating and comparing the performance of numerical codes \cite{gassner2013accuracy,chapelier2012inviscid,bull2015simulation,drikakis2007simulation,abdelsamie2021taylor}. The aim of these simulations is to quantify how well the selected numerical schemes and SGS models capture small‑scale flow features and instabilities. All simulations are carried out in a cubic, triply periodic domain \(0 \le x,y,z \le 2\pi\) on a uniform grid of \(256^{3}\) points. At this resolution, the problem remains in the LES range, so that the effectiveness of different SGS models can be assessed. 
+
+The flow is initialized with the classical Taylor--Green velocity field:
+\begin{equation}
+	\begin{aligned}
+		u(x,y,z,0) &= U_0 \,\sin (x/L_0) \,\cos (y/L_0) \,\cos (z/L_0),\\
+		v(x,y,z,0) &= -\,U_0 \,\cos (x/L_0) \,\sin (y/L_0) \,\cos (z/L_0),\\
+		w(x,y,z,0) &= 0.
+	\end{aligned}
+	\label{eq:TGV}
+\end{equation}
+All cases use a Reynolds number of $Re = 1600$, which is sufficiently high to trigger rapid growth of instabilities and the onset of turbulence. The Reynolds number is based on a reference velocity $U_{0} = 1\,\mathrm{m/s}$ and a length scale $L_{0} = {L}/{2\pi} = 1\,\mathrm{m}$. Consequently, the reference time scale is $\tau_{\mathrm{ref}} = {L_{0}}/{U_{0}} = 1\,\mathrm{s}$. Flow simulations for all cases are conducted over a physical time of $t = 20\,\tau_{\mathrm{ref}}$.
+
+\subsubsection{Flow evolution}
+Figure~\ref{fig:initfieldTGV} shows the corresponding vorticity field with panel (a) plotting iso‑surfaces of the first vorticity component, \(\omega_{1}\), while panel (b) plots iso‑surfaces of the third component, \(\omega_{3}\).  
+The second component, \(\omega_{2}\), follows the same pattern as \(\omega_{1}\) and is therefore not shown.  
+
+\begin{figure}[htb!]
+	\centering
+	\begin{tabular}{cc}
+		\includegraphics[width=0.3\linewidth]{Plots/TGV/w1.jpg} &
+		\includegraphics[width=0.3\linewidth]{Plots/TGV/w3.jpg} \\[2pt]
+		
+		(a) $\text{Vorticity}~\omega_{1}$ at $t/\tau_{ref} = 0$  & (b) $\text{Vorticity}~\omega_{3}$ at $t/\tau_{ref} = 0$ 
+	\end{tabular}
+	\caption{Initial vorticity field for the Taylor–Green vortex: (a) iso‑surfaces of $\omega_{1}$ and (b) iso‑surfaces of $\omega_{3}$ at $t/\tau_{\mathrm{ref}} = 0$. Red and blue iso-surfaces represent anticlockwise and clockwise vorticity, respectively. The grey planes are selected to highlight the initial symmetry and spatial organization of the basic unit of TGV cells.}
+
+	\label{fig:initfieldTGV}
+\end{figure}
+
+\begin{figure}[htb!]
+	\centering
+        \includegraphics[width=0.35\linewidth]{Plots/TGV/tgvcolorhorizontal.png}
+	\begin{tabular}{ccc}
+		\includegraphics[width=0.3\linewidth]{Plots/TGV/t1.png} &
+		\includegraphics[width=0.3\linewidth]{Plots/TGV/t2.png} &
+		\includegraphics[width=0.3\linewidth]{Plots/TGV/t4.png}\\[2pt] 
+		(a) $t/\tau_{ref} = 1$  & (b) $t/\tau_{ref} = 2$ & (c) $t/\tau_{ref} = 4$ \\[2pt]
+		
+		\includegraphics[width=0.3\linewidth]{Plots/TGV/t9.png} &
+		\includegraphics[width=0.3\linewidth]{Plots/TGV/t12.png} &
+		\includegraphics[width=0.3\linewidth]{Plots/TGV/t15.png}\\[2pt] 
+		(d) $t/\tau_{ref} = 9$  & (e) $t/\tau_{ref} = 12$ & (f) $t/\tau_{ref} = 15$
+	\end{tabular}
+	\caption{Iso‐surfaces of the second invariant of the velocity gradient tensor ($\mathcal{Q}_{g}$) at $\mathcal{Q}_{g}=1.0$, colored by $\omega_{3}$, where positive and negative $\omega_{3}$ represent anticlockwise and clockwise rotation, respectively. These snapshot are obtained using dynamic Smagorinsky model along with CD4H spatial scheme.}
+\label{fig:QgTGV}
+\end{figure}
+
+Figures~\ref{fig:QgTGV}(a - f) present iso‐surfaces of the second invariant of the velocity gradient tensor colored by the vertical vorticity $\omega_{3}$ for nondimensional times $t/\tau_{\rm ref} = 1,\;2,\;4,\;9,\;12,\;15$.  
+At \(t/\tau_{ref} = 0\), the flow is laminar and anisotropic; vortex stretching and strain self‑amplification transfer the kinetic energy from large to small scales and gradually break the initial symmetry \cite{sharma2019vorticity,johnson2024multiscale}. At $t/\tau_{\rm ref}=1$, the iso‐surfaces retain the initial Taylor–Green symmetry, reflecting weak, laminar vorticity. At $t/\tau_{\rm ref}=2$ and $4$, vortex stretching and strain self‐amplification rapidly intensify $\omega_{3}$, breaking symmetry and inducing vortex breakdown. By $t/\tau_{\rm ref}=9$, the flow transitions to a fully turbulent, chaotic state, characterized by multi‐scale vortical interactions. During the decay phase for \(t/\tau_{\rm ref}>9\), vortical structures contract to successively smaller scales under the energy cascade driven by vortex stretching and strain self‑amplification \cite{sharma2019vorticity,johnson2024multiscale}.  
+
+\subsubsection{Assessment of spatial schemes}
+\label{subsubsec:spatialschemes}
+Simulations of the Taylor-Green vortex problem were carried out using five different spatial discretization schemes, while the localized dynamic Smagorinsky SGS model has been adopted for all cases. Figure~\ref{fig:centerlineTGV} shows the comparison of streamwise and spanwise velocity profiles obtained using different spatial discretization schemes with the DNS data performed using the YALES2 platform \cite{moureau_yales2} by \citet{abdelsamie2021taylor}, at $t=12.11\tau_{ref}$. As there is no analytical solution for the three-dimensional Taylor-Green vortex problem, we rely on this high-fidelity reference data. All spatial schemes show good agreement, except for a small deviation observed when using the central second-order scheme.
+
+\begin{figure}[htb!]
+	\centering
+	\begin{tabular}{cc}
+		(a) $\text{Streamwise velocity}(u_x)$ & (b) $\text{Spanwise velocity}(u_y)$ \\
+		\includegraphics[width=0.475\linewidth]{Plots/TGV/numericalscheme/centerlineUx.png} &
+		\includegraphics[width=0.475\linewidth]{Plots/TGV/numericalscheme/centerlineUy.png} \\ [4pt]
+	\end{tabular}
+	\caption{Streamwise and spanwise velocity along the domain centerlines for the TGV case at $t/\tau_{ref} = 12.11$. Lines correspond to the different spatial schemes evaluated and dots correspond to the DNS reference data~\cite{abdelsamie2021taylor}.}
+	\label{fig:centerlineTGV}
+\end{figure}
+
+Next, we evaluate the skewness, which is a third-order statistical moment that characterizes the rate of vorticity production due to vortex stretching. This quantity also serves as a complementary statistical measure to the flow visualization shown in Fig.~\ref{fig:QgTGV}. The presence of non-zero skewness shows that turbulence naturally tends to create smaller and smaller flow structures, as energy moves from large to small scales. Kolmogorov’s theory of isotropic turbulence assumes that vortices exist at many different sizes \cite{kolmogorov1962refinement}, and this range of scales helps explain how the energy cascade is connected to enstrophy production through the stretching of vortices \cite{davidson2015turbulence}. The skewness of a vector-valued field $\bm{u}(\bm{x})$, in which the velocity increment is defined as $\Delta \bm{u} = [\bm{u}(\bm{x}+\bm{r}) - \bm{u}(\bm{x})]$ is defined as $S_k(r) = \langle [\Delta \bm{u}] ^3\rangle /\langle [\Delta \bm{u}] ^2\rangle^{3/2} $. Within the inertial subrange, the skewness is approximated by combining Kolmogorov’s four-fifth and two-thirds laws as:
+\begin{equation}
+	S_k = -4/5 \beta^{-3/2},  
+	\label{eq:skewness}
+\end{equation}
+where $\beta \approx 2$ is a Kolomogorov constant. In the limit of small $r$, $S_k = \lim_{r \rightarrow 0} S_{k}(r)$, the skewness can be computed using the relation 
+\begin{equation}
+    S_k = -\frac{6\sqrt{15}}{7} \frac{\langle \omega_i \omega_j S_{ij} \rangle}{|\langle \omega \rangle|^{3/2}}, 
+    \label{eq:skewnessDavidson}
+\end{equation}
+as shown by \citet{davidson2015turbulence}. The observed values of skewness in homogeneous isotropic turbulence typically lie between $-0.6$ and $-0.4$, and these values tend to be independent of the Reynolds number. 
+
+Figure~\ref{fig:skewness_scheme} presents the temporal evolution of skewness for different spatial discretization schemes, alongside reference DNS data from \citet{brachet1983small}. In the TGV flow, the skewness exceeds the aforementioned range for $t/\tau_{\text{ref}} < 9$, corresponding to the transition from laminar to turbulent flow. For $t/\tau_{\text{ref}} > 9$, the skewness approaches the expected range. All numerical schemes reproduce the skewness behavior accurately and show an excellent agreement with the reference DNS data.
+
+\begin{figure}[htb!]
+	\centering
+	\includegraphics[width=0.7\linewidth]{Plots/TGV/numericalscheme/skewness.png}
+	\caption{Time evolution of measured skewness for various discretization spatial schemes. The region between the horizontal dashed lines show the typical skewness range in homogeneous isotropic turbulence.}
+	\label{fig:skewness_scheme}
+\end{figure}
+
+\begin{figure}[htb!]
+	\centering
+	\begin{tabular}{cc} 
+		(a) $\text{Enstrophy} (\Omega)$ &  (b) $\text{Dissipation} (\varepsilon)$ \\ [4pt]
+		\includegraphics[width=0.4\linewidth]{Plots/TGV/numericalscheme/enstrophy.png} &
+		\includegraphics[width=0.4\linewidth]{Plots/TGV/numericalscheme/disprate3_zoom.png} \\[4pt]
+		(c) $\text{Kinetic energy decay} (\mathcal{K})$ &  (d) $\text{Rate of change of kinetic energy} \left(d\mathcal{K}/dt \right)$ \\ [4pt]
+		\includegraphics[width=0.4\linewidth]{Plots/TGV/numericalscheme/energyMOD.png} &
+		\includegraphics[width=0.4\linewidth]{Plots/TGV/numericalscheme/kerateMOD.png} \\[4pt]
+	\end{tabular}
+	\caption{Time evolution of turbulence statistics in the Taylor-Green vortex flow at $Re = 1600$:  
+		(a) enstrophy normalized by its initial value, $\Omega(t)/\Omega(0)$;  
+		(b) total dissipation rate normalized by its peak value, $\varepsilon/\varepsilon_{\mathrm{max}}$, including subgrid and viscous components;  
+		(c) kinetic energy normalized by its initial value, $\mathcal{K}/\mathcal{K}_0$; and  
+		(d) rate of change of kinetic energy, $d\mathcal{K}/dt$.  
+		Results are compared across different numerical schemes (CD$2$, CD$4$, CD$4$H, UP$3$, QUICK) and validated against YALES2 \cite{moureau_yales2} DNS data from \citet{abdelsamie2021taylor} and \citet{brachet1983small}, where available. The vertical dashed line denotes $t/\tau_{\mathrm{ref}} = 9$, corresponding to the dissipation peak time.}
+	
+	\label{fig:statTGV_scheme}
+\end{figure}
+
+Figure~\ref{fig:statTGV_scheme} compares the evolution of enstrophy $\Omega = 1/2 \int |\omega|^2~\mathrm{d}V$, total dissipation $\varepsilon = 2 (\nu + \nu_{\tau})\langle S_{ij} S_{ij}\rangle$, kinetic energy decay $\mathcal{K}=1/2(\langle \overline{u}_i \overline{u}_j\rangle$, and the rate of change of kinetic energy $\frac{d(\mathcal{K})}{dt}$. Enstrophy is normalized by its initial value $\Omega(0)$ to track the growth of rotational structures in the evolving TGV flow. The time evolution of the normalized enstrophy, $\Omega(t)/\Omega(0)$, is presented in Fig.~\ref{fig:statTGV_scheme}(a). All spatial schemes capture the general trend of enstrophy growth, which increases rapidly due to vortex stretching and reaches a peak near $t/\tau_{\rm ref} \approx 9$. This is consistent with prior DNS studies, which all agree in reporting the enstrophy peak around $t/\tau_{ref} \sim 9$ across a wide range of Reynolds numbers ($Re = 800$–5000) \cite{brachet1983small,brachet1991direct,drikakis2007simulation,sharma2019vorticity,abdelsamie2021taylor}. The CD4 scheme and its hyper-viscous variant CD4H yield the highest peak in enstrophy, indicating their superior ability to resolve intense small-scale vortical structures. In contrast, the upwind-biased schemes UP3 and QUICK produce lower peak values, highlighting their more dissipative nature. Although the CD2 scheme predicts a relatively high peak—close to CD4 and CD4H—it exhibits a non-monotonic rise before the peak, deviating from the expected smooth growth pattern. This behavior suggests numerical artifacts arising from the central-second order scheme that affect the accuracy in capturing the onset of the inviscid TGV instability. Nonetheless, all schemes accurately predict the peak time.
+
+Figure~\ref{fig:statTGV_scheme}(b) shows the evolution of normalized dissipation compared with reference DNS data from \citet{abdelsamie2021taylor} and \citet{brachet1983small}, the latter only providing data up to $t/\tau_{ref} = 10$. CD4 and CD4H remain closer to the DNS results during the transition phase $(0 \leq t/\tau_{ref} \leq 9)$, capturing the peak and maintaining accuracy into the decay phase. A zoomed-in view over $9 \leq t/\tau_{ref} \leq 13$ highlights distinct differences among the schemes; UP3 and QUICK deviate significantly from the DNS data, while CD4 and CD4H provide relatively accurate predictions. Overall, CD4 and CD4H demonstrate excellent performance throughout the simulation. The temporal evolution of kinetic energy is shown in Fig.~\ref{fig:statTGV_scheme}(c), where no significant differences are evident among the various spatial schemes. Figure~\ref{fig:statTGV_scheme}(d) presents the rate of change of kinetic energy. CD4 and CD4H capture the peak value most accurately, showing excellent agreement with the reference data from \citet{brachet1983small}.
+
+\begin{figure}[htb!]
+	\centering
+	
+	% Top single image
+	(a) $\text{CD2}$ \\[-2pt]  % reduce vertical spacing
+	\includegraphics[width=0.4\linewidth]{Plots/TGV/numericalscheme/qgslice_cd2.png} \\[2pt]
+	
+	% 2x2 grid below
+	\begin{tabular}{cc}
+		(b) $\text{UP3}$ & (c) $\text{QUICK}$ \\[-2pt]
+		\includegraphics[width=0.4\linewidth]{Plots/TGV/numericalscheme/qgslice_UP3.png} &
+		\includegraphics[width=0.4\linewidth]{Plots/TGV/numericalscheme/qgslice_Quick.png} \\
+		(d) $\text{CD4}$ & (e) $\text{CD4H}$ \\[-2pt]
+		\includegraphics[width=0.4\linewidth]{Plots/TGV/numericalscheme/qgslice_cd4.png} &
+		\includegraphics[width=0.4\linewidth]{Plots/TGV/numericalscheme/qgslice_cd4h.png} \\
+	\end{tabular}
+	
+	\caption{Visualization of the Taylor-Green vortex flow ($Re = 1600$) at $t = 12\tau_{\mathrm{ref}}$. Regions of high enstrophy (blue) and high squared strain (red) are identified using the second invariant of the velocity gradient tensor, $Q_{g}$. The plots display $Q_{g} / \langle S_{ij}S_{ij} \rangle$, with a color scale ranging from $-1.0$ (blue, shear-dominated) to $1.0$ (red, rotation-dominated), across the five tested convection schemes.}
+	\label{fig:tgvslices}
+\end{figure}
+
+Finally, a comparative quantitative analysis was performed by computing the second invariant of the velocity gradient tensor $Q_{g}$, normalized by the squared magnitude of the strain rate $\langle S_{ij}S_{ij} \rangle$, and visualized as contour plots to investigate the influence of different spatial discretization schemes on flow structures in Figs.~\ref{fig:tgvslices}(a–e). The normalization by $\langle S_{ij}S_{ij} \rangle$ isolates the rotational component relative to the strain rate, providing a robust metric for comparing schemes, while the contour plots offer a visual means to qualitatively assess these differences, complementing the quantitative computation. This analysis is crucial as it quantifies how discretization errors affect the identification of coherent structures in the flow. Notably, the CD2 scheme captures more small-scale structures compared to UP3 and QUICK, which show greater numerical diffusion, resulting in smoother contours. Meanwhile, CD4 and CD4H resolve smaller scales more effectively than the other schemes, with CD4 showing slightly better capability in capturing fine-scale features.
+
+\subsubsection{Assessment of subgrid-scale models}
+\label{section:subgridModelsTGV}
+Following the analysis of spatial discretization schemes, CD4H was identified as a suitable choice, offering a favorable compromise between numerical accuracy and computational efficiency. Based on this outcome, the CD4H scheme is employed to assess the performance of five SGS turbulence models. Figure~\ref{fig:skewness_models} presents the computed skewness for different SGS models, compared with DNS data~\cite{brachet1983small}. The model constant $C_p$ for the AMD and BAMD models are chosen as 0.212 and 0.14, respectively, based on the sensitivity analysis carried out in \ref{app:sensitivityStudy} for the CD4H scheme. All models predict the skewness reasonably well during the transition period $(0 \leq t/\tau_{\rm ref} \leq 9)$, except for the AMD model which shows the highest overprediction. In the decay phase ($t/\tau_{\rm ref} > 9$), the mixed (BAMD \& BV) and dynamic (LASD \& DSM) models remain in relatively good agreement with the DNS data, while the AMD model continues to overpredict the skewness. Nevertheless, in the later stages of turbulence decay, all models converge toward the canonical skewness value of approximately $-0.5$, which is typically observed in homogeneous isotropic turbulence~\cite{davidson2015turbulence,panickacheril2022laws}. 
+
+\begin{figure}[htb!]
+	\centering
+	\includegraphics[width=0.7\linewidth]{Plots/TGV/models/skewness.png}
+	\caption{Time evolution of measured skewness for various SGS models. The region between the horizontal dashed lines show the typical skewness range in homogeneous isotropic turbulence.}
+	\label{fig:skewness_models}
+\end{figure}
+
+Figures~\ref{fig:statTGV_models}(a–d) depict the temporal evolution of normalized enstrophy, normalized dissipation, kinetic energy decay, and the rate of change of kinetic energy for the different SGS models, similarly as in Section~\ref{subsubsec:spatialschemes}.
+
+Among the models, BAMD exhibits the highest enstrophy peak (Fig.~\ref{fig:statTGV_models}(a)), reflecting its ability to resolve intense rotational structures during the transition phase. The dynamic models -- DSM and LASD -- yield slightly lower peaks, but are still able to reproduce the overall trend with good accuracy. Finally, the AMD model also provides a consistent representation of enstrophy dynamics across most of the simulation, with minor deviations during the decay interval $9 \leq t/\tau_{\rm ref} \leq 15$. In contrast, BV model gives the lowest enstrophy peak among all models (Fig.~\ref{fig:statTGV_models}(a)). After the peak, enstrophy in the BV model decreases more quickly and remains lower than in the other models during the decay period. This result indicates that the BV model does not capture the amount or duration of rotational motion as well as the other models.
+
+The dissipation behavior, shown in Fig.~\ref{fig:statTGV_models}(b), highlights BAMD’s excellent agreement with DNS results from \citep{abdelsamie2021taylor} and \citet{brachet1983small}. During the initial decay phase ($9 \leq t/\tau_{\rm ref} \leq 13$), a magnified view reveals that all models remain initially aligned, with noticeable divergence emerging thereafter. BAMD maintains close adherence to the DNS trend, whereas the remaining models deviate to varying extents. Both AMD and dynamic models retain consistent performance throughout the simulation, further confirming their robustness.
+
+For the kinetic energy decay (Fig.~\ref{fig:statTGV_models}(c)), all SGS models yield nearly indistinguishable profiles, each successfully capturing the characteristic energy dissipation behavior of the Taylor-Green vortex flow. Notably, Fig.~\ref{fig:statTGV_models}(d) shows that BAMD and BV most accurately match the DNS reference data from \citet{brachet1983small} in predicting the rate of kinetic energy loss. This rectifies the underprediction observed earlier with DSM in the spatial discretization assessment presented in Section~\ref{subsubsec:spatialschemes} (specifically, the reader is referred to Fig.~\ref{fig:statTGV_scheme}(d)).
+
+
+\begin{figure}[htb!]
+	\centering
+	\begin{tabular}{cc}
+		(a) $\text{Enstrophy} (\Omega)$ &  (b) $\text{Dissipation} (\varepsilon)$ \\ [4pt]
+		\includegraphics[width=0.4\linewidth]{Plots/TGV/models/enstrophy1.png} &
+		\includegraphics[width=0.4\linewidth]{Plots/TGV/models/disprate3_zoom.png} \\ [4pt]
+		(c) $\text{Kinetic energy decay} (\mathcal{K})$ &  (d) $\text{Rate of change of kinetic energy} \left(dK/dt \right)$ \\ [4pt]
+		\includegraphics[width=0.4\linewidth]{Plots/TGV/models/energy2MOD.png} &
+		\includegraphics[width=0.4\linewidth]{Plots/TGV/models/disprate4MOD.png} \\ [4pt]
+	\end{tabular}
+	\caption{Time evolution of turbulence statistics in the Taylor-Green vortex flow at $Re = 1600$:  
+		(a) enstrophy normalized by its initial value, $\Omega(t)/\Omega(0)$;  
+		(b) total dissipation rate normalized by its peak value, $\varepsilon/\varepsilon_{\mathrm{max}}$, including both subgrid and viscous contributions;  
+		(c) kinetic energy normalized by its initial value, $\mathcal{K}/\mathcal{K}_0$; and  
+		(d) rate of change of kinetic energy, $d\mathcal{K}/dt$.  
+		Results are shown for various SGS models (DSM, LASD, AMD, BAMD, BV) and compared with DNS data from \citet{abdelsamie2021taylor} and \citet{brachet1983small}, where available. The vertical dashed line indicates $t/\tau_{\mathrm{ref}} = 9$, corresponding to the peak dissipation time.}
+	
+	\label{fig:statTGV_models}
+\end{figure}
+
+Finally, we present a quantitative framework to evaluate SGS models based on the dynamics of the coarse-grained velocity gradient tensor (VGT), following recent developments~\cite{meneveau2011lagrangian, johnson2024multiscale,singh2025characterization}. The VGT represents essential geometric features, such as the evolution of fluid material volumes and vorticity--strain-rate eigenvectors alignment, while also characterizing important statistical features, for instance, deformation rates, intermittency, and non-Gaussian statistics~\cite{meneveau2011lagrangian}.
+Our aim is to assess whether a coarse-grained approach can reproduce such physical characteristics using the resolved VGT at larger, inertial-range scales. The joint probability density function (JPDF) of the VGT invariants \( Q_g \) and \( R_g \) encapsulates key statistical signatures of turbulent flow physics and serves as a stringent test for evaluating the accuracy of coarse-grained or SGS modeling approaches.
+In many turbulent flows, the JPDF of VGT exhibits a characteristic tear-drop shape with enhanced probability along the so-called Vieillefosse tail \( Q_g = -\tfrac{3}{2^{2/3}} (R_g)^{2/3} \), especially in the region \( R_g > 0, Q_g < 0 \)~\cite{vieillefosse1984internal,cantwell1993behavior, chong1990general}. By comparing the JPDFs produced by various SGS closures in TGV flow, this study evaluates the ability of each model to reproduce flow physics. A detailed review of such VGT-based analyses is provided by~\citet{singh2025characterization}.
+
+
+A complete characterization of the VGT requires five invariants~\cite{meneveau2011lagrangian,johnson2024multiscale}. In incompressible flows, the first invariant vanishes due to the divergence-free condition, while the second and third invariants are expressed as:
+
+\begin{align}
+	Q_g &= -\frac{1}{2} A_{ik} A_{ki} = \frac{1}{2} \left( S_{ij} S_{ij} - \frac{1}{2} \omega^2 \right), \nonumber \\
+	R_g &= -\frac{1}{3} A_{ij} A_{jk} A_{ki} = -\frac{1}{3} \left( S_{ij} S_{jk} S_{ki} + \frac{1}{4} \omega_i S_{ij} \omega_j \right).
+	\label{eq:qgrg}
+\end{align}
+
+Next, the strain-rate invariants $Q_s$ and $R_s$ can be isolated by imposing the rotation to zero in Eq.~\ref{eq:qgrg}, yielding:
+\begin{align}
+	Q_s &= -\frac{1}{2} S_{ij} S_{ij}, \nonumber \\
+	R_s &= -\frac{1}{3}S_{ij} S_{jk} S_{ki}.
+	\label{eq:qsrs}
+\end{align}
+
+Here,  $A_{ij} = \partial u_i / \partial x_j$ represents the fluid velocity gradient tensor. Mathematically, it can be expressed as $ A_{ij} = S_{ij} + \Omega_{ij}$, where $ S_{ij} = (A_{ij} + A_{ji})/2$ is the symmetric component corresponding to the strain-rate tensor, and $\Omega_{ij} = (A_{ij} - A_{ji})/2$ is the skew-symmetric part representing the rotation-rate tensor. The third invariant $R_g$ of the velocity gradient tensor characterizes the balance between vortex stretching and strain-rate self-amplification--in other words, it reflects the interplay between enstrophy production and dissipation production. The second invariant quantifies the relative contributions of local rotational motion, measured by the enstrophy $ \omega_i \omega_i / 2 $, and the squared magnitude of the straining motion, given by $\langle S_{ij} S_{ij} \rangle $ \cite{johnson2017restricted,johnson2024multiscale, meneveau2011lagrangian}.
+
+The second and third invariants define the $Q_g$--$R_g$ space, widely used to characterize local flow topology. The left panel of Fig.~\ref{fig:qgrgSchematic} illustrates the quadrant-based classification of velocity gradient dynamics. The discriminant represented by the dashed line $D_A = Q_g^3 + \frac{27}{4}R_g^2 = 0$ separates regions of complex-conjugate and real eigenvalues of the velocity gradient tensor $A_{ij}$, delineating rotation-dominated and strain-dominated regimes, respectively. The first quadrant ($R_g > 0$, $Q_g > 0$) is associated with vortex compression; the second quadrant ($R_g < 0$, $Q_g > 0$) reflects vortex stretching. The third quadrant ($R_g < 0$, $Q_g < 0$) corresponds to a region of enstrophy-producing, tube-like structures, whereas the fourth quadrant ($R_g > 0$, $Q_g < 0$) is characterized by sheet-like structures with a region of strain production. These regions reflect fundamental mechanisms of turbulence, including strain self-amplification and vortex stretching. The probability density in the $Q_g$–$R_g$ space often aligns with the so-called Vieillefosse tail, defined by $D_A = 0$ \cite{vieillefosse1982local,da2008invariants}.
+
+In homogeneous flow, the vanishing averages $\langle Q_g \rangle = 0$ and $\langle R_g \rangle = 0$ give rise to the classical Betchov constraints, which signify a statistical balance between the magnitudes of strain and enstrophy, and a proportionality between strain and enstrophy production, respectively \cite{betchov1956inequality,johnson2024multiscale}. These constraints are fundamental to understanding the role of vortex stretching in the energy cascade. While local vortex stretching may suppress dissipation \cite{tsinober2009informal}, it enhances the global dissipation rate through the combined influence of local and nonlocal effects \cite{carbone2020vortex}. More recently, \citet{carbone2022only} proposed that these two constraints may constitute the only exact statistical identities valid for homogeneous isotropic turbulence.
+
+\begin{figure}
+	\centering
+	
+    \begin{tabular}{cc}
+    (a) $Q_g - R_g$ Invariant Map & (b) $Q_s - R_s$ Invariant map \\
+       \includegraphics[width=0.5\linewidth]{Plots/TGV/euler3.png} &
+       \raisebox{2.3ex}{\includegraphics[width=0.52\linewidth]{Plots/TGV/euler1.png}}  \\
+    \end{tabular}
+	
+	\caption{Invariant maps of $Q_g$–$R_g$ and $Q_s$–$R_s$. The discriminants $D_A = Q_g^3 + \frac{27}{4}R_g^2$ and $D_s = Q_s^3 + \frac{27}{4}R_s^2$ define topology boundaries based on eigenvalue configurations of the velocity gradient and strain-rate tensors, respectively. Characteristic flow regions such as vortex stretching, vortex compression, tube-like enstrophy production, and sheet-like strain production are annotated. Figure reproduced and adapted with permission from~\citet{johnson2017restricted}.}
+	\label{fig:qgrgSchematic}
+\end{figure}
+
+On the other hand, gradient self-amplification often triggers intense intermittent events. These rare events are characterized by strong fluctuations in the velocity gradient tensor and are associated with non-Gaussian statistical behavior, which becomes more prominent at higher Reynolds numbers \cite{johnson2024multiscale}. Advances in high-resolution DNS have made it possible to examine such events in detail, revealing flow structures and dynamics that are not captured by classical turbulence theories \cite{ishihara2009study,buaria2019extreme,yeung2015extreme}.
+
+The right panel of Fig.~\ref{fig:qgrgSchematic} shows the invariant map in the $(R_s, Q_s)$ plane, which isolates the strain-rate tensor dynamics. Since $Q_s = -\frac{1}{2} S_{ij} S_{ij}$ is negative definite, this space naturally characterizes viscous dissipation whereas the third invariant  $R_s = -\frac{1}{3} S_{ij} S_{jk} S_{ki}$ of strain-rate tensor $S_{ij}$ quantifies strain self-amplification and governs the production of dissipation. The discriminant line $D_s = Q_s^3 + \frac{27}{4} R_s^2 = 0$ separates flow regions with real versus complex eigenvalues of $S_{ij}$. Following the formulation of \citet{da2008invariants}, each value of the strain eigenvalue ratio $a = \beta_s/\alpha_s$ corresponds to a characteristic line in the $(R_s, Q_s)$ map, given by:
+\begin{equation}
+	R_s = (-Q_s)^{3/2} a(1 + a)(1 + a + a^2)^{-3/2},
+\end{equation}
+where $\alpha_s : \beta_s : \gamma_s$ are the eigenvalues of $S_{ij}$ satisfying $\alpha_s + \beta_s + \gamma_s = 0$. These lines represent distinct local geometries of strain, such as axisymmetric contraction $(2\!:\!-1\!:\!-1)$, planar shear $(1\!:\!0\!:\!-1)$, biaxial stretching $(3\!:\!1\!:\!-4)$, and axisymmetric expansion $(1\!:\!1\!:\!-2)$ \cite{da2008invariants}. 
+
+In many turbulent flows, the JPDF of $(R_s, Q_s)$ shows a clear preference for the region $R_s > 0$, $Q_s < 0$, associated with sheet-like structures. This region corresponds to extreme kinetic energy dissipation and aligns with observed flow geometries such as $3\!:\!1\!:\!-4$ and $2\!:\!1\!:\!-3$ \cite{buaria2022vorticity,dallas2013structures}. The structure of the $(R_s, Q_s)$ map thus provides a direct quantitative link between the topology of local strain deformation and turbulence dissipation mechanisms. It serves as a powerful diagnostic to evaluate the performance of turbulence models in capturing anisotropic straining events. As a result, the JPDF and PDF of these invariants offer a consistent and statistical framework for analyzing flow topology across a wide range of turbulent flows \cite{singh2025characterization}.
+
+\begin{figure}[htb!]
+        \centering
+	\begin{tabular}{c}
+		% \text{(a)~Probability density function}   \\[2mm]
+		\includegraphics[width=0.6\linewidth]{Plots/TGV/models/pdf_comparison.png}
+	\end{tabular}
+	\caption{Probability density function of the second invariant of velocity gradient tensor $Q_g$ normalized with squared magnitude of strain rate $\langle S_{ij}S_{ij}\rangle$.}
+	\label{fig:pdf_models}
+\end{figure}
+Figure~\ref{fig:pdf_models} shows the PDF of the normalized second invariant of the velocity gradient tensor, $Q_g/\langle S_{ij}S_{ij} \rangle$, computed from a three-dimensional snapshot of the TGV flow at $t/\tau_{\rm ref} = 12$. This invariant serves as a diagnostic for distinguishing between rotation-dominated and strain-dominated regions in the flow. Notable differences appear in the tails of the distribution, where BAMD predicts broader spreads on both ends, indicating improved representation of intense rotational and strain-dominated events. LASD displays a slight positive skew, suggesting overemphasis on rotational structures. In contrast, AMD, DSM and the baseline mixed model BV exhibit steeper decay in the tails, pointing to a more dissipative character and possible suppression of localized intense events. These results underscore the varying ability of SGS models to capture intermittent small-scale features in transitional turbulent flows like TGV.
+
+\begin{figure}[htb!]
+	
+	\centering
+	(a) $\text{DSM}$ \\[-2pt]
+	\includegraphics[width=0.4\linewidth]{Plots/TGV/models/qgrg/qgrg_DSM.png} \\ [2pt]
+	\begin{tabular}{cc}
+		(b) $\text{LASD}$ & (c) $\text{AMD}$ \\ [-2pt]
+		\includegraphics[width=0.4\linewidth]{Plots/TGV/models/qgrg/qgrg_LASD.png} &
+		\includegraphics[width=0.4\linewidth]{Plots/TGV/models/qgrg/qgrg_AMD.png}\\
+		(d) $\text{BAMD}$ & (e) $\text{BV}$ \\[-2pt]
+		\includegraphics[width=0.4\linewidth]{Plots/TGV/models/qgrg/qgrg_BAMD.png} & 
+		\includegraphics[width=0.4\linewidth]{Plots/TGV/models/qgrg/qgr_BV.png} \\
+		
+	\end{tabular}
+	\caption{Contour plot of the joint probability density function of the second invariant \(Q_{g}\) and third invariant \(R_{g}\) of the resolved velocity‐gradient tensor from LES of the Taylor–Green Vortex at \(\mathrm{Re}=1600\), normalized by the mean enstrophy \(\langle \omega_i \omega_i \rangle\) for \(Q_{g}\) and \(\langle \omega_i \omega_i \rangle^{3/2}\) for \(R_{g}\). Panels (a)–(e) show results for the DSM, LASD, AMD, BAMD, and BV subgrid‐scale models, respectively. The dashed line represents the discriminant \(D_{A} = Q_{g}^{3} + \tfrac{27}{4} R_{g}^{2}  = 0\). The pronounced asymmetry of the contours toward \(R_{g}>0,\;Q_{g}<0\) signifies dominance of self‐strain rate and vortex stretching. The colorbar indicates the joint probability density: warmer colors (e.g., yellow) correspond to higher PDF values, and cooler colors (e.g., purple) correspond to lower PDF values.}
+	\label{fig:jpdfmodels}
+\end{figure}
+The JPDFs of \( Q_g \) and \( R_g \) for different subgrid-scale models in the TGV flow are shown in Figs.~\ref{fig:jpdfmodels}(a-e). JPDFs are computed from $50$ three-dimensional snapshots of the TGV flow, averaged over the interval $t/\tau_{\rm ref} = 11$ to $16$ with a sampling interval of $0.1$. Each model reproduces the characteristic teardrop-shaped distribution, reflecting the statistical balance between strain and enstrophy production, consistent with prior studies~\cite{johnson2024multiscale,da2008invariants,dallas2013structures,meneveau2011lagrangian}. The high-probability contours in all cases collapse onto the theoretical curve \( D_A = Q_g^3 + \tfrac{27}{4} R_g^2 = 0 \), known as the Vieillefosse tail, in agreement with the restricted Euler framework, where velocity gradient trajectories collapse rapidly onto this manifold and evolve along it.
+
+Within the class of mixed models, BAMD exhibits the strongest alignment with the Vieillefosse tail across the full range of probability density levels. Its contours are sharp, compact, and closely follow the theoretical trajectory from the core region (\( \text{PDF} = 10^7 \)) down to the far tails (\( \text{PDF} = 10^2 \)), indicating effective representation of local strain amplification and vortex stretching throughout the flow. This improved performance is attributed to the use of the scale-similarity term, which enhances the structural coherence of the modeled velocity gradient tensor. The BV model also improves upon pure eddy-viscosity closures, capturing the general teardrop geometry and aligning reasonably well with the tail at high and moderate densities. However, its contours appear smoother and deviate at both extremes, suggesting reduced sensitivity to rare, high-intensity gradient events compared to BAMD.
+
+Among the eddy-viscosity-based models, LASD achieves the highest accuracy. Its contours remain closely aligned with the Vieillefosse tail across a broad range of probability density levels, and it reproduces the teardrop structure with strong fidelity. Both AMD and DSM perform comparably, capturing the general geometry of the JPDF and maintaining reasonable alignment at moderate density levels. However, deviations from the tail become more noticeable in the low-density regime, indicating reduced sensitivity to rare, high-intensity velocity gradient events compared to LASD. While AMD exhibits a more sharply peaked core, DSM produces slightly broader contours; nonetheless, their overall agreement with the theoretical trend is similar.
+
+Overall, mixed models -- particularly BAMD -- provide the most accurate statistical representation of the resolved velocity gradient tensor in the TGV flow. Among eddy-viscosity closures, LASD stands out as the most reliable, followed by AMD and DSM.
+
+\begin{figure}[htb!]
+	\centering
+	(a) $\text{DSM}$ \\[-2pt]
+	\includegraphics[width=0.4\linewidth]{Plots/TGV/models/qgrg/qsrs_DSM.png} \\ [2pt]
+	\begin{tabular}{cc}
+		(b) $\text{LASD}$ & (c) $\text{AMD}$ \\[-2pt]
+		\includegraphics[width=0.4\linewidth]{Plots/TGV/models/qgrg/qsrs_LASD.png} &
+		\includegraphics[width=0.4\linewidth]{Plots/TGV/models/qgrg/qsrs_AMD.png}\\
+		(d) $\text{BAMD}$ & (e) $\text{BV}$ \\[-2pt]
+		\includegraphics[width=0.4\linewidth]{Plots/TGV/models/qgrg/qsrs_BAMD.png} & 
+		\includegraphics[width=0.4\linewidth]{Plots/TGV/models/qgrg/qsrs_BV.png} \\
+	\end{tabular}
+	\caption{Joint PDFs of the second invariant \(Q_{s}\) and third invariant \(R_{s}\) of the resolved strain‐rate tensor from LES of the Taylor–Green Vortex at \(\mathrm{Re}=1600\), normalized by \(\langle \omega_i \omega_i \rangle\) for \(Q_{s}\) and \(\langle \omega_i \omega_i \rangle^{3/2}\) for \(R_{s}\). Panels (a)–(e) correspond to the DSM, LASD, AMD, BAMD, and BV subgrid‐scale models, respectively. The dashed black lines indicate idealized flow geometries with eigenvalue ratios: \(\lambda_{1}:\lambda_{2}:\lambda_{3} = 2:-1:-1\) (axisymmetric contraction), \(1:0:-1\) (two‐dimensional flow), \(3:1:-4\) (biaxial stretching), and \(1:1:-2\) (axisymmetric stretching). }
+	\label{fig:jpdfmodels2}
+\end{figure}
+
+Figures~\ref{fig:jpdfmodels2}(a–e) present the joint PDFs of the strain-rate invariants \( Q_s \) and \( R_s \) for the five SGS models. The second invariant, \( Q_s = -\frac{1}{2} S_{ij} S_{ij} \), is negative definite and directly related to the viscous dissipation rate. Specifically, the dissipation of kinetic energy per unit mass in incompressible flows is given by \( \varepsilon = 2 \nu S_{ij} S_{ij} = -4 \nu Q_s \). Thus, larger negative values of \( Q_s \) indicate higher local dissipation. The third invariant, \( R_s = -\frac{1}{3} S_{ij} S_{jk} S_{ki} \), quantifies the rate of strain self-amplification and contributes to enstrophy production through vortex stretching, often represented by \( \omega_i \omega_j S_{ij} \) \cite{dallas2013structures}.
+
+For incompressible flows, the strain-rate tensor \( S_{ij} \) has real eigenvalues \( \lambda_1 \geq \lambda_2 \geq \lambda_3 \), with the constraint \( \lambda_1 + \lambda_2 + \lambda_3 = 0 \). Positive values of \( R_s \), particularly in regions where \( Q_s < 0 \), correspond to the amplification of strain and vortex stretching, commonly found in sheet-like structures with \( \lambda_1 > 0, \lambda_2 > 0, \lambda_3 < 0 \). Conversely, tube-like structures where \( \lambda_2, \lambda_3 < 0 \) contribute less to dissipation \cite{dallas2013structures}.
+
+All cases exhibit a strong concentration in the region \( R_s > 0, Q_s < 0 \), which is commonly associated with intense kinetic energy dissipation. This preference is consistent with observations in various turbulent flows and reflects a predominance of sheet-like strain structures~\cite{ooi1999study,da2008invariants,singh2025characterization}. The extent to which the contours penetrate toward large negative values of \( Q_s \) provides a quantitative indication of subgrid-scale dissipation. Among the models, BV and DSM reach the most negative \( Q_s \) values, indicating stronger artificial dissipation due to more aggressive damping of strain structures. In contrast, BAMD shows significantly reduced spread into this region, implying minimal subgrid dissipation and greater preservation of resolved-scale strain. LASD and AMD display intermediate behavior, with contour bounds similar to each other and moderately negative \( Q_s \), suggesting a balance between dissipative suppression and structural retention. These distinctions highlight how different SGS models influence strain-rate dynamics and the modeled energy cascade.
+
+\subsection{Turbulent Channel Flow}
+\label{section:turbulentChannelFlow}
+To evaluate the performance of the SGS models and numerical schemes in more realistic shear-driven flows, we consider the canonical turbulent channel flow at $Re_{\tau} = 395$. Wall-bounded turbulence is characterized by strong anisotropy, particularly in the wall-normal direction, where the relative contribution of viscous and turbulent stresses varies with distance from the wall \cite{townsend1976structure,den1997reynolds}. In the near-wall region, turbulence is dominated by small-scale, elongated vortical structures, whereas farther from the wall, larger-scale energy-containing motions prevail. This turbulence anisotropy poses specific challenges for SGS modeling, particularly in accurately capturing near-wall dynamics.
+
+The channel flow is driven by a constant mean pressure gradient applied in the streamwise direction. A wall-resolved turbulent channel flow is simulated, where the no-slip boundary condition is imposed at the upper and lower walls, and periodic boundary conditions are applied in the streamwise and spanwise directions. To trigger the transition to turbulence from the initially laminar state, small-amplitude perturbations that satisfy the incompressibility condition are superimposed on the velocity field. All results are normalized using viscous scales, which are based on the kinematic viscosity $\nu$ and the friction velocity $u_\tau = \sqrt{\tau_w/\rho}$, where $\rho$ is the fluid density and $\tau_w$ is the wall-shear stress. Quantities scaled in this way are marked with a superscript plus ($+$) sign.
+
+The computational domain has dimensions of $2\pi \delta \times 2\delta \times \pi$ in the streamwise, wall-normal, and spanwise directions, respectively, where $\delta = 1~\mathrm{m}$ denotes the channel half-height. The domain is discretized using a grid of $64 \times 64 \times 64$ cells in the streamwise, wall-normal, and spanwise directions. The mesh is stretched in the wall-normal direction employing a hyperbolic tangent function, positioning the first grid point at $\Delta y_w^+ \approx 1.25$. The grid spacing at the channel centerline, $\Delta y_c^+ \approx 23$, is adequate for capturing large-scale turbulent features. The streamwise and spanwise resolutions are $\Delta x^+ \approx 39$ and $\Delta z^+ \approx 19$, respectively, which are finer than the guidelines proposed by \citet{georgiadis2010large} and \citet{choi2012grid} for LES of wall-bounded flows. This grid configuration is consistent with those utilized in previous LES studies of channel flow, such as \citet{streher2021mixed} and \citet{rozema2022local}.
+
+To systematically evaluate the performance of the SGS models and numerical schemes, we employed a set of metrics based on first-, second-, and third-order statistics, as well as the barycentric map for turbulence anisotropy. These metrics enable a comprehensive comparison against the DNS data of \citet{moser1999direct}, thereby assessing the robustness and accuracy of the subgrid-scale closures.
+
+First-order statistics are evaluated using the mean streamwise velocity profile $\langle u^+\rangle$, obtained by averaging the resolved velocity field in planes perpendicular to the streamwise direction. Second-order statistics are computed through the Reynolds stress tensor. Since the subgrid-scale models used in this work are either fully traceless (AMD, DSM, LASD) or partially traceless (BAMD, BV), only the deviatoric part of the full Reynolds stress tensor can be recovered. The comparison with DNS data is therefore carried out using the following relation:
+\begin{equation}
+	R_{ij}^{\hbox{\tiny DNS, dev}} = R_{ij}^{\hbox{\tiny LES, dev}} + \langle \tau_{ij}^{\hbox{\tiny dev}} \rangle,
+\end{equation}
+where $\langle \tau_{ij}^{\hbox{\tiny dev}} \rangle$ is the averaged deviatoric subgrid-scale stress tensor, and $R_{ij}^{\hbox{\tiny LES, dev}}$ is the  deviatoric Reynolds stress resolved by the LES. The full Reynolds stress $R_{ij}^{\hbox{\tiny LES}}$ is defined as
+\begin{equation}
+	R_{ij}^{\hbox{\tiny LES}} = \langle \overline{u}_i \overline{u}_j \rangle - \langle \overline{u}_i \rangle \langle \overline{u}_j \rangle,
+\end{equation}
+where $\overline{u}_i$ denotes the resolved velocity components from the LES.
+
+Third-order statistics are analyzed through the balance of mean kinetic energy. The mean kinetic energy per unit mass is defined as $K_m = \frac{1}{2} \langle \overline{u}_i \overline{u}_i \rangle$, and its evolution equation is given by
+\begin{equation}
+\frac{\partial K_m}{\partial t}
++ \underbrace{ \frac{\partial}{\partial x_j} (\overline{u}_j K_m) }_{\text{mean advection}}
+=
+\underbrace{ \frac{\partial}{\partial x_i}
+\left(
+- \langle u_i' u_j' \rangle \overline{u}_j
+\right) }_{\text{turbulent convection}}
++
+\underbrace{\langle u_i' u_j' \rangle \frac{\partial \overline{u}_i}{\partial x_j} }_{\text{loss}}
++ \underbrace{\nu \frac{\partial^2 K_m}{\partial x_j^2}}_{\text{viscous diffusion}}
+- \underbrace{ \overline{u}_i \frac{\partial \overline{p}}{\partial x_i} }_{\text{pressure work}}
+- \underbrace{ \nu \left( \frac{\partial \overline{u}_i}{\partial x_j} + \frac{\partial \overline{u}_j}{\partial x_i} \right) \frac{\partial \overline{u}_i}{\partial x_j} }_{\text{mean dissipation}}.
+\end{equation}
+
+Similarly, the resolved turbulence kinetic energy in LES is defined as $k_r = \frac{1}{2} R_{ii}^{\hbox{\tiny LES}}$, and its evolution is governed by
+
+\begin{equation}
+\frac{\partial k_r}{\partial t}
++ \underbrace{ \frac{\partial}{\partial x_j} (\overline{u}_j k_r) }_{\text{mean advection}}
+=
+\underbrace{ - \langle u_i' u_j' \rangle \frac{\partial \overline{u}_i}{\partial x_j} }_{\text{production}}
++ \underbrace{ \frac{\partial}{\partial x_j} \left( -\frac{1}{2} \langle u_i' u_i' u_j' \rangle \right) }_{\text{turbulent transport}}
++ \underbrace{ \frac{\partial}{\partial x_j} \left( - \langle p' u_j' \rangle \right) }_{\text{pressure diffusion}}
++ \underbrace{ \nu \frac{\partial^2 k_r}{\partial x_j^2} }_{\text{viscous diffusion}}
+- \underbrace{ \nu \langle \frac{\partial u_i'}{\partial x_j} \frac{\partial u_i'}{\partial x_j} \rangle }_{\text{dissipation}}.
+\end{equation}
+%
+where the production term quantifies the energy transferred from the mean flow into the resolved turbulent motions.
+
+To further assess turbulence anisotropy, we use the barycentric map proposed by \citet{banerjee2007presentation}, which offers a physically interpretable way to classify the state of turbulence. The map is constructed using the anisotropy tensor \( b_{ij} \), defined from the Reynolds stress tensor as
+\begin{equation}
+	b_{ij} = \frac{R_{ij}}{2 k_r} - \frac{1}{3} \delta_{ij},
+\end{equation}
+where \( \delta_{ij} \) is the Kronecker delta. The tensor \( b_{ij} \) is symmetric and traceless, and its eigenvalues \( \lambda_1 \), \( \lambda_2 \), and \( \lambda_3 \) (ordered such that \( \lambda_1 \geq \lambda_2 \geq \lambda_3 \)) represent the relative strength of turbulent fluctuations in different directions.
+
+Traditional invariant-based anisotropy maps \cite{lumley1977return,choi2001return,banerjee2007presentation,emory2014visualizing} rely on scalar measures derived from the second and third invariants of \( b_{ij} \), defined as
+\[
+II = \frac{1}{2} b_{ij} b_{ji}, \qquad III = \frac{1}{3} b_{ij} b_{jk} b_{ki}.
+\]
+%
+In contrast, the barycentric map provides a bounded and realizable representation by projecting the turbulence state onto a triangle defined by three limiting cases of componentality:
+\[
+\mathbf{x}_{1C} = (1, 0), \qquad \mathbf{x}_{2C} = (0, 0), \qquad \mathbf{x}_{3C} = \left( \frac{1}{2}, \frac{\sqrt{3}}{2} \right).
+\]
+These represent one-component (1C), two-component (2C), and three-component (3C) turbulence, respectively. Any physical turbulence state can be expressed as a convex combination of these corners using weights:
+\begin{align}
+	C_{1C} &= \lambda_1 - \lambda_2, \\
+	C_{2C} &= 2(\lambda_2 - \lambda_3), \\
+	C_{3C} &= 3\lambda_3 + 1,
+\end{align}
+with the constraint \( C_{1C} + C_{2C} + C_{3C} = 1 \) ensuring uniqueness. The barycentric coordinates \( (x_B, y_B) \) are then computed as
+\begin{align}
+	x_B &= C_{1C} ~ x_{1C} + C_{2C} ~ x_{2C} + C_{3C} ~ x_{3C} = C_{1C} + \frac{1}{2} C_{3C}, \\
+	y_B &= C_{1C} ~ y_{1C} + C_{2C} ~ y_{2C} + C_{3C} ~ y_{3C} = \frac{\sqrt{3}}{2} C_{3C}.
+\end{align}
+
+This barycentric representation allows us to track the spatial variation of anisotropy in a clear and interpretable form and provides a robust framework for evaluating how well LES models and numerical schemes recover key structural features of turbulence compared to DNS data.
+
+\subsubsection{Assessment of spatial schemes}
+\label{subsubsection:spatialSchemesTCF}
+Similarly to section \ref{subsubsec:spatialschemes}, we first study the effect of the convection scheme---the same set of schemes are tested---while using DSM as SGS model for all cases. The normalized mean streamwise velocity profiles are compared in Fig.~\ref{fig:meanstressScheme}(a). Our results indicate that the UP3 and QUICK schemes tend to overpredict the mean profile, whereas the CD2 and CD4 schemes underpredict it. Among all, only the hyperviscosity variant of CD4 (CD4H) successfully recovers the mean profile and closely matches the DNS data.
+
+Figures~\ref{fig:meanstressScheme}(b) shows the comparison of the Reynolds stress components for the different spatial discretization schemes showing distinct
+differences among the different numerical schemes. The UP3 and QUICK schemes overpredict the magnitude of the peak normal Reynolds stresses and significantly overestimate their spatial spread. Additionally, the shear stress component, \( R_{13} \), is slightly underpredicted across the entire \( y^+ \) range. Notably, the central second- and fourth-order schemes accurately capture both the peak amplitude and spatial distribution of the normal Reynolds stresses. These schemes also precisely predict the peak of \( R_{13} \), though they deviate from DNS data beyond this peak.
+
+The CD4H scheme accurately captures the peak value of the normal Reynolds stress components but slightly overestimates its spread compared to DNS. Notably, the overprediction of normal Reynolds stresses is a known characteristic of eddy-viscosity-based models. However, our results show that spatial discretization schemes also significantly influence the overall performance of LES, highlighting that accurate LES requires minimizing the combined effects of model and numerical discretization errors \cite{sagaut2005}.
+
+\begin{figure}[htb!]
+	\centering
+	\begin{tabular}{c}
+		(a) $\text{Mean profiles}$ \\[-2pt]
+		\includegraphics[width=0.5\linewidth]{Plots/TCF/numericalscheme/MeanVelocity_Regimes_Comparison.png} \\ [2pt]
+		(b) $\text{Deviatoric Reynolds stresses}$ \\[-2pt]
+		\includegraphics[width=0.95\linewidth]{Plots/TCF/numericalscheme/Deviatoric_ReyStress_Comparison.png} \\
+	\end{tabular}
+    \caption{Mean velocity and stress profiles in channel flow at $Re_\tau = 395$, versus $y^+$. (a) Normalized mean streamwise velocity profile $\langle u^+ \rangle = \langle u \rangle / u_\tau$ , and (b) deviatoric Reynolds stress components for numerical schemes CD2, CD4, CD4H, UP3, and QUICK, compared to DNS data from \citet{moser1999direct}.}
+    \label{fig:meanstressScheme}
+\end{figure}
+
+\begin{figure}[htb!]
+	\centering
+    \begin{tabular}{cc}
+	(a) $\text{CD2}$ \\[-2pt]
+	\includegraphics[width=0.45\linewidth]{Plots/TCF/numericalscheme/KE_balance_CD2.png} &
+        \raisebox{7ex}{\includegraphics[width=0.28\linewidth]{Plots/TCF/numericalscheme/kebalanceSchemeLegend.png}} \\
+    \end{tabular}
+	\begin{tabular}{cc}
+		(b) $\text{UP3}$ & (c) $\text{QUICK}$ \\[-2pt]
+		\includegraphics[width=0.45\linewidth]{Plots/TCF/numericalscheme/KE_balance_UP3.png} &
+		\includegraphics[width=0.45\linewidth]{Plots/TCF/numericalscheme/KE_balance_QUICK.png} \\
+		(d) $\text{CD4}$ & (e) $\text{CD4H}$ \\[-2pt]
+		\includegraphics[width=0.45\linewidth]{Plots/TCF/numericalscheme/KE_balance_CD4.png} & 
+		\includegraphics[width=0.45\linewidth]{Plots/TCF/numericalscheme/KE_balance_CD4H.png} \\
+	\end{tabular}
+        \caption{Budget analysis of mean kinetic energy in turbulent channel flow. Panels (a) to (e) compare the contributions of production, turbulent convection and viscous diffusion for numerical schemes CD2, UP3, QUICK, CD4, and CD4H compared to DNS \cite{moser1999direct}.}
+	\label{fig:kebalanceSchemesTCF}
+\end{figure}
+
+Figure~\ref{fig:kebalanceSchemesTCF} shows the kinetic energy balance terms -- production, viscous diffusion, and turbulent convection -- for different spatial discretization schemes. Among them, CD2 exhibits the largest deviation near the wall. Although the production peak height is comparable to DNS, its location is predicted much closer to the wall, earlier than the expected \( y^+ \approx 12 \), and does not follow the characteristic \( y^{3} \) scaling. Similar trends are observed for viscous diffusion and turbulent convection terms. The CD4 scheme behaves similarly, though with slightly reduced deviation in magnitude compared to CD2.
+
+In contrast, UP3 and QUICK shift the entire energy budget profile farther from the wall. While the peak height of production is in good agreement with DNS, its location is significantly overpredicted, occurring after \( y^+ = 12 \). This behavior is consistent across both UP3 and QUICK schemes. Remarkably, CD4H captures both the peak height and location of the production term accurately, showing the best agreement with DNS. However, in the immediate near-wall region, CD4H still deviates from the ideal \( y^{3} \) scaling behavior.
+
+\begin{figure}[htb!]
+	\centering
+	\includegraphics[width=0.65\linewidth]{Plots/TCF/numericalscheme/Barycentric_Triangle_Comparison.png}
+    \caption{Barycentric triangle with vertices $X_{1c}$, $X_{2c}$, $X_{3c}$ showing turbulence anisotropy for various spatial discretization schemes and comparison to DNS \cite{moser1999direct}.}
+\label{fig:barycentricSchemesTCF}
+\end{figure}
+
+Overall, among all the schemes tested, CD4H performs significantly well in capturing the kinetic energy balance, closely matching the DNS across the channel. It accurately predicts both the magnitude and location of key terms, including production, turbulent convection, and viscous diffusion. Minor deviations observed in the immediate near-wall region may be attributed to the choice of the subgrid-scale model or limitations in vertical grid resolution near the wall.
+
+Figure~\ref{fig:barycentricSchemesTCF} illustrates the barycentric map for various spatial discretization schemes compared to DNS data. Traversing any curve from the bottom to the top corresponds to increasing \( y^+ \) values, reflecting the transition from the near-wall region to the channel centerline.
+It is seen that all schemes show high turbulence anisotropy near the wall, transitioning toward isotropy at the channel center. The QUICK and UP3 schemes exhibit a significant overestimation of near-wall turbulence anisotropy, with their trajectories converging further towards the one-component vertex. This behavior likely stems from the excessive dissipation inherent in these schemes, which hinders the development of turbulent structures in the near-wall region. In contrast, the central schemes -- CD2, CD4, and CD4H -- closely follow the DNS profile across the channel height, approaching the isotropic vertex \( X_{3C} \) with greater accuracy. Nevertheless, these schemes display minor deviations near the wall, where their anisotropy trajectories slightly diverge from the DNS path, potentially due to the influence of the SGS model employed.
+
+Based on the above analysis of first-, second-, and third-order statistics, as well as the barycentric map, we find that the CD4H scheme performs exceptionally well. Therefore, we adopt the CD4H scheme to evaluate different subgrid-scale models in the subsequent section.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%           TCF Models
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsubsection{Assessment of subgrid-scale models}
+In this study, the model constants \( C_p \) for the AMD and BAMD SGS models are set to 0.212 and 0.14, respectively, which has been determined after the sensitivity analysis detailed in~\ref{app:sensitivityStudy} for the CD4H scheme. Figures~\ref{fig:meanstressModels}(a--b) display the mean velocity and Reynolds stress component profiles obtained using the five distinct SGS models. As anticipated, the mixed models -- BAMD and BV -- accurately capture the mean velocity profile. The LASD and AMD models also exhibit good agreement with DNS data, whereas the DSM model slightly underpredicts the mean velocity for \( y^+ \gtrsim 100 \).
+
+The BAMD and BV models, when paired with the CD4H spatial discretization scheme, accurately capture the peak amplitude of the normal Reynolds stress components. Conversely, all eddy-viscosity models overestimate both the peak amplitude and spatial spread of the normal stress components, as shown in Fig.~\ref{fig:meanstressModels}(b). The AMD model predicts the shear stress component \( R_{13} \) really well, achieving excellent agreement with both its peak value and distribution. In contrast, the mixed models tend to underestimate the peak amplitude while accurately resolving the spatial distribution. The LASD model slightly underpredicts the peak amplitude but effectively captures the overall trend of variation. 
+
+\begin{figure}[htb!]
+	
+	\centering
+	\begin{tabular}{c}
+		(a) $\text{Mean Profiles}$ \\[-2pt]
+		\includegraphics[width=0.5\linewidth]{Plots/TCF/models/MeanVelocity_Regimes_Comparison.png} \\ [2pt]
+		
+		(b) $\text{Deviatoric Reynolds stresses}$ \\[-2pt]
+		
+		\includegraphics[width=0.95\linewidth]{Plots/TCF/models/Deviatoric_ReyStress_Comparison.png} \\
+		
+	\end{tabular}
+	\caption{Mean flow and stress profiles in channel flow. (a) Normalized mean streamwise velocity profile $\langle u^+ \rangle = \langle u \rangle / u_\tau$ versus $y^+$, and (b) deviatoric Reynolds stress components for various SGS models, compared to DNS data at $Re_\tau = 395$.}
+    \label{fig:meanstressModels}
+\end{figure}
+
+\begin{figure}[htb!]
+	
+	\centering
+    \begin{tabular}{cc}
+	(a) $\text{DSM}$ \\[-2pt]
+	\includegraphics[width=0.45\linewidth]{Plots/TCF/models/KE_balance_DSM.png} &
+        \raisebox{7ex}{\includegraphics[width=0.28\linewidth]{Plots/TCF/numericalscheme/kebalanceSchemeLegend.png}} \\
+        \end{tabular}
+	\begin{tabular}{cc}
+		(b) $\text{LASD}$ & (c) $\text{AMD}$ \\[-2pt]
+		
+		\includegraphics[width=0.45\linewidth]{Plots/TCF/models/KE_balance_LASD.png} &
+		\includegraphics[width=0.45\linewidth]{Plots/TCF/models/KE_balance_AMD.png}\\
+		(d) $\text{BAMD}$ & (e) $\text{BV}$ \\[-2pt]
+		\includegraphics[width=0.45\linewidth]{Plots/TCF/models/KE_balance_BAMD.png} & 
+		\includegraphics[width=0.45\linewidth]{Plots/TCF/models/KE_balance_BV.png} \\
+		
+	\end{tabular}
+        \caption{Budget analysis of the mean kinetic energy in turbulent channel flow. Panels (a) to (e) compare the contributions of production, turbulent convection and viscous diffusion for various SGS models compared to DNS \cite{moser1999direct}.}
+	\label{fig:kebalanceModels}
+\end{figure}
+
+Figure~\ref{fig:kebalanceModels} illustrates the kinetic energy balance -- encompassing production, viscous diffusion, and turbulent convection -- for various SGS models using the CD4H spatial discretization scheme. In section~\ref{subsubsection:spatialSchemesTCF} it was noted that all spatial schemes deviated from the expected \( y^3 \) scaling near the wall for the production term, a discrepancy attributed to the  choice of DSM as the SGS model. Comparison with other models shows that it was indeed an effect of the SGS model as among all the models, only DSM exhibits noticeable deviation from the expected near-wall behavior, although it correctly predicts the location of the production peak. In contrast, the LASD, AMD, BAMD and BV models accurately recover the near-wall scaling trend. However, these models slightly underpredict the peak height of the production term compared to DNS. Despite this, their consistency in capturing the overall profile, especially near the wall, supports their effectiveness in reproducing the key features of kinetic energy transport.
+
+\begin{figure}[htb!]
+	\centering
+	\includegraphics[width=0.65\linewidth]{Plots/TCF/models/Barycentric_Triangle_Comparison.png}
+    \caption{Barycentric triangle with vertices $X_{1c}$, $X_{2c}$, $X_{3c}$ showing turbulence anisotropy for various SGS models and comparison to DNS \cite{moser1999direct}.}
+    \label{fig:barycentricModels}
+\end{figure}
+
+Figure~\ref{fig:barycentricModels} presents the barycentric map for different SGS models using the CD4H spatial discretization. In the earlier analysis of spatial schemes, we observed that most profiles deviated from the DNS path, especially in the near-wall and mid-channel regions. That deviation is significantly reduced here, confirming that the choice of SGS model plays a key role in accurately capturing turbulence anisotropy.
+
+Among all models, BAMD and AMD show the best agreement with the DNS trajectory, closely following the expected transition from one-component turbulence near the wall to a more isotropic state toward the channel center. The LASD and BV models show moderate deviations, while DSM departs more noticeably from the DNS, particularly in the lower region of the Barycentric triangle. These results reinforce that the improved performance seen with the CD4H scheme is only fully realized when combined with an appropriate SGS model -- especially for BV and BAMD.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%cost analysis
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{Computational performance}
+
+As TOSCA is developed for simulating realistic large-scale atmospheric flows, it becomes essential to evaluate both numerical accuracy and computational performance. In this analysis, we examine the influence of spatial discretization schemes and SGS models by comparing CPU core hours against relative error metrics. The relative error in the mean streamwise velocity profile is computed using:
+\[
+\left\| \frac{U^{+}_{\text{DNS}} - U^{+}_{\text{LES}}}{U^{+}_{\text{DNS}}} \right\|.
+\]
+%
+To assess the Reynolds stress predictions, the relative error in the peak height of each component $R_{ij}$ is calculated as
+\[
+\left\| \frac{R^{+, \text{ph}}_{ij, \text{DNS}} - R^{+, \text{ph}}_{ij, \text{LES}}}{R^{+, \text{ph}}_{ij, \text{DNS}}} \right\|,
+\]
+where the $^\text{ph}$ superscript denotes the peak height location of the Reynolds stress profile. It must be noted that the reported computational cost corresponds to the entire simulation, including all numerical components and not just the SGS model or convective schemes. While the number of cores used remains consistent across runs, the specific compute nodes may vary. The simulations were performed on the Niagara supercomputer, which include 1,548 nodes with 40-core Intel ``Skylake" CPUs at 2.4~GHz and 476 nodes with 40-core Intel ``Cascade Lake" CPUs at 2.5~GHz~\cite{alliance2025niagara}.
+
+As shown in Fig.~\ref{fig:cost}(a), the CD4H scheme achieves the lowest relative error in the mean velocity profile (about 4\%) using approximately 400 CPU core hours. Although UP3 and QUICK are computationally efficient, they exhibit larger relative errors (10–12\%). CD2 and CD4 result in the highest errors and computational cost, which is likely due to their dispersive nature, increasing the expense of implicit time integration.
+Figure~\ref{fig:cost}(b) further shows that CD4H consistently yields the lowest relative peak height errors across all $R_{ij}$ components. Moreover, it performs approximately 34\% faster than CD4, demonstrating its superior balance between accuracy and computational efficiency.
+
+\begin{figure}[htb!]
+  \centering
+  \begin{tabular}{cc}
+   
+    (a) \\[2pt]
+    \includegraphics[width=0.475\linewidth]{Plots/TCF/numericalscheme/velocity_error_vs_cost.png}
+    &
+    \raisebox{6ex}{\includegraphics[width=0.130\linewidth]{Plots/TCF/numericalscheme/legend_error.png}} \\
+  \end{tabular}
+
+  \vspace{1em}
+
+   (b) \\[2pt]
+  \includegraphics[width=0.95\linewidth]{Plots/TCF/numericalscheme/peak_dev_errors.png}
+
+    \caption{Error analysis of CD2, CD4, CD4H, QUICK, and UP3 numerical schemes versus computational cost scaled by the obtained minimum value ($H / H_{\text{min}}$), where $H$ is the CPU core hours. (a) Relative errors in the mean streamwise velocity profile versus. (b) Relative peak height errors for Reynolds stress components $R_{11}$, $R_{22}$, $R_{33}$, and $R_{13}$.}
+    \label{fig:cost}
+\end{figure}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{figure}[htb!]
+  \centering
+  \begin{tabular}{cc}
+   
+    (a)\\[2pt]
+    \includegraphics[width=0.475\linewidth]{Plots/TCF/models/velocity_error_vs_cost.png}
+    &
+    \raisebox{8ex}{\includegraphics[width=0.13\linewidth]{Plots/TCF/models/legend_error.png}} \\
+  \end{tabular}
+
+  \vspace{1em}
+
+  (b)\\[2pt]
+  \includegraphics[width=0.95\linewidth]{Plots/TCF/models/peak_dev_errors.png}
+
+    \caption{Error analysis of DSM, LASD, AMD, BAMD, and BV SGS models versus computational cost scaled by the obtained minimum value ($H / H_{\text{min}}$), where $H$ is the CPU core hours. (a) Relative errors in the mean streamwise velocity profile. (b) Relative peak height errors for Reynolds stress components $R_{11}$, $R_{22}$, $R_{33}$, and $R_{13}$ against $H / H_{\text{min}}$.}
+    \label{fig:costModels}
+\end{figure}
+
+Figure~\ref{fig:costModels} compares the relative errors and CPU core hours for different SGS models. First, it should be noticed that the errors range, as well as the computational cost range, of SGS models is smaller than the ones induced by the numerical schemes, again showing the stronger impact of spatial discretization. In Fig.~\ref{fig:costModels}(a), BAMD achieves one of the lowest errors in the mean velocity profile with moderate computational cost, showing a strong balance between accuracy and efficiency when combined with the CD4H spatial scheme. BV also performs well with low mean error and slightly higher cost. AMD, while computationally affordable, shows slightly higher errors in the mean profile compared to BAMD and BV. DSM lies in the mid-range in terms of both error and cost, whereas LASD is the most expensive model computationally, with only modest gains in accuracy.
+Relative peak height errors for the Reynolds stress components $R_{11}$, $R_{22}$, $R_{33}$, and $R_{13}$ are presented in Fig.~\ref{fig:costModels}(b). BAMD consistently shows low errors across all components, especially for $R_{11}$ and $R_{33}$. BV performs similarly well and shows particular strength in $R_{12}$. AMD generally exhibits larger errors, despite being computationally efficient. DSM and LASD show higher errors in the normal stress components, with LASD performing slightly better in the shear stress prediction.
+
+Overall, BAMD in combination with CD4H offers the best trade-off between numerical accuracy and computational cost, making it the best choice available in TOSCA for this type of flow.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Three-Dimenional Hill Case
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Turbulent ABL Over Complex Terrain}
+To evaluate the performance of the AMD and BAMD SGS models in simulating ABL flows, we consider a neutrally stratified flow over a three-dimensional hill. The simulation setup is based on the wind tunnel experiment by \citet{ishihara1999wind} for flow over a three-dimensional cosine-squared hill. The hill profile \( z_s \) is defined as
+\begin{equation}
+    z_s(x,y) = h \cos^2 \left(\frac{\pi \sqrt{x^2 + y^2}}{2 b}\right),
+\label{eq:hillshape}
+\end{equation}
+where \( h = 4~\mathrm{cm} \) is the maximum hill height, and \( b = 10~\mathrm{cm} \) defines the half-width. Surface roughness is set to \( z_0 = 0.001~\mathrm{cm} \) across the domain, except over the hill, where it is increased to \( z_0 = 0.002~\mathrm{cm} \) to account for differences in material properties, following prior LES studies~\cite{fang2016intercomparison,liu2020wall}.
+
+The computational domain spans 96 cm, 64 cm, and 32 cm in the streamwise, spanwise, and vertical directions, respectively. It is discretized using a relatively coarse uniform grid of \( 192 \times 128 \times 128 \) cells, corresponding to grid spacings of 0.5 cm in the horizontal directions and 0.25 cm in the vertical direction. This coarser resolution, compared to previous studies~\cite{liu2020wall}, is deliberately chosen to examine how the predictive performance of SGS models depends on both the modeling approach and the spatial discretization scheme. Two eddy-viscosity-based models are considered: the AMD model is coupled with a high-order central CD4H, and the DSM model is used with the third-order QUICK scheme. In addition, the BAMD model is evaluated in conjunction with the CD4H scheme. This setup enables a comparative analysis of SGS model behavior under reduced grid resolution,  highlighting the combined effect of modeling and discretization choices for LES of complex ABL flows.
+
+Inflow–outflow boundary conditions are applied in the streamwise direction, periodic conditions in the spanwise direction, and a stress-free condition at the domain top. At the surface, a log-layer equilibrium wall model is employed~\cite{yang2017log} to represent the near-wall behavior.
+
+
+The inflow is generated using a precursor simulation over flat terrain without the hill, where the flow is driven by a constant mean pressure gradient in the streamwise direction \cite{stipa2024tosca}. The pressure gradient is set such that the resulting velocity profile matches the logarithmic law:
+$$
+    U(z) = \frac{u_*}{\kappa} \ln\left( \frac{z}{z_0} \right), \quad \text{with} \quad u_* = 0.212~\mathrm{m/s}, \quad z_0 = 0.001~\mathrm{cm},
+$$
+where $ \kappa $ is the von Kármán constant. An undisturbed boundary layer velocity $U_{\infty}$ is defined as the one measured at the hill height $U_{\infty} = U(z=h)$ for the flow without the hill terrain.
+
+Each simulation is run for a total of 50 flow-through times, defined as $\tau_{FTT} = L_{\text{axial}}/U_{\infty}$, and statistical averaging is performed over the final $25 \tau_{FTT}$ to ensure statistical convergence. Velocity statistics are extracted at seven streamwise locations, corresponding to \( x/h = -2.5, -1.25, 0, 1.25, 2.5, 3.75, 5.0 \), to enable direct comparison with the experimental measurements.
+
+\begin{figure}[htb!]
+    \centering
+    \begin{tabular}{cc}
+        (a) $\langle u \rangle /U_{\infty}$  & (b) $\sigma_{u}/U_{\infty}$ \\
+        \includegraphics[width=0.46\linewidth]{Plots/ABL/avgcomp.png} &
+        \includegraphics[width=0.46\linewidth]{Plots/ABL/sigmaU_comparison.png} \\
+        (c) $\sigma_{v}/U_{\infty}$ & (d) $\sigma_{w}/U_{\infty}$ \\
+        \includegraphics[width=0.46\linewidth]{Plots/ABL/sigmaV_comparison.png} &
+        \includegraphics[width=0.46\linewidth]{Plots/ABL/sigmaW_comparison.png} \\
+    \end{tabular}
+\caption{Vertical profiles of velocity statistics of the flow on the hill case at selected streamwise locations \( x/h = -2.5, -1.25, 0, 1.25, 2.5, 3.75, 5.0 \). (a) Time-averaged axial velocity. Variance in the streamwise \( \sigma_u / U_{\infty} \) (b), spanwise \( \sigma_v / U_{\infty} \) (c), and wall-normal \( \sigma_w / U_{\infty} \) (d) directions.}
+
+   \label{fig:hillstress}
+\end{figure}
+
+Figure~\ref{fig:hillstress}(a) presents the vertical normalized mean streamwise velocity profiles. All three models -- AMD, BAMD, and DSM -- capture the characteristic acceleration over the hill crest, however differ in the estimation of the flow separation in the hill wake. Results from the BAMD--CD4H simulation align better with the experimental results predicting the flow separation in the region behind the hill well. In contrast, both the AMD--CD4H and DSM--QUICK simulations tend to underpredict the strength of the wake separation. 
+
+The profiles of the normal stress components more clearly reveal the influence of the SGS models, highlighting how turbulence is modulated as the flow passes over the hill. Figures~\ref{fig:hillstress}(b-d) show the normal stress component profiles in the streamwise ($ \sigma_u $), spanwise ($ \sigma_v $), and wall-normal ($ \sigma_w $) directions, defined as $ \sigma_i = \sqrt{R_{ii}} / U_{\infty} $, where $ i = u, v, w $. The BAMD--CD4H model exhibits better predictive accuracy in capturing the peak values and spatial evolution of the normal stress components, particularly in the hill lee region where turbulence is elevated due to flow separation and reattachment. The AMD--CD4H and DSM--QUICK simulations underestimate the peak and vertical variation of all three stress components in the leeward side of the hill, i.e. at $ x/h = 1.25 $, $ x/h = 2.5 $ and $ x/h = 3.75 $. These results suggest that incorporating scale-similarity correction via BAMD enhances the model’s ability to represent anisotropic turbulence structures in complex terrain flows.
+
+\begin{figure}[htb!]
+    %\centering
+    \begin{tabular}{cc}
+        (a) AMD $(\langle u \rangle/U_{\infty})$ & (d) AMD $(\sigma_u =\sqrt{R_{uu}}/U_{\infty})$ \\
+        \includegraphics[width=0.5\linewidth]{Plots/ABL/slices/hill_meanU_AMD.png} &
+        \includegraphics[width=0.5\linewidth]{Plots/ABL/slices/hill_sigma_AMD.png} \\
+    
+             (b) BAMD $(\langle u \rangle/U_{\infty})$ & (e) BAMD $(\sigma_u =\sqrt{R_{uu}}/U_{\infty})$ \\
+        \includegraphics[width=0.5\linewidth]{Plots/ABL/slices/hill_meanU_BAMD.png} &
+        \includegraphics[width=0.5\linewidth]{Plots/ABL/slices/hill_sigma_BAMD.png} \\
+
+             (c) DSM $(\langle u \rangle/U_{\infty})$ & (f) DSM $(\sigma_u =\sqrt{R_{uu}}/U_{\infty})$ \\
+        \includegraphics[width=0.5\linewidth]{Plots/ABL/slices/hill_meanU_DSM.png} &
+        \includegraphics[width=0.5\linewidth]{Plots/ABL/slices/hill_sigma_DSM.png} \\
+        
+    \end{tabular}
+    \caption{Contour plots of (a, b, c) mean streamwise velocity \( \langle u \rangle \) and (d, e, f) normalized streamwise velocity variance \( \sigma_u / U_{\infty} \) over a three-dimensional hill using AMD, BAMD and DSM subgrid-scale models. The hill geometry is outlined in white.}
+    \label{fig:contourHill}
+\end{figure}
+
+
+Figure~\ref{fig:contourHill}(a--c) present contour plots of the time-averaged streamwise velocity \( \langle u \rangle / U_{\infty} \) in the vertical \( x-z \) plane across the hill, comparing the same three SGS model/spatial scheme configurations.
+The characteristic acceleration of the flow over the hill, followed by deceleration and separation in the lee, is evident in all cases. The BAMD model exhibits a longer recirculation region compared to AMD and DSM, potentially indicating differences in resolved-scale energy redistribution.
+
+Contour plots of the streamwise normal Reynolds stress component \( \sigma_u = \sqrt{R_{uu}} / U_{\infty} \) on the same vertical plane are showed in Figures~\ref{fig:contourHill}(d--f). The region of elevated stress downstream of the hill corresponds to flow separation and reattachment. The BAMD model predicts a broader and more intense turbulent region immediately behind the hill compared to the other models. This observation is consistent with the line plots, where BAMD captures the peak Reynolds stress values more accurately. In contrast, both AMD and DSM models exhibit similar behavior, with more localized stress fields and lower peak values, suggesting an underprediction of turbulence intensity in the near-wake region relative to BAMD.
+
+These contour results reinforce the earlier one-dimensional comparisons and confirm that the BAMD model offers superior capability in capturing the structure and intensity of turbulence over complex terrain, despite the coarse grid resolution used in this case.
+
+
+\section{\label{sec:conclusion}
+        Conclusion}
+
+This study extends the implementation of the anisotropic minimum dissipation model and its mixed-model variant, the Bardina–anisotropic minimum dissipation model, to a generalized coordinate system. In addition, the baseline Bardina–Vreman mixed model and dynamic Smagorinsky variants -- such as the Lagrangian scale-dependent model and the localized dynamic Smagorinsky model -- are also incorporated for comparison of the functional eddy-viscosity models and mixed models. Several spatial discretization schemes are investigated in conjunction with these subgrid-scale models to assess the combined influence of numerical schemes and SGS models on turbulent flow predictions, with particular focus on accurate modeling of the heterogeneous and anisotropic behavior of the turbulence.
+
+The combined influence of SGS model and spatial discretization is evaluated across two canonical test cases -- the Taylor--Green vortex and turbulent channel flow -- as well as a more complex application involving neutral stratified flow over a three-dimensional hill. The classical metrics include first-, second-, and third-order turbulence moments, mean velocity profiles, and Reynolds stresses. The modern turbulence framework includes joint probability density functions of resolved velocity gradient tensor invariants \( (Q_g, R_g) \), which characterize the energy cascade and associated mechanisms such as vortex stretching and strain self-amplification, and strain-rate invariants \( (Q_s, R_s) \), which capture dissipation characteristics.
+
+In the Taylor–Green vortex, the CD4 and CD4H schemes exhibit superior ability to capture intense small-scale structures, as confirmed by high-order turbulence statistics and the shape of the \( Q_g \)–\( R_g \) and \( Q_s \)–\( R_s \) joint PDFs. Among the SGS models, BAMD shows the best agreement with expected physical behavior by reproducing the energy cascade while avoiding excessive artificial dissipation.
+
+Our results on the channel flow simulations demonstrate that the choice of SGS model and numerical scheme significantly influences turbulence predictions. Actually, SGS model effects dominate in the near-wall region, where anisotropy is strongest, while numerical schemes impact flow statistics further away from the wall. The BAMD model paired with the CD4H scheme consistently achieves the best balance of accuracy and computational efficiency. This combination excels in reproducing mean velocity profiles, Reynolds stresses, and anisotropic turbulence structures, as evidenced by its alignment with DNS data and experimental measurements. Furthermore, an analysis on computational complexity  has been also carried out, revealing that the combination of the BAMD model with the CD4H scheme offers the best balance between accuracy and computing time when using implicit time integration.
+
+Finally, for a neutrally-stratified flow over heterogeneous terrain, the Bardina--anisotropic minimum dissipation model coupled with the CD4H scheme delivers robust predictions of both mean flow and turbulence intensity when compared to the AMD--CD4H and DSM--QUICK combinations. For instance, only the BAMD accurately captures flow separation, reattachment, and inhomogeneities induced by terrain in the leeward side of the hill, confirming its suitability for more complex atmospheric boundary layer simulations involving terrain effects.
+
+In summary, this work demonstrates that the Bardina--anisotropic minimum dissipation model, particularly in conjunction with the hyperviscous compact fourth-order central scheme in generalized curvilinear coordinates, consistently improves large-eddy simulation predictions across a range of turbulent flows. It provides a practical balance between physical accuracy and computational cost, making it a compelling choice for simulations that demand both fidelity and efficiency. Future work will include the extension of the present LES framework to account for heterogeneity induced by atmospheric thermal stratification.
+
+\clearpage
+%% The Appendices part is started with the command \appendix;
+%% appendix sections are then done as normal sections
+\appendix
+\section{Sensitivity Analysis of AMD and BAMD Models}
+\label{app:sensitivityStudy}
+
+The AMD model constant $C_p$ depends on the spatial discretization employed~\cite{rozema2015minimum}. When used in combination with the Bardina model in a mixed formulation, the AMD constant must be reduced to account for the additional dissipation introduced by the structural component. The appropriate level of reduction is not universal and requires careful investigation, as indicated by several previous studies \cite{streher2021mixed,zang1993dynamic}.
+In this study, the Bardina model constant is always imposed to $c_B = 1.0$ to recover the Galilean invariance \cite{speziale1985galilean}, while the optimal eddy-viscosity coefficient for both AMD and BAMD models is set according to the sensitivity study carried out in the present section, reproducing the turbulent flow channel of Section~\ref{section:turbulentChannelFlow}. 
+
+For the AMD model combined with the CD4 scheme, Rozema et al.~\cite{rozema2015minimum} recommend a value of $C_p = 0.212$. Notably, this value has been found when the AMD model is not combined with a structural formulation in mixed mode. To explore a broad range of dissipative behaviors, we varied $C_p$ from $0.18$ to $0.334$, where the upper bound corresponds to the value commonly suggested for second-order central schemes.
+
+For the BAMD model, a wider range of constants from $0.10$ to $0.30$ was tested to account for the combined dissipative effects of the AMD and Bardina components. These bounds have been selected based on insights from previous investigations which explored mixed-model formulations~\cite{streher2021mixed}. While we only show the sensitivity analysis carried out for the CD4H scheme for brevity, similar variations have been tested for the other convection schemes.
+
+\begin{figure}[htb!]
+	
+	\centering
+	\begin{tabular}{c}
+		(a) $\text{Mean Profiles}$ \\[-2pt]
+		\includegraphics[width=0.475\linewidth]{Plots/TCF/senstivity/AMD/MeanVelocity_Regimes_Comparison.png} \\ [2pt]
+		
+		(b) $\text{Deviatoric Reynolds stresses}$ \\[-2pt]
+		
+		\includegraphics[width=0.95\linewidth]{Plots/TCF/senstivity/AMD/Deviatoric_ReyStress_Comparison.png} \\
+		
+	\end{tabular}
+	\caption{(a) Mean velocity profile and (b) Reynolds stress components in a turbulent channel flow. Results are shown for the AMD model using different constant $C_p$ values, compared to DNS reference data from \citet{moser1999direct}.}
+	\label{fig:senstivityAMD}
+\end{figure}
+
+Figures~\ref{fig:senstivityAMD}(a–b) show the mean velocity profile and the Reynolds stress component for the AMD model, compared with DNS data. An increase in the AMD model constant leads to an overprediction of the mean velocity. Among the tested values, $C_p = 0.212$ and $C_p = 0.18$ produce satisfactory agreement with the DNS mean profiles, which is consistent with the use of a fourth-order spatial scheme, as seen in Fig.~\ref{fig:senstivityAMD}(a). However, the peak values of the normal Reynolds stress components are overestimated for nearly all constants considered. This behavior is a known characteristic of eddy-viscosity models and has also been reported in previous studies~\cite{silvis2017physical,streher2021mixed}. In contrast, the peak value of the shear stress component $R_{13}$ is accurately captured for all tested constants and appears to be largely independent of the model constant, as shown in Fig.~\ref{fig:senstivityAMD}(b).
+\begin{figure}
+	\centering
+	\includegraphics[width=0.8\linewidth]{Plots/TCF/senstivity/AMD/KE_balance_allCp_combined.png}
+	\caption{Comparison of mean turbulent kinetic energy budget terms versus wall coordinate \(y^{+}\) for different values of the AMD model constant \(C_{p}\). Colored curves show LES results for production (solid), turbulent convection (dashed), and viscous diffusion (dash–dotted) at \(C_{p} = 0.18,\,0.212,\,0.24,\,0.27,\,0.30,\) and \(0.334\). Black lines represent DNS data from \citet{moser1999direct}: black solid for production, black dashed for turbulent convection, and black dash–dotted for viscous diffusion. The positive values on the vertical axis indicate TKE gain while negative values show TKE loss.}
+	\label{fig:kebalanceAMDSenstivity}
+\end{figure}
+
+Figure~\ref{fig:kebalanceAMDSenstivity} depicts the mean kinetic energy balance terms for the AMD model, showing the production, turbulent convection, and viscous diffusion components, compared to the DNS reference data of \citet{moser1999direct}. The model constant has a noticeable influence on the production term. Lower constant values exhibit better agreement with DNS, particularly in the near-wall region. In addition, $C_p = 0.18$ and $C_p = 0.212$ accurately capture the peak location at $y^+ \approx 12$, where the production term reaches its maximum value \cite{pope2001turbulent}. Conversely, the turbulent convection and viscous diffusion terms show relatively small sensitivity to changes in the model constant.
+
+\begin{figure}[htb!]
+	\centering
+	\includegraphics[width=0.65\linewidth]{Plots/TCF/senstivity/AMD/Barycentric_Triangle_Comparison.png}
+	\caption{Barycentric map of Reynolds‐stress anisotropy for various AMD model constants \(C_{p}\). Colored lines correspond to LES predictions at \(C_{p} = 0.18\) (dark green), \(0.212\), \(0.24\), \(0.27\), \(0.30\), and \(0.334\) (yellow–green). The black diamond markers denote DNS results from \citet{moser1999direct}. Each curve traces the anisotropy state from the near‐wall region (near the \(X_{1c}\)–\(X_{2c}\) baseline) through the buffer layer and log layer, up to the centerline (toward \(X_{3c}\)). The vertices \(X_{1c}\), \(X_{2c}\), and \(X_{3c}\) represent the one‐component, two‐component, and three‐component limiting states, respectively.}
+	\label{fig:bctSenstivityAMD}
+\end{figure}
+
+Finally, Fig.~\ref{fig:bctSenstivityAMD} presents the barycentric map to investigate the influence of the AMD model constant $C_p$ on the prediction of turbulence anisotropy. All AMD model constants capture the general trend of turbulence anisotropy across the channel. However, lower constant values, particularly $C_p = 0.18$ and $C_p = 0.212$, show the closest agreement with the DNS reference data throughout the channel height. As the model constant increases, deviations from the DNS trajectory become more noticeable in the upper part of the triangle, indicating reduced accuracy in capturing the componentality of turbulence near the channel center. Overall, when coupled with the CD4H scheme, the AMD model demonstrates good capability in reproducing the turbulence anisotropy, with improved performance for lower dissipation settings.
+
+\begin{figure}[htb!]
+	
+	\centering
+	\begin{tabular}{c}
+		(a) $\text{Mean Profiles}$ \\[-2pt]
+		\includegraphics[width=0.475\linewidth]{Plots/TCF/senstivity/BAMD/MeanVelocity_Regimes_Comparison.png} \\ [2pt]
+		
+		(b) $\text{Deviatoric Reynolds stresses}$ \\[-2pt]
+		
+		\includegraphics[width=0.95\linewidth]{Plots/TCF/senstivity/BAMD/Deviatoric_ReyStress_Comparison.png} \\
+		
+	\end{tabular}
+	\caption{(a) Mean velocity profile and (b) Reynolds stress components in a turbulent channel flow. Results for the BAMD model, with DNS reference data from \citet{moser1999direct}.}
+	\label{fig:senstivityBAMD}
+\end{figure}
+
+Next, we investigate the impact of the model constant in the BAMD mixed model. The mean velocity profiles and Reynolds stresses are presented in Figs.~\ref{fig:senstivityBAMD}(a–b). Higher constant values in the BAMD model tend to overpredict the mean velocity, while lower constants in the range of $C_p = 0.14$ to $C_p = 0.10$ show excellent agreement with the DNS reference data. Interestingly, the BAMD model corrects the overpredicted peak values of the normal Reynolds stresses observed in the AMD model. Lower constant values in BAMD yield peak values that closely match those of the DNS. However, the Reynolds stress component $R_{13}$ again appears to be largely insensitive to the choice of model constant and remains slightly underpredicted if compared to the DNS results.
+
+\begin{figure}
+	\centering
+	\includegraphics[width=0.8\linewidth]{Plots/TCF/senstivity/BAMD/KE_balance_allCp_combined.png}
+	\caption{Mean turbulent kinetic energy budget profiles versus wall coordinate \(y^{+}\) for the BAMD model across various model constants \(C_{p}\). Colored curves show LES results for production (solid lines), turbulent convection (dashed lines), and viscous diffusion (dash–dotted lines) at \(C_{p} = 0.10\) (dark green), \(0.12\), \(0.14\), \(0.16\), \(0.18\), \(0.20\), \(0.22\), \(0.24\), \(0.28\), and \(0.30\) (yellow). The black lines represent reference DNS data from \citet{moser1999direct}.}
+	\label{fig:kebalanceBAMDSenstivity}
+\end{figure}
+
+Figure~\ref{fig:kebalanceBAMDSenstivity} shows the mean kinetic energy balance terms for the BAMD model. Lower constant values -- $C_p = 0.10$–$0.16$ -- accurately capture the near-wall peak location of the production term at $y^+ \approx 12$, but the magnitude is underpredicted. As the constant increases, the production term deviates more from the DNS profile near the wall. The turbulent convection and viscous diffusion terms remain relatively insensitive to changes in the model constant.
+
+\begin{figure}
+	\centering
+	\includegraphics[width=0.65\linewidth]{Plots/TCF/senstivity/BAMD/Barycentric_Triangle_Comparison.png}
+	\caption{Barycentric map of Reynolds‐stress anisotropy for the BAMD model across a range of model constants \(C_{p}\). Colored curves correspond to LES predictions at \(C_{p} = 0.10\) (dark green), \(0.12\), \(0.14\), \(0.16\), \(0.18\), \(0.20\), \(0.22\), \(0.24\), \(0.28\), and \(0.30\) (yellow). Black diamonds denote DNS data from \citet{moser1999direct}, plotted as a reference.}
+	\label{fig:bctSenstivityBAMD}
+\end{figure}
+
+The barycentric map for the BAMD model across different constant values is finally introduced in Fig.~\ref{fig:bctSenstivityBAMD}. All cases follow the expected anisotropy path from one-component turbulence near the wall toward a more isotropic state near the channel center. Low constant values -- $C_p = 0.10$–$0.16$ -- show the closest agreement with the DNS trajectory across the full height of the channel. As the constant increases, deviations become more pronounced, particularly in the upper half of the triangle, indicating reduced accuracy in capturing turbulence componentality. 
+
+When the AMD model is employed in the mixed formulation -- namely the BAMD model -- the chosen AMD model constant is impsoed as $C_p = 0.14$. This value is lower than the one recommended by Rozema et al.~\cite{rozema2015minimum} ($C_p = 0.212$) for the standalone AMD combined to fourth-order spatial schemes. This reduction is consistent with findings from Zang et al.~\cite{zang1993dynamic,streher2021mixed}, who observed that the inclusion of a structural model, such as the Bardina one, introduces additional dissipation and therefore requires a lower eddy-viscosity constant. 
+
+In conclusion, based on the sensitivity analyses presented above, we selected $C_p = 0.212$ for the AMD model and $C_p = 0.14$ for the BAMD model, as both values demonstrated good agreement with DNS data across mean profiles, Reynolds stresses, energy balance, and anisotropy representation. All simulations presented in this study using the AMD and BAMD models, when combined to the CD4H spatial discretization scheme, were performed using these respective constants.
+
+\clearpage
+\section*{Code Availability}
+The TOSCA code used in this study is available at: \url{https://github.com/sebastipa/TOSCA}
+\section*{Acknowledgments}
+This research has been supported by the Natural Sciences and Engineering Research Council of Canada (grant no. 556326) in partnership with UL Renewables. Computational resources provided by the Digital Research Alliance of Canada are gratefully acknowledged. This work is supported by the French Agence Nationale de la Recherche (ANR) and the Normandy Region through the Labex program EMC3 (ANR-10-LABX-09-01) and the WILIAM project. 
+ 
+
+\bibliographystyle{elsarticle-num-names} % or elsarticle-harv for author-year
+\bibliography{ref}
+\end{document}
+
+\endinput
+%%
+%% End of file `elsarticle-template-num-names.tex'.

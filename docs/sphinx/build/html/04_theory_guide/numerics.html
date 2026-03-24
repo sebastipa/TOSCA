@@ -53,13 +53,11 @@
 <li class="toctree-l1 current"><a class="reference internal" href="../tosca_theory_guide.html">Theory Guide</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="governing_equations.html">Governing Equations</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Numerical Method</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#generalized-curvilinear-coordinates">Generalized Curvilinear Coordinates</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#differential-operators-in-curvilinear-coordinates">Differential Operators in Curvilinear Coordinates</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#governing-equations-in-curvilinear-form">Governing Equations in Curvilinear Form</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#staggered-grid-arrangement">Staggered Grid Arrangement</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#fractional-step-projection-method">Fractional-Step Projection Method</a></li>
-</ul>
-</li>
+<li class="toctree-l3"><a class="reference internal" href="#generalized-curvilinear-coordinates">Generalized Curvilinear Coordinates</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#differential-operators-in-curvilinear-coordinates">Differential Operators in Curvilinear Coordinates</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#governing-equations-in-curvilinear-form">Governing Equations in Curvilinear Form</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#staggered-grid-arrangement">Staggered Grid Arrangement</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fractional-step-projection-method">Fractional-Step Projection Method</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="time_integration.html">Time Integration Schemes</a></li>
@@ -122,8 +120,9 @@ volume.  The <strong>contravariant flux</strong> through the <span class="math n
 <p>The <strong>contravariant metric tensor</strong>, multiplied by a factor <span class="math notranslate nohighlight">\(1/J^2\)</span> for numerical convenience, is the symmetric positive-definite tensor</p>
 <div class="math notranslate nohighlight">
 \[S^{qr} = S^q_i S^r_i.\]</div>
+</section>
 <section id="differential-operators-in-curvilinear-coordinates">
-<h3>Differential Operators in Curvilinear Coordinates<a class="headerlink" href="#differential-operators-in-curvilinear-coordinates" title="Link to this heading"></a></h3>
+<h2>Differential Operators in Curvilinear Coordinates<a class="headerlink" href="#differential-operators-in-curvilinear-coordinates" title="Link to this heading"></a></h2>
 <p>The four fundamental operators used throughout the discretization are:</p>
 <p><strong>Gradient</strong> of a scalar <span class="math notranslate nohighlight">\(\phi\)</span>:</p>
 <div class="math notranslate nohighlight">
@@ -158,7 +157,7 @@ term in the momentum equation can be written as:</p>
 with the face area vectors, namely <span class="math notranslate nohighlight">\(S^{kn} = S^k_i S^n_i = 1/J^2 \partial l_k/\partial x_i \partial l_n / \partial x_i\)</span>.</p>
 </section>
 <section id="governing-equations-in-curvilinear-form">
-<h3>Governing Equations in Curvilinear Form<a class="headerlink" href="#governing-equations-in-curvilinear-form" title="Link to this heading"></a></h3>
+<h2>Governing Equations in Curvilinear Form<a class="headerlink" href="#governing-equations-in-curvilinear-form" title="Link to this heading"></a></h2>
 <p>Applying the operators above, the governing equations solved by TOSCA take the
 <strong>partially-transformed</strong> form (Ge &amp; Sotiropoulos, 2007).  The momentum
 equation is written for the contravariant flux <span class="math notranslate nohighlight">\(V^q\)</span>, which eliminates
@@ -192,7 +191,7 @@ are body forces from turbines, vertical damping, horizontal damping, and the
 temperature controller, respectively (see <a class="reference internal" href="governing_equations.html#gov-equations-section"><span class="std std-ref">Governing Equations</span></a>).</p>
 </section>
 <section id="staggered-grid-arrangement">
-<h3>Staggered Grid Arrangement<a class="headerlink" href="#staggered-grid-arrangement" title="Link to this heading"></a></h3>
+<h2>Staggered Grid Arrangement<a class="headerlink" href="#staggered-grid-arrangement" title="Link to this heading"></a></h2>
 <p>TOSCA employs a <strong>hybrid collocated–staggered</strong> discretization
 (Ge &amp; Sotiropoulos, 2007).  Contravariant fluxes <span class="math notranslate nohighlight">\(V^q\)</span> are stored at the
 center of their respective cell face (staggered), ensuring exact discrete
@@ -207,7 +206,7 @@ Cartesian velocity is reconstructed at cell centers from the updated contravaria
 fluxes by inverting <span class="math notranslate nohighlight">\(V^q = S^q_i u_i\)</span>.</p>
 </section>
 <section id="fractional-step-projection-method">
-<h3>Fractional-Step Projection Method<a class="headerlink" href="#fractional-step-projection-method" title="Link to this heading"></a></h3>
+<h2>Fractional-Step Projection Method<a class="headerlink" href="#fractional-step-projection-method" title="Link to this heading"></a></h2>
 <p>Pressure–velocity coupling uses a second-order <strong>fractional-step projection</strong>
 method.  Given the state
 <span class="math notranslate nohighlight">\((\mathbf{V}^n, p^n, \theta^n)\)</span> at time level <span class="math notranslate nohighlight">\(n\)</span>, one time step
@@ -269,7 +268,6 @@ The constant mode of <span class="math notranslate nohighlight">\(\phi\)</span> 
 <p>With the divergence-free <span class="math notranslate nohighlight">\(\mathbf{V}^{n+1}\)</span> available,
 <span class="math notranslate nohighlight">\(\theta^n\)</span> is advanced to  <span class="math notranslate nohighlight">\(\theta^{n+1}\)</span> using the selected temperature
 time-integration scheme (see <a class="reference internal" href="time_integration.html#time-integration-section"><span class="std std-ref">Time Integration Schemes</span></a>).</p>
-</section>
 </section>
 </section>
 

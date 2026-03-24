@@ -70,11 +70,12 @@
 <li class="toctree-l4"><a class="reference internal" href="#bardinaamd-bamd-model">Bardina–AMD (BAMD) Model</a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="#sgs-temperature-flux">SGS Temperature Flux</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sgs-temperature-closure">SGS Temperature Closure</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="flow_controllers.html">Flow Controllers and Mesoscale Coupling</a></li>
 <li class="toctree-l2"><a class="reference internal" href="precursor.html">Precursor, Fringe Regions &amp; Damping Layers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ibm.html">Immersed Boundary Method</a></li>
 <li class="toctree-l2"><a class="reference internal" href="turbine_models.html">Turbine Models</a></li>
 </ul>
 </li>
@@ -109,10 +110,10 @@
   <section id="sub-grid-scale-models">
 <span id="sgs-model-section"></span><h1>Sub-grid Scale Models<a class="headerlink" href="#sub-grid-scale-models" title="Link to this heading"></a></h1>
 <p>TOSCA provides ten SGS models that fall into three categories: <em>functional</em> (eddy-viscosity) models, which reproduce the forward energy cascade but
-discard structural information; a purely <em>structural</em> model; and <em>mixed</em> models that combine both approaches.  All models operate in generalized curvilinear
-coordinates following the partial-transformation framework of Ge and Sotiropoulos (2007) and the GCC extension of Armenio and Piomelli (2000).  The model is
-selected with the keyword <code class="docutils literal notranslate"><span class="pre">-lesModel</span></code> in <code class="docutils literal notranslate"><span class="pre">control.dat</span></code>.</p>
-<p>Under the linear eddy-viscosity hypothesis the deviatoric part of the SGS stress tensor is</p>
+discard structural information, purely <em>structural</em> models, and <em>mixed</em> models, which combine both approaches. All models operate in generalized curvilinear
+coordinates following the partial-transformation framework of Ge and Sotiropoulos (2007) and the GCC extension of Armenio and Piomelli (2000). SGS turbulence models
+are selected with the keyword <code class="docutils literal notranslate"><span class="pre">-lesModel</span></code> keyword in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code> file.</p>
+<p>Under the linear eddy-viscosity hypothesis, the deviatoric part of the SGS stress tensor is</p>
 <div class="math notranslate nohighlight">
 \[\tau_{ij} - \tfrac{1}{3}\delta_{ij}\tau_{kk}
 = -2\nu_t S_{ij}
@@ -130,7 +131,7 @@ volume cubic root <span class="math notranslate nohighlight">\(\Delta = J^{-1/3}
 </colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p>Model name</p></th>
-<th class="head"><p><code class="docutils literal notranslate"><span class="pre">-lesModel</span></code></p></th>
+<th class="head"><p>keyword</p></th>
 <th class="head"><p>Category</p></th>
 </tr>
 </thead>
@@ -169,11 +170,11 @@ volume cubic root <span class="math notranslate nohighlight">\(\Delta = J^{-1/3}
 </tr>
 <tr class="row-even"><td><p>Bardina–Vreman (BV)</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">bardinaVreman</span></code></p></td>
-<td><p>Mixed — Bardina scale-similarity + Vreman eddy viscosity</p></td>
+<td><p>Mixed — Bardina scale-similarity (structural) + Vreman eddy viscosity</p></td>
 </tr>
 <tr class="row-odd"><td><p>Bardina–AMD (BAMD)</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">bardinaAMD</span></code></p></td>
-<td><p>Mixed — Bardina scale-similarity + AMD eddy viscosity</p></td>
+<td><p>Mixed — Bardina scale-similarity (structural) + AMD eddy viscosity</p></td>
 </tr>
 </tbody>
 </table>
@@ -185,8 +186,7 @@ volume cubic root <span class="math notranslate nohighlight">\(\Delta = J^{-1/3}
 expressed as <span class="math notranslate nohighlight">\(C_s^2\)</span>):</p>
 <div class="math notranslate nohighlight">
 \[\nu_t = \left(C_s\,\Delta\right)^2\,|\overline{S}|.\]</div>
-<p>The coefficient is assigned globally for the entire domain.  It is well-known that it over-predicts SGS dissipation near solid walls.  It is suitable for
-coarse exploratory runs where simplicity and low overhead are priorities.</p>
+<p>The coefficient is assigned globally for the entire domain.  This model generally over-predicts SGS dissipation near solid walls.</p>
 </section>
 <section id="stability-dependent-smagorinsky-model">
 <h3>Stability-Dependent Smagorinsky Model<a class="headerlink" href="#stability-dependent-smagorinsky-model" title="Link to this heading"></a></h3>
@@ -203,15 +203,15 @@ additionally bounded by the von Kármán length scale <span class="math notransl
 <div class="math notranslate nohighlight">
 \[C_s^2 = \frac{c_m^3}{c_\varepsilon}\frac{l^2}{\Delta^2}\sqrt{1 - \frac{c_h}{c_m}Ri},\]</div>
 <p>where <span class="math notranslate nohighlight">\(c_m, c_h, c_\varepsilon\)</span> are model constants.  The temperature diffusivity follows from the stability-dependent turbulent Prandtl number
-described in the <a class="reference internal" href="#sgs-temp-flux"><span class="std std-ref">SGS Temperature Flux</span></a> section below.</p>
+described in the <a class="reference internal" href="#sgs-temp-flux"><span class="std std-ref">SGS Temperature Closure</span></a> section below.</p>
 </section>
 <section id="dynamic-smagorinsky-models">
 <h3>Dynamic Smagorinsky Models<a class="headerlink" href="#dynamic-smagorinsky-models" title="Link to this heading"></a></h3>
 <p>All dynamic variants determine <span class="math notranslate nohighlight">\(C_s(\mathbf{x},t)\)</span> from the resolved flow using the Germano identity (Germano et al. 1991, Lilly 1992).  A test filter
 <span class="math notranslate nohighlight">\(\widetilde{(\cdot)}\)</span> at scale <span class="math notranslate nohighlight">\(\widetilde{\Delta} = 3\Delta\)</span> separates the resolved Leonard stress tensor</p>
 <div class="math notranslate nohighlight">
-\[L^r_i = \widetilde{\overline{V}^r\,\overline{u}_i} - \widetilde{\overline{V}^r}\,\widetilde{\overline{u}}_i\]</div>
-<p>(computable directly from resolved quantities) from the model prediction.  The forcing tensor is</p>
+\[L^r_i = \widetilde{\overline{V}^r\,\overline{u}_i} - \widetilde{\overline{V}^r}\,\widetilde{\overline{u}}_i,\]</div>
+<p>computable directly from resolved quantities from the model prediction.  The forcing tensor is</p>
 <div class="math notranslate nohighlight">
 \[M^r_i = 2\left[
     \widetilde{\overline{\Delta}}^2\,|\widetilde{\overline{S}}|\,\widetilde{S}^r_i
@@ -223,25 +223,27 @@ covariant metric tensor <span class="math notranslate nohighlight">\(g_{ij}\)</s
 \[C_s^2(\mathbf{x},t) =
 \frac{\langle L^r_i M^m_i\,g_{rm}\rangle}{\langle M^q_j M^n_j\,g_{qn}\rangle}.\]</div>
 <p>Four averaging strategies for the angle brackets are available:</p>
-<p><strong>DSM</strong> (<code class="docutils literal notranslate"><span class="pre">dynamicSmagorinsky</span></code>) — local box averaging over the 3×3×3 stencil with a Simpson integration kernel (Ghosal et al. 1995); best for homogeneous
+<p><strong>DSM</strong> (<code class="docutils literal notranslate"><span class="pre">dynamicSmagorinsky</span></code>): local box averaging over the 3×3×3 stencil with a Simpson integration kernel (Ghosal et al. 1995), best for homogeneous
 or weakly inhomogeneous flows.</p>
-<p><strong>DLASI</strong> (<code class="docutils literal notranslate"><span class="pre">dynamicLASI</span></code>) — Lagrangian averaging along fluid path lines (Meneveau et al. 1996); assumes <em>scale invariance</em> (<span class="math notranslate nohighlight">\(C_s\)</span> is the same at
+<p><strong>DLASI</strong> (<code class="docutils literal notranslate"><span class="pre">dynamicLASI</span></code>): Lagrangian averaging along fluid path lines (Meneveau et al. 1996), assumes <em>scale invariance</em> (<span class="math notranslate nohighlight">\(C_s\)</span> is the same at
 the grid and test-filter scales).  The averaged numerator <span class="math notranslate nohighlight">\(I_{LM}\)</span> and denominator <span class="math notranslate nohighlight">\(I_{MM}\)</span> evolve in time via the relaxation</p>
 <div class="math notranslate nohighlight">
 \[I^n_{LM} = \epsilon\,\langle L^r_i M^m_i g_{rm}\rangle
 + (1-\epsilon)\,I^{n-1}_{LM}(\mathbf{x}-\mathbf{u}\Delta t),
 \quad
 \epsilon = \frac{\Delta t/T_s}{1+\Delta t/T_s},\]</div>
-<p>with Lagrangian time scale <span class="math notranslate nohighlight">\(T_s = 1.5\Delta\,[|I_{LM}\,I_{MM}|]^{-1/8} + \varepsilon\)</span>.  The lookup uses trilinear backward-in-time interpolation.</p>
+<p>with Lagrangian time scale <span class="math notranslate nohighlight">\(T_s = 1.5\Delta\,[|I_{LM}\,I_{MM}|]^{-1/8} + \varepsilon\)</span>.  The lookup uses trilinear backward-in-time interpolation.
+This is one of the recommended combination for production LES runs in TOSCA.</p>
 <p><strong>DLASD</strong> (<code class="docutils literal notranslate"><span class="pre">dynamicLASD</span></code>) — Lagrangian averaging with <em>scale dependence</em> (Porté-Agel et al. 2000, Bou-Zeid et al. 2005).  A second, coarser test filter at
 scale <span class="math notranslate nohighlight">\(4\Delta\)</span> provides the scale-dependence parameter</p>
 <div class="math notranslate nohighlight">
 \[\beta = \frac{C^2_{s,4\Delta}}{C^2_{s,2\Delta}},
 \quad
 C^2_{s,\Delta} = \frac{C^2_{s,2\Delta}}{\max(\beta,\,0.125)}.\]</div>
-<p><span class="math notranslate nohighlight">\(\beta\)</span> is clipped at 0.125 to prevent numerical instability in regions where the scale similarity assumption breaks down.</p>
+<p><span class="math notranslate nohighlight">\(\beta\)</span> is clipped at 0.125 to prevent numerical instability in regions where the scale similarity assumption breaks down.
+This is one of the recommended combination for production LES runs in TOSCA.</p>
 <p><strong>DPASD</strong> (<code class="docutils literal notranslate"><span class="pre">dynamicPASD</span></code>) — same scale-dependent formulation as DLASD, but uses horizontal plane averaging instead of Lagrangian path-line averaging.
-Suitable for flows with a clear direction of statistical homogeneity (e.g., flat-terrain ABL precursors).</p>
+Suitable for flows with a clear direction of statistical homogeneity (e.g., flat-terrain atmospheric boundary layers with no turbines).</p>
 </section>
 <section id="anisotropic-minimum-dissipation-amd-model">
 <h3>Anisotropic Minimum Dissipation (AMD) Model<a class="headerlink" href="#anisotropic-minimum-dissipation-amd-model" title="Link to this heading"></a></h3>
@@ -253,7 +255,7 @@ inequality for the box-filter energy.  The resulting eddy viscosity is</p>
      {(\partial_l\overline{u}_m)(\partial_l\overline{u}_m)},\;0
 \right),\]</div>
 <p>where <span class="math notranslate nohighlight">\(\hat\partial_j = \sqrt{C_p}\,\delta_j\,\partial_j\)</span> is the scaled gradient operator (<span class="math notranslate nohighlight">\(\delta_j\)</span> the cell width in direction <span class="math notranslate nohighlight">\(j\)</span>,
-<span class="math notranslate nohighlight">\(C_p\)</span> a modified Poincaré constant set by <code class="docutils literal notranslate"><span class="pre">-amdCs</span></code>; default 0.1).  The model is purely dissipative (no backscatter), low-overhead (no filtering),
+<span class="math notranslate nohighlight">\(C_p\)</span> a modified Poincaré constant set by <code class="docutils literal notranslate"><span class="pre">-amdCs</span></code>, with default value 0.1).  The model is purely dissipative (no backscatter), low-overhead (no filtering),
 and well-suited to wall-bounded flows because <span class="math notranslate nohighlight">\(\nu_t \to 0\)</span> in the absence of velocity gradients.  In curvilinear coordinates the gradients are
 computed in curvilinear directions and then projected to Cartesian components using the metric terms.</p>
 </section>
@@ -297,14 +299,14 @@ for flows where a scale-invariant coefficient is a reasonable approximation.</p>
 </section>
 <section id="bardinaamd-bamd-model">
 <h3>Bardina–AMD (BAMD) Model<a class="headerlink" href="#bardinaamd-bamd-model" title="Link to this heading"></a></h3>
-<p><code class="docutils literal notranslate"><span class="pre">bardinaAMD</span></code> — the Bardina structural term is combined with the AMD eddy viscosity.  The AMD coefficient is set via <code class="docutils literal notranslate"><span class="pre">-amdCs</span></code> (default 0.1).  Among all
-mixed models tested in the validation study (Ajay et al., in preparation), BAMD combined with the <code class="docutils literal notranslate"><span class="pre">-central4</span></code> + <code class="docutils literal notranslate"><span class="pre">-hyperVisc</span></code> advection scheme shows the
-best balance of accuracy and computational efficiency across Taylor–Green vortex, turbulent channel flow, and ABL flow over heterogeneous terrain test cases.
-It is the recommended combination for production LES runs in TOSCA.</p>
+<p><code class="docutils literal notranslate"><span class="pre">bardinaAMD</span></code> — the Bardina structural term is combined with the AMD eddy viscosity.  The AMD coefficient is set via <code class="docutils literal notranslate"><span class="pre">-amdCs</span></code> (with default value 0.1).  Among all
+mixed models tested in the validation study (published in JCP, Ajay et al. 2025), BAMD combined with the <code class="docutils literal notranslate"><span class="pre">-central4</span></code> advection scheme (with 0.8 <code class="docutils literal notranslate"><span class="pre">-hyperVisc</span></code>) shows the
+best balance between accuracy and computational efficiency across Taylor–Green vortex flow, turbulent channel flow, and ABL flow over heterogeneous terrain test cases.
+This is one of the recommended combination for production LES runs in TOSCA.</p>
 </section>
 </section>
-<section id="sgs-temperature-flux">
-<span id="sgs-temp-flux"></span><h2>SGS Temperature Flux<a class="headerlink" href="#sgs-temperature-flux" title="Link to this heading"></a></h2>
+<section id="sgs-temperature-closure">
+<span id="sgs-temp-flux"></span><h2>SGS Temperature Closure<a class="headerlink" href="#sgs-temperature-closure" title="Link to this heading"></a></h2>
 <p>Sub-grid scale temperature fluxes are modeled following Moeng (1984) through a turbulent thermal diffusivity <span class="math notranslate nohighlight">\(\kappa_t = \nu_t / Pr_t\)</span>, where the
 turbulent Prandtl number depends on the local stability:</p>
 <div class="math notranslate nohighlight">

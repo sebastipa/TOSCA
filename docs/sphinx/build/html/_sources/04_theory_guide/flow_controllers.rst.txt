@@ -3,44 +3,44 @@
 Flow Controllers and Mesoscale Coupling
 ---------------------------------------
 
-TOSCA provides two classes of flow-driving strategies: *precursor controllers*, which sustain a statistically stationary ABL for spin-up or recycling purposes,
-and *mesoscale-to-microscale coupling (MMC) methods*, which introduce time- and height-varying mesoscale conditions into the LES through internal forcing source
-terms.  Both classes are configured via the ``controllerType`` (momentum) and ``controllerTypeT`` (temperature) keywords in ``ABLProperties.dat``.
+TOSCA provides two classes of flow-driving strategies: standard controllers, which sustain a statistically stationary idealized ABL for spin-up or recycling purposes,
+and profile assimilation methods for mesoscale-to-microscale coupling (MMC), which introduce time- and height-varying mesoscale conditions into the LES through internal forcing source
+terms for realistic ABLs. Both classes are configured via the ``controllerType`` (momentum) and ``controllerTypeT`` (temperature) keywords in ``ABLProperties.dat``.
 
 .. list-table::
    :header-rows: 1
    :widths: 35 25 40
 
    * - Method
-     - ``controllerType``
+     - keyword
      - Purpose
    * - Geostrophic controller
      - ``geostrophic``
-     - Fixed pressure gradient from geostrophic balance
-   * - Pressure (PI) controller
+     - Fixed pressure gradient derived from geostrophic balance (with optional wind angle controller).
+   * - Pressure controller
      - ``pressure``
-     - PI feedback to a target hub-height velocity
+     - Proportional-integral feedback to a target hub-height velocity.
    * - Direct profile assimilation
      - ``directProfileAssimilation``
-     - MMC: pointwise error feedback
+     - MMC pointwise error feedback controller.
    * - Indirect profile assimilation
      - ``indirectProfileAssimilation``
-     - MMC: polynomial-smoothed error feedback
+     - MMC polynomial-smoothed error feedback controller.
    * - Wavelet profile assimilation
      - ``waveletProfileAssimilation``
-     - MMC: wavelet-filtered error feedback
+     - MMC wavelet-filtered error feedback controller.
    * - Geostrophic profile assimilation
      - ``geostrophicProfileAssimilation``
-     - MMC: physics-based pressure-gradient forcing + WPA temperature
+     - MMC physics-based pressure-gradient forcing controller. To be combined with wavelet profile assimilation for temperature.
    * - Bulk velocity controller
-     - ``-meanGradPForce 1`` (CLI flag)
-     - Drive volume-averaged velocity to a target bulk value
+     - ``-meanGradPForce 1`` (in ``control.dat``)
+     - Drives volume-averaged velocity to a target bulk (volume-averaged) value.
 
-Precursor Controllers
-~~~~~~~~~~~~~~~~~~~~~~
+Standard Controllers
+~~~~~~~~~~~~~~~~~~~~
 
-Geostrophic Controller (``geostrophic``)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Geostrophic Controller
+^^^^^^^^^^^^^^^^^^^^^^
 
 The driving pressure gradient is derived from geostrophic balance:
 
@@ -52,14 +52,17 @@ The driving pressure gradient is derived from geostrophic balance:
     \frac{1}{\rho_0}\frac{\partial p_\infty}{\partial y} = -f_c U_G
 
 where :math:`f_c = 2\Omega_z` is the Coriolis parameter and :math:`(U_G, V_G)` are the specified geostrophic wind components.  The geostrophic controller does
-not directly control the hub-height wind speed, which is set by the turbulent stress balance inside the boundary layer.  An optional wind-angle controller
-(Allaerts and Meyers 2015) can be added to prescribe the wind direction at a reference height by slowly rotating the domain.
+not directly control the hub-height wind speed, which is arises based on the turbulent stress balance inside the boundary layer. An optional wind-angle controller
+(Allaerts and Meyers 2015) can be added to align the flow to a target wind direction at a reference height. 
 
-Pressure (PI) Controller (``pressure``)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Notably, the initial velocity should be consistent with the geostrophic wind components :math:`(U_G, V_G)`. If such balance is not respected,
+inertial oscillations above the boundary layer arise at frequency :math:`f_c`. 
+
+Pressure (PI) Controller
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 The pressure controller drives the horizontally averaged velocity at a reference height :math:`h_\text{ref}` to a target value :math:`u_{\text{ref},i}` using
-a proportional–integral (PI) algorithm:
+a proportional–integral (PI) controller algorithm:
 
 .. math::
     :label: eq:pControl
@@ -77,8 +80,8 @@ with proportional and integral errors
 
 where :math:`r` is a relaxation factor, :math:`\alpha` the proportional fraction, and :math:`T` an integral time scale.
 
-Because the geostrophic wind components :math:`(U_G, V_G)` are not prescribed a priori, an initial velocity inconsistent with geostrophic balance drives
-inertial oscillations above the boundary layer at frequency :math:`f_c`.  These are suppressed by the **geostrophic damping** term described below.
+Because the geostrophic wind components :math:`(U_G, V_G)` are not prescribed a priori, an initial velocity inconsistent with geostrophic balance (which notably it's always the case) drives
+inertial oscillations above the boundary layer at frequency :math:`f_c`.  These are suppressed by the geostrophic damping term described below.
 
 Geostrophic Damping
 """""""""""""""""""
@@ -96,20 +99,22 @@ where :math:`\alpha_d > 0` determines the damping strength (critically damped at
 :math:`1/(2\alpha_d f_c)`.  For the amplitude to fall below 3% of its initial value the required damping time is
 :math:`T_{3\%} = \ln(100/3)/(2\alpha_d f_c)`.
 
-The geostrophic wind components are inferred from the PI pressure gradient via :eq:`eq:geoBalance`, filtered with a time constant :math:`0.2\pi/f_c`.  The
-damping is blended to zero below the capping inversion using
+The geostrophic wind components are inferred from the PI pressure gradient via :eq:`eq:geoBalance`, filtered with a user-defined time constant. In order to leave 
+turbulence unaffected by the damping procedure, the damping term is blended to zero below the capping inversion using
 
 .. math::
 
     f_d = \frac{1}{2}\left[1 + \tanh\!\left(\frac{7(h - H_d)}{\Delta_d}\right)\right],
 
-where :math:`H_d` is the inversion center height and :math:`\Delta_d` the inversion width.
+where :math:`H_d` is the inversion center height and :math:`\Delta_d` the inversion width. These parameters are derived from ``hInv`` and ``dInv``, which are defined
+in the ``ABLProperties.dat`` file and should be set according to the flow under study.
 
-Temperature Controller (``initial``)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Temperature Controller
+^^^^^^^^^^^^^^^^^^^^^^
 
-To keep the mean potential temperature profile — and therefore the capping inversion — constant throughout a precursor simulation, a height-dependent source
-term is added to the temperature equation:
+When the temperature controller is set to ``initial``, a height-dependent source term is added to the temperature equation to maintain the mean potential 
+temperature profile — and therefore the capping inversion if present — constant throughout a precursor simulation. The controller computes a forcing at each 
+time step from the error between the current horizontally averaged profile and the initial profile as
 
 .. math::
     :label: eq:temperatureControl
@@ -117,14 +122,15 @@ term is added to the temperature equation:
     s_\theta(h) = r\,\frac{\bar\theta(h) - \langle\theta(h)\rangle_{xy}}{\Delta t},
 
 where :math:`\bar\theta(h)` is the target profile (taken from the initial condition) and :math:`r \approx 0.7` is a relaxation coefficient.  This controller
-eliminates drift of the inversion layer caused by differences in numerical dissipation between codes or simulation durations.
+eliminates the upward drift of the inversion layer caused by the turbulent mixing and entrainment, leading to a truly steady-state ABL flow that is 
+independent of the simulated time. 
 
-Bulk Velocity Controller (``-meanGradPForce``)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Bulk Velocity Controller
+^^^^^^^^^^^^^^^^^^^^^^^^
 
-The bulk velocity controller adds a uniform body force to the momentum equations every time step to drive the *volume-averaged* velocity toward a prescribed
-target bulk velocity :math:`\mathbf{U}_\text{bulk}`.  Unlike the pressure PI controller, which acts on the planar average at a single reference height, this
-controller acts on the full three-dimensional volume average:
+A bulk velocity controller can be set through the ``-meanGradPForce`` keyword in the ``control.dat`` file. This controller adds a uniform body force to the 
+momentum equations every time step to drive the volume-averaged velocity toward a prescribed target bulk velocity :math:`\mathbf{U}_\text{bulk}`.  
+Unlike the pressure PI controller, which acts on the planar average at a single reference height, this controller acts on the full three-dimensional volume average as
 
 .. math::
 
@@ -132,25 +138,24 @@ controller acts on the full three-dimensional volume average:
     = \frac{\displaystyle\sum_\Omega \mathbf{u}\,\delta V}
            {\displaystyle\sum_\Omega \delta V},
 
-where the sums run over all fluid (non-IBM, non-overset) cells.  The per-step forcing applied uniformly to every cell is
+where the sums run over all fluid cells (excluding the IBM cells if present). The per-step forcing applied uniformly to every cell is therefore
 
 .. math::
 
     \mathbf{F}_\text{bulk}(t) = \mathbf{U}_\text{bulk} - \langle \mathbf{u} \rangle_V(t),
 
 which is a purely proportional correction with unit gain (gain = 1 s\ :sup:`-1`\ ).  The forcing is projected onto the curvilinear contravariant face fluxes so
-that it is consistent with the collocated finite-volume discretisation of the non-orthogonal grid.
+that it is consistent with the collocated finite-volume discretisation.
 
 The target bulk velocity :math:`\mathbf{U}_\text{bulk}` is a three-component vector read from the ``uBulk`` keyword in the initial-condition input file (under
-whichever initialisation block is active, e.g. ``ABLFlow``, ``uniform``, ``spreadInflow``).
+whichever initialisation block this is active, e.g. ``ABLFlow``, ``uniform``, ``spreadInflow``). A running diagnostic accumulator ``meanGradP`` tracks the 
+cumulative correction applied over the simulation.
 
-A running diagnostic accumulator ``meanGradP`` tracks the cumulative correction applied over the simulation.
+Profile Assimilation Methods
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Mesoscale-to-Microscale Coupling (MMC)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Mesoscale-to-microscale coupling extends LES beyond statistically stationary, idealized conditions by incorporating time- and height-varying mesoscale
-information through internal source terms :math:`F_{u_i}` and :math:`F_\theta` added to the momentum and temperature equations, respectively:
+Profile assimilation methods for mesoscale-to-microscale coupling extend LES beyond statistically stationary, idealized conditions by incorporating time- and height-varying mesoscale
+information through internal source terms :math:`F_{u_i}` and :math:`F_\theta` added to the momentum and temperature equations, respectively
 
 .. math::
 
@@ -158,15 +163,12 @@ information through internal source terms :math:`F_{u_i}` and :math:`F_\theta` a
     \qquad
     \frac{\partial \overline{\theta}}{\partial t} + \cdots = \cdots + F_\theta(z,t).
 
-All MMC methods read mesoscale data (wind velocity and virtual potential temperature as functions of height and time) from `inflowDatabase/mesoscaleData`.
-For momentum, the region below a transition height can be treated differently from the region above, controlled by the ``lowerLayerForcingType`` keyword:
+All MMC methods read the target mesoscale data (wind velocity and potential temperature as functions of height and time) from `inflowDatabase/mesoscaleData`.
+Source terms are made constant after a certain height, which is choosen differently depending on prescribed ``lowerLayerForcingType`` keyword
 
-- ``constantHeight`` — transition height is a fixed value.
-- ``ablHeight`` — transition height tracks the dynamically computed ABL height.
-- ``mesoDataHeight`` — transition is set to the lowest height at which mesoscale data are available.
-
-Profile Assimilation Methods
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+- ``constantHeight`` : transition height is a fixed value.
+- ``ablHeight``      : transition height tracks the dynamically computed ABL height.
+- ``mesoDataHeight`` : transition is set to the lowest height at which mesoscale data are available.
 
 All profile assimilation techniques compute the forcing from an error between the horizontally averaged LES field
 :math:`\langle\bar\varphi_\text{LES}\rangle(z,t)` and the target mesoscale data :math:`\varphi_\text{m}(z,t)`:
@@ -177,10 +179,10 @@ All profile assimilation techniques compute the forcing from an error between th
 
 The three methods differ in how they filter or smooth :math:`e_\varphi` before applying it as a forcing.
 
-Direct Profile Assimilation — DPA (``directProfileAssimilation``)
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+Direct Profile Assimilation — DPA
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The error at each vertical level is used directly as a proportional forcing:
+Seletable with the ``directProfileAssimilation`` keyword, the error at each vertical level is used directly as a proportional forcing:
 
 .. math::
 
@@ -189,10 +191,10 @@ The error at each vertical level is used directly as a proportional forcing:
 where :math:`\mathcal{K}_p = 0.2\,\mathrm{s^{-1}}` is the proportional gain.  Because the corrections at each height level are independent, DPA can generate
 an artificial buildup of turbulent kinetic energy in regions where the LES has limited ability to adjust the mean flow through turbulent mixing.
 
-Indirect Profile Assimilation — IPA (``indirectProfileAssimilation``)
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+Indirect Profile Assimilation — IPA
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-IPA smooths :math:`e_\varphi` by fitting a polynomial of order :math:`m` (set by ``polynomialOrder``) to the vertical error profile at each time step.
+IPA, selectable with the ``indirectProfileAssimilation`` keyword, smooths :math:`e_\varphi` by fitting a polynomial of order :math:`m` (set by ``polynomialOrder``) to the vertical error profile at each time step.
 The polynomial coefficients :math:`\hat{\boldsymbol\beta}` are found by weighted least-squares minimisation:
 
 .. math::
@@ -209,10 +211,10 @@ The polynomial fit acts as a vertical low-pass filter that enforces inter-level 
 weights, but higher orders can be used to capture stronger vertical gradients.  IPA reduces the TKE build-up of DPA but can over-smooth sharp features such as
 low-level jets.
 
-Wavelet Profile Assimilation — WPA (``waveletProfileAssimilation``)
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+Wavelet Profile Assimilation — WPA
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-WPA applies a multi-resolution analysis (MRA) to the error profile using the discrete wavelet transform (DWT), providing a scale-aware filtering that
+WPA, selectable with the ``waveletProfileAssimilation`` keyword, applies a multi-resolution analysis (MRA) to the error profile using the discrete wavelet transform (DWT), providing a scale-aware filtering that
 preserves vertical structure while avoiding the over-smoothing of IPA.  The error is decomposed across :math:`m_0` levels (set by ``waveletDecompLevel``) into
 approximation and detail coefficients using a chosen mother wavelet (``waveletName``, e.g. ``db7`` — Daubechies of order 7):
 
@@ -230,10 +232,10 @@ By retaining only the low-frequency approximation coefficients :math:`\mathbb{W}
 WPA requires that TOSCA is compiled with Python support (``USE_PYTHON=1`` in the Makefile).  Symmetric signal extension is applied at the domain boundaries to
 minimise edge artefacts, which were observed in IPA near the surface.
 
-Geostrophic Profile Assimilation — HGWPA (``geostrophicProfileAssimilation``)
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+Geostrophic Profile Assimilation — HGWPA
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The hybrid geostrophic-wavelet profile assimilation (HGWPA) method computes the momentum source term from the large-scale pressure gradient force rather than
+The hybrid geostrophic-wavelet profile assimilation (HGWPA) method, selectable with the ``geostrophicProfileAssimilation`` keyword, computes the momentum source term from the large-scale pressure gradient force rather than
 from an error-based correction.  This is more physically consistent than DPA/IPA/WPA because it avoids momentum error forcing and directly encodes the
 relevant physical processes (pressure gradient, Coriolis force, and turbulent friction) into the LES source term.  The temperature source term is computed with
 WPA.
@@ -266,9 +268,9 @@ taper:
 where :math:`H_t = H + 0.5\,\Delta_s`, :math:`H` is the instantaneous ABL height, and :math:`\Delta_s = 0.2H` is the transition width.  The ABL height is
 computed dynamically at every time step from the running LES statistics.  The stability regime is detected from the surface heat flux:
 
-- **Convective** (surface heat flux :math:`> 0.02\,\text{K\,m\,s}^{-1}`): :math:`H` is the height of the minimum of the horizontally averaged total heat flux
+- Convective (surface heat flux :math:`> 0.02\,\text{K\,m\,s}^{-1}`): :math:`H` is the height of the minimum of the horizontally averaged total heat flux
   profile above its near-surface maximum.  If no minimum is found, the height of the maximum vertical temperature gradient is used as a fallback.
-- **Stable/neutral**: :math:`H` is the height at which the total (resolved + SGS) shear stress drops below 10 % of its surface-layer maximum,
+- Stable/neutral: :math:`H` is the height at which the total (resolved + SGS) shear stress drops below 10 % of its surface-layer maximum,
   cross-checked against the bulk Richardson number criterion :math:`\text{Ri}_B \geq 0.25`.
 
 The raw estimate is smoothed with an exponential running average

@@ -1,0 +1,931 @@
+
+\chapter{High Fidelity Model Development}
+\label{ch:highFidelityModeling}
+This chapter describes the high fidelity model that has been developed to simulate the interacting wind farm boundary layer flow. Specifically, LES has been chosen as the modeling approach as it allows to partially resolve turbulent eddies within the ABL while capturing large-scale physical processes such as atmospheric gravity waves aloft, at a computational cost that is affordable on modern high-performance computing (\acrshort{HPC}) architectures. 
+
+Among the large number of LES codes that have been developed by the research community so far (see \citealp{BretonEtAl2017} for a review), only a few can effectively tackle the complex challenge of modeling wind farm flows or are available for public use. The SP-Wind code, for example, developed at the Katholieke Universiteit Leuven (Belgium), has been successfully used for finite wind farm simulations capturing AGWs effects \citep{LanzilaoMeyers2022b}, but unfortunately is not open-source. Conversely, open-source tools such as the \acrshort{PALM} model \citep{MarongaEtAl2015}, developed by the Institute of Meteorology and Climatology at Leibniz Universität of Hannover (Germany), or \acrshort{SOWFA}, maintained by NREL (USA), do not implement the concurrent-precursor method, making it difficult to properly simulate gravity waves effects while avoiding inlet/outlet wave reflections. In addition, although SOWFA has been used in several research studies in the last decade (\citealp{ChurchfieldEtAl2012a,ChurchfieldEtAl2012b,FlemingEtAl2014, JohlasEtAl2021}, among others), it is based on OpenFOAM \citep{OpenFoam6}, a general-purpose set of libraries that are not specifically designed to efficiently run at scale. SOWFA's greatest limitation is its massive generation of output files. In particular, a directory containing all simulation fields is generated for each processor at run time. When dealing with thousands of processors, the number of produced files can easily saturate, within a few checkpoint iterations, the maximum file count on many HPC architectures. To address these shortcomings, NREL has started the ExaWind project \citep{MinEtAl2022}, but it is not yet at a final production stage. Moreover, it does not feature the concurrent-precursor technique nor a method to model complex terrains.
+
+For the aforementioned reasons, an open-source, finite-volume framework that is tailored for large-scale studies of wind farm-induced AGW and cluster wake-atmosphere interaction has been developed with the objective of \textit{gaining sufficient understanding of the physics of atmospheric flow within and around wind plants}, a grand challenge of modern wind energy according to \cite{ShawEtAl2022}. The new framework is called \acrshort{TOSCA} (Toolbox fOr Stratified Convective Atmospheres) and exploits state-of-the-art parallel libraries, such as OpenMPI \citep{OpenMPI2004}, PETSc \citep{BalayEtAl2022b}, HYPRE \citep{FalgoutYang2002} and HDF5 \citep{HDFGroup20002010} for the parallel solution of partial differential equations and handling of intense \acrshort{I/O} operations. TOSCA is specifically designed to enable LES simulations of large finite wind farms. Wind turbines can be modeled using the actuator line \citep{SorensenShen2002} and the actuator disk \citep{JimenezEtAl2007, JimenezEtAl2008} models, as well as other parametrizations that are described in \Cref{sec:turbineModels}. As inlet-outlet boundary conditions produce a consistent and undesirable reflection of atmospheric gravity waves, a hybrid off-line precursor/concurrent-precursor methodology is introduced which, coupled with periodic boundary conditions, limits artificial wave reflections while simultaneously reducing the computational cost associated with initializing the turbulent precursor. The concurrent-precursor method \citep{InoueEtAl2014} is to the author's knowledge not available in other finite-volume solvers, though extensively used in pseudo-spectral methods (\citealp{WuPorteAgel2017, AllaertsMayers2017a, AllaertsMayers2017b}). For this reason, gravity waves studies to-date have been only performed using the latter discretization technique, which does not allow for grid refinement in the pseudo-spectral directions. This forces a uniform grid resolution, leading to high cell counts. Conversely, the finite-volume method allows for grid stretching, enabling to resolve larger domains with the same number of degrees of freedom, hence providing greater geometrical flexibility. Finally, TOSCA also features a sharp-interface immersed boundary method (\acrshort{IBM}) based on \cite{MohammadiEtAl2019} that allows it to simulate moving objects and complex terrain features, although the development and validation of the IBM is outside the scope of the present thesis. 
+
+The present chapter is organized as follows. \Cref{sec:governingEquations} outlines the governing equations in Cartesian coordinates used to describe wind farm flows. It also provides their final form in generalized curvilinear coordinates, i.e. the actual governing equations solved by TOSCA (an introduction on generalized curvilinear coordinates and the derivation of the transformed equations is given in \Cref{app:curvilinearCoordinates}). \Cref{sec:numericalDiscretization} describes the developed numerical method and the discretization of the governing equations, and \Cref{sec:subGridScaleModel} describes the parametrization of the sub-grid turbulent stresses employed by TOSCA. \Cref{sec:wallHeatFluxModel} introduces the wall models used for atmospheric flows, \Cref{sec:turbineModels} details the turbine models that have been implemented in TOSCA, \Cref{sec:flowControllers} explains the novel flow controllers developed to drive the atmospheric boundary layer and to maintain a desired potential temperature profile, \Cref{sec:precursorMethod} presents TOSCA's novel precursor method technique, and \Cref{sec:handlingAtmosphericGravityWaves} explain the methodology that has been developed and implemented in order to avoid atmospheric gravity wave reflections during the simulations. In addition, the effect of AGWs can be fully modeled in TOSCA without resolving them within the numerical domain. This is especially beneficial when looking at extremely large domains in the horizontal directions. Since TOSCA employs the Boussinesq approximation, described in \Cref{subsec:boussinesqApproximation}, to account for buoyancy effects, \Cref{app:boussinesqApplicability} demonstrates its applicability to the types of flows that are treated in the present thesis. Finally, \Cref{sec:tosca} describes TOSCA from an operational point of view, providing data about its parallel performance. More information about the case structure, spatial mesh and input settings are given in \ref{app:toscaInput}. 
+
+\section{Governing Equations}
+\label{sec:governingEquations}
+The governing equations correspond to mass and momentum conservation for an incompressible flow with Coriolis forces and Boussinesq approximation for the buoyancy term. The latter is calculated using the modified density, evaluated by solving a transport equation for the potential temperature. These equations, expressed in Cartesian coordinates using tensor notation read
+\begin{align}
+	\frac{\partial u_i}{\partial x_i} &= 0, \label{eq:massCartesian} \\
+	\frac{\partial u_i}{\partial t} + \frac{\partial}{\partial x_j}\left(u_j u_i\right) &= -\frac{1}{\rho_\text{ref}}\frac{\partial p}{\partial x_i} + \frac{\partial}{\partial x_j}\left[\nu_\text{eff}\left(\frac{\partial u_i}{\partial x_j} + \frac{\partial u_j}{\partial x_i}\right)\right] + \nonumber \\ &-\frac{1}{\rho_\text{ref}}\frac{\partial p_{\infty}}{\partial x_i}+\frac{\rho_k}{\rho_\text{ref}}g_i - 2\epsilon_{ijk}\Omega_j u_k + f_i + s^v_i + s^h_i, \label{eq:momentumCartesian} \\
+	\frac{\partial\theta}{\partial t} + \frac{\partial}{\partial x_j}\left(u_j\theta\right) &= \frac{\partial}{\partial x_j}\left(k_\text{eff}\frac{\partial \theta}{\partial x_j}\right) + s_\theta, \label{eq:temperatureCartesian}
+\end{align}
+where $u_i$ is the Cartesian velocity, $p/\rho_\text{ref}$ is the kinematic pressure, $\theta$ is defined in \Cref{subsec:potentialTemperatureProfile}, $\Omega_j$ is the rotation rate vector at an arbitrary location on the planetary surface (defined as $\omega\cos\phi\widehat{y}+\omega\sin\phi\widehat{z}$, where $\phi$ is the latitude, in a local reference frame having $\widehat{z}$ aligned and opposite to the gravitational acceleration vector, $\widehat{x}$ tangent to Earth's parallels and $\widehat{y}$ such that the frame is right-handed). Source terms $f_i$, $s^v_i$, and $s^h_i$ are body forces introduced by turbines, and by vertical and horizontal damping regions, respectively. The source term $s_\theta$ is introduced by the potential temperature controller described in \Cref{subsec:potentialTemperatureController}. For completeness, a derivation of \Cref{eq:temperatureCartesian} is provided in \Cref{app:potentialTemperatureEquation}. Exploiting the \cite{Boussinesq1903} approximation, the modified density $\rho_k$ can be related to potential temperature as
+\begin{equation}
+	\frac{\rho_k}{\rho_\text{ref}} = 1 - \left(\frac{\theta-\theta_\text{ref}}{\theta_\text{ref}}\right), \label{eq:modifiedDensity}
+\end{equation}
+where $\theta_\text{ref}$ is chosen as the ground temperature. Parameters \gls{effectiveViscosity} and \gls{effectiveThermalDiff} are the effective viscosity and thermal diffusivity, respectively. The former is the sum of the kinematic viscosity \gls{kinViscosity} and the sub-grid scale viscosity \gls{turbViscosity}, while the latter is the sum between the kinematic thermal diffusivity $\gls{kinThermalDiff} = \nu/Pr$ and the turbulent thermal diffusivity \gls{turbThermalDiff}. Both $\nu_t$ and $\kappa_t$ are defined in \Cref{sec:subGridScaleModel}, while the dry air Prandtl number $\gls{prandtlNumber}$ is assumed to be $0.7$ in throughout the thesis. The third term on the right-hand side of \Cref{eq:momentumCartesian} is a uniform horizontal driving pressure gradient that balances turbulent stresses and the Coriolis force, allowing the boundary layer to reach a statistically steady state. This term is calculated using the velocity controller described in \Cref{subsec:velocityController}. 
+
+In light of the derivation presented in \Cref{app:curvilinearCoordinates} and using $q$ and $r$ as the principal indexes for generalized curvilinear coordinates, the incompressibility constraint and the potential temperature transport equations can be directly transformed in curvilinear coordinates, while the momentum conservation has to be first dotted with the face area vectors $1/J\partial l_q/\partial x_i$ (see \Cref{app:curvilinearCoordinates} for their definition) in order to be written in terms of the contravariant fluxes $V^q$. The governing equations that are discretized and solved within TOSCA, partially transformed in generalized curvilinear coordinates read as
+\begin{align}
+	\frac{\partial V^q}{\partial l_q} &= 0, \label{eq:massCurvilinear} \\
+	\frac{\partial V^q}{\partial t} &+ JS^q_i \frac{\partial}{\partial l_r}\left(V^r u_i\right) = -\frac{J^2}{\rho_\text{ref}}\frac{\partial p}{\partial l_r}S^{rq} + JS^q_i  \frac{\partial}{\partial l_r}\left[J\nu_\text{eff}\left(S^{rn}\frac{\partial u_i}{\partial l_n} + S^k_jR_{ij}\right)\right] + \nonumber \\
+	&- \frac{J^2}{\rho_\text{ref}}\frac{\partial p_{\infty}}{\partial l_r}S^{rq} + S^q_i\frac{\rho_k}{\rho_\text{ref}}g_i - 2S^q_i\epsilon_{ijk}\Omega_j u_k + S^q_i\left(f_i + s^v_i + s^h_i\right), \label{eq:momentumCurvilinear} \\
+	\frac{\partial \theta}{\partial t} &+ \frac{\partial}{\partial l_r}\left(V^r \theta\right) = J\frac{\partial}{\partial l_r}\left(J\kappa_{eff}\frac{\partial \theta}{\partial l_k} S^{rk}\right) + s_\theta. \label{eq:temperatureCurvilinear}
+\end{align}
+
+\section{Numerical Discretization}
+\label{sec:numericalDiscretization}
+
+\Cref{eq:momentumCurvilinear} is used to solve for contravariant fluxes, which are staggered at cell faces, while pressure is located at cell centers. In contrast to a staggered formulation using a full curvilinear transformation, i.e. where Cartesian velocity does not appear in the equations, in a partial transformation all Cartesian velocity components are required at each face center without interpolation in order to discretize \Cref{eq:momentumCurvilinear} with the same accuracy. This poses the problem of whether defining the Cartesian velocity at cell faces or at cell centers. One possibility is to solve all components of the momentum equation at each face center, in order for the Cartesian velocity to be attainable without interpolation. Although this approach has been adopted in literature by \cite{MaliskaRaithby1984}, it triples the computational cost, as for each $q$-th face, all three components of the momentum equations have to be discretized and solved. In TOSCA, the approach of \cite{GeSotiropoulos2007} is followed, where the momentum equation is first discretized at cell centers and then interpolated and solved at face centers in a staggered fashion. Cartesian velocity is subsequently reconstructed at cell centers by interpolating contravariant fluxes at the same location and using \Cref{eq:contravariant2cartesian}. With respect to a standard staggered formulation (e.g. in Cartesian coordinates), this procedure encompasses additional steps for interpolating the discretized momentum equation from cell to face centers and for transforming the interpolated fluxes into the Cartesian velocity at cell centers (flux interpolation is required in either case). However, it should be noted that the overhead in computational cost is minimal, as it only involves one-dimensional interpolations along grid lines, for which a second-order central scheme is used.
+
+Another slightly different approach, employed by \cite{RosenfeldEtAl1992}, is to directly discretize the momentum equation in a staggered manner. This avoids interpolating the whole momentum right-hand side at cell faces, but it requires interpolating contravariant fluxes instead during the process. In practice, staggered methods based on partially transformed equations involve an additional interpolation step, as the entire Cartesian velocity is required at each cell face and it has to be interpolated from the staggered contravariant fluxes. This poses slightly tighter constraints on the time step value required to keep the method stable. For this reason, an implicit treatment of advection and viscous terms in \Cref{eq:momentumCurvilinear} has been used. Specifically, the developed solver uses the matrix-free Newton-Krylov solver implemented in \acrshort{PETSc} \citep{BalayEtAl2022b}, where the iterative Krylov subspace generalized minimum residual (\acrshort{GMRes}) method \citep{SaadSchultz1986} is used to solve the linear system associated with each inner iteration (see \citealp{KnollKeyes2004} for a comprehensive review and application of matrix-free Newton–Krylov methods). In addition, such hybrid staggered/non-staggered formulation facilitates the application of boundary conditions, which are prescribed on the Cartesian velocity using ghost cells. 
+
+Pressure-velocity coupling is provided using a second-order fractional step method similar to \cite{vanKan1986}. Specifically, contravariant fluxes are first guessed by solving the discretized momentum equation
+\begin{equation}
+	\frac{V^{q,n+1}_* - V^{q,n}}{\Delta t} = \frac{1}{2}\left[H^q_U(\mathbf{V}^{n+1},\mathbf{u}^{n+1}) + H^q_U(\mathbf{V}^{n},\mathbf{u}^{n})\right] + L^{q}(\mathbf{u}^n/\mathbf{u}^{n+1}) + G^{q}(p^n) \label{eq:spatialDiscrMomentum}
+\end{equation}
+where index $n$ refers to the time stage and index $q$ to the curvilinear direction. $H^q_U$ is an operator that contains the $q$-th component of divergence and viscous fluxes. The operator $L$ contains the explicit buoyancy, Coriolis and turbine source terms, as well as the damping source terms, which are treated implicitly. Finally, $G$ is an operator holding the $q$-th component of the pressure gradient term. Notably, $H^q_U$ depends on all Cartesian and contravariant velocity components. Time discretization uses a second-order Crank-Nicholson implicit scheme on the advection and viscous fluxes for both momentum and temperature equations. Spatial derivatives are discretized using a second-order central scheme, while the advection term in \Cref{eq:momentumCurvilinear} is discretized using a blend between central and QUICK \citep{Leonard1979} schemes. More details on the spatial discretization will be provided in \Cref{subsec:momentumDiscretization}. The contravariant fluxes $V^{q,n+1}_*$, which do not satisfy mass continuity, are then projected into a divergence-free space by means of a pressure correction $\phi$, namely
+\begin{equation}
+	V^{q,n+1} = V^{q,n+1}_* + \Delta t\hspace{0.5mm}G^q(\phi^{n+1}), \label{eq:velocityProjection}
+\end{equation}
+where the pressure correction is obtained by solving the Poisson equation
+\begin{equation}
+	D\left(G^{q}(\phi^{n+1})\right) = - \frac{1}{\Delta t} D\left(V^{q,n+1}_*\right). \label{eq:discrPoisson}
+\end{equation}
+$D$ is the discrete divergence operator, defined at the cell $ijk$ as 
+\begin{equation}
+	D_{i,j,k}\left(\gamma\right) = \gamma_{i+\frac{1}{2},j,k}  + \gamma_{i,j+\frac{1}{2},k} + \gamma_{i,j,k+\frac{1}{2}} - \gamma_{i-\frac{1}{2},j,k} - \gamma_{i,j-\frac{1}{2},k} - \gamma_{i,j,k-\frac{1}{2}}. \label{eq:discreteDivOperator}
+\end{equation}
+Potential temperature is subsequently solved using the new velocity field transformed from $\mathbf{V}^{n+1}$, with an implicit treatment of the right-hand side, namely
+\begin{equation}
+	\frac{\theta^{n+1} - \theta^{n}}{\Delta t} = \frac{1}{2}\left[H_\theta(\theta^{n+1},\mathbf{V}^{n+1}) + H_\theta(\theta^{n},\mathbf{V}^{n})\right] + L_\theta(\theta^{n+1}), \label{eq:spatialDiscrTemperature}
+\end{equation}
+where $H_\theta$ contains the diffusion and advection fluxes and $L_\theta$ contain the discretized source terms. 
+Details on how \Cref{eq:spatialDiscrMomentum,eq:discrPoisson,eq:spatialDiscrTemperature} are discretized in TOSCA are provided in \Cref{subsec:momentumDiscretization,subsec:pressureDiscretization,subsec:temperatureDiscretization}.
+
+\subsection{Momentum Equation}
+\label{subsec:momentumDiscretization}
+In the present section, discretization of \Cref{eq:momentumCurvilinear} is carried out for $q=\xi$ (the procedure is identical for directions $\eta$ and $\zeta$), in order to define $H^q_U$, $L(\mathbf{u})$, $G(p)$ and $D\left(G(\phi)\right)$ operators. 
+
+Regarding the advection and viscous operator $H^q_U$, this results from the spatial discretization of
+\begin{equation}
+	JS^q_i  \frac{\partial}{\partial l_r}\left[J\nu_\text{eff}\left(S^{rn}\frac{\partial u_i}{\partial l_n} + S^k_jR_{ij}\right) - V^ru_i\right] \label{eq:advDiffTerm}
+\end{equation}
+where the first and second terms between squared brackets represent viscous and advection fluxes, respectively. As previously explained, $H^q_U$ should be first evaluated at cell centers and then interpolated at the faces. Proceeding this way, the operator $H^q_U$ is only evaluated once at $i,j,k$, instead of three times at $i+1/2,j,k$; $i,j+1/2,k$ and $i,j,k+1/2$. $H^q_U$ is composed by the convective and viscous fluxes, which are referred to as $F_c$ and $F_v$, respectively. Various finite difference schemes have been tested and implemented in TOSCA for $F_c$, for example the linear (second-order
+accurate, dispersive), quick (third-order accurate, diffusive) and \acrshort{WENO} (fourth-order accurate, diffusive) schemes. Best performance in terms of flow resolution and stability was found with what is referred in TOSCA as the \textit{centralUpwind} scheme, a blend between linear and quick that uses the van Leer flux limiter to weight the amount of diffusive and dispersive fluxes. For the linear scheme, the components of the $\xi$ convective flux evaluated at the $i+1/2,j,k$ face are given by 
+\begin{align}
+	F^\xi_{c,x}\bigg|^\text{linear}_{i+\frac{1}{2},j,k} &= -V^\xi_{i+\frac{1}{2},j,k} \left[\frac{1}{2}\left(u_{i+1,j,k}+u_{i,j,k}\right)\right], \nonumber \\
+	F^\xi_{c,y}\bigg|^\text{linear}_{i+\frac{1}{2},j,k} &= -V^\xi_{i+\frac{1}{2},j,k} \left[\frac{1}{2}\left(v_{i+1,j,k}+v_{i,j,k}\right)\right], \nonumber \\
+	F^\xi_{c,z}\bigg|^\text{linear}_{i+\frac{1}{2},j,k} &= -V^\xi_{i+\frac{1}{2},j,k} \left[\frac{1}{2}\left(w_{i+1,j,k}+w_{i,j,k}\right)\right], \label{eq:linearFluxes} 
+\end{align}
+while, for the QUICK scheme, one has to distinguish between $V^\xi_{i+\frac{1}{2},j,k}>0$, where 
+\begin{align}
+	F^\xi_{c,x}\bigg|^\text{QUICK}_{i+\frac{1}{2},j,k} &= -V^\xi_{i+\frac{1}{2},j,k} \left[\frac{1}{2}\left(u_{i+1,j,k}+u_{i,j,k}\right) + \frac{1}{8}\left(2u_{i,j,k}-u_{i+1,j,k}-u_{i-1,j,k}\right)\right], \nonumber \\
+	F^\xi_{c,y}\bigg|^\text{QUICK}_{i+\frac{1}{2},j,k} &= -V^\xi_{i+\frac{1}{2},j,k} \left[\frac{1}{2}\left(v_{i+1,j,k}+v_{i,j,k}\right) + \frac{1}{8}\left(2v_{i,j,k}-v_{i+1,j,k}-v_{i-1,j,k}\right)\right], \nonumber \\
+	F^\xi_{c,z}\bigg|^\text{QUICK}_{i+\frac{1}{2},j,k} &= -V^\xi_{i+\frac{1}{2},j,k} \left[\frac{1}{2}\left(w_{i+1,j,k}+w_{i,j,k}\right) + \frac{1}{8}\left(2w_{i,j,k}-w_{i+1,j,k}-w_{i-1,j,k}\right)\right],  \label{eq:quickFluxes1}
+\end{align}
+or $V^\xi_{i+\frac{1}{2},j,k}<0$, in which case 
+\begin{align}
+	F^\xi_{c,x}\bigg|^\text{QUICK}_{i+\frac{1}{2},j,k} &= -V^\xi_{i+\frac{1}{2},j,k} \left[\frac{1}{2}\left(u_{i+1,j,k}+u_{i,j,k}\right) + \frac{1}{8}\left(2u_{i+1,j,k}-u_{i,j,k}-u_{i+2,j,k}\right)\right], \nonumber \\
+	F^\xi_{c,y}\bigg|^\text{QUICK}_{i+\frac{1}{2},j,k} &= -V^\xi_{i+\frac{1}{2},j,k} \left[\frac{1}{2}\left(v_{i+1,j,k}+v_{i,j,k}\right) + \frac{1}{8}\left(2v_{i+1,j,k}-v_{i,j,k}-v_{i+2,j,k}\right)\right], \nonumber \\
+	F^\xi_{c,z}\bigg|^\text{QUICK}_{i+\frac{1}{2},j,k} &= -V^\xi_{i+\frac{1}{2},j,k} \left[\frac{1}{2}\left(w_{i+1,j,k}+w_{i,j,k}\right) + \frac{1}{8}\left(2w_{i+1,j,k}-w_{i,j,k}-w_{i+2,j,k}\right)\right]. \label{eq:quickFluxes2}
+\end{align} 
+The direction can be biased more conveniently by defining the quantities 
+\begin{align}
+	V^+ = \frac{1}{2}\left(V^\xi_{i+\frac{1}{2},j,k} + \big|V^\xi_{i+\frac{1}{2},j,k}\big|\right), \nonumber \\
+	V^- = \frac{1}{2}\left(V^\xi_{i+\frac{1}{2},j,k} - \big|V^\xi_{i+\frac{1}{2},j,k}\big|\right),
+\end{align}
+and by redefining the convective flux combining \Cref{eq:quickFluxes1,eq:quickFluxes2} as
+\begin{align}
+	F^\xi_{c,x}\bigg|^\text{QUICK}_{i+\frac{1}{2},j,k} &= \nonumber \\
+	&-V^+\left[\frac{1}{2}\left(u_{i+1,j,k}+u_{i,j,k}\right) + \frac{1}{8}\left(2u_{i,j,k}-u_{i+1,j,k}-u_{i-1,j,k}\right)\right] + \nonumber \\
+	&-V^-\left[\frac{1}{2}\left(u_{i+1,j,k}+u_{i,j,k}\right) + \frac{1}{8}\left(2u_{i+1,j,k}-u_{i,j,k}-u_{i+2,j,k}\right)\right], \nonumber \\
+	F^\xi_{c,y}\bigg|^\text{QUICK}_{i+\frac{1}{2},j,k} &= \nonumber \\
+	&-V^+\left[\frac{1}{2}\left(v_{i+1,j,k}+v_{i,j,k}\right) + \frac{1}{8}\left(2v_{i,j,k}-v_{i+1,j,k}-v_{i-1,j,k}\right)\right] + \nonumber \\
+	&-V^-\left[\frac{1}{2}\left(v_{i+1,j,k}+v_{i,j,k}\right) + \frac{1}{8}\left(2v_{i+1,j,k}-v_{i,j,k}-v_{i+2,j,k}\right)\right], \nonumber \\
+	F^\xi_{c,z}\bigg|^\text{QUICK}_{i+\frac{1}{2},j,k} &= \nonumber \\
+	&-V^+\left[\frac{1}{2}\left(w_{i+1,j,k}+w_{i,j,k}\right) + \frac{1}{8}\left(2w_{i,j,k}-w_{i+1,j,k}-w_{i-1,j,k}\right)\right] + \nonumber \\
+	&-V^-\left[\frac{1}{2}\left(w_{i+1,j,k}+w_{i,j,k}\right) + \frac{1}{8}\left(2w_{i+1,j,k}-w_{i,j,k}-w_{i+2,j,k}\right)\right]. \label{eq:quickFluxes3} 
+\end{align}
+With this formula, $V^+$ is zero if the contravariant flux is negative and $V^-$ is zero if the contravariant flux is positive, so that the correct upwind direction can be automatically picked. The linear scheme defined by \Cref{eq:linearFluxes} and the QUICK scheme expressed by \Cref{eq:quickFluxes3} are then blended into the \textit{centralUpwind} scheme. First, the van Leer limiter function is defined as
+\begin{align}
+	\Phi_{vl} &= \frac{1}{2}\left(\frac{r + |r|}{1 + |r|}\right), \label{eq:vanLeerBlending1} \\
+	r &= \left\{
+	\begin{alignedat}{2}
+		& 
+		\frac{V^\xi_{i+1/2,j,k}-V^\xi_{i-1/2,j,k}}{V^\xi_{i+3/2,j,k}-V^\xi_{i+1/2,j,k}} \hspace{1cm} \text{if} \hspace{2mm} V^\xi_{i+1/2,j,k}\geq 0, \\
+		&
+		\frac{V^\xi_{i+1/2,j,k}-V^\xi_{i+3/2,j,k}}{V^\xi_{i-1/2,j,k}-V^\xi_{i+1/2,j,k}} \hspace{1cm} \text{if} \hspace{2mm} V^\xi_{i+1/2,j,k}< 0 .
+	\end{alignedat}
+    \right. 
+	\label{eq:vanLeerBlending2}
+\end{align}
+From \Cref{eq:vanLeerBlending2} it can be noticed that if the gradients are equal, then $r=1$ and the limiter yields $0.5$ (contribution from linear and QUICK fluxes is equal). If the gradient of the upwind cell is much greater in absolute value than the gradient at the downwind cell, but they have the same sign (no oscillations in neighboring cells), then $r\to\infty$ and the limiter tends to unity and only the dispersive scheme should be used. If they have different signs (oscillations in neighboring cells) the limiter is zero and the diffusive scheme is adopted. Hence, \Cref{eq:linearFluxes,eq:quickFluxes3} are blended together using \Cref{eq:vanLeerBlending1} as
+\begin{align}
+	F^\xi_{c,x}\bigg|^\text{centralUpwind}_{i+\frac{1}{2},j,k} &= F^\xi_{c,x}\bigg|^\text{linear}_{i+\frac{1}{2},j,k} + (1-\Phi_{vl}) \nonumber \\
+	&\left( \right. \nonumber \\
+		&\hspace{1cm}-\frac{V^+}{8}\left(2u_{i,j,k} - u_{i+1,j,k} - u_{i-1,j,k}\right) \nonumber \\
+		&\hspace{1cm}-\frac{V^-}{8}\left(2u_{i+1,j,k} - u_{i,j,k} - u_{i+2,j,k}\right) \nonumber \\
+	&\left.\right), \nonumber \\ 
+	F^\xi_{c,y}\bigg|^\text{centralUpwind}_{i+\frac{1}{2},j,k} &= F^\xi_{c,y}\bigg|^\text{linear}_{i+\frac{1}{2},j,k} + (1-\Phi_{vl}) \nonumber \\
+	&\left( \right. \nonumber \\
+	&\hspace{1cm}-\frac{V^+}{8}\left(2v_{i,j,k} - v_{i+1,j,k} - v_{i-1,j,k}\right) \nonumber \\
+	&\hspace{1cm}-\frac{V^-}{8}\left(2v_{i+1,j,k} - v_{i,j,k} - v_{i+2,j,k}\right) \nonumber \\
+	&\left.\right), \nonumber \\
+	F^\xi_{c,z}\bigg|^\text{centralUpwind}_{i+\frac{1}{2},j,k} &= F^\xi_{c,z}\bigg|^\text{linear}_{i+\frac{1}{2},j,k} + (1-\Phi_{vl}) \nonumber \\
+	&\left( \right. \nonumber \\
+	&\hspace{1cm}-\frac{V^+}{8}\left(2w_{i,j,k} - w_{i+1,j,k} - w_{i-1,j,k}\right) \nonumber \\
+	&\hspace{1cm}-\frac{V^-}{8}\left(2w_{i+1,j,k} - w_{i,j,k} - w_{i+2,j,k}\right) \nonumber \\
+	&\left.\right), \label{eq:centralUpwindFluxes}
+\end{align}
+where the term between parentheses is the third order correction to the linear scheme to make it become the QUICK scheme. Notably, when $\Phi_{vl}$ is zero, the correction is applied, while as it approaches unity, the correction tends to zero and the linear flux is used. 
+
+Regarding the viscous term, this needs more computations as velocity gradients have to be first evaluated. Considering always the $\xi$ generalized direction, the gradients of the cartesian velocity components with respect to all generalized directions are needed at the $i+1/2,j,k$ face. They are calculated using central differences with values at neighboring cell centers, namely
+\begin{align}
+	\left.\frac{\partial u}{\partial \xi}\right|_{i+\frac{1}{2}, j, k} & =u_{i+1, j, k}-u_{i, j, k}, \nonumber \\
+	\left.\frac{\partial v}{\partial \xi}\right|_{i+\frac{1}{2}, j, k} & =v_{i+1, j, k}-v_{i, j, k}, \nonumber \\
+	\left.\frac{\partial w}{\partial \xi}\right|_{i+\frac{1}{2}, j, k} & =w_{i+1, j, k}-w_{i, j, k}, \nonumber \\
+	\left.\frac{\partial u}{\partial \eta}\right|_{i+\frac{1}{2}, j, k} & =\frac{1}{4}\left(u_{i+1, j+1, k}+u_{i, j+1, k}-u_{i+1, j-1, k}-u_{i, j-1, k}\right), \nonumber \\
+	\left.\frac{\partial v}{\partial \eta}\right|_{i+\frac{1}{2}, j, k} & =\frac{1}{4}\left(v_{i+1, j+1, k}+v_{i, j+1, k}-v_{i+1, j-1, k}-v_{i, j-1, k}\right), \nonumber \\
+	\left.\frac{\partial w}{\partial \eta}\right|_{i+\frac{1}{2}, j, k} & =\frac{1}{4}\left(w_{i+1, j+1, k}+w_{i, j+1, k}-w_{i+1, j-1, k}-w_{i, j-1, k}\right), \nonumber \\
+	\left.\frac{\partial u}{\partial \zeta}\right|_{i+\frac{1}{2}, j, k} & =\frac{1}{4}\left(u_{i+1, j, k+1}+u_{i, j, k+1}-u_{i+1, j, k-1}-u_{i, j, k-1}\right), \nonumber \\
+	\left.\frac{\partial v}{\partial \zeta}\right|_{i+\frac{1}{2}, j, k} & =\frac{1}{4}\left(v_{i+1, j, k+1}+v_{i, j, k+1}-v_{i+1, j, k-1}-v_{i, j, k-1}\right), \nonumber \\
+	\left.\frac{\partial w}{\partial \zeta}\right|_{i+\frac{1}{2}, j, k} & =\frac{1}{4}\left(w_{i+1, j, k+1}+w_{i, j, k+1}-w_{i+1, j, k-1}-w_{i, j, k-1}\right). \nonumber 
+\end{align}
+Moreover, also the components of the contravariant metric tensor evaluated with face area vectors, defined in \Cref{eq:faceAreaTensorContravTensorScaling}, are required. For the viscous flux in the $\xi$ direction, only the first row of the metric tensor is needed, namely
+\begin{align}
+	S^{11}\bigg|_{i+\frac{1}{2},j,k} &= \left(S_x^\xi\right)^2 + \left(S_y^\xi\right)^2 + \left(S_z^\xi\right)^2, \nonumber \\
+	S^{12}\bigg|_{i+\frac{1}{2},j,k} &= S_x^\eta S_x^\xi + S_y^\eta S_y^\xi + S_z^\eta S_z^\xi, \nonumber \\
+	S^{13}\bigg|_{i+\frac{1}{2},j,k} &= S_x^\zeta S_x^\xi + S_y^\zeta S_y^\xi + S_y^\zeta S_y^\xi, \label{eq:metricTensorViscousCsi}
+\end{align}
+where face area vectors are evaluated at the $i+1/2,j,k$ face. Lastly, the velocity gradient transpose term $R_{rm}$ is needed. Its elements are calculated at the $i+1/2,j,k$ face as 
+\begin{align}
+	& \left.R_{11}\right|_{i+\frac{1}{2}, j, k}=\left(\frac{\partial u}{\partial \xi} S_x^{\xi}+\frac{\partial u}{\partial \eta} S_x^\eta+\frac{\partial u}{\partial \zeta} S_x^\zeta\right)_{i+\frac{1}{2}, j, k}, \nonumber \\
+	& \left.R_{12}\right|_{i+\frac{1}{2}, j, k}=\left(\frac{\partial v}{\partial \xi} S_x^{\xi}+\frac{\partial v}{\partial \eta} S_x^\eta+\frac{\partial v}{\partial \zeta} S_x^\zeta\right)_{i+\frac{1}{2}, j, k}, \nonumber \\
+	& \left.R_{13}\right|_{i+\frac{1}{2}, j, k}=\left(\frac{\partial w}{\partial \xi} S_x^{\xi}+\frac{\partial w}{\partial \eta} S_x^\eta+\frac{\partial w}{\partial \zeta} S_x^\zeta\right)_{i+\frac{1}{2}, j, k}, \nonumber \\
+	& \left.R_{21}\right|_{i+\frac{1}{2}, j, k}=\left(\frac{\partial u}{\partial \xi} S_y^{\xi}+\frac{\partial u}{\partial \eta} S_y^\eta+\frac{\partial u}{\partial \zeta} S_y^\zeta\right)_{i+\frac{1}{2}, j, k}, \nonumber \\
+	& \left.R_{22}\right|_{i+\frac{1}{2}, j, k}=\left(\frac{\partial v}{\partial \xi} S_y^{\xi}+\frac{\partial v}{\partial \eta} S_y^\eta+\frac{\partial v}{\partial \zeta} S_y^\zeta\right)_{i+\frac{1}{2}, j, k}, \nonumber \\
+	& \left.R_{23}\right|_{i+\frac{1}{2}, j, k}=\left(\frac{\partial w}{\partial \xi} S_y^{\xi}+\frac{\partial w}{\partial \eta} S_y^\eta+\frac{\partial w}{\partial \zeta} S_y^\zeta\right)_{i+\frac{1}{2}, j, k}, \nonumber \\
+	& \left.R_{31}\right|_{i+\frac{1}{2}, j, k}=\left(\frac{\partial u}{\partial \xi} S_z^{\xi}+\frac{\partial u}{\partial \eta} S_z^\eta+\frac{\partial u}{\partial \zeta} S_z^\zeta\right)_{i+\frac{1}{2}, j, k}, \nonumber \\
+	& \left.R_{32}\right|_{i+\frac{1}{2}, j, k}=\left(\frac{\partial v}{\partial \xi} S_z^{\xi}+\frac{\partial v}{\partial \eta} S_z^\eta+\frac{\partial v}{\partial \zeta} S_z^\zeta\right)_{i+\frac{1}{2}, j, k}, \nonumber \\
+	& \left.R_{33}\right|_{i+\frac{1}{2}, j, k}=\left(\frac{\partial w}{\partial \xi} S_z^{\xi}+\frac{\partial w}{\partial \eta} S_z^\eta+\frac{\partial w}{\partial \zeta} S_z^\zeta\right)_{i+\frac{1}{2}, j, k}.
+\end{align}
+Finally, it is possible to compute the Cartesian components of the viscous part as
+\begin{align}
+	\left.F^\xi_{v, x}\right|_{i+\frac{1}{2}, j, k} & =\nu_\text{eff} J\left(S^{11} \frac{\partial u}{\partial \xi}+S^{12} \frac{\partial u}{\partial \eta}+S^{13} \frac{\partial u}{\partial \zeta}+R_{11} S_x^{\xi}+R_{12} S_y^{\xi}+R_{13} S_z^{\xi}\right)_{i+\frac{1}{2}, j, k}, \nonumber \\
+	\left.F^\xi_{v, y}\right|_{i+\frac{1}{2}, j, k} & =\nu_\text{eff} J\left(S^{11} \frac{\partial v}{\partial \xi}+S^{12} \frac{\partial v}{\partial \eta}+S^{13} \frac{\partial v}{\partial \zeta}+R_{21} S_x^{\xi}+R_{22} S_y^{\xi}+R_{23} S_z^{\xi}\right)_{i+\frac{1}{2}, j, k}, \nonumber \\
+	\left.F^\xi_{v, y}\right|_{i+\frac{1}{2}, j, k} & =\nu_\text{eff} J\left(S^{11} \frac{\partial w}{\partial \xi}+S^{12} \frac{\partial w}{\partial \eta}+S^{13} \frac{\partial w}{\partial \zeta}+R_{31} S_x^{\xi}+R_{32} S_y^{\xi}+R_{33} S_z^{\xi}\right)_{i+\frac{1}{2}, j, k}.
+	\label{eq:viscousFluxes}
+\end{align}
+Proceeding the same way also with the $\eta$ and $\zeta$ generalized directions, it is then possible to discretize the divergence operator $\partial/\partial l_r$ in \Cref{eq:momentumCurvilinear}. In order to do so, advection and viscous fluxes have to be evaluated at each face cell and accumulated over the cell for each Cartesian component, namely
+\begin{align}
+	F_x\bigg|_{i,j,k} = 
+	&F^\xi_{v,x}\bigg|_{i+\frac{1}{2},j,k} - F^\xi_{v,x}\bigg|_{i-\frac{1}{2},j,k} + 
+	F^\eta_{v,x}\bigg|_{i,j+\frac{1}{2},k} - F^\eta_{v,x}\bigg|_{i,j-\frac{1}{2},k} + 
+	F^\zeta_{v,x}\bigg|_{i,j,k+\frac{1}{2}} - F^\zeta_{v,x}\bigg|_{i,j,k-\frac{1}{2}} +
+	\nonumber \\
+	&F^\xi_{c,x}\bigg|_{i+\frac{1}{2},j,k} - F^\xi_{c,x}\bigg|_{i-\frac{1}{2},j,k} + 
+	F^\eta_{c,x}\bigg|_{i,j+\frac{1}{2},k} - F^\eta_{c,x}\bigg|_{i,j-\frac{1}{2},k} + 
+	F^\zeta_{c,x}\bigg|_{i,j,k+\frac{1}{2}} - F^\zeta_{c,x}\bigg|_{i,j,k-\frac{1}{2}}, \nonumber \\
+	F_y\bigg|_{i,j,k} = 
+	&F^\xi_{v,y}\bigg|_{i+\frac{1}{2},j,k} - F^\xi_{v,y}\bigg|_{i-\frac{1}{2},j,k} + 
+	F^\eta_{v,y}\bigg|_{i,j+\frac{1}{2},k} - F^\eta_{v,y}\bigg|_{i,j-\frac{1}{2},k} + 
+	F^\zeta_{v,y}\bigg|_{i,j,k+\frac{1}{2}} - F^\zeta_{v,y}\bigg|_{i,j,k-\frac{1}{2}} +
+	\nonumber \\
+	&F^\xi_{c,y}\bigg|_{i+\frac{1}{2},j,k} - F^\xi_{c,y}\bigg|_{i-\frac{1}{2},j,k} + 
+	F^\eta_{c,y}\bigg|_{i,j+\frac{1}{2},k} - F^\eta_{c,y}\bigg|_{i,j-\frac{1}{2},k} + 
+	F^\zeta_{c,y}\bigg|_{i,j,k+\frac{1}{2}} - F^\zeta_{c,y}\bigg|_{i,j,k-\frac{1}{2}}, \nonumber \\
+	F_z\bigg|_{i,j,k} = 
+	&F^\xi_{v,z}\bigg|_{i+\frac{1}{2},j,k} - F^\xi_{v,z}\bigg|_{i-\frac{1}{2},j,k} + 
+	F^\eta_{v,z}\bigg|_{i,j+\frac{1}{2},k} - F^\eta_{v,z}\bigg|_{i,j-\frac{1}{2},k} + 
+	F^\zeta_{v,z}\bigg|_{i,j,k+\frac{1}{2}} - F^\zeta_{v,z}\bigg|_{i,j,k-\frac{1}{2}} +
+	\nonumber \\
+	&F^\xi_{c,z}\bigg|_{i+\frac{1}{2},j,k} - F^\xi_{c,z}\bigg|_{i-\frac{1}{2},j,k} + 
+	F^\eta_{c,z}\bigg|_{i,j+\frac{1}{2},k} - F^\eta_{c,z}\bigg|_{i,j-\frac{1}{2},k} + 
+	F^\zeta_{c,z}\bigg|_{i,j,k+\frac{1}{2}} - F^\zeta_{c,z}\bigg|_{i,j,k-\frac{1}{2}}. \nonumber \\
+\end{align}
+Finally, the cell centered fluxes $F_i$ have to be dotted with the corresponding $q$-th face area vector, evaluated at cell centers, and linearly interpolated at the faces to yield the $H^q_U(\mathbf{V},\mathbf{u})$ operator. This yields 
+\begin{align}
+	H^\xi_U(\mathbf{V},\mathbf{u})_{i+\frac{1}{2},j,k} = 
+	&\frac{1}{2}\left(F_x S^\xi_x + F_y S^\xi_y + F_z S^\xi_z\right)_{i,j,k} + \nonumber \\
+	&\frac{1}{2}\left(F_x S^\xi_x + F_y S^\xi_y + F_z S^\xi_z\right)_{i+1,j,k}. \label{eq:advectionViscousOperatorCsi} \\
+	H^\eta_U(\mathbf{V},\mathbf{u})_{i,j+\frac{1}{2},k} = 
+	&\frac{1}{2}\left(F_x S^\eta_x + F_y S^\eta_y + F_z S^\eta_z\right)_{i,j,k} + \nonumber \\
+	&\frac{1}{2}\left(F_x S^\eta_x + F_y S^\eta_y + F_z S^\eta_z\right)_{i,j+1,k}. \label{eq:advectionViscousOperatorEta} \\
+	H^\zeta_U(\mathbf{V},\mathbf{u})_{i,j,k+\frac{1}{2}} = 
+	&\frac{1}{2}\left(F_x S^\zeta_x + F_y S^\zeta_y + F_z S^\zeta_z\right)_{i,j,k} + \nonumber \\
+	&\frac{1}{2}\left(F_x S^\zeta_x + F_y S^\zeta_y + F_z S^\zeta_z\right)_{i,j,k+1}. \label{eq:advectionViscousOperatorZet} 
+\end{align}
+
+The pressure gradient is discretized at the faces from cell center values using central finite differences at the internal cells and one-sided finite differences at the domain corners. Considering again the $\xi$ faces, it can be evaluated as
+\begin{align}
+	\frac{\partial p}{\partial \xi}\bigg|_{i+\frac{1}{2},j,k} &= p_{i+1,j,k} - p_{i,j,k}, \nonumber \\
+	\frac{\partial p}{\partial \eta}\bigg|_{i+\frac{1}{2},j,k} &= \frac{1}{4}\left(p_{i+1,j+1,k} + p_{i,j+1,k} - p_{i+1,j-1,k} - p_{i,j-1,k}\right), \nonumber \\
+	\frac{\partial p}{\partial \zeta}\bigg|_{i+\frac{1}{2},j,k} &= \frac{1}{4}\left(p_{i+1,j,k+1} + p_{i,j,k+1} - p_{i+1,j,k-1} - p_{i,j,k-1}\right), \nonumber
+\end{align}
+with a similar procedure used at the $\eta$ and $\zeta$ faces. The $G^q(p)$ operator is finally evaluated by multiplying the pressure gradient for the contravariant metric tensor evaluated with face area vectors, namely
+\begin{align}
+	G^\xi(p)_{i+\frac{1}{2},j,k} = J
+	\left(
+		\frac{\partial p}{\partial \xi} S^{11} + 
+		\frac{\partial p}{\partial \eta} S^{12} + 
+		\frac{\partial p}{\partial \zeta} S^{13} 
+	\right)_{i+\frac{1}{2},j,k} \label{eq:gradpOperatorCsi} \\
+	G^\eta(p)_{i,j+\frac{1}{2},k} = J
+	\left(
+	\frac{\partial p}{\partial \xi} S^{21} + 
+	\frac{\partial p}{\partial \eta} S^{22} + 
+	\frac{\partial p}{\partial \zeta} S^{23} 
+	\right)_{i,j+\frac{1}{2},k} \label{eq:gradpOperatorEta} \\
+	G^\zeta(p)_{i,j,k+\frac{1}{2}} = J
+	\left(
+	\frac{\partial p}{\partial \xi} S^{31} + 
+	\frac{\partial p}{\partial \eta} S^{32} + 
+	\frac{\partial p}{\partial \zeta} S^{33} 
+	\right)_{i,j,k+\frac{1}{2}} \label{eq:gradpOperatorZet} 
+\end{align}
+
+Finally, regarding the $L^q(\mathbf{u})$ term, this contains contribution from buoyancy, Coriolis, and the wind turbineand damping source terms, which are treated implicitly. Regarding buoyancy, there are two options for including it in the momentum equation. The first one is to recast this term into a pressure gradient by re-defining the pressure variable as the original pressure minus the hydrostatic pressure. The new pressure does not vary with height due to the fact that the hydrostatic contribution is eliminated from the equations. This makes the problem less stiff and the Poisson solver easier to converge. The drawback is that the boundary conditions for the pressure variable must now account for an additional hydrostatic term, hence they are more difficult to implement. In the second approach, the buoyancy term is left in its usual form, which makes it simpler from an implementation point of view, but renders the pressure equation numerically stiffer. TOSCA implements both approaches but, for simplicity, only the second will be described in the present section. 
+
+The buoyancy term is discretized at cell faces by first dotting the gravity vector with the face area vectors. Secondly, potential temperature is linearly interpolated at cell faces and the modified density over reference density ratio is evaluated using \Cref{eq:modifiedDensity}. In particular, the contribution to $L$ from the buoyancy forces reads 
+\begin{align}
+	L^{\xi,\text{buoyancy}}_{i+\frac{1}{2},j,k} = \left(g_xS_x^\xi + g_yS_y^\xi + g_zS_z^\xi\right)_{i+\frac{1}{2},j,k}\left(\frac{2\theta_\text{ref} - \theta_{i+\frac{1}{2},j,k}}{\theta_\text{ref}}\right), \label{eq:buoyancyCsi} \\
+	L^{\eta,\text{buoyancy}}_{i,j+\frac{1}{2},k} = \left(g_xS_x^\eta + g_yS_y^\eta + g_zS_z^\eta\right)_{i,j+\frac{1}{2},k}\left(\frac{2\theta_\text{ref} - \theta_{i,j+\frac{1}{2},k}}{\theta_\text{ref}}\right), \label{eq:buoyancyEta} \\
+	L^{\zeta,\text{buoyancy}}_{i,j,k+\frac{1}{2}} = \left(g_xS_x^\zeta + g_yS_y^\zeta + g_zS_z^\zeta\right)_{i,j,k+\frac{1}{2}}\left(\frac{2\theta_\text{ref} - \theta_{i,j,k+\frac{1}{2}}}{\theta_\text{ref}}\right). \label{eq:buoyancyZet} 
+\end{align}
+
+Regarding the body force produced by the Coriolis term, it is assumed that this is only relevant in the wall-parallel directions within the spatial scales involving wind energy applications \citep{Gill1982_C4}. The original term in Cartesian form \Cref{eq:momentumCartesian} can be expanded obtaining
+\begin{equation}
+	-2\epsilon_{ijk}\Omega_ju_k = -2\left[(\cancel{\Omega_yw}-\Omega_zv)\mathbf{i} - (\cancel{\Omega_xw}-\Omega_zu)\mathbf{j} + (\cancel{\Omega_xv}-\cancel{\Omega_yu})\mathbf{k}\right], \label{eq:coriolisFullCartesian}
+\end{equation}
+where it has been assumed that $\Omega_x\approx0$, $\Omega_y\approx0$, $w<<u$, $w<<v$ and the fact that the vertical component of the Coriolis force is small if compared with other vertical forces (e.g. the buoyancy force). The previous equation then reduces to the following vector field
+\begin{equation}
+	-2\epsilon_{ijk}\Omega_ju_k = -2 \left[-\Omega_zv\mathbf{i} + \Omega_zu\mathbf{j}\right], \label{eq:coriolisApproxCartesian}
+\end{equation}
+where the vertical component is zero. The Coriolis parameter is defined within the TOSCA code as $f_c=\Omega_z$, while in other codes such as SOWFA this is defined as $f_c=2\Omega_z$. The contribution to the $L$ operator is straightforwardly obtained by linearly interpolating the Cartesian velocity from cell centers to cell faces and dotting \Cref{eq:coriolisApproxCartesian} with the face area vectors, namely
+\begin{align}
+	L^{\xi,\text{coriolis}}_{i+\frac{1}{2},j,k} = -2f_c\left[-vS_x^\xi + uS_y^\xi\right]_{i+\frac{1}{2},j,k}, \label{eq:coriolisCsi} \\
+	L^{\eta,\text{coriolis}}_{i,j+\frac{1}{2},k} = -2f_c\left[-vS_x^\eta + uS_y^\eta\right]_{i,j+\frac{1}{2},k}, \label{eq:coriolisEta} \\
+	L^{\zeta,\text{coriolis}}_{i,j,k+\frac{1}{2}} = -2f_c\left[-vS_x^\zeta + uS_y^\zeta\right]_{i,j,k+\frac{1}{2}}. \label{eq:coriolisZet} 
+\end{align}
+Other generic source terms, such as $f_i$, $s_i^v$ and $s_i^h$ in \Cref{eq:momentumCartesian} can be inserted into the $L$ operator as
+\begin{align}
+	L^{\xi,\text{sources}}_{i+\frac{1}{2},j,k} = \left[(f_x + s_x^v + s_x^h)S_x^\xi + (f_y + s_y^v + s_y^h)S_y^\xi + (f_z + s_z^v + s_z^h)S_z^\xi\right]_{i+\frac{1}{2},j,k} \label{eq:sourcesCsi} \\
+	L^{\eta,\text{sources}}_{i,j+\frac{1}{2},k} = \left[(f_x + s_x^v + s_x^h)S_x^\eta + (f_y + s_y^v + s_y^h)S_y^\eta + (f_z + s_z^v + s_z^h)S_z^\eta\right]_{i,j+\frac{1}{2},k} \label{eq:sourcesEta} \\
+	L^{\zeta,\text{sources}}_{i,j,k+\frac{1}{2}} = \left[(f_x + s_x^v + s_x^h)S_x^\zeta + (f_y + s_y^v + s_y^h)S_y^\zeta + (f_z + s_z^v + s_z^h)S_z^\zeta\right]_{i,j,k+\frac{1}{2}} \label{eq:sourcesZet}
+\end{align} 
+Notably, contribution to $L$ can be made explicit or implicit by using the velocity at the previous or current iteration for its evaluation, respectively. Hence, $L$ is in general a function of both $\mathbf{u}^{n+1}$ and $\mathbf{u}^n$. 
+
+Finally, the driving pressure gradient $1/\rho_0\partial p_\infty/\partial x_i$ in \Cref{eq:momentumCartesian}, which computation is explained in \Cref{subsec:velocityController}, is recast into a source term and inserted into the momentum equation following \Cref{eq:sourcesCsi,eq:sourcesEta,eq:sourcesZet}.
+
+\subsection{Pressure Equation}
+\label{subsec:pressureDiscretization}
+In TOSCA, the Poisson equation \Cref{eq:discrPoisson} for the pressure correction $\phi$, is recast into a linear system that is solved using the GMRes algorithm available in the HYPRE package. This results in a square sparse matrix that has size $N_xN_yN_z\times N_xN_yN_z$, where $N_x$, $N_y$ and $N_z$ are the number of cells in the $\xi$, $\eta$ and $\zeta$ directions, respectively. Noticing that $p$ and $\phi$ are defined at cell centers, \Cref{eq:discrPoisson} results in applying the discrete divergence operator given by \Cref{eq:discreteDivOperator} to the fluxes of pressure gradient $\phi$ for the left hand side of \Cref{eq:discrPoisson} and to the contravariant fluxes for the right hand side. The latter is trivial, as $V^q$ are already defined on cells faces, namely
+\begin{align}
+	-\frac{1}{\Delta t}D\left(V^{q,n+1}_*\right) = -\frac{1}{\Delta t}&\left( 
+	V^{q,n+1}_*\bigg|_{i+\frac{1}{2},j,k} -    
+	V^{q,n+1}_*\bigg|_{i-\frac{1}{2},j,k} +
+	V^{q,n+1}_*\bigg|_{i,j+\frac{1}{2},k} + \right. \nonumber \\
+    &\left.-V^{q,n+1}_*\bigg|_{i,j-\frac{1}{2},k} +
+	V^{q,n+1}_*\bigg|_{i,j,k+\frac{1}{2}} - 
+	 V^{q,n+1}_*\bigg|_{i,j,k-\frac{1}{2}} \right). \label{eq:rhsPoisson}
+\end{align}
+For the left hand side, the discrete divergence operator applied to \Cref{eq:gradpOperatorCsi,eq:gradpOperatorEta,eq:gradpOperatorZet} (with $p=\phi$) is used to construct the matrix $A_\phi$ and the unknown vector $s_\phi$ by accumulating the coefficients multiplying $\phi$ in the discretized gradients. This leads, for a single cell $ijk$, to a reduced matrix $\widetilde{A}_\phi$ and an unknown vector $\widetilde{s}_\phi$ corresponding to the $3 \times 3 \times 3$ cell stencil surrounding cell $ijk$. As a consequence, $\widetilde{A}_\phi$ is characterized by a size $1\times27$ and corresponds, if multiplied by $\widetilde{s}_\phi$, to the left hand side of the Poisson equation discretized at cell $ijk$, namely
+\begin{align}
+	\left(\widetilde{A}_\phi\widetilde{s}_\phi\right)_{i,j,k} =
+	&G^\xi(\phi)_{i+\frac{1}{2},j,k} - G^\xi(\phi)_{i-\frac{1}{2},j,k} + \nonumber \\
+	&G^\eta(\phi)_{i,j+\frac{1}{2},k} - G^\eta(\phi)_{i,j-\frac{1}{2},k} +  \nonumber \\
+	&G^\zeta(\phi)_{i,j,k+\frac{1}{2}} - G^\zeta(\phi)_{i,j,k-\frac{1}{2}} 
+	\label{eq:poissonAtilde}
+\end{align}
+For clarity, only the contributions to $\widetilde{A}_\phi$ and $\widetilde{s}_\phi$ corresponding to the first two terms on the right hand side of \Cref{eq:poissonAtilde} are shown below, namely
+\begin{equation}
+	A_{i,j,k} = 
+	\begin{bmatrix}
+		S^{11} \\
+		-S^{12}/4 \\
+		 S^{12}/4 \\
+		-S^{13}/4 \\
+		 S^{13}/4 \\
+		 -2S^{11} \\
+		 S^{11} \\
+		  S^{12}/4 \\
+		 -S^{12}/4 \\
+		  S^{13}/4 \\
+		 -S^{13}/4 \\
+	\end{bmatrix}^T
+    \begin{bmatrix}
+    	\phi_{i-1,j,k} \\
+    	\phi_{i-1,j+1,k} \\
+    	\phi_{i-1,j-1,k} \\
+    	\phi_{i-1,j,k+1} \\
+    	\phi_{i-1,j,k-1} \\
+    	\phi_{i,j,k} \\
+    	\phi_{i+1,j,k} \\
+    	\phi_{i+1,j+1,k} \\
+    	\phi_{i+1,j-1,k} \\
+    	\phi_{i+1,j,k+1} \\
+    	\phi_{i+1,j,k-1} \\
+    \end{bmatrix}.
+    \label{eq:Aijk}
+\end{equation}
+The full $\widetilde{A}_\phi$ will store also contributions from the gradient fluxes in the $\eta$ and $\zeta$ directions. Stacking these reduced matrices vertically and locating the elements in the correct column of matrix $A_\phi$ yields the discretized Poisson linear system solved by TOSCA in order to yield the pressure correction $\phi$. 
+
+\subsection{Potential Temperature Equation}
+\label{subsec:temperatureDiscretization}
+Discretization of the potential temperature equation is performed similarly to the momentum equation. Since $\theta$ is defined at cell centers, the final interpolation of $H_\theta(\theta,\mathbf{V})$ to the faces is not required. Moreover, the potential temperature equation is not dotted with the face area vectors $S^q_i$, as it can be already written in terms of the contravariant fluxes. Convective fluxes are calculated at the $\xi$ faces following \Cref{eq:centralUpwindFluxes}, namely 
+\begin{align}
+	F^\xi_{c}\bigg|^\text{centralUpwind}_{i+\frac{1}{2},j,k} &= F^\xi_{c}\bigg|^\text{linear}_{i+\frac{1}{2},j,k} + (1-\Phi_{vl}) \nonumber \\
+	&\left( \right. \nonumber \\
+	&\hspace{1cm}-\frac{V^+}{8}\left(2\theta_{i,j,k} - \theta_{i+1,j,k} - \theta_{i-1,j,k}\right) \nonumber \\
+	&\hspace{1cm}-\frac{V^-}{8}\left(2\theta_{i+1,j,k} - \theta_{i,j,k} - \theta_{i+2,j,k}\right) \nonumber \\
+	&\left.\right), \label{eq:centralUpwindFluxesT}
+\end{align}
+where the linear flux contribution is evaluated as 
+\begin{align}
+	F^\xi_{c}\bigg|^\text{linear}_{i+\frac{1}{2},j,k} = -V^\xi_{i+\frac{1}{2},j,k} \left[\frac{1}{2}\left(\theta_{i+1,j,k}+\theta_{i,j,k}\right)\right]. \label{eq:linearFluxesT}
+\end{align}
+Computation of $\eta$ and $\zeta$ fluxes follows by applying the same procedure, while $\Phi_{vl}$ is evaluated using \Cref{eq:vanLeerBlending1}. 
+
+Viscous fluxes require the derivative of the potential temperature with respect to the curvilinear coordinates, which at the $\xi$ faces reads
+\begin{align}
+	\left.\frac{\partial \theta}{\partial \xi}\right|_{i+\frac{1}{2}, j, k} & =\theta_{i+1, j, k}-\theta_{i, j, k}, \nonumber \\
+	\left.\frac{\partial \theta}{\partial \eta}\right|_{i+\frac{1}{2}, j, k} & =\frac{1}{4}\left(\theta_{i+1, j+1, k}+\theta_{i, j+1, k}-\theta_{i+1, j-1, k}-\theta_{i, j-1, k}\right), \nonumber \\
+	\left.\frac{\partial \theta}{\partial \zeta}\right|_{i+\frac{1}{2}, j, k} & =\frac{1}{4}\left(\theta_{i+1, j, k+1}+\theta_{i, j, k+1}-\theta_{i+1, j, k-1}-\theta_{i, j, k-1}\right). \nonumber 
+\end{align}
+Viscous fluxes can then be evaluated for the $\xi$ faces as 
+\begin{align}
+	\left.F^\xi_{v}\right|_{i+\frac{1}{2}, j, k} & =\kappa_\text{eff} J\left(S^{11} \frac{\partial \theta}{\partial \xi}+S^{12} \frac{\partial \theta}{\partial \eta}+S^{13} \frac{\partial \theta}{\partial \zeta}\right)_{i+\frac{1}{2}, j, k},
+	\label{eq:viscousFluxesT}
+\end{align}
+where $S^{11}$, $S^{12}$ and $S^{13}$ are evaluated from \Cref{eq:metricTensorViscousCsi}. Proceeding in a similar manner with the $\eta$ and $\zeta$ generalized directions, the $H_\theta(\theta,\mathbf{V})$  operator is obtained by discretizing the divergence operator $\partial/\partial l_r$ at cell $ijk$ using \Cref{eq:discreteDivOperator}, namely
+\begin{align}
+	H_\theta(\theta,\mathbf{V})_{i,j,k} = 
+	&F^\xi_{v}\bigg|_{i+\frac{1}{2},j,k} - F^\xi_{v}\bigg|_{i-\frac{1}{2},j,k} + 
+	F^\eta_{v}\bigg|_{i,j+\frac{1}{2},k} - F^\eta_{v}\bigg|_{i,j-\frac{1}{2},k} + 
+	F^\zeta_{v}\bigg|_{i,j,k+\frac{1}{2}} - F^\zeta_{v}\bigg|_{i,j,k-\frac{1}{2}} +
+	\nonumber \\
+	&F^\xi_{c}\bigg|_{i+\frac{1}{2},j,k} - F^\xi_{c}\bigg|_{i-\frac{1}{2},j,k} + 
+	F^\eta_{c}\bigg|_{i,j+\frac{1}{2},k} - F^\eta_{c}\bigg|_{i,j-\frac{1}{2},k} + 
+	F^\zeta_{c}\bigg|_{i,j,k+\frac{1}{2}} - F^\zeta_{c}\bigg|_{i,j,k-\frac{1}{2}}, 
+\end{align}
+
+Finally, source terms are added to the potential temperature equation by simply taking their value at the cell center. Specifically, given a heat flux per unit volume $s_\theta$ at cell $ijk$, the $L_\theta$ operator is readily given by 
+\begin{equation}
+	L_{\theta,i,j,k} = s_{\theta,i,j,k}.
+\end{equation}
+Within TOSCA, the only source term that can be introduced within the potential temperature equation is used to fix the vertical profile of horizontally averaged potential temperature, and it is detailed in \Cref{subsec:potentialTemperatureController}.
+
+\section{Sub-grid Scale Model}
+\label{sec:subGridScaleModel}
+To model the sub-grid scale (\acrshort{SGS}) stresses, TOSCA uses the dynamic Smagorinsky model \citep{GermanoEtAl1991,Lilly1992}, with Lagrangian averaging of the model coefficient \gls{modelCoeffLES} \citep{MeneveauEtAl1996}. The model has been recast in generalized curvilinear coordinates, similarly to \cite{ArmenioPiomelli2000}. The effect of unresolved scales in the momentum equation, after the filtering operation, appears in Cartesian coordinates through the term
+\begin{equation}
+	\frac{\partial}{\partial x_j}\left(\overline{u_iu_j}\right) = \frac{\partial}{\partial x_j}\left(\bar{u_i}\bar{u_j}\right) + \frac{\partial}{\partial x_j}\left(\tau_{ij}^D\right) ,\label{eq:lesmodel_1}
+\end{equation}
+where $\bar{\cdot}$ is the filtering operation defined as 
+\begin{equation}
+	\bar{\cdot} = \int\bar{\cdot}(\underline{x}-\underline{r},t)G(|\underline{r}|)d\underline{r} ,\label{eq:lesfilter}
+\end{equation}
+and $\tau_{ij}^D$ is the deviatoric part of the sub-grid stresses, as the isotropic part is absorbed in the pressure variable. In curvilinear coordinates, Eq. \ref{eq:lesmodel_1} reads
+\begin{equation}
+	\frac{\partial}{\partial l_k}\left(\overline{V^ku_j}\right) = \frac{\partial}{\partial l_k}\left(\overline{V^k}\overline{u_j}\right) + \frac{\partial}{\partial l_k}\left(\sigma_j^k\right) , \label{eq:lesmodel_2}
+\end{equation}
+where
+\begin{equation}
+	\sigma_j^k = \overline{V^ku_j} - \overline{V^k}\overline{u_j}.
+\end{equation}
+Assuming a linear eddy viscosity model, namely
+\begin{align}
+	\sigma_i^k &= -2\nu_tS_j^kS_{ij}, \label{eq:lesmodel_3} \\
+	\nu_t &= C_s\Delta^2 \sqrt{2S_{ij}S_{ij}} \label{eq:lesmodel_4},
+\end{align}
+where $S_j^k = 1/J \partial l_k / \partial x_j$ are the face area vectors, $S_{ij} = \frac{1}{2}(\partial u_i/\partial x_j + \partial u_j/\partial x_i)$ is the symmetric part of the velocity gradient tensor and $\Delta$ is the cubic root of the local cell volume. Using the idea of \cite{GermanoEtAl1991}, a second filter denoted as $\widetilde{\cdot}$ can be applied, which has $\widetilde{\Delta} = 3\Delta$ in TOSCA, leading to the tensor
+\begin{equation}
+	T_j^k = \widetilde{\overline{V_ku_j}} - \widetilde{\overline{V_k}}\widetilde{\overline{u_j}}, \label{eq:lesmodel_5}
+\end{equation}
+that accounts for the effect of the unresolved plus the smallest resolved scales. The Germano tensor, i.e. the contribution to the resolved stresses from the largest unresolved motions, is defined in curvilinear coordinates by subtracting the tilde-filtered \Cref{eq:lesmodel_2} from \Cref{eq:lesmodel_5}
+\begin{equation}
+	G_j^k = T_j^k - \widetilde{\sigma}_j^k = \widetilde{\overline{V_k}\overline{u_j}} - \widetilde{\overline{V_k}}\widetilde{\overline{u_j}} . \label{eq:lesmodel_6}
+\end{equation}
+Using \Cref{eq:lesmodel_3,eq:lesmodel_4} to express $\widetilde{\sigma_j^k}$ and $T_j^k$ reads
+\begin{align}
+	\widetilde{\sigma_j^k} &= -2C_s\overline{\Delta}^2\widetilde{\mathit{|\overline{S}|S_j^kS_{ij}}} \label{eq:lesmodel_7}, \\
+	T_j^k &= -2C_s\widetilde{\overline{\Delta}}^2|\widetilde{\overline{S}}|\widetilde{\overline{S_j^k}}\widetilde{\overline{S}}_{ij}, \label{eq:lesmodel_8}
+\end{align}
+where in \Cref{eq:lesmodel_8} the approximation $\widetilde{\overline{S_j^kS_{ij}}} = \widetilde{\overline{S_j^k}}\widetilde{\overline{S}}_{ij}$ has been used. In fact,  as the LES filter has a size of 3 mesh cells in each
+direction, $\overline{S_j^k}$ (the face area vectors at the central cell) and
+$\widetilde{\overline{S_j^k}}$ (the filtered face area vectors within the box)
+are almost identical provided that mesh grading is smooth enough. Conversely, the equality holds exactly if an homogeneous filter and a uniform mesh are considered. Inserting \Cref{eq:lesmodel_7} and \Cref{eq:lesmodel_8} into \Cref{eq:lesmodel_6} leads to
+\begin{equation}
+	G_j^k = -2C_s\widetilde{\overline{\Delta}}^2|\widetilde{\overline{S}}|\widetilde{\overline{S_j^k}}\widetilde{\overline{S}}_{ij} + 2C_s\overline{\Delta}^2\widetilde{\mathit{|\overline{S}|S_j^kS_{ij}}} = C_s M_j^k,
+\end{equation}
+where
+\begin{equation}
+	M_j^k = 2\left[ \overline{\Delta}^2\widetilde{\mathit{|\overline{S}|S_j^kS_{ij}}} - \widetilde{\overline{\Delta}}^2|\widetilde{\overline{S}}|\widetilde{\overline{S_j^k}}\widetilde{\overline{S}}_{ij}\right]. \label{eq:lesmodel_9}
+\end{equation}
+It is now possible to find $C_s$ in a least-squares sense as 
+\begin{equation}
+	C_s(\underline{x},t) = \frac{M_j^k G_j^k}{M_m^n M_m^n} . \nonumber
+\end{equation}
+Note that the above relation is not invariant with respect to rotation of the reference frame, because it implicitly contains the face area vectors, hence tensors are no longer symmetric. Variables must then be transformed into physical space to find $C_s$ as
+\begin{equation}
+	C_s(\underline{x},t) = \frac{G_i^kM_i^q g_{kq}}{M_n^m M_n^l g_{ml}}, \label{eq:cscoeff}
+\end{equation}
+where $g_{ij}$ is the covariant metric tensor. Since the $C_s$ coefficient oscillates in space, some sort of averaging is required. TOSCA follows the approach presented in \cite{MeneveauEtAl1996}, where the numerator and denominator of \Cref{eq:cscoeff} are averaged along streamlines as
+\begin{align}
+	&\langle G_i^kM_i^q g_{kq} \rangle = I_{GM} = \int_{-\infty}^{t}G_i^k(t')M_i^q(t')g_{kq}W(t-t')dt', \label{eq:lagrangianAvg1} \\
+	&\langle M_n^mM_n^l g_{ml} \rangle = I_{MM} = \int_{-\infty}^{t}M_n^m(t')M_n^l(t')g_{ml}W(t-t')dt', \label{eq:lagrangianAvg2}
+\end{align}
+where $W(t) = 1/T_s \exp(-t/T)$ is a weighting function and $T_s$ is a time scale defined as
+\begin{equation}
+	T_s = 1.5\Delta \left[8G_i^kM_i^q g_{kq} M_n^mM_n^l g_{ml}\right]^{-1/8}.
+\end{equation}
+The integrals of \Cref{eq:lagrangianAvg1} and \Cref{eq:lagrangianAvg2} can be evaluated as
+\begin{align}
+	I_{GM}^n(\mathbf{x})  &= \epsilon(G_i^kM_i^q g_{kq}) + (1-\epsilon)(I_{GM}^{n-1}(\mathbf{x} - \mathbf{u}\Delta t)), \label{eq:lagrangianAvg3} \\
+	I_{MM}^n(\mathbf{x})  &= \epsilon(M_n^mM_n^l g_{ml}) + (1-\epsilon)(I_{MM}^{n-1}(\mathbf{x} - \mathbf{u}\Delta t)), \label{eq:lagrangianAvg4}
+\end{align}
+where $\epsilon = (\Delta t / T_s)/(1 + \Delta t / T_s)$. Tri-linear interpolation is used to evaluate the integrals $I_{GM}$ and $I_{MM}$ at the $\mathbf{x} - \mathbf{u}\Delta t$ position, and all quantities are evaluated at cell centers, including contravariant fluxes, which are linearly interpolated from the faces. 
+
+Regarding the potential temperature equation, sub-grid fluxes are evaluated following the approach of \cite{Moeng1984}, i.e. through the definition of a thermal eddy diffusivity $\kappa_t = \nu_t/Pr_t$, where $Pr_t$ is the turbulent Prandtl number, which depends on stability as
+\begin{align}
+	\mathit{Pr} &= \frac{1}{1+2l/\Delta} , \label{eq:Prt} \\
+	\mathit{l}  &= \begin{cases} 
+		\mathit{\text{min}\big(\frac{7.6\nu_t}{\Delta}\sqrt{\theta_{0}/|s|}, \Delta\big)} & \mbox{if } s< 0 \\[18pt]
+		\Delta                                                            & \mbox{if } s \ge 0,
+	\end{cases} \nonumber\\ 
+	\mathit{s} &= g_{i} \frac{\partial \theta}{\partial x_i}. \nonumber
+\end{align}
+Note that, if the potential temperature gradient is locally stable then $Pr_t\rightarrow1$, while for neutral or unstable cases $Pr_t = 1/3$. This reflects the decrease of the mixing length scale under stable conditions \citep{Shumann1991}.
+
+\section{Wall \& Heat Flux Models}
+\label{sec:wallHeatFluxModel}
+In order to evaluate the deviatoric part of the viscous plus SGS Reynolds stress tensor \gls{reynoldsViscousStresses} at the wall, the \cite{Shumann1975} model is used, which employs the classic \cite{MoninObukhov1954} similarity theory. The latter is also useful to guarantee a boundary condition for the SGS turbulent viscosity $\nu_t$ such that $\mathbf{\tau}_\text{eff}^D$ it is consistent with its modeled instance at the wall. Following \cite{NAWEA2016}, for numerical convenience $\mathbf{\tau}_\text{eff}^D$ and its value at the wall $\mathbf{\tau}_\text{eff,w}^D$ are stored separately in memory. Specifically, the latter is equal to zero everywhere except from the wall faces, while the former is set to zero at the wall in order to avoid any double counting. This splitting allows for a separate treatment of the two tensor fields as well as modeling $\mathbf{\tau}_\text{eff,w}^D$ as a whole. Since TOSCA is of hybrid collocated-staggered type, a specified velocity value at the wall is necessary in order to compute gradients, which is calculated by preserving the gradient in the wall-normal direction. This results in a certain value of velocity at the ground and is consistent with the fact wall shear stress is modeled. In order to compute the wall shear stress, a reference system having its origin at the wall and the $x$ axis parallel to velocity direction at the first cell center away from the wall is defined. Then, at every face center, the wall shear stress tensor is evaluated as
+\begin{equation}
+	\mathbf{\tau}_\text{eff,w}^D = 
+	\begin{bmatrix}
+		0 & 0 & \tau_{13}^{tot} \\
+		0 & 0 & \tau_{23}^{tot} \\
+		\tau_{13}^{tot} & \tau_{23}^{tot} & 0 \\
+	\end{bmatrix},
+\end{equation}
+where the two terms of the symmetric tensor are computed as
+\begin{align}
+	\tau_{13}^{tot} &= -u*^2\frac{\bar{u}(x,y,z_1)}{S(z_1)}, \label{eq:Rwall13} \\
+	\tau_{23}^{tot} &= -u*^2\frac{\bar{v}(x,y,z_1)}{S(z_1)}, \label{eq:Rwall23} \\
+	S(z_1) &= \big(\langle\bar{u}(x,y,z_1)\rangle_{xy}^2+\langle\bar{v}(x,y,z_1)\rangle_{xy}^2\big)^{0.5}
+\end{align}
+where $\langle\rangle_{xy}$ indicates mean of the quantity between brackets. Specifically, for wind farm simulations this consists of a time average \citep{YangEtAl2017}, while for ABL simulations an horizontal average is adopted as the flow is laterally homogeneous. The quantity $z_1$ refers to the wall distance from the first cell center. The friction velocity is evaluated by inverting the similarity relation near the wall, i.e. \Cref{eq:loglaw}. When dealing with neutral ABLs, the latter operation is analytically exact, whereas if convective or stable ABLs are considered which feature a wall heat flux, the similarity law becomes non-linear. In fact, the quantity $\Psi_M(z/)$ in \Cref{eq:loglaw}  becomes different from zero and, since it depends on $u*$ through \Cref{eq:L}, a numerical procedure must be set up to recover the friction velocity value. Within TOSCA, a Newton algorithm is used, looking for the zero of the function
+\begin{equation}
+	u(z_1) - \frac{u*}{\kappa}\left[\ln\left(\frac{z_1}{z_{0}}\right) - \Psi_M(z/L)\right] = 0	
+\end{equation}
+with $u*$ as unknown. For wind farm simulations the iterative procedure has to be performed at each boundary cell, while it is only performed once on the averaged velocity if the flow is horizontally homogeneous. Once this is accomplished, it is possible to evaluate wall shear stress tensor from \Cref{eq:Rwall13} and \Cref{eq:Rwall23}. Notably, $\nu_t$ is set to zero at the wall, so that $\mathbf{\tau}_\text{eff}^D$ is replaced by $\mathbf{\tau}_\text{eff,w}^D$ at the wall faces. 
+
+Regarding wall heat flux, this is modeled in a similar manner, i.e. the contribution to potential temperature transport is split between the internal cells and cell faces located at the wall. The first contribution is detailed in \Cref{sec:subGridScaleModel}, while the second contribution is again evaluated exploiting the \cite{MoninObukhov1954} similarity theory. Also in this case, the procedure is non linear for stable or unstable ABLs and implies a two-step algorithm. First, the value of $u*$ is found; this is then used to compute \gls{wallHeatFlux}. The general idea is to recover local heat flux values starting from a specified mean value at the wall provided in input, having as an alternative the possibility to define a variation of the mean surface temperature in time. The general procedure used in TOSCA consists in using $L$ and $\xi$ --- see \Cref{eq:L,eq:xi} --- to solve iteratively for $u*$ and $q_{wall}$ at every wall face by applying 
+\begin{align}
+	& u* = (\kappa \cdot u_1) \big/ \big(\ln(z_1/z_0) - \Psi_M\big), & \mbox{} \\
+	& q_\text{wall} = -\kappa u* \Delta T \big/ \big(\alpha_H \cdot \ln(z_1/z_0) - \Psi_H\big), & \mbox{}
+\end{align}
+where subindex $1$ stands for quantities evaluated at the first cell center away from the wall, $\alpha_H$ is a constant that is generally assumed $1$ \citep{Paulson1970}, $\kappa$ is the von K\'arm\'an constant, $\Delta T$ is the difference between first cell and wall potential temperature values, $\Psi_M$ is given by \Cref{eq:Ephi} and \Cref{eq:BDphi} for stable and unstable cases respectively. Finally, \gls{PsiHeat} is given by
+\begin{align}
+	& \Psi_H = -\gamma_H \cdot \xi, & \mbox{\hspace{5cm} stable ABL} \label{eq:stablePhiH}\\
+	& \Psi_H = \ln\bigg(\frac{1+y}{2}\bigg), & \mbox{\hspace{5cm} unstable ABL} \label{eq:unstablePhiH} 
+\end{align}
+with 
+\begin{align}
+	& y = (1-\beta_H \cdot \xi)^{1/2}, & \mbox{\hspace{7cm}}
+\end{align} 
+Once that convergence is reached on $u*$ and $q_\text{wall}$ (this implies that also the Obukhov length $L$ has converged), it is possible to compute mean shear, necessary to non-dimensionalize the computed wall-normal velocity derivatives. Defining the turbulent temperature scale as $\gls{thetaStar} = - q_\text{wall} / (\kappa u*)$, non-dimensional velocity and potential temperature gradients are given by
+\begin{align}
+	& \gls{phiMomentum} = \frac{\kappa z}{u*} \frac{\partial u}{\partial z}, \\[10pt]
+	& \gls{phiHeat} = \frac{z}{\theta*} \frac{\partial \theta}{\partial z}. 
+\end{align}
+In theory, such shears, according to \cite{Paulson1970}, should behave for stable ABL as
+\begin{align}
+	\Phi_M &= 1+\gamma_M\cdot\xi \label{eq:shearStableM}\\
+	\Phi_H &= \alpha_H+\gamma_H\cdot\xi \label{eq:shearStableH} 
+\end{align}
+while, for unstable ABL, they can be expressed by
+\begin{align}
+	\Phi_M &= (1-\beta_M\cdot\xi)^{-1/4} \label{eq:shearUnstableM}\\
+	\Phi_H &= (1-\beta_H\cdot\xi)^{-1/2} \label{eq:shearUnstableH} 
+\end{align}
+To verify wall models it is good practice to check that computed non-dimensional shears follow the same behaviour expressed by \Cref{eq:shearStableM,eq:shearStableH,eq:shearUnstableM,eq:shearUnstableH}. As suggested by \cite{Paulson1970}, $\gamma_H$ and $\beta_H$ should take the values of $7.8$ and $9$ respectively.
+
+\section{Turbine Models}
+\label{sec:turbineModels}
+To represent wind turbines in the computational domain, different models have been implemented in TOSCA, namely the actuator line model (ALM, \citealp{SorensenShen2002,Sorensen2015}), advanced actuator line model (\acrshort{AALM}, \citealp{ChurchfieldEtAl2017}), actuator disk model (\acrshort{ADM}, \citealp{MartinezTossasEtAl2012}), uniform actuator disk model (\acrshort{UADM}, \citealp{PorteAgelEtAl2010,JimenezEtAl2007, JimenezEtAl2008}), actuator farm model (\acrshort{AFM}) and canopy model \citep{LanzilaoMeyers2022a}. Although the ALM and AALM have not been used in the simulations conducted in this thesis, they were built into TOSCA for other studies and described here for completeness. The idea behind actuator models is to represent the wind turbine as a distribution of points, each associated with a force. The force sum from all points is equal to the total wind turbine thrust for the UADM and AFM, while ALM, AALM and ADM also account for blade rotation, hence tangential force. Once the Lagrangian force at each point has been calculated, it is distributed to the surrounding mesh cells through a projection function. The present section is organized as follows. \Cref{subsec:actuatorLineModel} describes the ALM, \Cref{subsec:advancedActuatorLineModel} details the AALM, \Cref{subsec:actuatorDiskModel} provides an overview of the ADM, \Cref{subsec:uniformActuatorDiskModel} discusses the UADM, \Cref{subsec:actuatorFarmModel} introduces the AFM developed by the author of this thesis, while \Cref{subsec:generalizedCanopyModel} details the wind farm canopy model implemented in TOSCA. As they require a much coarser mesh, the canopy model and the AFM are usually preferred during the process of tuning Rayleigh and fringe region damping layers for minimal AGW reflectivity, or when verifying the setup of a large wind farm simulations. Finally, \Cref{subsec:towerNacelleModels} explains how nacelle and tower can be modeled in TOSCA using actuator modeling techniques.
+
+\subsection{Actuator Line Model}
+\label{subsec:actuatorLineModel}
+In the ALM, first proposed by \cite{SorensenShen2002}, each turbine blade is represented as a linear distribution of actuator points. At each point, velocity is sampled from the numerical grid, lift and drag forces relative to the discrete blade element are calculated and then distributed to the surrounding mesh cells in what is referred to as force projection step. 
+
+Input parameters required by the ALM can be distinguished in global wind turbine parameters and blade information. The former are summarized in \Cref{tab:ALMinput}, and are used to define the geometric model of the wind turbine and the actuator point mesh. On the other hand, blade information consists of discrete tables of twist angle $t$ and chord $c$ at different radial location along the blade. In addition, for each of these locations, the type of airfoil needs to be specified. Tables of $C_l$ and $C_d$ coefficients as a function of the blade angle of attack $\alpha$ also need to be provided.
+
+At the start of the simulation, after defining the actuator points in the initial turbine configuration, a sphere of background mesh cells having their centers within a radius $R_s=R_t + \epsilon\sqrt{\ln(1/0.001)}$ from the rotor center is saved in memory. This stores all the background mesh cells where the actuator points will possibly be found during the simulation, as blades will be rotated and the wind turbine will be possibly yawed. The quantity $\sqrt{\ln(1/0.001)}$ is a constant, equal to $2.6283$, which fixes the distance from the actuator point at which the projection function is truncated. At this point, at every iteration, the following operations are performed. First, an equation describing the rotational dynamics of the rotor is solved to compute the wind turbine rotational speed, namely
+\begin{equation}
+	\omega^{n+1} = \omega^n + \frac{\Delta t}{I_\text{dtr}}\left(\eta_\text{gbx}Tq_r - r_\textit{gbx} Tq_g\right) \label{eq:rotorDynamics}
+\end{equation}
+where $I_\text{dtr}$ is the drive train inertia, $Tq_r$ is the rotor aerodynamic torque, $Tq_g$ is the generator torque applied by the turbine controller, $\eta_\text{gbx}$ is the efficiency of the gearbox and $r_\textit{gbx}$ is the gearbox ratio from the generator to the rotor. Once $\omega^{n+1}$ is found, blades are rotated around $e_\text{rtr}$ and generator torque, blade pitch and nacelle yaw can be controlled. The wind turbine controller that has been implemented in TOSCA corresponds to the one described in \cite{JonkmanEtAl2009}. Its results in terms of rotor speed, blade pitch and generator torque as a function of wind speed are shown in \Cref{app:nrel5mwData} for the NREL 5MW reference wind turbine. Once the controlling action has been applied, the high-level wind farm controller can be optionally applied by defining look-up tables of blade pitch as a function of time for each individual wind turbine.
+\begin{table}[H]
+	\begin{center}
+		\begin{tabular}{l l} 
+			\hline
+			Input parameter & Explanation \\
+			\hline
+			$R_\text{tip}$ & tip radius \\
+			$R_\text{hub}$ & hub radius \\
+			$H_\text{twr}$ & tower height \\
+			overhang & distance from tower to to rotor center \\
+			precone & blade angle w.r.t plane normal to rotor axis\\
+			$e_\text{twr}$ & vector from tower base to top \\
+			$e_\text{rtr}$ & vector aligned with rotor angular velocity, facing the wind \\
+			up tilt & angle between vertical plane and plane normal to rotor axis \\
+			$N_b$ & number of wind turbine blades \\
+			rotation & clockwise or counter-clockwise \\
+			$N_r$ & number of radial actuator points \\
+			$\epsilon$ & projection width \\
+			$\omega$ & wind turbine angular frequency \\
+			\hline
+		\end{tabular}
+	\end{center}
+	\caption[Input parameters for the actuator line model]{Global wind turbine input parameters for the actuator line model.}
+	\label{tab:ALMinput}
+\end{table}
+ 
+As the actuator points are moved in space due to blade rotation or nacelle yaw, which processor controls which actuator point must be tracked. This is required in the next step, i.e. the velocity sampling, to ensure that velocity information from the background mesh is available at the specific actuator point location. In order to perform this operation, for each actuator point, its distance to the closest cell belonging to the previously defined sphere of cells is calculated in each processor. Then, a collective operation of minimum among all processors is performed to find for each actuator point, the global minimum distance among values from all processors. Finally, each processor's distance is compared with the overall minimum and the actuator point is assigned to the processor where the distance corresponds to the global minimum. In order to render this operation more efficient, several solutions have been implemented. First, this process is only triggered by a change in rotor azimuth (i.e. if blades are rotated) or yaw angle. Since the actuator points are physically rotated in the ALM, this models requires such operation to be performed at every iteration. Secondly, local processor communicators are defined for each wind turbine such that the collective minimum operation is performed among just a few processors, so that different wind turbines can perform this operation simultaneously. Third, the closest cell is actually searched in the neighborhood of the previous closest cell, so that the search is only performed on a subset of each processor's subset of the sphere cells. Notably, while such algorithm only involves a single collective operation (the actual cell ID is not communicated), it is subject to ties between neighboring processors. In fact, if an actuator point is exactly located at the interface between two processors, the above algorithm will double count this point, as it will be assigned to both processors. To break ties, a spatial perturbation that is unique to each processor is temporarily added to the actuator point position when performing the search. This is evaluated as
+\begin{equation}
+	\epsilon_\textit{proc} = \epsilon_\text{max}\left(\frac{p}{N_p}\right), \label{eq:procPerturbation}
+\end{equation}
+where $\epsilon_\textit{max}$ corresponds to the maximum perturbation, set to $1\text{e}-10$, $p$ is the processor ID and $N_p$ is the total number of processors.
+
+Once that actuator points have been distributed to those processors controlling the wind turbine, i.e. belonging to the local turbine communicator, the velocity sampling operation can be performed. This consists in assigning a velocity value to each actuator point. Ideally, this value of velocity should be only affected by the gross rotor induction and not by the local induction from the blade. The reasoning behind this requirement is that, as the sampled velocity is used to compute the angle of attach, lift and drag forces for every discrete blade element, it should represent a freestream wind for the blade since look-up tables of drag and lift coefficients \gls{dragCoeff} and \gls{liftCoeff} are defined in terms of a freestream velocity for the airfoil.
+
+In TOSCA, two velocity sampling methods have been implemented, namely \textit{rotor disk} and \textit{integral} sampling. The first method consists of interpolating the background wind velocity at the actuator point location using tri-linear interpolation formulas, while the second integrates the background velocity within the support of the projection function, where each contribution to the integral is weighted by the projection function itself. This integral velocity sampling method, developed by \cite{ChurchfieldEtAl2017}, removes spurious high-frequency content that appears in the loads when the first sampling method is used. Furthermore, with more tailored body-force projection functions, such as the AALM's anisotropic projection, the location of point sampling for the first method becomes ambiguous, requiring the need for an integral sampling method. Once that the background wind velocity has been evaluated at the actuator points, it has to be combined with the velocity that the blade sees due to rotation. To this end, a blade reference frame $\mathbf{e}_b$ is defined as follows. If the wind turbine rotates in a clockwise direction, $\mathbf{e}_{b,z}$ points along the blade, from root to tip, $\mathbf{e}_{b,x}$ points opposite to the rotor axis and $\mathbf{e}_{b,y}$ is defined such that $\mathbf{e}_b$ is a right handed coordinate frame. Conversely, if the wind turbine is spinning counter-clockwise, $\mathbf{e}_{b,z}$ points along the blade from tip to root, whereas the $\mathbf{e}_{b,x}$ and $\mathbf{e}_{b,y}$ are defined in the same manner. This coordinate frame is characterized by always having $\mathbf{e}_{b,y}$ pointing in the direction of the wind seen by the blade due to its rotation. At this point, the sampled background velocity at the actuator point is expressed in the $\mathbf{e}_b$ frame and the velocity due to the blade rotation is added to its $y$ component. Moreover, the $z$ component is removed, as it is directed along the blade span. 
+\begin{figure}[H]
+	\begin{center}
+		\includegraphics[width=0.6\textwidth]{images/highFidelityMethods/bladedReferenceFrame.pdf}
+		\caption[Sketch of the wind triangle on the turbine blade]{Sketch of the wind triangle on the turbine blade.}
+		\label{fig:bladedReferenceFrame}
+	\end{center}
+\end{figure}
+The obtained velocity, referred to as $\mathbf{u_p} = u_p\mathbf{e}_{b,x} + v_p\mathbf{e}_{b,y}$, is used to compute the blade angle of attach at the actuator point location as 
+\begin{equation}
+	\alpha = \phi - p - t \label{eq:alphaBlade}
+\end{equation}
+where $\phi = \text{atan}(u_p/v_p)$ is the inflow angle, $p$ is the pitch angle and $t$ is the blade geometric twist angle. The reference frame $\mathbf{e}_b$ and the wind triangle are depicted in \Cref{fig:bladedReferenceFrame} for a wind turbine rotating counter-clockwise. 
+
+The angle of attach $\alpha$ is then used to interpolate $C_l$ and $C_d$ coefficients for the specific airfoil defined at the actuator point. Lift and drag are then calculated as
+\begin{align}
+	L = \frac{1}{2}|\mathbf{u_p}|^2 c_p dr C_l\mathbf{e}_{a,z}, \label{eq:bladeLift} \\
+	D = \frac{1}{2}|\mathbf{u_p}|^2 c_p dr C_d\mathbf{e}_{a,x}, \label{eq:bladeDrag}
+\end{align}
+where $c_p$ is the blade chord at the actuator point and $dr$ is the actuator line radial mesh size. The aerodynamic reference frame $\mathbf{e}_{a}$ provides the lift and drag direction, as it is defined as $\mathbf{e}_{a,x} = \mathbf{e}_{b,x} \cdot \mathbf{e}_{b,y}$, $\mathbf{e}_{a,y}$ directed as the blade radius from root to tip and $\mathbf{e}_{a,z}$ to form a right handed coordinate frame. Lift and drag are finally summed to yield the total actuator point force $\mathbf{B}_p$ that has to be projected on the background mesh. Notably, lift and drag should first be reversed to yield the force that the wind turbine exerts on the flow. Tangential and axial forces at the actuator point are calculated from $\mathbf{B}_p$ as follows
+\begin{align}
+	&F_\text{axial,p} = - \mathbf{B}_p \cdot \mathbf{e}_{b,x}, \label{eq:axialForce} \\
+	&F_\text{tang,p} =   \mathbf{B}_p \cdot \mathbf{e}_{b,y}. \label{eq:tangForce}
+\end{align}
+Turbine thrust is then evaluated by summing the axial force from all actuator points, while torque is evaluated as
+\begin{equation}
+	T_q = \sum_{p=1}^{N_p}\rho F_\text{tang,p}  r_p \cos(\text{precone}), \label{eq:torqueALM} 
+\end{equation}
+where $r_p$ is the radius corresponding to each actuator point and $N_p$ is the total number of actuator points.
+
+At this stage, the discrete force $\mathbf{B}_p$ relative each discrete blade element is known at the actuator points. This Lagrangian force is then projected to the sphere cells as
+\begin{equation}
+	\mathbf{f} = \sum_{c=1}^{N_c}\sum_{p=1}^{N_p} \mathbf{B}_p g_{cp} \label{eq:forceProjection}
+\end{equation}
+where $N_c$ is the number of sphere cells, $N_p$ is the number of actuator points and \gls{projectFunction} is the value of the projection function evaluated from the coordinates of the actuator points $p$ and cell center $c$ as 
+\begin{equation}
+	g_{cp} = \frac{1}{\epsilon^3 \pi^{3/2}}\exp\left(-\frac{(x_c - x_p)^2}{\epsilon^2}-\frac{(y_c - y_p)^2}{\epsilon^2}-\frac{(z_c - z_p)^2}{\epsilon^2}\right).  \label{eq:gaussIsotropProjection}
+\end{equation}
+The force $\mathbf{f}$ defined by \Cref{eq:forceProjection} can be finally used in the momentum equation (\ref{eq:momentumCurvilinear}), suitably transformed in curvilinear coordinates as explained in \Cref{subsec:momentumDiscretization}. 
+\begin{figure}[h]
+	\begin{center}
+		\includegraphics[width=0.5\textwidth]{images/highFidelityMethods/ALM_bf}
+		\caption[Example of wind turbine body force for the actuator line model]{Example of wind turbine body force for the actuator line model obtained by summing a constant thrust force multiplied by the projection function defined by \Cref{eq:gaussIsotropProjection} for each actuator point. The actual blade radius is depicted by the red circle.}
+		\label{fig:bodyForceALM}
+	\end{center}
+\end{figure}
+\Cref{fig:bodyForceALM} shows an example contour of the body force $\mathbf{f}$ obtained by assuming a constant thrust force at each actuator point. Notably, the sum of $g_{cp}$ from all actuator points results in cylindrical iso-surfaces around the blades, i.e. the shape of the projection function is isotropic in those directions perpendicular to the blade radius and equal for each actuator point. Moreover, projecting the force using \Cref{eq:gaussIsotropProjection} smears out the blade tip vortices, as the effective blade length goes beyond the actual blade radius. 
+
+\subsection{Advanced Actuator Line Model}
+\label{subsec:advancedActuatorLineModel}
+The AALM, introduced by \cite{ChurchfieldEtAl2017}, is almost identical to the ALM described in the previous section. The only difference is found in how the projection step is performed. In particular, a non-isotropic Gaussian projection function is used to vary the properties of $g_{cp}$ along the blade span. The rationale behind this approach is that vorticity is introduced in the domain on the projection function support in space. Hence, an argument is made that this should mimic the blade shape as closely as possible. For this reason, on top of all input parameters reported in \Cref{subsec:actuatorLineModel} for the ALM, the AALM also requires the profile of blade thickness $h$ along the blade span. The AALM is then equivalent to the ALM until the projection step. Here, starting from $\mathbf{e}_b$ defined in \Cref{subsec:actuatorLineModel}, a new reference frame $\mathbf{e}_l$ is created at each actuator point. Specifically, while $\mathbf{e}_{l,z}=\mathbf{e}_{b,z}$, $\mathbf{e}_{b,x}$ and $\mathbf{e}_{b,y}$ are rotated around $\mathbf{e}_{b,z}$ by the twist angle $t$ to form $\mathbf{e}_{l,x}$ and $\mathbf{e}_{l,y}$, respectively. Then, non-isotropic projection distances for the $p$-th actuator point are defined as 
+\begin{align}
+	\epsilon_{x} = c_p \beta_x, \\
+	\epsilon_{y} = h_p \beta_y, \\
+	\epsilon_{z} = dr \beta_z,
+\end{align}
+where $c_p$ and $h_p$ are the blade chord and thickness at point $p$, respectively, while $dr$ is the radial actuator mesh size along the blade. Quantities $\beta_x$, $\beta_x$ and $\beta_x$ are non-dimensional scaling factors that are chosen depending on the size of the background mesh relative to the blade properties. 
+\begin{figure}[h]
+	\begin{center}
+		\includegraphics[width=0.5\textwidth]{images/highFidelityMethods/AALM_bf}
+		\caption[Example of wind turbine body force for the advanced actuator line model]{Example of wind turbine body force for the advanced actuator line model obtained by summing a constant thrust force multiplied by the projection function defined by \Cref{eq:gaussAnisotropProjection} for each actuator point. The actual blade radius is depicted by the red circle.}
+		\label{fig:bodyForceAALM}
+	\end{center}
+\end{figure}
+The turbine body force is then still given by \Cref{eq:forceProjection}, but this time $g_{cp}$ is given by 
+\begin{equation}
+	g_{cp} = \frac{1}{\epsilon_x \epsilon_y \epsilon_z \pi^{3/2}}\exp\left(-\frac{r_x^2}{\epsilon_x^2}-\frac{r_y^2}{\epsilon_y^2}-\frac{r_z^2}{\epsilon_z^2}\right).  \label{eq:gaussAnisotropProjection}
+\end{equation}
+The values of $r_x$, $r_y$ and $r_z$ are calculated by dotting the distance from actuator point $p$ to cell $c$, namely $(x_c - x_p)\mathbf{i} + (y_c - y_p)\mathbf{j} + (z_c - z_p)\mathbf{k}$, with the unit vectors $\mathbf{e}_{l,x}$, $\mathbf{e}_{l,y}$ and $\mathbf{e}_{l,z}$, respectively.
+
+An example of this projection methodology is given in \Cref{fig:bodyForceAALM}, for a simple half-sine blade profile that has the region of maximum thickness at the blade half span. As can be noticed, the spurious overestimation of the blade radius when projecting the force on the background mesh is reduced with respect to the ALM, since the lower chord at the tip results in a smaller spatial support of the body force. Moreover, the body force has a very small support in the direction of the blade thickness compared to the chord direction. This results in better resolved flow features in the near-blade region, contributing to a better model performance in the flow region directly downstream to the rotor \citep{ChurchfieldEtAl2017}.
+
+\subsection{Actuator Disk Model}
+\label{subsec:actuatorDiskModel}
+The ADM follows exactly the definition of the ALM, except that actuator points are not physically rotated in space. As a consequence, the algorithm dedicated to determine which processor controls which actuator point is only triggered if a change in yaw occurs, making it more efficient. In the ADM, the wind turbine is represented by a disk characterized by an azimuthal angular discretization $da$ and a radial discretization $dr$. This means that the wind turbine has a fictitious number of blades equal to the number of azimuthal points $N_a$. For this reason, the actuator force $\mathbf{B}_p$ at the $p$-th actuator point is obtained by summing lift and drag found using \Cref{eq:bladeLift,eq:bladeDrag}, weighted by a solidity factor $N_b/N_a$, where $N_b$ is the number of turbine blades. The wind turbine body force $\mathbf{f}$ is then calculated using \Cref{eq:forceProjection}, where $g_{cp}$ is evaluated with \Cref{eq:gaussIsotropProjection}. An example of the body force field produced by the ADM is provided in \Cref{fig:bodyForceADM}. Similarly to the ALM, also the ADM is affected by a spurious overestimation of the blade radius as they both use an isotropic Gaussian projection function. \Cref{fig:bodyForceADM} shows an example contour of the body force $\mathbf{f}$ produced by the ADM by assuming a constant thrust force at every actuator point.
+
+The significant advantage of using the ADM over the ALM for large wind farm simulations is that it produces good results in terms of velocity profile in the wake while employing a coarser mesh, since the turbine force is spread on a larger spatial region. Moreover, as points are not physically rotated at each iteration due to blade rotation, there is no requirement on the time step size used by the simulation. Conversely, the ALM requires the time step to be smaller than the time required by the blade tip to travel through a mesh cell. This avoids spurious oscillations in the velocity sampling and provides an accurate representation of the wake profile \citep{MartinezTossasEtAl2012}
+\begin{figure}[h]
+	\begin{center}
+		\includegraphics[width=0.5\textwidth]{images/highFidelityMethods/ADM_bf}
+		\caption[Example of wind turbine body force for the actuator disk model]{Example of wind turbine body force for the actuator disk model obtained by summing a constant thrust force multiplied by the projection function defined by \Cref{eq:gaussIsotropProjection} for each actuator point. The actual blade radius is depicted by the red circle.}
+		\label{fig:bodyForceADM}
+	\end{center}
+\end{figure}
+
+\subsection{Uniform Actuator Disk Model}
+\label{subsec:uniformActuatorDiskModel}
+The UADM is the most basic actuator disk model that is able to represent the effect of a wind turbine in the flow. In fact, it does not require any information about the blade, but only the general wind turbine characteristics listed in \Cref{tab:ALMinput}. Moreover, the model requires specification of the disk thrust coefficient \gls{thrustCoeffPrime}, or of both the turbine thrust coefficient \gls{thrustCoeff} and freestream velocity \gls{freestreamVelocity}. $C_T'$ can be determined from $C_T$ using the relation
+\begin{equation}
+	C_T' = \frac{C_T}{(1-a)^2}, \label{eq:diskThrustCoeff}
+\end{equation}
+where $a$ is the turbine axial induction factor \citep{CalafEtAl2010}. The wind turbine is represented by means of the same actuator point mesh described in \Cref{subsec:actuatorDiskModel}, but only thrust is applied to the flow, making the UADM unable to capture the tangential force exerted on the flow by the wind turbine. As a consequence, the model is only expected to produce accurate results in the far region of the wind turbine wake. Specifically, turbine thrust can be calculated as 
+\begin{equation}
+	T = \frac{1}{2}U_\infty^2AC_T, \label{eq:thrustCT}
+\end{equation}
+or using 
+\begin{equation}
+	T = \frac{1}{2}U_d^2AC_T', \label{eq:thrustCTPrime}
+\end{equation}
+where \gls{diskVelocity} is the disk velocity sampled from the background mesh at the actuator points, averaged among all actuator points, and $A$ is the area of the disk. \Cref{eq:thrustCT} and \Cref{eq:thrustCTPrime} are equivalent, since 
+\begin{equation}
+	U_d = \frac{U_\infty}{(1-a)}. \label{eq:diskVelocity}
+\end{equation}
+However, they require care when used with arrays of wind turbines. Specifically, if a wind turbine operates in isolation, $U_\infty$ can be easily defined as the flow velocity far upstream with respect to the rotor location. Conversely, if a wind turbine is waked, this definition is no longer valid and sampling the velocity upstream would result in an even lower value of $U_\infty$, as the sampling point would simply move closer to the upstream wind turbine. Hence, a better definition of $U_\infty$ would be the velocity that would be experienced at a given wind turbine location, without the presence of the wind turbine itself. It is clear how, for a wind turbine operating in isolation, the above two definitions coincide, while they do not for a waked wind turbine. \Cref{eq:diskVelocity} goes beyond these issues, as using $C_T'$ to compute turbine thrust directly allows to simply average the velocity on the disk. Within TOSCA, both approaches are implemented to compute turbine thrust in the UADM. Specifically, using \textit{givenVelocity}, both $U_\infty$ and $C_T$ are required as input, but this approach is only suggested for isolated wind turbines. Conversely, if the velocity sampling method is set to \textit{rotorDisk}, the input thrust coefficient has to be provided at the disk, i.e. $C_T'$, while $U_d$ is averaged on the actuator points, where it is sampled using tri-linear interpolation from the background mesh. The body force $\mathbf{B}_p$ at actuator point $p$ is then evaluated as 
+\begin{equation}
+	\mathbf{B}_p = \frac{1}{2}KdA_p\mathbf{e}_\text{rtr}, \label{eq:thrustUADM}
+\end{equation}
+where $\mathbf{e}_\text{rtr}$ is defined in \Cref{tab:ALMinput}, $K$ is equal to $U_\infty^2C_T$ or $U_d^2C_T'$ for \textit{givenVelocity} and \textit{rotorDisk}, respectively. Moreover,
+\begin{equation}
+	dA_p = \pi\left(1 + \frac{R_\text{hub}^2}{R_\text{tip}^2 - R_\text{hub}^2}\right)\frac{(r_p + dr)^2 - r_p^2}{N_a}. \label{eq:dAreaUADM}
+\end{equation}
+The factor $R_\text{hub}^2/(R_\text{tip}^2 - R_\text{hub}^2)$ ensures that summing $dA_p$ from all actuator points yields the total rotor area and not just the circular crown that is obtained by removing a disk of radius $R_\text{hub}$ from the rotor disk. This makes \Cref{eq:thrustUADM} consistent with \Cref{eq:thrustCT,eq:thrustCTPrime} when $\mathbf{B}_p$ is summed among all actuator points. Finally, $\mathbf{B}_p$ is projected on the background mesh using \Cref{eq:forceProjection}, where $g_{cp}$ is given by \Cref{eq:gaussIsotropProjection}. 
+
+\subsection{Actuator Farm Model}
+\label{subsec:actuatorFarmModel}
+The AFM, developed by the author of the present thesis, is a bridge between wind turbine actuator parametrizations and canopy models. Canopy models in general do not aim at modeling each wind turbine individually, but rather apply a body force that depends on the thrust per unit area within a region that has the same shape of the modeled cluster. The AFM instead retains the same property of wind turbines models to represent each wind turbine individually, but this is done using a single actuator point per turbine. For this reason, while a single actuator point does not allow to capture the fine flow features in each individual wind turbine wake, it still allows to compute thrust for each individual turbine and project it on the background mesh in such a way that the wind farm geometry naturally arises from the combination of more turbines, instead of being defined as an entire volume. Consequently, the AFM can be regarded as a very detailed canopy model and it has been used in the present thesis to tune Rayleigh damping layers and fringe regions, as well as to test the setup of the wind farm simulations described in \Cref{sec:lesOfRectangularWindFarm,sec:lesOfArbitraryWindFarm}.
+
+In the AFM, the disk velocity $U_d$ can be sampled at the rotor center using tri-linear interpolation from the background mesh, or by using the integral sampling technique proposed by \cite{ChurchfieldEtAl2017} and explained in \Cref{subsec:advancedActuatorLineModel}. Then, turbine thrust is calculated using \Cref{eq:dAreaUADM} with $K=U_d^2C_T'$ and $A_p=\pi R_\text{tip}^2$. Finally, after inverting its sign, thrust is projected on the background mesh as 
+\begin{equation}
+	\mathbf{f} = \sum_{c=1}^{N_c} \mathbf{B} g_{c}. \label{eq:forceProjectionAFM}
+\end{equation}
+Note that no summation on actuator points is performed, since the AFM only consists of a single point. The projection function $g_{c}$ is given by \Cref{eq:gaussAnisotropProjection}, where the values of $r_x$, $r_y$ and $r_z$ are calculated by dotting the distance from the rotor center $(x_0$ $y_0$ $z_0)$ to cell $c$, namely $(x_c - x_0)\mathbf{i} + (y_c - y_0)\mathbf{j} + (z_c - z_0)\mathbf{k}$, with the unit vectors $\mathbf{e}_\text{rtr}$, $\mathbf{e}_{y}=\mathbf{k}\times\mathbf{e}_\text{rtr}$ and $\mathbf{k}$, respectively. In the AFM, the support of the projection function has to be of the order of one rotor radius in order to spread the turbine force on a region comparable to the turbine size. For this reason, $\epsilon_x$, $\epsilon_y$ and $\epsilon_z$ are set to $R_\text{tip}$, $R_\text{tip}$ and $H_\text{hub}/2$, respectively. Notably, the value of $\epsilon_z$ should be such that the resulting body force goes towards zero before reaching the ground, or part of the turbine thrust will be lost because $g_{c}$ does not integrate to zero within the computational domain. 
+
+\Cref{fig:bodyForceAFM} shows the body force field for a single wind turbine produced by the AFM. As can be noticed, since the entire wind turbine force is assigned to a single actuator point, the value of the axial body force produced by the AFM close to the rotor center is higher than what predicted by the ALM, AALM, ADM and UADM, while it transitions more smoothly to zero away from the wind turbine. 
+\begin{figure}[h]
+	\begin{center}
+		\includegraphics[width=0.5\textwidth]{images/highFidelityMethods/AFM_bf}
+		\caption[Example of wind turbine body force for the actuator farm model]{Example of wind turbine body force for the actuator farm model. The actual blade radius is depicted by the red circle.}
+		\label{fig:bodyForceAFM}
+	\end{center}
+\end{figure}
+
+\subsection{Generalized Canopy Model}
+\label{subsec:generalizedCanopyModel}
+Canopy models are used when the objective is not to model the wake interactions taking place inside the wind farm, but rather the interaction of the wind farm with the atmosphere. In fact, canopy model do not model each wind turbine individually, but rather the entire wind farm as a whole. For instance, \cite{LanzilaoMeyers2022a} used a canopy model to represent the wind farm forcing in the thermally stratified atmosphere, studying the development of wind farm induced atmospheric gravity waves. Since the body force is applied within a subset of cells that has the shape of the wind farm, canopy models are generally used to model clusters characterized by a simple shape, e.g. rectangular or squared. A canopy model has been implemented in TOSCA, where the forcing is applied within a box characterized by start and end coordinates $x_s$, $x_e$, $y_s$, $y_e$, $z_s$ and $z_e$ in the $x$, $y$ and $z$ directions, respectively. The expression of the body force $\mathbf{f}_i$ is derived as follows. For a rectangular aligned wind farm, characterized by turbine spacing \gls{xSpacing} and \gls{ySpacing} in the streamwise and spanwise directions, the thrust per unit area within the cluster can be calculated as 
+\begin{equation}
+	t_{xy} = \frac{1}{2S_xS_y}U_d^2\pi\frac{D^2}{4}C_T' = \frac{1}{2} U_\infty^2 c_\text{ft}' \label{eq:thrustUnitArea}
+\end{equation}
+with $\gls{windFarmDiskCft}=\pi C_T'D^2/(4S_xS_y)$. If the wind farm thrust acts on a layer of height $H_c$, the thrust per unit volume is further obtained as $t_{xy}/H_c$. If the approximation is made that the disk velocity is equal to the flow velocity $u_c$ at the cell where the body force $\mathbf{f}_i$ is evaluated, this can be calculated at every cell as
+\begin{equation}
+	\mathbf{f}_i = \frac{1}{2H_c}c_\text{ft}'u_c^2 \mathbf{e}_\text{rtr}\label{eq:canopyForce}
+\end{equation}
+
+\subsection{Tower and Nacelle Models}
+\label{subsec:towerNacelleModels}
+Tower and nacelle can be modeled in TOSCA by both using the IBM or by means of actuator points. The former will be left out of the present dissertation, as it is a topic treated in a parallel research project conducted by another student in the author's same research group. In the second approach, the tower is discretized as an actuator line, while the nacelle is modeled as a single actuator point. As these wind turbine elements are essentially bluff bodies, they do not produce lift. Specifically, the tower force at a given actuator point is evaluated as
+\begin{equation}
+	F_\text{twr} = \frac{1}{2}u_p^2dlc_tC_d \label{eq:towerForce}
+\end{equation}
+where $dl$ is the linear size of the actuator point mesh along the tower, $C_d$ is the tower drag coefficient and $u_p$ is the velocity at the actuator point, tri-linearly interpolated from the background mesh. The tower chord $c_t$ is calculated at the height $h_p$ of the actuator point from the knowledge of the tower base radius $R_{tb}$ and the tower top radius $R_{tt}$ as 
+\begin{equation}
+	c_t = 
+		\left(
+			\frac{R_{tt} - R_{tb}}{H_\text{twr}}
+			h_p  
+			+ R_{tb}
+		\right)
+\end{equation}
+by assuming a linearly tapered tower. The direction of the tower force in \Cref{eq:towerForce} is opposite to the velocity $u_p$ sampled at the $p$-th actuator point. Finally, $F_\text{twr}$ is projected on the background mesh using \Cref{eq:gaussIsotropProjection}. 
+
+The computation of the nacelle force is simpler, as this is readily evaluated as 
+\begin{equation}
+	F_\text{nac} = \frac{1}{2}u_p^2\pi R_\text{hub}^2C_d \label{eq:nacelleForce}
+\end{equation}
+and again projected using \Cref{eq:gaussIsotropProjection}. The direction of the force is, as for the tower force, opposite to the velocity $u_p$ at the nacelle actuator point, which is tri-linearly interpolated from the background mesh.
+
+\section{Flow Controllers}
+\label{sec:flowControllers}
+This section reviews the current state of the art for velocity controllers in precursor simulations and presents a novel technique that is referred to as geostrophic damping. This method, detailed in \Cref{subsec:velocityController}, allows to impose a generic mean hub-height velocity in a precursor simulation while avoiding inertial oscillations generated by the Coriolis force in the free atmosphere. Moreover, \Cref{subsec:potentialTemperatureController} introduces a simple temperature controller that is used to maintain a constant average potential temperature profile throughout the precursor simulation. 
+
+\subsection{Velocity Controller}
+\label{subsec:velocityController}
+In precursor simulations the flow is usually driven by a uniform horizontal pressure gradient, which is related to the geostrophic wind components by the geostrophic balance at equilibrium
+\begin{equation}
+	\frac{1}{\rho_0}\frac{\partial p_\infty}{\partial x} = f_cV_G, \hspace{1cm}
+	\frac{1}{\rho_0}\frac{\partial p_\infty}{\partial y} = -f_cU_G, \label{eq:geoBalance}
+\end{equation}
+where $f_c = 2\Omega_z$ is the Coriolis parameter. Notably, using the above equations to prescribe the driving pressure gradient through the knowledge of $U_G$ and $V_G$ in the free atmosphere does not give any control over the magnitude and direction of the wind inside the ABL (for example, at the wind turbine hub height). In fact, the latter is a result of the turbulent stresses, which are not known a-priori \citep{Nieuwstadt1983}. However, being able to prescribe a mean wind vector inside the ABL is convenient in wind farm simulations, as it allows to set the operation point of the wind turbines. To this end, \cite{SescuMeneveau2014} and \cite{AllaertsMeyers2015} developed an algorithm that slowly rotates the flow in the domain, allowing to control the wind direction at a specified height within the ABL. Later, \cite{StierenEtAl2021} used the same approach to impose dynamic wind direction changes. Besides the driving pressure gradient, evaluated using \Cref{eq:geoBalance}, the additional cross product $-\epsilon_{ijk}\omega_iu_j\widehat{x}_k$ is added to the momentum equation's right-hand side, where the angular frequency $\omega_i$ is calculated based on the angle difference at height where the wind direction is controlled (see \citealp{AllaertsMeyers2015} for details on this procedure). Such a method, referred to as the \textit{geostrophic} controller, does not entirely solve the issue, as velocity magnitude at the desired height is still unknown a-priori. Nevertheless, a different approach exists, available for example in SOWFA, which allows to prescribe both magnitude and direction at a specified height $h_\text{ref}$. In particular, given a desired velocity $u_{\text{ref},i}$, which should be maintained at $h_\text{ref}$, an error vector can be defined as the difference between the reference wind and the velocity sampled at the reference height, averaged over the homogeneous directions. At this point, a proportional-integral (\acrshort{PI}) controller can be used to evaluate the driving pressure gradient, i.e. the third term on the right-hand-side of \Cref{eq:momentumCartesian}, so that desired speed and angle are maintained at $h_\text{ref}$. This approach is referred to as the \textit{pressure} controller. In TOSCA both controller methods are implemented. In particular, the driving pressure gradient in the pressure controller is evaluated as
+\begin{eqnarray}
+	&&\frac{1}{\rho_\text{ref}}\frac{\partial p_\infty}{\partial x_i} = r\left(\alpha  e_{P,i} + (1-\alpha) e^n_{I,i}\right), \label{eq:pControl_1}\\
+	&& e_{P,i} =\left(u_{\text{ref},i} - \left\langle u_i(h_\text{ref})\right\rangle_{xy}\right)\big/\Delta t, \label{eq:pControl_2} \\
+	&& e^n_{I,i} = (1 - \Delta t / T) e^{n-1}_{I,i} + (\Delta t / T) e_{P,i}, \label{eq:pControl_3}
+\end{eqnarray}
+where subscript $i$ refers to the $i-$th component, $e_{P,i}$ is the proportional error, $e^n_{I,i}$ is the integral error evaluated at time step $n$, $r$ is a relaxation factor, $\alpha$ is the proportional fraction of the controlling action, $T$ is the time filter for the integral error, $\Delta t$ is the time step size and $\langle\cdot\rangle_{xy}$ denotes a spatial average along the homogeneous directions $x$ and $y$. The parameters $r$, $\alpha$ and $T$ will be set to $0.7$, $0.8$ and $2$ h throughout the thesis. 
+
+On one hand, the pressure controller is more convenient for wind turbine simulations, as hub height wind and direction can be directly specified. However, unlike the geostrophic controller, the pressure controller does not provide knowledge of the geostrophic wind \textit{a priori}, making it impossible to initialize the flow such that \Cref{eq:geoBalance} is satisfied. This inconsistency in the initial condition produces inertial oscillations in the free atmosphere flow, as the initial wind speed aloft differs from its equilibrium geostrophic value. This can be easily verified by noticing that the unsteady form of \Cref{eq:geoBalance} (see for example \citealp{Stull1988}),
+\begin{equation}
+	\begin{cases}
+		\frac{\partial u}{\partial t} + f_c(V_G - v) = 0  \\
+		\frac{\partial v}{\partial t} - f_c(U_G -u) = 0
+	\end{cases} 
+	\label{eq:geoBalanceUnsteady}
+\end{equation}
+represents an undamped linear oscillator with angular frequency $f_c$. In particular, if $v\neq V_G$ or $u\neq U_G$ at any point throughout the simulation, inertial oscillations are produced. In some wind energy applications, e.g. when studying the formation of atmospheric gravity waves above the boundary layer, the physics of the problem strongly depends on the magnitude $G$ of the geostrophic wind. In such cases, results are spuriously impacted by these inertial oscillations whose amplitude depends on the initial condition.
+
+Nevertheless, being able to exactly define the wind speed and direction at a specified height is a desirable property of the pressure controller. For this reason, a novel method has been developed that allows to remove these inertial oscillations, enabling the use of the pressure controller also in those cases where a steady state geostrophic wind is desired. First, the system of \Cref{eq:geoBalanceUnsteady} can be damped by introducing an additional term, namely
+\begin{equation}
+	\begin{cases}
+		\frac{\partial u}{\partial t} + 2c f_c(u-U_G) + f_c(V_G - v) = 0  \\
+		\frac{\partial v}{\partial t} + 2c f_c(v-V_G) - f_c(U_G -u) = 0,
+	\end{cases} 
+	\label{eq:geoBalanceUnsteadyDamped_1}
+\end{equation}
+where the coefficient $c$ determines if the system is over-damped ($c > 1$), under-damped ($c < 1$), or critically damped $c = 1$. With some manipulation, \Cref{eq:geoBalanceUnsteadyDamped_1} can be rewritten as
+\begin{equation}
+	\begin{cases}
+		\frac{\partial^2 u}{\partial t^2} + 2c f_c \frac{\partial u}{\partial t} + 2c f_c^2(v-V_G) + f_c^2(u-U_G) = 0  \\
+		\frac{\partial^2 v}{\partial t^2} + 2c f_c \frac{\partial v}{\partial t} - 2c f_c^2(u-U_G) + f_c^2(v-V_G) = 0.
+	\end{cases} 
+	\label{eq:geoBalanceUnsteadyDamped_2}
+\end{equation}
+These equations slightly differ from a conventional spring-mass-damper system in the additional coupling terms $2c f_c^2(v-V_G)$ and $2c f_c^2(u-U_G)$. Interestingly, it has been noticed by the author that these terms enhance the damping action, doubling the decay rate characterized by a time scale of $1/(2c f_c)$. In order for the oscillation amplitude to reach less than 3\% of the initial value, a damping time $T_{3\%}=\ln(100/3)/(2 \alpha f_c)$ is necessary. 
+
+Notably, in order for the damping term to be evaluated, knowledge about the geostrophic wind components is still required. Therefore, $U_G$ and $V_G$ are deduced from the driving pressure gradients imposed by the pressure controller (\Cref{eq:pControl_1,eq:pControl_2,eq:pControl_3}) by means of the definition of the geostrophic wind speed given by \Cref{eq:geoBalance}. The obtained geostrophic components are filtered using a filter constant of $0.2\pi/f_c$ (corresponding to one-tenth of the inertial oscillation period). Finally, it is highlighted that the damping action should start after the boundary layer has become fully developed, as the pressure gradient prescribed by the controller depends on the turbulent stresses if $h_\text{ref}$ is inside the ABL. In the precursor simulations presented in this thesis, the damping action -- when applied -- is characterized by $c=1$ and it is started after almost one inertial period ($T_D\approx2\pi/f_c$). Furthermore, it is maintained for at least a time equal to $T_{3\%}$. In order for this geostrophic damping method not to affect the velocity inside the ABL, the damping is smoothly brought to zero below a certain height by multiplying the damping terms with the function
+\begin{equation}
+	f_d = \frac{1}{2}\left[1 + \tanh\left(\frac{7(h-H_d)}{\Delta_d}\right)\right],
+	\label{eq:geoDampingFunction}
+\end{equation}
+where $H_d$ is the height where the damping has halved its strength. 
+If the simulation models a capping inversion layer, $H_d = H$, where $H$ is the capping inversion center, and $\Delta_d = \Delta$, where $\Delta$ is the capping inversion width. 
+
+\subsection{Potential Temperature Controller}
+\label{subsec:potentialTemperatureController}
+When running precursor CNBL simulations, the predicted ABL height, as well as the final value of potential temperature at the ground, depend on the mixing history experienced inside the boundary layer. This is in turn affected by the specific LES setup and the type of discretization used.  Moreover, the impact of such code details is made even more noticeable by the fact that these simulations usually run for a very long time (of the order of $2\pi/f_c$). For example, SP-Wind, which employs a pseudo-spectral discretization in the horizontal directions and an energy-conservative fourth-order advection scheme in the vertical, predicts less mixing than other pseudo-spectra codes, such as NCAR-LES \citep{PedersenEtAl2014} or Wire-LES \citep{AbkarPorteAgel2013}, which use for example a second-order central scheme in the vertical direction. Besides, in finite-volume codes, like TOSCA or SOWFA, an upwind-biased advection scheme is usually preferred, as it stabilizes the numerical method, but it does not allow to conserve mechanical energy. These considerations pose comparison issues among different codes, as their differences have an impact for example on the final ABL height, inversion thickness, potential temperature jump and, in general, on the heating history of the boundary layer. Ultimately, this also affects the successor solution in which wind turbines are present. In particular, if a CNBL precursor is run with a certain initial potential temperature profile, this evolves differently based on both the adopted simulation framework and the length of the precursor run, determining a discrepancy in the initial condition of the wind farm simulation. 
+
+This section proposes the application of a potential temperature controller in the precursor simulation such that the successor can be exactly run with the intended potential temperature profile. This is beneficial for example when making comparisons between different codes, as it ensures that the successor background temperature profile matches the precursor's initial condition. In particular, the height-dependent source term that is applied to the potential temperature equation reads 
+\begin{equation}
+	s_{\theta}(h) = r\frac{\bar{\theta}(h)-\langle\theta(h)\rangle_{xy}}{\Delta t}, \label{eq:temperatureControl}
+\end{equation}
+where $\bar{\theta}(h)$ is the desired vertical potential temperature profile. In the present thesis, this is taken as the initial value of $\langle\theta(h)\rangle_{xy}$, which is average of the potential temperature along the homogeneous directions at a given height. The parameter $r$ is a relaxation coefficient that is set to $0.7$. Note that \cite{AllaertsEtAl2020,AllaertsEtAl2023} used very similar method to drive LES simulations using mesoscale models or observational data, by prescribing a $\bar{\theta}(h)$ that also varies in time. 
+
+\section{Precursor Method}
+\label{sec:precursorMethod}
+Wind turbine wake recovery, and thus power production, are greatly influenced by background atmospheric turbulence. As a consequence, prescribing a physical turbulent inflow is essential in the context of wind farm LES. To achieve this, a commonly used approach is the so-called precursor-successor method \citep{ChurchfieldEtAl2012a,ChurchfieldEtAl2012b}, where a first simulation of the sole ABL, without wind turbines, is run until turbulence reaches steady state statistics. After this first phase, the latter is further progressed, and velocity and potential temperature are saved on a plane parallel to the inlet boundary, at each iteration, forming the \textit{inflow database}. At this point, the simulation with the wind turbines, the so-called successor, is started and at each time step the inflow boundary condition is interpolated from the saved slices at the two closest times from the inflow database, so that precursor and successor time steps can take different values. At the same time, the same driving pressure gradient resulting from the precursor simulation is applied to the successor.
+
+The above methodology implies no periodicity of the domain in the streamwise direction, and has proved to work extremely well for isolated turbine simulations within CNBLs, or in the absence of thermal stratification. On the contrary, when thermal stratification is present and the simulated wind farm is sufficiently large, atmospheric gravity waves can be triggered above the ABL and a careful design of the simulation should prevent these waves from being reflected by the physical boundaries. In particular, the LES setup should be equipped with damping regions at the top, inlet and outlet or, if streamwise periodic boundary conditions are used, a damping region located at the top and single one in the streamwise direction \citep{CalafEtAl2010,InoueEtAl2014,AllaertsMayers2017a}. The latter, also known as fringe region, must ensure that turbine wakes are prevented from being re-introduced into the domain by periodic boundaries, and that an unperturbed turbulent inflow is reached again at the fringe region exit. To achieve this, the desired flow that is used to compute the damping term should ideally contain time-resolved turbulent structures at every cell located in the fringe. Practically, it is inefficient to save such amount of data in a previous simulation and load it at every iteration. 
+The precursor is then advanced in sync with the successor, in a domain larger or equal to the fringe region, so that velocity and temperature fields are available at run time and at each time step and spatial location to compute damping sources. 
+
+In order to spin-up the wind farm simulation, a three step procedure has been developed by the author (see \Cref{fig:finiteWindFarmSpinUp}), where both off-line and concurrent precursor methodologies are adopted. As explained in \Cref{subsec:highFidelityModels}, the concurrent-precursor is necessary when dealing with wind farm-induced gravity waves, as it allows to avoid wave reflections and to prescribe a time-resolved turbulent inflow. Since the concurrent precursor domain should coincide with the successor---whose size is dictated by the gravity waves and wind farm---both in the spanwise and vertical directions, it is usually oversized from the turbulence generation point of view. This leads to a considerable amount of computational resources being consumed if the unperturbed ABL is started in the concurrent-precursor domain. In fact, domains of much smaller size are used in literature when the sole ABL is of interest, or when the inflow data is generated using the off-line precursor technique. 
+
+In TOSCA, the flexibility of the finite-volume formulation is exploited by combining the two techniques. In particular, the ABL is initialized using an off-line precursor, where the domain size can be arbitrarily defined both in the streamwise and vertical directions. The only requirement is that the spanwise size of the successor is an exact multiple of the spanwise domain size of the off-line precursor. When turbulence has reached a statistically steady state, flow slices of velocity and potential temperature are saved from this domain into the inflow database. After this first phase, the concurrent precursor and successor simulations are started, and streamwise inflow-outflow boundary conditions are used in the former for one flow turnover time. Inflow slices from the inflow database are periodized in the spanwise direction, while extrapolation is performed in the vertical direction. Notably, it is extremely important that the flow above the inversion layer does not contain any periodic variations in time, as this would be noticed in the successor, at streamwise intervals equal to the concurrent precursor domain length. For this reason, the off-line precursor data are averaged at the $10$ highest cells and slowly merged with the instantaneous data across such an interval. This removes even the smallest periodic content in the flow above the boundary layer, which is now characterized by a truly constant geostrophic wind. The average and instantaneous velocities are weighted using two hyperbolic weighting functions (\Cref{eq:geoDampingFunction} is used for both, but a minus sign after unity is applied for the instantaneous velocity). $H_d$ is set to the height of the fifth cell center from the off-line precursor top boundary, while $\Delta_d$ is equal to the width of the layer identified by the $10$ highest cells. 
+
+After the concurrent-precursor has run for one flow turnover time, the turbulent inflow has reached the outlet, and streamwise boundary conditions are switched to periodic. At this point, the simulation is self-sustained and precursor and successor are carried on simultaneously for one successor flow turnover time so that gravity waves and wind turbine wakes are formed. The drawback of such method is that a spanwise periodicity is introduced in the concurrent-precursor and successor domains. If the Coriolis force is active, this can be broken everywhere except at hub-height, where the flow is aligned with the $x$ axis, by setting the off-line precursor and the concurrent-precursor streamwise domain length to a different value. At the hub-height, the larger turbulence structures might be locked in position if they span the whole domain length. Although they will eventually disappear, they result in a slow convergence of flow averages. This issue has been already observed in the past for example by \cite{MuntersEtAl2016}, who proposed to use shifted periodic boundary conditions in the concurrent-precursor domain. 
+
+Nevertheless, the proposed hybrid method, sketched in \Cref{fig:finiteWindFarmSpinUp}, is very convenient as it allows to reduce the overall computational cost of the ABL spin-up phase, where wind farm-induced gravity waves are not yet present. In fact, this initial phase is run on a domain whose size is dictated by the actual flow physics, rather than on quantities that will only become relevant in the successor stage of the simulation.
+\begin{figure}[!htb]
+	\begin{center}
+		\includegraphics[width=1\textwidth]{images/highFidelityMethods/finiteWindFarmSpinUp.pdf}
+		\caption[Sketch of the hybrid off-line/concurrent precursor method]{Sketch of the hybrid off-line/concurrent precursor method.}
+		\label{fig:finiteWindFarmSpinUp}
+	\end{center}
+\end{figure}
+
+\section{Handling Atmospheric Gravity Waves}
+\label{sec:handlingAtmosphericGravityWaves}
+Numerous LES studies analyzed the impact of gravity waves on the flow around wind farms, such as \cite{AllaertsMayers2017a,LanzilaoMeyers2022b,StipaEtAl2023b,LanzilaoMayers2023}. These authors all agree that the two main implications of AGWs in the free atmosphere are an adverse pressure gradient upwind the wind farm, which is responsible for global blockage, and a favorable pressure gradient inside the wind farm, that is beneficial for wake recovery. An important aspect that emerges from the above studies, highlighted in particular by \cite{LanzilaoMayers2023}, is that LES of wind farms including AGWs is a challenging endeavor. In the first place, it is rendered extremely computationally intense by the domain size that is required to resolve the large spatial scales associated with AGWs. Furthermore, special boundary conditions should be used to damp out AGWs before they reach the domain boundaries and reflect, contaminating the solution. In this regard, different approaches have been proposed in literature, such as radiation boundary conditions \citep{BelandWarn1975,Bennett1976}, Rayleigh damping layers \citep{KlempLilly1978}, or the fringe region technique, explained in \Cref{sec:precursorMethod}. However, these approaches require \textit{ad-hoc} tuning, usually accomplished by trial and error, which depends on the specific CNBL conditions and further raises computational costs. Some guidelines on how to choose the Rayleigh damping parameters were provided by \cite{LanzilaoMeyers2022a} and \cite{KlempLilly1978}. Moreover, \cite{LanzilaoMeyers2022a} also noted that the fringe region itself may trigger spurious gravity waves, necessitating an additional layer in which horizontal advection of vertical momentum is suppressed to prevent these spurious perturbations to be transported downstream. Notably, many studies seem to agree that the Rayleigh damping layer located at the top should be larger than the expected vertical wavelength of the AGWs, estimated as $\lambda_z = 2\pi G/N$ \citep{KlempLilly1978,AllaertsMayers2017a,AllaertsMayers2017b,LanzilaoMeyers2022a}. The same rule holds for the vertical height of free atmosphere to be included within the physical portion of the domain such that at least one vertical wavelength is resolved. 
+
+The present section presents a novel approach to models AGW effects within a wind farm LES while eliminating the computational burden associated with resolving internal and interfacial waves. In fact, while the proposed methodology uses LES below the inversion layer, AGWs in the free atmosphere and within the inversion layer are modeled using the multiscale coupled (\acrshort{MSC}) model (details about development and validation of the MSC model are provided in \Cref{ch:lowFidelityModelingBlockageEffects} and are also available in \citealp{StipaEtAl2023b}). As a consequence, the developed approach only requires a vertical domain size that is equal to the height of the inversion layer. Moreover, if CNBLs are considered, the solution of a potential temperature transport equation is not required as the flow is neutral below the capping inversion. Finally, no damping regions are needed, as the large-scale pressure gradient produced by AGWs is modeled without resolving the actual waves. In \Cref{subsec:agwResolvingMethod}, the characteristics of a simulation that naturally resolves AGWs and their effects within the boundary layer is described. In particular, this approach will be referred to as the \textit{AGW-resolving} method. Then, \Cref{subsec:agwModelingMethod} presents the so called \textit{AGW-modeling} strategy with guidelines on its application. Here, only the turbulent part of the CNBL is included in the LES domain, while the steady-state solution in the free atmosphere is obtained from the MSC model.
+
+\subsection{AGW Resolving Method}
+\label{subsec:agwResolvingMethod}
+If one wishes to resolve AGW within LES, the simulation domain should extend to one or more wavelengths in each direction \citep{KlempLilly1978,AllaertsMeyers2019,StipaEtAl2023b,LanzilaoMayers2023}. This greatly increases the computational cost, as AGWs are characterized by extremely large spatial scales, both vertically and horizontally. In addition, waves inherently reflect if they do not decay before reaching the domain boundaries, requiring an even higher domain size or the use of damping regions where they are artificially damped before exiting the domain. Another source of contamination of the physical solution is represented by spurious gravity waves that are generated by damping regions themselves as they try to force the physical perturbations to zero. This issue has been addressed by \cite{LanzilaoMeyers2022a}, who developed the so-called advection damping region, where horizontal advection of vertical velocity is set to zero to prevent these spurious oscillations to be advected downstream. Furthermore, special care must be paid at the domain inlet in order to provide a time-dependent turbulent inflow to the simulation. For instance, it is extremely challenging to damp out gravity waves and ensuring at the same time that turbulence is not distorted by the damping action if non-periodic boundary conditions are used in the streamwise direction (M. A. Khan, personal communication). Moreover, two damping regions have to be applied in this case, namely at the inlet and outlet, respectively. Conversely, periodic boundary conditions allow to use the fringe region technique \citep{InoueEtAl2014}, a damping layer in which the reference flow used to compute the damping source term is unsteady. This more easily allows to provide a realistic turbulent inflow while simultaneously damping wave reflections by using a single damping region located at the inlet \citep{StipaEtAl2023} or at the outlet \cite{LanzilaoMeyers2022a,LanzilaoMeyers2022b}. 
+
+These considerations highlight that the design of an LES simulation in which AGW effects are not altered by spurious or numerical artifacts is challenging. Such analyses require trial and error to obtain a suitable size of the damping layers and their damping coefficients. Guidelines on selecting these quantities have only recently been provided by \cite{LanzilaoMeyers2022a}. In light of such difficulties, a technique that eliminates the need for solving the governing equations in the free atmosphere and avoids damping regions is a valuable tool to enable larger wind farm simulations at the same computational cost---or the same simulations at a reduced cost---while avoiding the \textit{ad-hoc} tuning of the LES damping parameters. 
+
+\subsection{AGW Modeling Method}
+\label{subsec:agwModelingMethod}
+As pointed out by \cite{AllaertsMayers2017a,AllaertsMayers2017b,AllaertsMeyers2019} and \cite{LanzilaoMeyers2022b}, AGWs in the free atmosphere induce large-scale pressure gradients inside the ABL. The MSC model developed by \cite{StipaEtAl2023b} is based on the concept that the effect of AGW on the wind farm is given by the change in mean velocity produced by this horizontally-varying pressure field, here referred as $p^\star$. Unfortunately, this idea cannot be directly applied to wind farm LES by prescribing $p^\star$ as a separate source term. In particular, for reasons that will be clarified later, the presence of the top boundary automatically prescribes a certain pressure gradient that satisfies mass and momentum conservation inside the ABL. In fact, the vertical streamline displacement $\eta$ prescribed by the presence of the top boundary and the large-scale pressure field $p^\star$ cannot be imposed simultaneously, but are rather interdependent.
+
+To explain the relationship between these two variables, a simple model is derived using a perturbation analysis applied to the depth-averaged linearized Navier-Stokes equations. This leads to consistent simplification of the equations proposed by \cite{AllaertsMeyers2019}, while it still provides the required physical insight. In particular, an infinitely wide wind farm is assumed in the spanwise direction, so that quantities can only change along the streamwise direction, i.e. $\partial/\partial y = 0$. Furthermore, the background flow is assumed to have a null mean spanwise component $V=0$ (i.e. Coriolis forcing is neglected). The structure of the potential temperature profile is that of a CNBL characterized by a lapse rate $\gamma$, an inversion strength $\Delta\theta$ and an inversion height $H$, coincident with the ABL height. The bulk velocity within the boundary layer and the geostrophic wind are referred to as $U_{bk}$ and $G$ respectively. Similarly to \cite{AllaertsMeyers2019}, the region below $H$ is divided into two layers, namely the wind farm layer, characterized by a height $H_1$, and the upper layer, of depth $H-H_1$. The depth of the wind farm layer is chosen as twice the hub height, i.e. $H_1=2z_h$. Finally, it is assumed that the wind farm and upper layer are characterized by the same background velocity $U_{bk}$, but at the same time admit different perturbation velocities $u_1$ and $u_2$. With the above simplifications, the 3LM equations derived by \cite{AllaertsMeyers2019} become
+\begin{align}
+	\left\{
+	\begin{alignedat}{2}
+		&  U_{bk}\frac{\partial u_1}{\partial x}
+		+ \frac{1}{\rho}\frac{\partial p^\star}{\partial x}
+		=
+		- \frac{C}{H_1}u_1 
+		- \frac{f_x}{H_1}  \\	
+		&  U_{bk}\frac{\partial \eta_1}{\partial x} 
+		+ H_1\frac{\partial u_1}{\partial x} = 0, 
+	\end{alignedat}
+	\right. && \label{eq:3LM_Layer1_Simplified}
+\end{align}
+and
+\begin{align}
+	\left\{
+	\begin{alignedat}{2}
+		&  U_{bk}\frac{\partial u_2}{\partial x}
+		+ \frac{1}{\rho}\frac{\partial p^\star}{\partial x}
+		=
+		0 \\	
+		&  U_{bk} \frac{\partial \eta_2}{\partial x} 
+		+ H_2\frac{\partial u_2}{\partial x} = 0, 
+	\end{alignedat}
+	\right. &&\label{eq:3LM_Layer2_Simplified}
+\end{align}
+where $C=2u*^{2}/U_{bk}$. It should be noted that $\eta_1+\eta_2 = \eta$, i.e. the total vertical displacement of the pliant surface initially located at $H$, i.e. the vertical ABL displacement. This, at steady state, coincides with the flow streamline through $H$ far upstream, and can be also thought as the inversion layer displacement. 
+
+Rewriting the system in terms of $\eta$ reads
+\begin{align}
+	\left\{
+	\begin{alignedat}{3}
+		&  U_{bk}\frac{\partial u_1}{\partial x}
+		+ \frac{1}{\rho}\frac{\partial p^\star}{\partial x}
+		=
+		- \frac{C}{H_1}u_1 
+		- \frac{f_x}{H_1}  \\	
+		&  U_{bk}\frac{\partial u_2}{\partial x}
+		+ \frac{1}{\rho}\frac{\partial p^\star}{\partial x}
+		=
+		0 \\	
+		&  U_{bk} \frac{\partial \eta}{\partial x} 
+		+ H_1\frac{\partial u_1}{\partial x} + H_2\frac{\partial u_2}{\partial x} = 0. 
+	\end{alignedat}
+	\right. &&\label{eq:3LM_Layer_Simplified}
+\end{align}	
+An extra equation is required to complete the system, which relates the vertical inversion displacement to the pressure anomaly felt inside the boundary layer due to the increase or decrease in weight of the air column overtopping a given $x$ location. This can be expressed exploiting linear theory (se \Cref{subsec:lineartheory}) using \Cref{eq:gravitywaves}, namely
+\begin{align}
+	\frac{1}{\rho_\text{ref}}\hat{p}^\star = (\hat{\Phi}+g') \hat{\eta}, \label{eq:linearTheory}
+\end{align}
+where $\hat{\Phi}$ is defined by \Cref{eq:internalwaves}. \Cref{eq:linearTheory} accounts for pressure anomalies generated by both the inversion layer displacement (surface waves) and the resulting motion aloft (internal waves). 
+
+\Cref{eq:3LM_Layer_Simplified} and \Cref{eq:linearTheory} form a fully determined system, which can be easily solved upon transformation into Fourier space. In particular, \Cref{eq:3LM_Layer_Simplified} describes the flow physics below $H$, while \Cref{eq:linearTheory} refers to the flow in the free atmosphere. It can be observed that the pressure field $p^\star$ is the one that reconciles momentum and mass conservation inside the boundary layer with pressure anomalies due to overtopping density differences produced by a determined vertical displacement of the pliant surface at $H$. Specifically, $\eta$ represents the coupling variable between the ABL and the free atmosphere. Now, focusing only on the flow below $H$, i.e. on \Cref{eq:3LM_Layer_Simplified}, it is evident how the pressure gradient induced by AGWs---and its effects on the velocity---could be readily obtained without including thermal stratification if the inversion displacement $\eta$ was somehow known. This idea can be applied to LES, where $\eta$ can be used to vertically deform the top boundary of the numerical domain. Since a slip condition is usually applied to the top boundary, deforming this boundary alters the mean flow streamlines in a manner that is consistent with the inversion-layer displacement. Hence, the effect of AGWs produced in different stability conditions can be easily modeled by suitably deforming the top boundary and then conducting the LES simulation only below $H$, where the wind farm is located.
+
+As a result, the top boundary is placed at the inversion center and the MSC model is used to provide the boundary layer displacement $\eta$. Then, this is linearly distributed to the underlying cells, deforming the mesh before starting the simulation. A conceptual sketch of the differences between the AGW resolving and AGW modeling methodologies is given in \Cref{fig:resolvingModelingAGW}.
+\begin{figure}[h]
+	\begin{center}
+		\includegraphics[width=1\textwidth]{images/highFidelityMethods/setupComparison.pdf}
+		\caption[Comparison between AGW modeling and AGW resolving approaches in LES]{Comparison between AGW modeling and AGW resolving approaches in LES.}
+		\label{fig:resolvingModelingAGW}
+	\end{center}
+\end{figure}
+Notably, the case where the top boundary is a flat surface corresponds to the rigid-lid limiting solution. In particular, while this differs from the actual solution with atmospheric gravity waves, it still allows to model both global blockage and flow acceleration within the wind farm produced by strong flow confinement inside the boundary layer. As a further consideration, since the overall pressure disturbance is fully determined by the inversion displacement, any spatially-varying source term imposed in the form of a pressure gradient will not produce any effect on the simulation results, but rather change the significance of the pressure variable such that the original overall pressure disturbance is retained.
+
+The developed approach is convenient for at least two reasons. First, it substantially reduces the computational cost by eliminating the need for damping regions and the requirement of a domain that is large enough to vertically resolve AGWs. Secondly, when dealing with CNBLs, it eliminates the need to solve for a potential temperature transport equation as the flow below $H$ is neutral. This condition is only violated very close to the top boundary, where discrepancies in turbulent fluctuations produced by the absence of stability and by the physical boundary are deemed acceptable as they happen away from the wind farm. Moreover, at the inversion height fluctuations are naturally close to zero, as this roughly coincides with the top of the boundary layer. A limitation of the method is that the accuracy of the large-scale pressure gradient produced by displacing the top boundary is dependent on the accuracy of the MSC model in predicting the overall physics of AGWs. For instance, \cite{StipaEtAl2023b} showed that the pressure disturbance produced by the MSC model agrees well with a AGW-resolving wind farm LES simulations with different values of capping inversion strength.  
+
+\section{The Toolbox fOr Stratified Convective Atmospheres (TOSCA)}
+\label{sec:tosca}
+The computational methodology described in this chapter has been implemented into a new, open-source incompressible finite-volume code formulated in curvilinear coordinates, named TOSCA (Toolbox fOr Stratified Convective Atmospheres). At a low level, TOSCA makes extensive use of the PETSc library \citep{BalayEtAl2022b}, making it extremely parallel efficient, as shown in \Cref{subsec:parallelScaling}. Turbulence formulation is done through the LES approach described in \Cref{sec:subGridScaleModel}, but inviscid problems can also be solved. The solver uses a fractional-step method to couple momentum balance and mass conservation through a pressure correction equation (see \Cref{sec:numericalDiscretization}). Several spatial and time discretization schemes are available. Depending on user needs, a potential temperature transport equation can also be solved. When this is the case, a buoyancy term is added in the momentum equation to provide temperature-velocity coupling through the Boussinesq approximation as explained in \Cref{sec:numericalDiscretization}. Several source terms are available, among which a wind farm force, damping layers, driving pressure gradients and Coriolis force. The code is designed to simulate ABL and wind turbines in complex terrains, so it features an advanced IBM---both stationary and moving---which can be used to resolve terrain features, as well as stationary or moving bodies. The code also features a comprehensive acquisition system, not described in the present thesis, which allows to gather flow and turbine statistics of different kinds. Information pertaining to the meshing, case structure, and input data description of TOSCA is provided in \Cref{app:toscaInput}.
+
+
+\subsection{Parallel Scaling}
+\label{subsec:parallelScaling}
+In this section, TOSCA's strong and weak parallel performance are studied by running CNBL simulations with an increasing number of compute nodes for three different mesh sizes. The simulation setup corresponds to the off-line precursor described in \Cref{subsec:choiceOfAblStateAndPrecursorRWF}.The different meshes are evaluated by systematically doubling the number of elements in each direction, starting from 300 $\times$ 300 $\times$ 100 cells. As a consequence, they consist of 9 million, 72 million, and 576 million elements in total. \Cref{tab:scalingTests} reports the number of nodes for each run, which only consisted of two hours of wall-clock time. 
+\begin{table}[H]
+	\begin{center}
+		\begin{tabular}{c | c c c} 
+			& CNBL 9M & CNBL 72M & CNBL 576M \\
+			\hline
+			\multirow{3}{*}{Number of}  &  5 &  10 & 100 \\
+			& 2 &  10 &  200 \\
+			\multirow{2}{*}{Niagara Nodes}& 4 &  20 &  400 \\
+			& 8 &  40 &  800 \\
+			& 16 &  80 &  - \\
+		\end{tabular}
+	\end{center}
+	\caption[Scaling tests performed on Niagara Compute Canada cluster]{Scaling tests performed on Niagara Compute Canada cluster, each node consists of 40 CPUs. }
+	\label{tab:scalingTests}
+\end{table}
+Tests have been performed on Compute Canada's \cite{Niagara} cluster, which consists of 2024 nodes, each with 40 Intel ``Skylake'' cores at 2.4 GHz or 40 Intel ``Cascade~Lake'' cores at 2.5 GHz. Node interconnection consists of an EDR Infiniband network, organized in a ``Dragonfly+'' topology with five dragonfly wings. \Cref{fig:toscaStrongScaling} shows the time per iteration as the node count increases for each of the CNBL meshes. TOSCA's strong scaling performance remains close to linear until roughly 25k cells per core are reached, which represent a reasonable trade-off between efficiency and speed. TOSCA was also successfully run at-scale on the entire Niagara cluster to simulate a finite wind farm on a mesh exceeding 1 billion elements, proving TOSCA's suitability for massively parallel computations. 
+
+It bears highlighting that the time per iteration does not reflect the actual speed at which the simulation advances in time, as the time step size depends on the numerical method. In implicit methods like the Newton-Krylov solvers employed by TOSCA, the computational cost of each time step depends on the time-step size, whereas these quantities are unrelated in explicit methods. Nevertheless, implicit methods are able to advance in time with a Courant-Friedrichs-Lewy (\acrshort{CFL}) number greater than one (the value of $0.9$ has been used in these analyses), while explicit methods are usually limited to a value close to $0.5$. Therefore, they would need almost two iterations to advance in time by the same amount as an implicit method.
+\begin{figure}%[!htb]
+	\begin{center}
+		\includegraphics[width=0.7\textwidth]{images/highFidelityMethods/toscaStrongScaling.eps}
+		\caption[TOSCA strong scaling performance on Compute Canada's Niagara cluster]{TOSCA strong scaling performance on Compute Canada's Niagara cluster. All simulations share the same setup and only differ in the number of mesh elements.}
+		\label{fig:toscaStrongScaling}
+	\end{center}
+\end{figure} 
+Regarding actuator models, their solution and I/O operations are also parallelized in TOSCA. Specifically, for each wind turbine, a sphere of cells is defined which contains all cells that the rotor can possibly intersect when yawing. Processors owning mesh cells belonging to the sphere are then grouped into turbine-specific sub-communicators, which are used to solve wind turbines simultaneously. Hence, provided that a sufficiently high core count is used, wind turbine update time in TOSCA is independent of the number of wind turbines in the simulation, and each communicator can write turbine data to file simultaneously. For the finite wind farm simulation presented in \Cref{sec:lesOfRectangularWindFarm,sec:lesOfArbitraryWindFarm} ($100$ and $208$ wind turbines, respectively), the turbine update time was less than $0.1$ s. Individual turbine update time depends on cell size and on the actuator point-processor ownership search described in \Cref{subsec:actuatorLineModel}. The latter is only triggered by a change in yaw for the ADM and UADM parametrizations, while it has to be performed at every iteration for the ALM, as actuator points are physically rotating.

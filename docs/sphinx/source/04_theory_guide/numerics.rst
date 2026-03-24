@@ -37,7 +37,7 @@ The **contravariant metric tensor**, multiplied by a factor :math:`1/J^2` for nu
     S^{qr} = S^q_i S^r_i.
 
 Differential Operators in Curvilinear Coordinates
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The four fundamental operators used throughout the discretization are:
 
@@ -93,7 +93,7 @@ where :math:`R_{ij}`  is a non-symmetric tensor defined as :math:`R_{ij}=S^m_i\p
 with the face area vectors, namely :math:`S^{kn} = S^k_i S^n_i = 1/J^2 \partial l_k/\partial x_i \partial l_n / \partial x_i`.
 
 Governing Equations in Curvilinear Form
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Applying the operators above, the governing equations solved by TOSCA take the
 **partially-transformed** form (Ge & Sotiropoulos, 2007).  The momentum
@@ -133,7 +133,7 @@ are body forces from turbines, vertical damping, horizontal damping, and the
 temperature controller, respectively (see :ref:`gov-equations-section`).
 
 Staggered Grid Arrangement
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 TOSCA employs a **hybrid collocated–staggered** discretization
 (Ge & Sotiropoulos, 2007).  Contravariant fluxes :math:`V^q` are stored at the
@@ -150,7 +150,7 @@ Cartesian velocity is reconstructed at cell centers from the updated contravaria
 fluxes by inverting :math:`V^q = S^q_i u_i`.
 
 Fractional-Step Projection Method
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Pressure–velocity coupling uses a second-order **fractional-step projection**
 method.  Given the state

@@ -21,8 +21,8 @@
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Versions" href="../tosca_versions.html" />
-    <link rel="prev" title="Turbine Models" href="turbine_models.html" /> 
+    <link rel="next" title="Turbine Models" href="turbine_models.html" />
+    <link rel="prev" title="Precursor, Fringe Regions &amp; Damping Layers" href="precursor.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -59,13 +59,12 @@
 <li class="toctree-l2"><a class="reference internal" href="turbulence_models.html">Sub-grid Scale Models</a></li>
 <li class="toctree-l2"><a class="reference internal" href="flow_controllers.html">Flow Controllers and Mesoscale Coupling</a></li>
 <li class="toctree-l2"><a class="reference internal" href="precursor.html">Precursor, Fringe Regions &amp; Damping Layers</a></li>
-<li class="toctree-l2"><a class="reference internal" href="turbine_models.html">Turbine Models</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Immersed Boundary Method</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#surface-representation">Surface Representation</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#cell-classification-topology-check">Cell Classification (Topology Check)</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#boundary-condition-reconstruction">Boundary-Condition Reconstruction</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#without-wall-model">Without Wall Model</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#with-wall-model-ghost-cell-hybrid-approach">With Wall Model (Ghost-Cell Hybrid Approach)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#with-wall-model">With Wall Model</a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#wall-models">Wall Models</a><ul>
@@ -78,6 +77,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#force-and-moment-integration">Force and Moment Integration</a></li>
 </ul>
 </li>
+<li class="toctree-l2"><a class="reference internal" href="turbine_models.html">Turbine Models</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../tosca_versions.html">Versions</a></li>
@@ -110,124 +110,176 @@
              
   <section id="immersed-boundary-method">
 <span id="ibm-theory-section"></span><h1>Immersed Boundary Method<a class="headerlink" href="#immersed-boundary-method" title="Link to this heading"></a></h1>
-<p>TOSCA implements a <strong>ghost-cell, direct-forcing</strong> immersed boundary method (IBM)
-that allows complex geometries — terrain features, wind turbine towers and
+<p>TOSCA implements a sharp-interface, direct-forcing immersed boundary method (IBM) with
+optional ghost-cells on the inside of the body when wall models are active.
+The IBM allows complex geometries — terrain features, wind turbine towers and
 nacelles, and moving objects — to be represented on a structured background grid
 without mesh deformation.  The immersed surface enters the momentum equation
-through a body-force term <span class="math notranslate nohighlight">\(\mathbf{f}^{IB}\)</span>, which is applied implicitly:
-at each time step the velocity (and temperature) field is prescribed in <em>IBM
-interface cells</em> (ghost cells) to values consistent with the desired wall
-boundary condition, so the forcing is never evaluated as an explicit source
-term.</p>
+through a body-force term <span class="math notranslate nohighlight">\(\mathbf{f}^{IB}\)</span>, which is applied implicitly. This means that,
+at each time step, the velocity (and temperature) field is prescribed at <em>IBM
+interface cells</em> as a boundary condition rather than an explicit source term in the
+conservation equations.</p>
 <figure class="align-center" id="id1">
 <a class="reference internal image-reference" href="../_images/ibm-sketch.jpg"><img alt="../_images/ibm-sketch.jpg" src="../_images/ibm-sketch.jpg" style="width: 70%;" />
 </a>
 <figcaption>
-<p><span class="caption-text">Schematic of the ghost-cell IBM.  The immersed surface (triangular mesh,
-black) divides the background grid into fluid cells (white), solid cells
-(dark), and IBM interface cells (grey).  Points <strong>C</strong> and <strong>D</strong> are the two
+<p><span class="caption-text">Schematic of the sharp-interface IBM. The immersed surface (triangular mesh,
+pink line) divides the background grid into fluid cells (red), solid cells
+(blue), and IBM interface cells (green). Points A and B are the two
 wall-normal sampling locations used during boundary-condition
 reconstruction when a wall model is active.</span><a class="headerlink" href="#id1" title="Link to this image"></a></p>
 </figcaption>
 </figure>
 <section id="surface-representation">
 <h2>Surface Representation<a class="headerlink" href="#surface-representation" title="Link to this heading"></a></h2>
-<p>The immersed-body surface is described as an <strong>unstructured triangular mesh</strong>
+<p>The immersed-body surface is described as an unstructured triangular mesh
 provided in STL (<code class="docutils literal notranslate"><span class="pre">.stl</span></code>) or Abaqus (<code class="docutils literal notranslate"><span class="pre">.inp</span></code>) format and placed in the
 <code class="docutils literal notranslate"><span class="pre">IBM/</span></code> directory.  Multiple bodies can be defined simultaneously in
 <code class="docutils literal notranslate"><span class="pre">IBM/IBMProperties.dat</span></code> as <code class="docutils literal notranslate"><span class="pre">object0</span></code>, <code class="docutils literal notranslate"><span class="pre">object1</span></code>, etc.</p>
-<p>To accelerate element searches the code builds a two-level spatial data
+<p>To accelerate cell to element searche, the code builds a two-level spatial data
 structure during initialisation:</p>
 <ol class="arabic simple">
-<li><p><strong>Axis-aligned bounding box (AABB)</strong> — a tight box around each body
-(<code class="docutils literal notranslate"><span class="pre">findBodyBoundingBox</span></code>), used to exclude bodies entirely when a query
-point lies far outside.</p></li>
-<li><p><strong>Search-cell list</strong> — the bounding box is subdivided into uniform
-search cells whose size is proportional to the mean element edge length
-(<code class="docutils literal notranslate"><span class="pre">findSearchCellDim</span></code>); every triangular element is inserted into all
-search cells it overlaps (<code class="docutils literal notranslate"><span class="pre">createSearchCellList</span></code>).  Only elements in
-the relevant search cells are tested during subsequent point-in-triangle
+<li><p>Axis-aligned bounding box: a tight box around each body, coarser than the background
+grid, to accelerate the search.</p></li>
+<li><p>Search-cell list: the bounding box is subdivided into uniform
+search cells whose size is proportional to the mean element edge length.
+Every triangular element is inserted into all overlapping search cells.
+Only elements in the relevant search cells are tested during subsequent point-in-triangle
 queries, reducing the search cost from <span class="math notranslate nohighlight">\(O(N_e)\)</span> to approximately
 <span class="math notranslate nohighlight">\(O(1)\)</span>.</p></li>
 </ol>
 </section>
 <section id="cell-classification-topology-check">
 <h2>Cell Classification (Topology Check)<a class="headerlink" href="#cell-classification-topology-check" title="Link to this heading"></a></h2>
-<p>The function <code class="docutils literal notranslate"><span class="pre">ibmSearch</span></code> classifies every background-grid cell into one of
-three categories by <strong>ray-casting</strong>: a ray is cast from each cell centre and the
+<p>Every background-grid cell is classified into one of
+three categories by a ray-casting algorithm. In particular, a ray is cast from each cell centre and the
 number of intersections with the triangular IBM surface is counted.</p>
 <ul class="simple">
-<li><p><strong>Fluid cell</strong> — even number of intersections: the cell lies outside the body.</p></li>
-<li><p><strong>Solid cell</strong> — odd number of intersections: the cell lies inside the body.</p></li>
-<li><p><strong>IBM interface cell (ghost cell)</strong> — any solid cell immediately adjacent to
-at least one fluid cell.  These cells are not advanced by the flow solver;
-instead their field values are overwritten each time step by the
+<li><p>Fluid cell: even number of intersections, the cell lies outside the body.</p></li>
+<li><p>Solid cell: odd number of intersections, the cell lies inside the body.</p></li>
+<li><p>IBM interface cell: any solid cell immediately adjacent to
+at least one fluid cell.  These cells are not advanced by the flow solver.
+Instead, their field values are overwritten each time step by the
 IBM boundary-condition reconstruction.</p></li>
 </ul>
-<p>For each IBM interface cell the code identifies the closest triangular element
+<p>For each IBM interface cell, the code identifies the closest triangular element
 and stores its outward unit normal <span class="math notranslate nohighlight">\(\hat{\mathbf{n}}\)</span> and the projection
-of the cell centre onto the surface (the <em>wall point</em> <span class="math notranslate nohighlight">\(\mathbf{p}_\text{w}\)</span>).
+of the cell centre onto the surface, the so-called wall point <span class="math notranslate nohighlight">\(\mathbf{p}_\text{w}\)</span>.
 The closest-element search uses a bounding-sphere acceleration: each element’s
 circumsphere centre <span class="math notranslate nohighlight">\(\mathbf{q}\)</span> and radius <span class="math notranslate nohighlight">\(r\)</span> are pre-computed,
 and the element with the smallest value of
-<span class="math notranslate nohighlight">\(\|\mathbf{x} - \mathbf{q}\| - r\)</span> is selected as the candidate before
+<span class="math notranslate nohighlight">\(\|\mathbf{x} - \mathbf{q}\| - r\)</span> is selected as the closest candidate before
 the precise face/edge/vertex projection is performed.</p>
 </section>
 <section id="boundary-condition-reconstruction">
 <h2>Boundary-Condition Reconstruction<a class="headerlink" href="#boundary-condition-reconstruction" title="Link to this heading"></a></h2>
-<p>Two reconstruction modes are available, selected via <code class="docutils literal notranslate"><span class="pre">wallShearOn</span></code> (and the
-corresponding <code class="docutils literal notranslate"><span class="pre">velocityBC</span></code>) in <code class="docutils literal notranslate"><span class="pre">IBMProperties.dat</span></code>.</p>
+<p>Two reconstruction modes are available, selected via <code class="docutils literal notranslate"><span class="pre">wallShearOn</span></code> and the
+corresponding <code class="docutils literal notranslate"><span class="pre">velocityBC</span></code> in the <code class="docutils literal notranslate"><span class="pre">IBMProperties.dat</span></code> file.</p>
 <section id="without-wall-model">
 <h3>Without Wall Model<a class="headerlink" href="#without-wall-model" title="Link to this heading"></a></h3>
-<p>When <code class="docutils literal notranslate"><span class="pre">wallShearOn</span> <span class="pre">=</span> <span class="pre">false</span></code> and <code class="docutils literal notranslate"><span class="pre">velocityBC</span></code> is <code class="docutils literal notranslate"><span class="pre">slip</span></code> or <code class="docutils literal notranslate"><span class="pre">noSlip</span></code>,
-the ghost-cell velocity is set by <strong>one-point interpolation</strong>.  A single
-background point <strong>B</strong> is placed a distance <span class="math notranslate nohighlight">\(\delta\)</span> along
-<span class="math notranslate nohighlight">\(\hat{\mathbf{n}}\)</span> from the ghost-cell centre; <span class="math notranslate nohighlight">\(\delta\)</span> equals the
-minimum local cell size (<code class="docutils literal notranslate"><span class="pre">CurvibTrilinear</span></code>) or the distance to an interception
-point on an adjacent grid plane (<code class="docutils literal notranslate"><span class="pre">CurvibTriangular</span></code>).  Denoting the
-wall-normal signed distances from the IBM surface as <span class="math notranslate nohighlight">\(s_b\)</span> (ghost cell)
-and <span class="math notranslate nohighlight">\(s_c\)</span> (background point <strong>B</strong>), the reconstruction gives</p>
+<p>When <code class="docutils literal notranslate"><span class="pre">wallShearOn</span></code> is set to  <code class="docutils literal notranslate"><span class="pre">false</span></code> and <code class="docutils literal notranslate"><span class="pre">velocityBC</span></code> is <code class="docutils literal notranslate"><span class="pre">slip</span></code> or <code class="docutils literal notranslate"><span class="pre">noSlip</span></code>,
+the IBM interface cell velocity is set by one-point interpolation.  A single
+background point B is placed at a distance <span class="math notranslate nohighlight">\(\delta\)</span> along
+<span class="math notranslate nohighlight">\(\hat{\mathbf{n}}\)</span> from the centre of the IBM interface cell. The parameter <span class="math notranslate nohighlight">\(\delta\)</span> equals the
+minimum local cell size (for the <code class="docutils literal notranslate"><span class="pre">CurvibTrilinear</span></code> interpolation) or the distance to an interception
+point on an adjacent grid plane (for the <code class="docutils literal notranslate"><span class="pre">CurvibTriangular</span></code> interpolation).  Denoting the
+wall-normal distances from the IBM surface as <span class="math notranslate nohighlight">\(s_{ic}\)</span> (IBM interface cell)
+and <span class="math notranslate nohighlight">\(s_b\)</span> (background point B), the velocity reconstruction at the IBM interface cell gives</p>
 <div class="math notranslate nohighlight">
-\[\mathbf{u}^{(b)} = \frac{s_b}{s_c}\,\mathbf{u}_B +
-                    \left(1 - \frac{s_b}{s_c}\right)\mathbf{u}_\text{wall},\]</div>
+\[\mathbf{u}^{ic} = \frac{s_{ic}}{s_b}\,\mathbf{u}_B +
+                    \left(1 - \frac{s_{ic}}{s_b}\right)\mathbf{u}_\text{wall},\]</div>
 <p>where <span class="math notranslate nohighlight">\(\mathbf{u}_\text{wall}\)</span> is the IBM-surface velocity interpolated
 from the triangular mesh nodes using barycentric weights.  For a <code class="docutils literal notranslate"><span class="pre">slip</span></code>
-boundary the normal component of the ghost-cell velocity is set to zero and the
-tangential component is reflected from <strong>B</strong>.</p>
+boundary, the normal component at the IBM interface cell is scaled with the ratio <span class="math notranslate nohighlight">\(s_{ic}/s_b\)</span>
+in order to enforce no penetration, while the tangential component is left unchanged. The IBM surface
+velocity is then added to the reconstructed velocity to account for any motion of the body.</p>
 </section>
-<section id="with-wall-model-ghost-cell-hybrid-approach">
-<h3>With Wall Model (Ghost-Cell Hybrid Approach)<a class="headerlink" href="#with-wall-model-ghost-cell-hybrid-approach" title="Link to this heading"></a></h3>
+<section id="with-wall-model">
+<h3>With Wall Model<a class="headerlink" href="#with-wall-model" title="Link to this heading"></a></h3>
 <p>When <code class="docutils literal notranslate"><span class="pre">wallShearOn</span> <span class="pre">=</span> <span class="pre">true</span></code> and <code class="docutils literal notranslate"><span class="pre">velocityBC</span> <span class="pre">=</span> <span class="pre">velocityWallFunction</span></code>, the
-reconstruction uses <strong>two background sampling points</strong> placed at distances
-<span class="math notranslate nohighlight">\(s_c\)</span> and <span class="math notranslate nohighlight">\(s_d\)</span> from the IBM wall.  Setting
+reconstruction uses two background sampling points placed at distances
+<span class="math notranslate nohighlight">\(s_c\)</span> and <span class="math notranslate nohighlight">\(s_d\)</span> from the IBM wall, and a ghost node placed at <span class="math notranslate nohighlight">\(s_g\)</span> Setting
 <span class="math notranslate nohighlight">\(\delta = \texttt{interpDist}\)</span>:</p>
 <div class="math notranslate nohighlight">
-\[s_b = -\varepsilon, \qquad
-s_c = \delta, \qquad
-s_d = 3\,\delta,\]</div>
-<p>where <span class="math notranslate nohighlight">\(\varepsilon\)</span> is the distance from the ghost cell centre to the
-projected wall point.  The arrangement along the wall normal is therefore</p>
+\[s_g = -0.5\delta, \qquad
+s_a = 0.5\delta, \qquad
+s_b = 1.5\delta,\]</div>
+<p>The arrangement along the wall normal is therefore</p>
 <div class="math notranslate nohighlight">
-\[\underbrace{b}_{\text{ghost}} \;\cdots\; \text{wall} \;\cdots\;
-\underbrace{c}_{\mathbf{C}} \;\cdots\; \underbrace{d}_{\mathbf{D}}.\]</div>
-<p>Velocities at <strong>C</strong> (<span class="math notranslate nohighlight">\(\mathbf{u}_C\)</span>) and <strong>D</strong> (<span class="math notranslate nohighlight">\(\mathbf{u}_D\)</span>) are
-obtained by trilinear interpolation from the background grid.  The ghost-cell
-velocity is then set by the selected wall-shear model
-(<code class="docutils literal notranslate"><span class="pre">CurvibInterpolationInternalCell</span></code>) using all three points
-<span class="math notranslate nohighlight">\((b, c, d)\)</span> and the IBM-surface velocity <span class="math notranslate nohighlight">\(\mathbf{u}_\text{wall}\)</span>.</p>
-<p>Pressure in the ghost cell is set by linear wall-normal extrapolation from
-<strong>C</strong>, corrected for the IBM-surface acceleration:</p>
+\[G \;\cdots\; \text{wall} \;\cdots\;
+A \;\cdots\; B.\]</div>
+<p>Velocities at B (<span class="math notranslate nohighlight">\(\mathbf{u}_B\)</span>) is obtained by trilinear interpolation from the background grid,
+while the velocity at A is given by</p>
 <div class="math notranslate nohighlight">
-\[p^{(b)} = p^{(c)} -
-           \left(\frac{\partial \mathbf{u}_\text{wall}}{\partial t}
-           \cdot \hat{\mathbf{n}}\right)(s_c - s_b).\]</div>
+\[\mathbf{u}_A = \mathbf{u}_B\frac{ln\left(0.5\delta/z_0\right)}{ln\left(1.5\delta/z_0\right)},\]</div>
+<p>where <span class="math notranslate nohighlight">\(z_0\)</span> denotes the surface roughness length. The ghost-cell
+velocity at point G is then linearly extrapolated from point A and B, correcting
+the wall-normal component to enforce no penetration at the IBM surface.</p>
+<p>In addition to the velocity reconstruction, a modeled wall shear stress is also reconstructed at faces
+shared by an immersed-body interface cell and a neighboring fluid cell. Let <span class="math notranslate nohighlight">\(\boldsymbol{\mathsf{n}}\)</span>
+denote the unit normal to the closest immersed-body surface triangular element associated with the
+IBM interface cell, and let <span class="math notranslate nohighlight">\(\boldsymbol{\mathsf{u}}\)</span> denote the fluid velocity sampled at a
+distance <span class="math notranslate nohighlight">\(\delta\)</span> from the surface along <span class="math notranslate nohighlight">\(\boldsymbol{\mathsf{n}}\)</span>. For isotropic grids,
+<span class="math notranslate nohighlight">\(\delta=\Delta\)</span>, where <span class="math notranslate nohighlight">\(\Delta\)</span> is the grid spacing, whereas for anisotropic grids,
+<span class="math notranslate nohighlight">\(\delta\)</span> represents the approximate local grid spacing in the wall-normal direction.</p>
+<p>The tangential component of the sampled velocity is obtained using the projection operator</p>
+<div class="math notranslate nohighlight">
+\[\mathbb{P}_t = \mathbb{I} - \boldsymbol{\mathsf{n}} \otimes \boldsymbol{\mathsf{n}},
+\qquad
+\boldsymbol{\mathsf{u}}_t = \mathbb{P}_t\,\boldsymbol{\mathsf{u}},
+\qquad
+u_t = \lVert \boldsymbol{\mathsf{u}}_t \rVert .\]</div>
+<p>Then, a local orthonormal coordinate frame aligned with the immersed-body surface is defined as</p>
+<div class="math notranslate nohighlight">
+\[\boldsymbol{\varepsilon}_1 = \frac{\boldsymbol{\mathsf{u}}_t}{u_t},
+\qquad
+\boldsymbol{\varepsilon}_2 = \boldsymbol{\mathsf{n}} \times \boldsymbol{\varepsilon}_1,
+\qquad
+\boldsymbol{\varepsilon}_3 = \boldsymbol{\mathsf{n}},\]</div>
+<p>with corresponding rotation matrix</p>
+<div class="math notranslate nohighlight">
+\[\mathbf{Q}
+=
+\big[\,\boldsymbol{\varepsilon}_1\;\boldsymbol{\varepsilon}_2\;\boldsymbol{\varepsilon}_3\,\big],\]</div>
+<p>which maps quantities between the global and local wall-parallel coordinate systems.</p>
+<p>Assuming that the tangential velocity follows a rough-wall logarithmic profile, the magnitude of the
+wall shear stress is given by</p>
+<div class="math notranslate nohighlight">
+\[\tau_w
+=
+\left[
+\frac{\kappa\,u_t}{\ln\!\left(\delta/z_0\right)}
+\right]^2,\]</div>
+<p>where <span class="math notranslate nohighlight">\(\kappa = 0.4\)</span> is the von Karman constant. Although the face center <span class="math notranslate nohighlight">\(x_c\)</span> does not,
+in general, lie on the immersed-body surface, the quantity <span class="math notranslate nohighlight">\(\tau_w\)</span> is taken to represent the
+<span class="math notranslate nohighlight">\(\mathcal{T}_{13} = \mathcal{T}_{31}\)</span> component of the shear stress tensor in the local coordinate
+system, with all other components set to zero. Accordingly, the local shear stress tensor
+<span class="math notranslate nohighlight">\(\mathcal{T}^{(\mathrm{loc})}\)</span> is expressed as</p>
+<div class="math notranslate nohighlight">
+\[\mathcal{T}^{(\mathrm{loc})}
+=
+\tau_w
+\big(
+\boldsymbol{\varepsilon}_1 \otimes \boldsymbol{\varepsilon}_3
++
+\boldsymbol{\varepsilon}_3 \otimes \boldsymbol{\varepsilon}_1
+\big).\]</div>
+<p>The corresponding stress tensor imposed at the immersed-body interface face in the global coordinate
+system is obtained through the transformation</p>
+<div class="math notranslate nohighlight">
+\[\mathcal{T}
+=
+\mathbf{Q}\,
+\mathcal{T}^{(\mathrm{loc})}\,
+\mathbf{Q}^{\!\top}.\]</div>
+<p>This stress is applied only at immersed-boundary interface faces and is set to zero inside the immersed-
+body.</p>
 </section>
 </section>
 <section id="wall-models">
 <h2>Wall Models<a class="headerlink" href="#wall-models" title="Link to this heading"></a></h2>
 <p>The wall boundary condition for velocity and temperature is configured per-body
-in <code class="docutils literal notranslate"><span class="pre">IBMProperties.dat</span></code> (or matched from a domain boundary face via
-<code class="docutils literal notranslate"><span class="pre">velocityBCSetType</span> <span class="pre">=</span> <span class="pre">matchU*</span></code>).</p>
+in <code class="docutils literal notranslate"><span class="pre">IBMProperties.dat</span></code>, or matched from a domain boundary face via <code class="docutils literal notranslate"><span class="pre">velocityBCSetType</span> <span class="pre">=</span> <span class="pre">matchU*</span></code>.</p>
 <section id="velocity-wall-models">
 <h3>Velocity Wall Models<a class="headerlink" href="#velocity-wall-models" title="Link to this heading"></a></h3>
 <table class="docutils align-default">
@@ -247,14 +299,13 @@ in <code class="docutils literal notranslate"><span class="pre">IBMProperties.da
 <td><p>Cabot</p></td>
 <td><p>Neutral log-law with optional aerodynamic roughness <code class="docutils literal notranslate"><span class="pre">kRough</span></code>.
 The friction velocity <span class="math notranslate nohighlight">\(u_*\)</span> is solved iteratively from
-<span class="math notranslate nohighlight">\(u_t = (u_*/\kappa)\ln[(s_c + z_0)/z_0]\)</span>, where <span class="math notranslate nohighlight">\(\kappa\)</span>
-is the von Kármán constant and <span class="math notranslate nohighlight">\(z_0 = \texttt{kRough}\)</span>.  The
+<span class="math notranslate nohighlight">\(u_t = (u_*/\kappa)\ln[(1.5\delta + z_0)/z_0]\)</span>.  The
 smooth-wall limit is recovered when <code class="docutils literal notranslate"><span class="pre">kRough</span> <span class="pre">=</span> <span class="pre">0</span></code>.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-3</span></code></p></td>
 <td><p>Schumann</p></td>
 <td><p>Stability-corrected log-law.  The relation
-<span class="math notranslate nohighlight">\(u_t = (u_*/\kappa)[\ln(s_c/z_0) - \psi_m(s_c/L)]\)</span>
+<span class="math notranslate nohighlight">\(u_t = (u_*/\kappa)[\ln(1.5\delta/z_0) - \psi_m(1.5\delta/L)]\)</span>
 is used, where <span class="math notranslate nohighlight">\(L\)</span> is the Obukhov length and <span class="math notranslate nohighlight">\(\psi_m\)</span> is
 the Monin–Obukhov stability function.  Must be paired with the
 Schumann temperature wall model (<code class="docutils literal notranslate"><span class="pre">-2</span></code> or <code class="docutils literal notranslate"><span class="pre">-4</span></code>) when temperature
@@ -293,21 +344,21 @@ is active.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-3</span></code></p></td>
 <td><p>Shumann — heating rate</p></td>
-<td><p>Prescribed constant surface heating rate.
-<em>Not yet implemented for IBM.</em></p></td>
+<td><p>Prescribed constant surface heating rate
+(<em>Not yet implemented for IBM</em>).</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">-4</span></code></p></td>
 <td><p>Shumann — time history</p></td>
 <td><p>Surface potential temperature and Obukhov length read from a
-time-series file (<code class="docutils literal notranslate"><span class="pre">readSurfaceTempData</span></code>).  The ghost-cell temperature
+time-series file (<code class="docutils literal notranslate"><span class="pre">readSurfaceTempData</span></code>).  The IBM interface cell temperature
 is interpolated linearly between the IBM surface temperature (looked
-up at the current time) and the value at point <strong>C</strong>.</p></td>
+up at the current time) and the value at point A.</p></td>
 </tr>
 </tbody>
 </table>
 <p>In addition to <code class="docutils literal notranslate"><span class="pre">thetaWallFunction</span></code>, the temperature boundary condition at an
-IBM surface can be set to <code class="docutils literal notranslate"><span class="pre">zeroGradient</span></code> (ghost-cell temperature equals the
-value at <strong>C</strong>) or <code class="docutils literal notranslate"><span class="pre">fixedValue</span></code> (ghost-cell temperature equals the prescribed
+IBM surface can be set to <code class="docutils literal notranslate"><span class="pre">zeroGradient</span></code> (IBM interface cell temperature equals the
+value at A) or <code class="docutils literal notranslate"><span class="pre">fixedValue</span></code> (IBM interface cell  temperature equals the prescribed as
 <code class="docutils literal notranslate"><span class="pre">fixedValueT</span></code>).</p>
 </section>
 </section>
@@ -335,7 +386,7 @@ listed below.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">CurvibTrilinear</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">linear</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">CurvibInterpolation</span></code> — one background point at one minimum cell
-size along <span class="math notranslate nohighlight">\(\hat{\mathbf{n}}\)</span>; supports Cabot, Schumann, slip,
+size along <span class="math notranslate nohighlight">\(\hat{\mathbf{n}}\)</span>. Supports Cabot, Schumann, slip,
 noSlip boundary conditions.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CURVIB</span></code></p></td>
@@ -349,15 +400,14 @@ wall-normal profile.</p></td>
 <td><p>—</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">CurvibInterpolationTriangular</span></code> — the image point is the
 intersection of the wall-normal ray with an adjacent curvilinear grid
-plane; barycentric weights of the enclosing triangle are used for
+plane, barycentric weights of the enclosing triangle are used for
 interpolation.  Supports the same boundary conditions as trilinear.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CURVIB</span></code> + <code class="docutils literal notranslate"><span class="pre">wallShearOn</span></code></p></td>
 <td><p>—</p></td>
 <td><p>—</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">CurvibInterpolationInternalCell</span></code> — two background points; full
-hybrid wall-shear reconstruction with quadratic pressure extrapolation
-(see <a class="reference internal" href="#ibm-theory-section"><span class="std std-ref">Immersed Boundary Method</span></a>).</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">CurvibInterpolationInternalCell</span></code> — two background points, full
+hybrid wall-shear reconstruction with quadratic pressure extrapolation.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">MLS</span></code></p></td>
 <td><p>—</p></td>
@@ -371,7 +421,7 @@ and <code class="docutils literal notranslate"><span class="pre">findIBMMeshSupp
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>The <code class="docutils literal notranslate"><span class="pre">wallShearOn</span></code> flag requires <code class="docutils literal notranslate"><span class="pre">IBInterpolationModel</span> <span class="pre">=</span> <span class="pre">CURVIB</span></code> and
-a <code class="docutils literal notranslate"><span class="pre">velocityBC</span> <span class="pre">=</span> <span class="pre">velocityWallFunction</span></code> entry; it overrides the
+a <code class="docutils literal notranslate"><span class="pre">velocityBC</span> <span class="pre">=</span> <span class="pre">velocityWallFunction</span></code> entry. It overrides the
 <code class="docutils literal notranslate"><span class="pre">curvibType</span></code> / <code class="docutils literal notranslate"><span class="pre">curvibOrder</span></code> settings and always uses
 <code class="docutils literal notranslate"><span class="pre">CurvibInterpolationInternalCell</span></code>.</p>
 </div>
@@ -389,7 +439,9 @@ classification, IBM fluid-cell list, and closest-element search are all
 recomputed from scratch.</p></li>
 </ol>
 <p>This per-step re-initialisation supports arbitrarily large motions with no
-restriction on the displacement per time step.</p>
+restriction on the displacement per time step. Operations are parallelised with MPI so that,
+after the initial search, IBM searches at subsequent steps are only performed in the
+vicinity of the previous body position.</p>
 <p>The mesh motion is performed by <code class="docutils literal notranslate"><span class="pre">UpdateIBMesh</span></code>, which dispatches to the
 following <code class="docutils literal notranslate"><span class="pre">bodyMotion</span></code> types:</p>
 <table class="docutils align-default">
@@ -418,13 +470,11 @@ instantaneous angular position is written to
 <td><p>Sinusoidal translation along <code class="docutils literal notranslate"><span class="pre">motionDir</span></code> with <code class="docutils literal notranslate"><span class="pre">amplitude</span></code>
 <span class="math notranslate nohighlight">\(A\,[\mathrm{m}]\)</span> and <code class="docutils literal notranslate"><span class="pre">frequency</span></code> <span class="math notranslate nohighlight">\(f\,[\mathrm{Hz}]\)</span>.
 The displacement applied each step is
-<span class="math notranslate nohighlight">\(A\bigl(\cos 2\pi f t_\text{prev} - \cos 2\pi f t\bigr)\)</span>
-(function <code class="docutils literal notranslate"><span class="pre">sineMotion</span></code>).</p></td>
+<span class="math notranslate nohighlight">\(A\bigl(\cos 2\pi f t_\text{prev} - \cos 2\pi f t\bigr)\)</span>.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">pitchingOscillation</span></code></p></td>
 <td><p>Sinusoidal pitching rotation about <code class="docutils literal notranslate"><span class="pre">pitchCenter</span></code> / <code class="docutils literal notranslate"><span class="pre">pitchAxis</span></code>
-with amplitude <span class="math notranslate nohighlight">\(A\,[\mathrm{rad}]\)</span> and frequency <span class="math notranslate nohighlight">\(f\)</span>
-(function <code class="docutils literal notranslate"><span class="pre">pitchingMotion</span></code>).</p></td>
+with amplitude <span class="math notranslate nohighlight">\(A\,[\mathrm{rad}]\)</span> and frequency <span class="math notranslate nohighlight">\(f\)</span>.</p></td>
 </tr>
 </tbody>
 </table>
@@ -443,7 +493,7 @@ point lies inside solid cells it is shifted outward in increments of
 <span class="math notranslate nohighlight">\(0.2\,\ell\)</span> until a valid trilinear interpolation stencil is found.</p></li>
 <li><p>The static pressure <span class="math notranslate nohighlight">\(p\)</span> and velocity <span class="math notranslate nohighlight">\(\mathbf{u}\)</span> are
 trilinearly interpolated at the interpolation point.</p></li>
-<li><p>The <strong>pressure force</strong> on the element is</p>
+<li><p>The pressure force on the element is calculated as</p>
 <div class="math notranslate nohighlight">
 \[\mathbf{F}_P^{(e)} = -\rho\!\left(p - \frac{\partial u_{\text{wall},n}}
 {\partial t}\,\ell\right)A_e\,\hat{\mathbf{n}},\]</div>
@@ -452,7 +502,7 @@ trilinearly interpolated at the interpolation point.</p></li>
 provides a correction for the unsteady pressure gradient next to a moving
 wall.</p>
 </li>
-<li><p>The <strong>viscous shear force</strong> is computed from the friction velocity
+<li><p>The viscous shear force is computed from the friction velocity
 <span class="math notranslate nohighlight">\(u_* = u_\tau(\mathbf{u}_B - \mathbf{u}_\text{wall})\)</span> using the
 Cabot model and applied in the direction of the relative tangential velocity.</p></li>
 </ol>
@@ -470,8 +520,8 @@ Cabot model and applied in the direction of the relative tangential velocity.</p
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="turbine_models.html" class="btn btn-neutral float-left" title="Turbine Models" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="../tosca_versions.html" class="btn btn-neutral float-right" title="Versions" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="precursor.html" class="btn btn-neutral float-left" title="Precursor, Fringe Regions &amp; Damping Layers" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="turbine_models.html" class="btn btn-neutral float-right" title="Turbine Models" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>
