@@ -3,7 +3,9 @@
 Governing Equations
 -------------------
 
-TOSCA solves the incompressible Navier–Stokes equations for a flow with Coriolis forces augmented by the Boussinesq approximation for buoyancy. The buoyancy term is evaluated through the modified density :math:`\rho_k`, derived from a transport equation for the potential temperature. In Cartesian coordinates the equations read
+TOSCA solves the incompressible Navier–Stokes equations for a flow with Coriolis forces augmented by the Boussinesq approximation for buoyancy. The buoyancy 
+term is evaluated through the modified density :math:`\rho_k`, derived from a transport equation for the potential temperature. In Cartesian coordinates the 
+equations read
 
 .. math::
     :label: eq:massCartesian

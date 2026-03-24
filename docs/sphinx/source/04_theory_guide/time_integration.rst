@@ -6,7 +6,7 @@ Time Integration Schemes
 TOSCA features six time-stepping schemes for the momentum equation and four schemes for the temperature equation. These are selectable in the ``control.dat`` 
 file via the keywords ``-dUdtScheme`` and ``-dTdtScheme``, respectively. In the following sections, the mathematical formulation of each scheme is 
 presented, along with recommendations for their use in different types of simulations. Guidelines regarding their combination and usage for 
-production runs are also provided.
+production runs are also provided at the end of this section.
 
 
 Momentum Equation

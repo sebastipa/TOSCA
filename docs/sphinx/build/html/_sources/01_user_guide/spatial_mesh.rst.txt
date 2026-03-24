@@ -45,7 +45,8 @@ which, for a cube extending 50 m in each direction, with 10 m cells along each d
 	0 0 40
 	0 0 50
 
-As can be noticed, the mesh file is extremely light, even for large meshes, as only the discretization along the three cartesian axes is provided. The coordinates of the remaining mesh cells are inferred iternally within TOSCA, starting from the axes discretization.   
+As can be noticed, the mesh file is extremely light, even for large meshes, as only the discretization along the three cartesian axes is provided. The 
+coordinates of the remaining mesh cells are inferred internally within TOSCA, starting from the discretization along the Cartesian axes.   
 
 The ``.grid`` format is a curvilinear mesh format (available for example in the meshing software `Pointwise`), where the cartesian coordinates of each mesh point are provided. This becomes useful when the mesh is deformed, and a unique relationship between the cartesian and curvilinear sets of coordinates does not exist anymore. This is a much heavier mesh format, which can be generalized as follows
 

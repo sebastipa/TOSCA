@@ -56,9 +56,10 @@
 <li class="toctree-l2"><a class="reference internal" href="time_integration.html">Time Integration Schemes</a></li>
 <li class="toctree-l2"><a class="reference internal" href="advection_schemes.html">Advection Schemes</a></li>
 <li class="toctree-l2"><a class="reference internal" href="parallel_efficiency.html">Parallel Efficiency</a></li>
-<li class="toctree-l2"><a class="reference internal" href="turbulence_models.html">Sub-grid Scale Model</a></li>
-<li class="toctree-l2"><a class="reference internal" href="flow_controllers.html">Controllers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="turbulence_models.html">Sub-grid Scale Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="flow_controllers.html">Flow Controllers and Mesoscale Coupling</a></li>
 <li class="toctree-l2"><a class="reference internal" href="precursor.html">Precursor, Fringe Regions &amp; Damping Layers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ibm.html">Immersed Boundary Method</a></li>
 <li class="toctree-l2"><a class="reference internal" href="turbine_models.html">Turbine Models</a></li>
 </ul>
 </li>
@@ -92,7 +93,9 @@
              
   <section id="governing-equations">
 <span id="gov-equations-section"></span><h1>Governing Equations<a class="headerlink" href="#governing-equations" title="Link to this heading"></a></h1>
-<p>TOSCA solves the incompressible Navier–Stokes equations for a flow with Coriolis forces augmented by the Boussinesq approximation for buoyancy. The buoyancy term is evaluated through the modified density <span class="math notranslate nohighlight">\(\rho_k\)</span>, derived from a transport equation for the potential temperature. In Cartesian coordinates the equations read</p>
+<p>TOSCA solves the incompressible Navier–Stokes equations for a flow with Coriolis forces augmented by the Boussinesq approximation for buoyancy. The buoyancy
+term is evaluated through the modified density <span class="math notranslate nohighlight">\(\rho_k\)</span>, derived from a transport equation for the potential temperature. In Cartesian coordinates the
+equations read</p>
 <div class="math notranslate nohighlight" id="equation-eq-masscartesian">
 <span class="eqno">(1)<a class="headerlink" href="#equation-eq-masscartesian" title="Link to this equation"></a></span>\[\frac{\partial u_i}{\partial x_i} = 0\]</div>
 <div class="math notranslate nohighlight" id="equation-eq-momentumcartesian">
@@ -112,7 +115,7 @@
 <p>The modified density <span class="math notranslate nohighlight">\(\rho_k\)</span> is</p>
 <div class="math notranslate nohighlight" id="equation-eq-modifieddensity">
 <span class="eqno">(4)<a class="headerlink" href="#equation-eq-modifieddensity" title="Link to this equation"></a></span>\[\frac{\rho_k}{\rho_0} = 1 - \left(\frac{\theta-\theta_0}{\theta_0}\right)\]</div>
-<p>where <span class="math notranslate nohighlight">\(\theta_0\)</span> is a reference potential temperature chosen as the ground temperature. The effective viscosity <span class="math notranslate nohighlight">\(\nu_\text{eff} = \nu + \nu_t\)</span> and effective thermal diffusivity <span class="math notranslate nohighlight">\(\kappa_\text{eff} = \kappa + \kappa_t\)</span> include both molecular and sub-grid scale (SGS) contributions; the SGS quantities <span class="math notranslate nohighlight">\(\nu_t\)</span> and <span class="math notranslate nohighlight">\(\kappa_t\)</span> are described in <a class="reference internal" href="turbulence_models.html#sgs-model-section"><span class="std std-ref">Sub-grid Scale Model</span></a>. The Prandtl number <span class="math notranslate nohighlight">\(Pr = \nu/\kappa\)</span> is set to 0.7 by default. The term <span class="math notranslate nohighlight">\(-\rho_0^{-1}\partial p_\infty/\partial x_i\)</span> is a prescribed horizontal pressure gradient that drives the flow and represents the velocity controller described in <a class="reference internal" href="flow_controllers.html#controllers-section"><span class="std std-ref">Controllers</span></a>.</p>
+<p>where <span class="math notranslate nohighlight">\(\theta_0\)</span> is a reference potential temperature chosen as the ground temperature. The effective viscosity <span class="math notranslate nohighlight">\(\nu_\text{eff} = \nu + \nu_t\)</span> and effective thermal diffusivity <span class="math notranslate nohighlight">\(\kappa_\text{eff} = \kappa + \kappa_t\)</span> include both molecular and sub-grid scale (SGS) contributions; the SGS quantities <span class="math notranslate nohighlight">\(\nu_t\)</span> and <span class="math notranslate nohighlight">\(\kappa_t\)</span> are described in <a class="reference internal" href="turbulence_models.html#sgs-model-section"><span class="std std-ref">Sub-grid Scale Models</span></a>. The Prandtl number <span class="math notranslate nohighlight">\(Pr = \nu/\kappa\)</span> is set to 0.7 by default. The term <span class="math notranslate nohighlight">\(-\rho_0^{-1}\partial p_\infty/\partial x_i\)</span> is a prescribed horizontal pressure gradient that drives the flow and represents the velocity controller described in <a class="reference internal" href="flow_controllers.html#controllers-section"><span class="std std-ref">Flow Controllers and Mesoscale Coupling</span></a>.</p>
 <p>The discretized form of the governing equations solved by TOSCA — including the curvilinear coordinate transformation, contravariant flux variables, staggered grid arrangement, and fractional-step projection — is described in <a class="reference internal" href="numerics.html#numerics-section"><span class="std std-ref">Numerical Method</span></a>.</p>
 </section>
 
