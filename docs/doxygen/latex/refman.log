@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2022/dev/Debian) (preloaded format=pdflatex 2026.1.30)  24 MAR 2026 13:11
+This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2022/dev/Debian) (preloaded format=pdflatex 2026.1.30)  24 MAR 2026 13:19
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -879,209 +879,75 @@ LaTeX Font Info:    Font shape `T1/phv/b/n' will be
 (Font)              scaled to size 18.66588pt on input line 1.
 LaTeX Font Info:    Font shape `T1/phv/b/n' will be
 (Font)              scaled to size 22.39185pt on input line 1.
- <./tosca.png>
-<tosca.png, id=1751, 578.16pt x 578.16pt>
-File: tosca.png Graphic file (type png)
-<use tosca.png>
-Package pdftex.def Info: tosca.png  used on input line 9.
-(pdftex.def)             Requested size: 401.50146pt x 401.49803pt.
 LaTeX Font Info:    Font shape `T1/phv/b/n' will be
-(Font)              scaled to size 12.9599pt on input line 13.
-LaTeX Font Info:    Font shape `T1/phv/m/n' will be
-(Font)              scaled to size 7.19995pt on input line 14.
-LaTeX Font Info:    Trying to load font information for T1+pcr on input line 14
-.
- (/usr/share/texlive/texmf-dist/tex/latex/psnfss/t1pcr.fd
+(Font)              scaled to size 10.79993pt on input line 5.
+LaTeX Font Info:    Font shape `T1/phv/b/it' in size <12> not available
+(Font)              Font shape `T1/phv/b/sl' tried instead on input line 5.
+LaTeX Font Info:    Font shape `T1/phv/b/sl' will be
+(Font)              scaled to size 10.79993pt on input line 5.
+
+Package hyperref Warning: Difference (2) between bookmark levels is greater 
+(hyperref)                than one, level fixed on input line 5.
+
+LaTeX Font Info:    Font shape `T1/phv/m/it' in size <10> not available
+(Font)              Font shape `T1/phv/m/sl' tried instead on input line 6.
+LaTeX Font Info:    Font shape `T1/phv/m/sl' will be
+(Font)              scaled to size 8.99994pt on input line 6.
+LaTeX Font Info:    Font shape `T1/phv/m/it' in size <7> not available
+(Font)              Font shape `T1/phv/m/sl' tried instead on input line 6.
+LaTeX Font Info:    Font shape `T1/phv/m/sl' will be
+(Font)              scaled to size 6.29996pt on input line 6.
+LaTeX Font Info:    Trying to load font information for T1+pcr on input line 8.
+
+(/usr/share/texlive/texmf-dist/tex/latex/psnfss/t1pcr.fd
 File: t1pcr.fd 2001/06/04 font definitions for T1/pcr.
 )
-[1
+LaTeX Font Info:    Trying to load font information for TS1+phv on input line 1
+4.
 
-]
-Overfull \hbox (197.5563pt too wide) in paragraph at lines 23--23
-[]\T1/pcr/m/n/8 - tosca    : transient solver for stratified incompressible flo
-ws. Temperature stratification is accounted via Boussinesq approximation. 
- []
-
-
-Overfull \hbox (293.55637pt too wide) in paragraph at lines 31--31
-[]\T1/pcr/m/n/8 - inflowFunction       : only on kLeft patch. Different types o
-f inflow can be prescribed: ABL inflow using teorethical laws, mapped inflow fr
-om a precursor[] 
- []
-
-
-Overfull \hbox (87.15623pt too wide) in paragraph at lines 32--32
-[]                         \T1/pcr/m/n/8 simulation that can be also periodized
- and/or interpolated if meshes are not consistent.[] 
- []
-
-
-Overfull \hbox (63.15622pt too wide) in paragraph at lines 33--33
-[]\T1/pcr/m/n/8 - velocityWallFunction : shear stress model (only U equation). 
-Can be prescribed on jRight and jLeft patches[] 
- []
-
-
-Overfull \hbox (130.35626pt too wide) in paragraph at lines 34--34
-[]\T1/pcr/m/n/8 - thetaWallFunction    : potential temperature wall model (only
- T equation). Can be prescribed on jRight and jLeft patches[] 
- []
-
-
-Overfull \hbox (120.75626pt too wide) in paragraph at lines 37--37
-[]\T1/pcr/m/n/8 - Shumann    : applies wall shear stress in the momentum equati
-on according to similarity theory of Paulson and Obuhkov. 
- []
-
-
-Overfull \hbox (29.5562pt too wide) in paragraph at lines 39--39
-[]\T1/pcr/m/n/8 - Cabot      : prescribes velocity BC according to Cabot formul
-ation (velocityWallFunction, type -1).[] 
- []
-
-
-Overfull \hbox (183.1563pt too wide) in paragraph at lines 48--48
-[]\T1/pcr/m/n/8 - ALM  : advanced actuator line model with rotor dynamics and y
-aw/pitch/rotation controllers (anisotropic gaussuan projection avail.)[] 
- []
-
-
-Overfull \hbox (178.3563pt too wide) in paragraph at lines 52--52
-[]\T1/pcr/m/n/8 TOSCA uses a sharp-interface IBM method with ghost cells applie
-d on the flow side of the body. This allows for more flexibility with 
- []
-
-
-Overfull \hbox (288.75636pt too wide) in paragraph at lines 53--53
-[]\T1/pcr/m/n/8 thin bodies but complicated wall modeling. New wall models have
- been recently added, validated with both hi-Re terrains (Shumann) or small obj
-ects (Cabot).[] 
- []
-
-[2]
-Overfull \hbox (120.75626pt too wide) in paragraph at lines 64--64
-[]\T1/pcr/m/n/8 - mechanical energy budgets within user-defined boxes (the code
- is not energy-conservative so MKE eq. is not fullfilled)[] 
- []
-
-
-Overfull \hbox (130.35626pt too wide) in paragraph at lines 71--71
-[]\T1/pcr/m/n/8 - test cases which contain an empty 'inflowDatabase' file requi
-re the inflow database. A sample database can be downloaded 
- []
-
-
-Overfull \hbox (154.35628pt too wide) in paragraph at lines 72--72
-[]  \T1/pcr/m/n/8 at https://drive.google.com/file/d/17F5wtI5Jc1XGh8crmOVJYVXab
-C8iQXq1/view?usp=sharing, simply substitute the 'inflowDatabase'[] 
- []
-
-LaTeX Font Info:    Trying to load font information for TS1+phv on input line 7
-8.
 (/usr/share/texlive/texmf-dist/tex/latex/psnfss/ts1phv.fd
 File: ts1phv.fd 2020/03/25 scalable font definitions for TS1/phv.
 )
 LaTeX Font Info:    Font shape `TS1/phv/m/n' will be
-(Font)              scaled to size 8.99994pt on input line 78.
- [3]
-Underfull \hbox (badness 2626) in paragraph at lines 97--98
-\T1/phv/m/n/10 la-tion, it will be "arch-linux-c-opt"[]: \T1/pcr/m/n/10 echo "e
-xport PETSC[]_[][]ARCH=arch-linux-c-opt" $\OML/cmm/m/it/10 >$$>$
- []
-
-
-Underfull \hbox (badness 1184) in paragraph at lines 98--99
-[]\T1/phv/m/n/10 Add the PETSc shared li-braries to your li-brary path en-vi-ro
-n-ment vari-able in your .bashrc[]: \T1/pcr/m/n/10 echo
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 98--99
-\T1/pcr/m/n/10 "export LD[]_[][]LIBRARY[]_[][]PATH=$[]LD[]_[][]LIBRARY[]_[][]PA
-TH[]:$[]PETSC[]_[][]DIR/$[]PETSC[]_[][]ARCH/lib" $\OML/cmm/m/it/10 >$$>$
- []
-
-
-Underfull \hbox (badness 2608) in paragraph at lines 107--108
-[]\T1/phv/m/n/10 Clone the TOSCA pack-age lo-cally on your ma-chine with \T1/pc
-r/m/n/10 git clone [][] https[]://github.[]
- []
-
-
-Overfull \hbox (55.10353pt too wide) in paragraph at lines 111--112
-[]\T1/phv/m/n/10 Commit the changes us-ing a short but ex-haus-tive com-ment wi
-th \T1/pcr/m/n/10 git commit -m "your-commit-description" 
- []
-
-
-Overfull \hbox (21.90318pt too wide) in paragraph at lines 116--117
-[]\T1/phv/m/n/10 Delete your lo-cal branch as it is not use-ful any-more with \
-T1/pcr/m/n/10 git branch --delete -d your-branch-name
- []
-
-[4] [5]
-Underfull \hbox (badness 10000) in paragraph at lines 144--145
-\T1/pcr/m/n/10 LD[]_[][]LIBRARY[]_[][]PATH=$[]LD[]_[][]LIBRARY[]_[][]PATH[]:$[]
-LOCATION/catalyst2/install/lib" $\OML/cmm/m/it/10 >$$>$
- []
-
-
-Overfull \hbox (136.73743pt too wide) in paragraph at lines 154--155
-[]\T1/pcr/m/n/10 export CMAKE[]_[][]PREFIX[]_[][]PATH=$CMAKE[]_[][]PREFIX[]_[][
-]PATH[]:$LOCATION/catalyst2/install/lib/cmake/catalyst-2.[]
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 155--156
-[]\T1/pcr/m/n/10 FLAGS=(-DCMAKE[]_[][]INSTALL[]_[][]PREFIX=$LOCATION/paraview-5
-.[]11.[]0/install -DVTK[]_[][]
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 155--156
-\T1/pcr/m/n/10 OPENGL[]_[][]HAS[]_[][]OSMESA=ON -DPARAVIEW[]_[][]USE[]_[][]MPI=
-ON -DBUILD[]_[][]TESTING=OFF -DVTK[]
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 155--156
-\T1/pcr/m/n/10 _[][]USE[]_[]X=OFF -DPARAVIEW[]_[][]USE[]_[][]QT=OFF -DPARAVIEW[
-]_[][]USE[]_[][]PYTHON=ON -DPython3[]
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 155--156
-\T1/pcr/m/n/10 _[][]FIND[]_[][]STRATEGY=LOCATION -DPython3[]_[][]ROOT[]_[][]DIR
-=$EBROOTPYTHON -DPARAVIEW[]
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 155--156
-\T1/pcr/m/n/10 _[][]BUILD[]_[][]SHARED[]_[][]LIBS=ON -DPARAVIEW[]_[][]ENABLE[]_
-[][]RAYTRACING=OFF -DPARAVIEW[]_[][]
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 159--160
-\T1/pcr/m/n/10 LD[]_[][]LIBRARY[]_[][]PATH=$[]LD[]_[][]LIBRARY[]_[][]PATH[]:$[]
-LOCATION/paraview-5.[]11.[]0/install/lib"
- []
-
-[6]
-Overfull \hbox (67.75592pt too wide) in paragraph at lines 170--171
-[]\T1/pcr/m/n/10 export CATALYST[]_[][]IMPLEMENTATION[]_[][]PATHS=$LOCATION/par
-aview-5.[]11.[]0/install/lib/catalyst
- []
-
-) [7] [8
+(Font)              scaled to size 8.99994pt on input line 14.
+ [1
 
 ]
+Underfull \hbox (badness 10000) in paragraph at lines 20--21
+[][][] \T1/pcr/m/n/10 TOSCA ^^U an open-source, finite-volume, large-eddy simul
+ation (LES)
+ []
+
+
+Overfull \hbox (31.75592pt too wide) in paragraph at lines 21--22
+[][][] \T1/pcr/m/n/10 The actuator farm model for large eddy simulation (LES) o
+f wind-farm-induced
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 22--23
+[][][] \T1/pcr/m/n/10 A large-eddy simulation (LES) model for wind-farm-induced
+ atmospheric
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 23--24
+[][][] \T1/pcr/m/n/10 Mixed subgrid-scale models in generalized curvilinear coo
+rdinates for
+ []
+
+) [2]
 Chapter 2.
-(./annotated.tex [9] [10]) [11] [12
+(./annotated.tex
+LaTeX Font Info:    Font shape `T1/phv/b/n' will be
+(Font)              scaled to size 12.9599pt on input line 1.
+ [3
+
+] [4]) [5] [6
 
 ]
 Chapter 3.
-(./files.tex [13] [14]) [15] [16
+(./files.tex [7] [8]) [9] [10
 
 ]
 Chapter 4.
@@ -1092,45 +958,38 @@ LaTeX Font Info:    Font shape `T1/phv/m/it' in size <9> not available
 (Font)              Font shape `T1/phv/m/sl' tried instead on input line 8.
 LaTeX Font Info:    Font shape `T1/phv/m/sl' will be
 (Font)              scaled to size 8.09995pt on input line 8.
-LaTeX Font Info:    Font shape `T1/phv/m/it' in size <7> not available
-(Font)              Font shape `T1/phv/m/sl' tried instead on input line 56.
-LaTeX Font Info:    Font shape `T1/phv/m/sl' will be
-(Font)              scaled to size 6.29996pt on input line 56.
- [17] [18]
+ [11] [12]
 LaTeX Font Info:    Font shape `TS1/phv/m/it' in size <9> not available
 (Font)              Font shape `TS1/phv/m/sl' tried instead on input line 170.
 LaTeX Font Info:    Font shape `TS1/phv/m/sl' will be
 (Font)              scaled to size 8.09995pt on input line 170.
- [19] [20] [21] [22]) (./structaccess__.tex
-[23]
-LaTeX Font Info:    Font shape `T1/phv/b/n' will be
-(Font)              scaled to size 10.79993pt on input line 65.
-) (./structAcell.tex [24]) (./structacquisition__.tex [25])
-(./structavgFields.tex [26] [27]) (./structBinIndex.tex)
-(./structboundingBox.tex) (./structCabot.tex [28]) (./structcellIds.tex)
-(./structcellList.tex [29]) (./structcellNode.tex) (./structclock__.tex
-[30]) (./structCmpnts.tex) (./structconstants__.tex) (./structCpt2D.tex
-[31]) (./structdata3LM.tex [32]) (./structdataABL.tex [33] [34])
-(./structDcell.tex) (./structdomain__.tex [35]) (./structelementBox.tex
-[36]) (./structflags__.tex) (./structstd_1_1hash_3_01BinIndex_01_4.tex [37])
-(./structHoleObject.tex) (./structibm__.tex [38]) (./structibmFluidCell.tex
-[39]) (./structibmMesh.tex [40]) (./structibmObject.tex [41])
-(./structibmPitchMotion.tex [42]) (./structibmRotation.tex)
-(./structibmSineMotion.tex) (./structinflowData.tex [43])
-(./structinletFunctions.tex) (./structinletFunctionTypes.tex [44] [45] [46])
-(./structio__.tex [47]) (./structkeBox.tex [48]) (./structkeFields.tex [49]
-[50]) (./structles__.tex [51]) (./structlevel3LM.tex [52]) (./structlist.tex)
-(./structLogLawAPG.tex) (./structmapInfo.tex [53]) (./structMatrix3.tex)
-(./structmesh__.tex [54] [55]) (./structModeData.tex) (./structnode.tex
-[56]) (./structOctreeNode.tex) (./structoverset__.tex [57] [58])
+ [13] [14] [15] [16]) (./structaccess__.tex
+[17]) (./structAcell.tex [18]) (./structacquisition__.tex [19])
+(./structavgFields.tex [20] [21]) (./structBinIndex.tex)
+(./structboundingBox.tex) (./structCabot.tex [22]) (./structcellIds.tex)
+(./structcellList.tex [23]) (./structcellNode.tex) (./structclock__.tex
+[24]) (./structCmpnts.tex) (./structconstants__.tex) (./structCpt2D.tex
+[25]) (./structdata3LM.tex [26]) (./structdataABL.tex [27] [28])
+(./structDcell.tex) (./structdomain__.tex [29]) (./structelementBox.tex
+[30]) (./structflags__.tex) (./structstd_1_1hash_3_01BinIndex_01_4.tex [31])
+(./structHoleObject.tex) (./structibm__.tex [32]) (./structibmFluidCell.tex
+[33]) (./structibmMesh.tex [34]) (./structibmObject.tex [35])
+(./structibmPitchMotion.tex [36]) (./structibmRotation.tex)
+(./structibmSineMotion.tex) (./structinflowData.tex [37])
+(./structinletFunctions.tex) (./structinletFunctionTypes.tex [38] [39] [40])
+(./structio__.tex [41]) (./structkeBox.tex [42]) (./structkeFields.tex [43]
+[44]) (./structles__.tex [45]) (./structlevel3LM.tex [46]) (./structlist.tex)
+(./structLogLawAPG.tex) (./structmapInfo.tex [47]) (./structMatrix3.tex)
+(./structmesh__.tex [48] [49]) (./structModeData.tex) (./structnode.tex
+[50]) (./structOctreeNode.tex) (./structoverset__.tex [51] [52])
 (./structoversetMotion.tex) (./structpatchVectorField.tex) (./structpeqn__.tex
-[59] [60]) (./structperturbFields.tex [61]) (./structpostProcess.tex)
-(./structPowerLawAPG.tex [62]) (./structprecursor__.tex) (./structprobeRake.tex
-[63]) (./structrakes.tex [64]) (./structscalarBC.tex [65])
-(./structsearchBox.tex) (./structsections.tex [66]) (./structShumann.tex
-[67]) (./structsimInfo__.tex) (./structskewSymmTensor.tex) (./structsurface.tex
-[68]) (./structsymmTensor.tex) (./structTensor.tex [69])
-(./structTensorInvariants.tex) (./structteqn__.tex [70] [71]
+[53] [54]) (./structperturbFields.tex [55]) (./structpostProcess.tex)
+(./structPowerLawAPG.tex [56]) (./structprecursor__.tex) (./structprobeRake.tex
+[57]) (./structrakes.tex [58]) (./structscalarBC.tex [59])
+(./structsearchBox.tex) (./structsections.tex [60]) (./structShumann.tex
+[61]) (./structsimInfo__.tex) (./structskewSymmTensor.tex) (./structsurface.tex
+[62]) (./structsymmTensor.tex) (./structTensor.tex [63])
+(./structTensorInvariants.tex) (./structteqn__.tex [64] [65]
 
 ! LaTeX Error: Unicode character ξ (U+03BE)
                not set up for use with LaTeX.
@@ -1167,9 +1026,9 @@ l.116 ...MEX biharmonic hyperviscosity along k (ζ
                                                   ) index direction, typical...
 
 ? 
-) (./structudSections.tex) (./structueqn__.tex [72] [73] [74])
-(./structuSections.tex [75]) (./structvectorBC.tex [76]) (./structwallModel.tex
-) [77] [78
+) (./structudSections.tex) (./structueqn__.tex [66] [67] [68])
+(./structuSections.tex [69]) (./structvectorBC.tex [70]) (./structwallModel.tex
+) [71] [72
 
 ]
 Chapter 5.
@@ -1178,12 +1037,14 @@ Underfull \hbox (badness 10000) in paragraph at lines 8--13
 
  []
 
-) (./acquisition_8c.tex [79]
+) (./acquisition_8c.tex [73]
 Underfull \hbox (badness 10000) in paragraph at lines 8--13
 
  []
 
-[80] [81]
+[74] [75]
+LaTeX Font Info:    Font shape `T1/phv/m/n' will be
+(Font)              scaled to size 7.19995pt on input line 164.
 LaTeX Font Info:    Font shape `T1/pcr/m/it' in size <8> not available
 (Font)              Font shape `T1/pcr/m/sl' tried instead on input line 165.
 ) (./boundary_8c.tex
@@ -1191,7 +1052,7 @@ Underfull \hbox (badness 10000) in paragraph at lines 8--14
 
  []
 
-[82]) (./clock_8c.tex
+[76]) (./clock_8c.tex
 Underfull \hbox (badness 10000) in paragraph at lines 8--12
 
  []
@@ -1203,26 +1064,26 @@ Underfull \hbox (badness 1092) in paragraph at lines 19--20
 T1/phv/m/n/10 clock, Petsc[]Real &dx[]By[]U[]_[]min, Petsc[]Real
  []
 
-[83]) (./ibm_8c.tex
+[77]) (./ibm_8c.tex
 Underfull \hbox (badness 10000) in paragraph at lines 8--14
 
  []
 
-[84] [85]) (./ibmInput_8c.tex
+[78] [79]) (./ibmInput_8c.tex
 Underfull \hbox (badness 10000) in paragraph at lines 8--13
 
  []
 
-[86]
+[80]
 LaTeX Font Info:    Font shape `T1/pcr/m/it' in size <7> not available
 (Font)              Font shape `T1/pcr/m/sl' tried instead on input line 69.
-) (./abl_8h.tex [87]) (./abl_8h_source.tex [88] [89] [90] [91])
+) (./abl_8h.tex [81]) (./abl_8h_source.tex [82] [83] [84] [85])
 (./access_8h_source.tex) (./acquisition_8h.tex
 Underfull \hbox (badness 10000) in paragraph at lines 8--14
 
  []
 
-[92] [93] [94]) (./acquisition_8h_source.tex
+[86] [87] [88]) (./acquisition_8h_source.tex
 Overfull \hbox (27.75554pt too wide) in paragraph at lines 43--43
 \T1/pcr/m/n/7 =================================================================
 ============================================ 
@@ -1234,7 +1095,7 @@ Overfull \hbox (27.75554pt too wide) in paragraph at lines 52--52
 ============================================ 
  []
 
-[95]
+[89]
 Overfull \hbox (27.75554pt too wide) in paragraph at lines 61--61
 \T1/pcr/m/n/7 =================================================================
 ============================================ 
@@ -1252,7 +1113,7 @@ Overfull \hbox (27.75554pt too wide) in paragraph at lines 114--114
 ============================================ 
  []
 
-[96]
+[90]
 Overfull \hbox (27.75554pt too wide) in paragraph at lines 131--131
 \T1/pcr/m/n/7 =================================================================
 ============================================ 
@@ -1270,31 +1131,31 @@ Overfull \hbox (27.75554pt too wide) in paragraph at lines 153--153
 ============================================ 
  []
 
-) (./ablAcquisition_8h.tex) (./ablAcquisition_8h_source.tex [97] [98])
-(./averageAcquisition_8h.tex) (./averageAcquisition_8h_source.tex [99])
-(./keAcquisition_8h.tex) (./keAcquisition_8h_source.tex [100])
-(./perturbAcquisition_8h.tex [101]) (./perturbAcquisition_8h_source.tex)
-(./probesAcquisition_8h.tex) (./probesAcquisition_8h_source.tex [102])
-(./sectionsAcquisition_8h.tex) (./sectionsAcquisition_8h_source.tex [103])
+) (./ablAcquisition_8h.tex) (./ablAcquisition_8h_source.tex [91] [92])
+(./averageAcquisition_8h.tex) (./averageAcquisition_8h_source.tex [93])
+(./keAcquisition_8h.tex) (./keAcquisition_8h_source.tex [94])
+(./perturbAcquisition_8h.tex [95]) (./perturbAcquisition_8h_source.tex)
+(./probesAcquisition_8h.tex) (./probesAcquisition_8h_source.tex [96])
+(./sectionsAcquisition_8h.tex) (./sectionsAcquisition_8h_source.tex [97])
 (./base_8h.tex
 Underfull \hbox (badness 10000) in paragraph at lines 8--37
 
  []
 
-[104]) (./base_8h_source.tex [105] [106]) (./boundary_8h.tex [107])
-(./boundary_8h_source.tex [108] [109] [110]) (./catalystAdaptor_8h_source.tex
+[98]) (./base_8h_source.tex [99] [100]) (./boundary_8h.tex [101])
+(./boundary_8h_source.tex [102] [103] [104]) (./catalystAdaptor_8h_source.tex
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 12--12
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
  []
 
-[111]
+[105]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 93--93
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
  []
 
-[112] [113] [114]
+[106] [107] [108]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 366--366
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
@@ -1307,39 +1168,39 @@ Underfull \hbox (badness 1092) in paragraph at lines 20--21
 T1/phv/m/n/10 clock, Petsc[]Real &dx[]By[]U[]_[]min, Petsc[]Real
  []
 
-[115]) (./clock_8h_source.tex) (./domain_8h.tex
+[109]) (./clock_8h_source.tex) (./domain_8h.tex
 Underfull \hbox (badness 10000) in paragraph at lines 8--28
 
  []
 
-[116]) (./domain_8h_source.tex [117]) (./flags_8h_source.tex) (./ibm_8h.tex
-[118] [119] [120]) (./ibm_8h_source.tex [121] [122] [123] [124] [125])
-(./ibmInput_8h_source.tex) (./inflow_8h.tex [126]) (./inflow_8h_source.tex)
-(./initialField_8h.tex [127]) (./initialField_8h_source.tex [128])
-(./initialization_8h.tex [129]) (./initialization_8h_source.tex [130])
+[110]) (./domain_8h_source.tex [111]) (./flags_8h_source.tex) (./ibm_8h.tex
+[112] [113] [114]) (./ibm_8h_source.tex [115] [116] [117] [118] [119])
+(./ibmInput_8h_source.tex) (./inflow_8h.tex [120]) (./inflow_8h_source.tex)
+(./initialField_8h.tex [121]) (./initialField_8h_source.tex [122])
+(./initialization_8h.tex [123]) (./initialization_8h_source.tex [124])
 (./inline_8h.tex
 Underfull \hbox (badness 10000) in paragraph at lines 8--11
 
  []
 
-[131] [132] [133] [134] [135] [136]
+[125] [126] [127] [128] [129] [130]
 Overfull \hbox (50.2657pt too wide) in paragraph at lines 537--537
 []\T1/phv/m/sl/9 Computes mod-i-fied me-chan-i-cal en-ergy (Em = |   [] 
  []
 
-[137]) (./inline_8h_source.tex
+[131]) (./inline_8h_source.tex
 Overfull \hbox (27.75554pt too wide) in paragraph at lines 15--15
 \T1/pcr/m/n/7 =================================================================
 ============================================ 
  []
 
-[138]
+[132]
 Overfull \hbox (27.75554pt too wide) in paragraph at lines 69--69
 \T1/pcr/m/n/7 =================================================================
 ============================================ 
  []
 
-[139] [140]
+[133] [134]
 LaTeX Font Info:    Trying to load font information for TS1+pcr on input line 2
 53.
  (/usr/share/texlive/texmf-dist/tex/latex/psnfss/ts1pcr.fd
@@ -1350,7 +1211,7 @@ Overfull \hbox (36.15553pt too wide) in paragraph at lines 278--278
 ================================================[]  
  []
 
-[141]
+[135]
 Overfull \hbox (36.15553pt too wide) in paragraph at lines 311--311
 []\T1/pcr/m/n/7 //=============================================================
 ================================================[]  
@@ -1380,7 +1241,7 @@ Overfull \hbox (27.75554pt too wide) in paragraph at lines 359--359
 ============================================ 
  []
 
-[142]
+[136]
 Overfull \hbox (27.75554pt too wide) in paragraph at lines 373--373
 \T1/pcr/m/n/7 =================================================================
 ============================================ 
@@ -1392,7 +1253,7 @@ Overfull \hbox (27.75554pt too wide) in paragraph at lines 430--430
 ============================================ 
  []
 
-[143]
+[137]
 Overfull \hbox (27.75554pt too wide) in paragraph at lines 479--479
 \T1/pcr/m/n/7 =================================================================
 ============================================ 
@@ -1404,7 +1265,7 @@ Overfull \hbox (27.75554pt too wide) in paragraph at lines 527--527
 ============================================ 
  []
 
-[144]
+[138]
 Overfull \hbox (27.75554pt too wide) in paragraph at lines 601--601
 \T1/pcr/m/n/7 =================================================================
 ============================================ 
@@ -1416,7 +1277,7 @@ Overfull \hbox (27.75554pt too wide) in paragraph at lines 609--609
 ============================================ 
  []
 
-[145]
+[139]
 
 ! LaTeX Error: Unicode character π (U+03C0)
                not set up for use with LaTeX.
@@ -1475,7 +1336,7 @@ Overfull \hbox (52.95552pt too wide) in paragraph at lines 697--697
 **************************************************//[]  
  []
 
-[146]
+[140]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 710--710
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
@@ -1511,7 +1372,7 @@ Overfull \hbox (52.95552pt too wide) in paragraph at lines 774--774
 **************************************************//[]  
  []
 
-[147]
+[141]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 789--789
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
@@ -1529,7 +1390,7 @@ Overfull \hbox (52.95552pt too wide) in paragraph at lines 858--858
 **************************************************//[]  
  []
 
-[148]
+[142]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 871--871
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
@@ -1559,7 +1420,7 @@ Overfull \hbox (52.95552pt too wide) in paragraph at lines 934--934
 **************************************************//[]  
  []
 
-[149]
+[143]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 947--947
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
@@ -1601,7 +1462,7 @@ Overfull \hbox (52.95552pt too wide) in paragraph at lines 1022--1022
 **************************************************//[]  
  []
 
-[150]
+[144]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 1031--1031
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
@@ -1625,7 +1486,7 @@ Overfull \hbox (52.95552pt too wide) in paragraph at lines 1101--1101
 **************************************************//[]  
  []
 
-[151]
+[145]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 1112--1112
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
@@ -1649,7 +1510,7 @@ Overfull \hbox (27.75554pt too wide) in paragraph at lines 1157--1157
 ============================================ 
  []
 
-[152]
+[146]
 Overfull \hbox (27.75554pt too wide) in paragraph at lines 1210--1210
 \T1/pcr/m/n/7 =================================================================
 ============================================ 
@@ -1667,7 +1528,7 @@ Overfull \hbox (52.95552pt too wide) in paragraph at lines 1269--1269
 **************************************************//[]  
  []
 
-[153]
+[147]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 1282--1282
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
@@ -1727,7 +1588,7 @@ Overfull \hbox (52.95552pt too wide) in paragraph at lines 1345--1345
 **************************************************//[]  
  []
 
-[154]
+[148]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 1352--1352
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
@@ -1787,7 +1648,7 @@ Overfull \hbox (52.95552pt too wide) in paragraph at lines 1419--1419
 **************************************************//[]  
  []
 
-[155]
+[149]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 1425--1425
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
@@ -1859,7 +1720,7 @@ Overfull \hbox (52.95552pt too wide) in paragraph at lines 1491--1491
 **************************************************//[]  
  []
 
-[156]
+[150]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 1497--1497
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
@@ -1877,7 +1738,7 @@ Overfull \hbox (52.95552pt too wide) in paragraph at lines 1558--1558
 **************************************************//[]  
  []
 
-[157]
+[151]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 1613--1613
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
@@ -1889,19 +1750,19 @@ Overfull \hbox (52.95552pt too wide) in paragraph at lines 1649--1649
 **************************************************//[]  
  []
 
-[158] [159]
+[152] [153]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 1811--1811
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
  []
 
-[160]
+[154]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 1860--1860
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
  []
 
-[161]
+[155]
 Overfull \hbox (27.75554pt too wide) in paragraph at lines 1940--1940
 \T1/pcr/m/n/7 =================================================================
 ============================================ 
@@ -1919,13 +1780,13 @@ Overfull \hbox (52.95552pt too wide) in paragraph at lines 1986--1986
 **************************************************//[]  
  []
 
-[162]
+[156]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 2057--2057
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
  []
 
-[163]
+[157]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 2107--2107
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
@@ -1937,19 +1798,19 @@ Overfull \hbox (52.95552pt too wide) in paragraph at lines 2157--2157
 **************************************************//[]  
  []
 
-[164]
+[158]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 2220--2220
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
  []
 
-[165]
+[159]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 2283--2283
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
  []
 
-[166]
+[160]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 2346--2346
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
@@ -1961,7 +1822,7 @@ Overfull \hbox (52.95552pt too wide) in paragraph at lines 2387--2387
 **************************************************//[]  
  []
 
-[167]
+[161]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 2428--2428
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
@@ -1979,7 +1840,7 @@ Overfull \hbox (52.95552pt too wide) in paragraph at lines 2508--2508
 **************************************************//[]  
  []
 
-[168]
+[162]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 2547--2547
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
@@ -1991,7 +1852,7 @@ Overfull \hbox (52.95552pt too wide) in paragraph at lines 2586--2586
 **************************************************//[]  
  []
 
-[169]
+[163]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 2625--2625
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
@@ -2003,43 +1864,43 @@ Overfull \hbox (52.95552pt too wide) in paragraph at lines 2664--2664
 **************************************************//[]  
  []
 
-[170]
+[164]
 Overfull \hbox (27.75554pt too wide) in paragraph at lines 2704--2704
 \T1/pcr/m/n/7 =================================================================
 ============================================ 
  []
 
-[171]
+[165]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 2765--2765
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
  []
 
-[172]
+[166]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 2827--2827
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
  []
 
-[173]
+[167]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 2889--2889
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
  []
 
-[174]
+[168]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 2980--2980
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
  []
 
-[175]
+[169]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 3072--3072
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
  []
 
-[176] [177]
+[170] [171]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 3166--3166
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
@@ -2051,7 +1912,7 @@ Overfull \hbox (52.95552pt too wide) in paragraph at lines 3210--3210
 **************************************************//[]  
  []
 
-[178]
+[172]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 3255--3255
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
@@ -2063,19 +1924,19 @@ Overfull \hbox (52.95552pt too wide) in paragraph at lines 3300--3300
 **************************************************//[]  
  []
 
-[179]
+[173]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 3376--3376
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
  []
 
-[180] [181]
+[174] [175]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 3487--3487
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
  []
 
-[182]
+[176]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 3546--3546
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
@@ -2087,7 +1948,7 @@ Overfull \hbox (52.95552pt too wide) in paragraph at lines 3591--3591
 **************************************************//[]  
  []
 
-[183]
+[177]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 3621--3621
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
@@ -2105,25 +1966,25 @@ Overfull \hbox (52.95552pt too wide) in paragraph at lines 3682--3682
 **************************************************//[]  
  []
 
-[184] [185]
+[178] [179]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 3843--3843
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
  []
 
-[186] [187]
+[180] [181]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 4005--4005
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
  []
 
-[188] [189]
+[182] [183]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 4169--4169
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
  []
 
-[190]
+[184]
 Overfull \hbox (27.75554pt too wide) in paragraph at lines 4237--4237
 \T1/pcr/m/n/7 =================================================================
 ============================================ 
@@ -2153,7 +2014,7 @@ Overfull \hbox (52.95552pt too wide) in paragraph at lines 4282--4282
 **************************************************//[]  
  []
 
-[191]
+[185]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 4297--4297
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
@@ -2171,19 +2032,19 @@ Overfull \hbox (52.95552pt too wide) in paragraph at lines 4330--4330
 **************************************************//[]  
  []
 
-[192] [193]
+[186] [187]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 4472--4472
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
  []
 
-[194] [195]
+[188] [189]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 4614--4614
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
  []
 
-[196] [197]
+[190] [191]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 4755--4755
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
@@ -2195,7 +2056,7 @@ Overfull \hbox (52.95552pt too wide) in paragraph at lines 4761--4761
 **************************************************//[]  
  []
 
-[198]
+[192]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 4794--4794
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
@@ -2207,7 +2068,7 @@ Overfull \hbox (52.95552pt too wide) in paragraph at lines 4828--4828
 **************************************************//[]  
  []
 
-[199]
+[193]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 4859--4859
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
@@ -2225,7 +2086,7 @@ Overfull \hbox (52.95552pt too wide) in paragraph at lines 4915--4915
 **************************************************//[]  
  []
 
-[200]
+[194]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 4969--4969
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
@@ -2237,7 +2098,7 @@ Overfull \hbox (52.95552pt too wide) in paragraph at lines 5023--5023
 **************************************************//[]  
  []
 
-[201]
+[195]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 5045--5045
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
@@ -2255,7 +2116,7 @@ Overfull \hbox (52.95552pt too wide) in paragraph at lines 5103--5103
 **************************************************//[]  
  []
 
-[202]
+[196]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 5139--5139
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
@@ -2267,25 +2128,25 @@ Overfull \hbox (52.95552pt too wide) in paragraph at lines 5175--5175
 **************************************************//[]  
  []
 
-[203]
+[197]
 Overfull \hbox (27.75554pt too wide) in paragraph at lines 5218--5218
 \T1/pcr/m/n/7 =================================================================
 ============================================ 
  []
 
-[204]
+[198]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 5313--5313
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
  []
 
-[205]
+[199]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 5408--5408
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
  []
 
-[206] [207]
+[200] [201]
 Overfull \hbox (27.75554pt too wide) in paragraph at lines 5565--5565
 \T1/pcr/m/n/7 =================================================================
 ============================================ 
@@ -2303,7 +2164,7 @@ Overfull \hbox (52.95552pt too wide) in paragraph at lines 5605--5605
 **************************************************//[]  
  []
 
-[208]
+[202]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 5625--5625
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
@@ -2315,7 +2176,7 @@ Overfull \hbox (52.95552pt too wide) in paragraph at lines 5672--5672
 **************************************************//[]  
  []
 
-[209]
+[203]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 5719--5719
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
@@ -2327,13 +2188,13 @@ Overfull \hbox (52.95552pt too wide) in paragraph at lines 5773--5773
 **************************************************//[]  
  []
 
-[210]
+[204]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 5828--5828
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
  []
 
-[211]
+[205]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 5898--5898
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
@@ -2351,7 +2212,7 @@ Overfull \hbox (27.75554pt too wide) in paragraph at lines 5942--5942
 ============================================ 
  []
 
-[212]
+[206]
 Overfull \hbox (27.75554pt too wide) in paragraph at lines 5960--5960
 \T1/pcr/m/n/7 =================================================================
 ============================================ 
@@ -2363,31 +2224,31 @@ Overfull \hbox (27.75554pt too wide) in paragraph at lines 6009--6009
 ============================================ 
  []
 
-[213] [214] [215] [216]
+[207] [208] [209] [210]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 6333--6333
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
  []
 
-[217] [218] [219] [220]
+[211] [212] [213] [214]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 6646--6646
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
  []
 
-[221] [222]
+[215] [216]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 6854--6854
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
  []
 
-[223] [224] [225] [226] [227]
+[217] [218] [219] [220] [221]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 7220--7220
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
  []
 
-[228] [229]
+[222] [223]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 7433--7433
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
@@ -2405,7 +2266,7 @@ Overfull \hbox (52.95552pt too wide) in paragraph at lines 7454--7454
 **************************************************//[]  
  []
 
-[230]
+[224]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 7492--7492
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
@@ -2423,7 +2284,7 @@ Overfull \hbox (52.95552pt too wide) in paragraph at lines 7550--7550
 **************************************************//[]  
  []
 
-[231]
+[225]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 7584--7584
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
@@ -2441,7 +2302,7 @@ Overfull \hbox (52.95552pt too wide) in paragraph at lines 7603--7603
 **************************************************//[]  
  []
 
-[232]
+[226]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 7641--7641
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
@@ -2459,7 +2320,7 @@ Overfull \hbox (52.95552pt too wide) in paragraph at lines 7704--7704
 **************************************************//[]  
  []
 
-[233]
+[227]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 7762--7762
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
@@ -2471,7 +2332,7 @@ Overfull \hbox (52.95552pt too wide) in paragraph at lines 7793--7793
 **************************************************//[]  
  []
 
-[234]
+[228]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 7817--7817
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
@@ -2495,7 +2356,7 @@ Overfull \hbox (52.95552pt too wide) in paragraph at lines 7876--7876
 **************************************************//[]  
  []
 
-[235]
+[229]
 Overfull \hbox (52.95552pt too wide) in paragraph at lines 7894--7894
 []\T1/pcr/m/n/7 //*************************************************************
 **************************************************//[]  
@@ -2515,14 +2376,14 @@ ML/cmm/m/it/10 <$ \T1/phv/m/n/10 Petsc[]Real $\OML/cmm/m/it/10 >$ \T1/phv/m/n/1
 0 &time[]Series, Petsc[]Int
  []
 
-[236] [237]) (./io_8h_source.tex [238] [239]) (./les_8h_source.tex [240])
-(./lesScalar_8h.tex [241]) (./lesScalar_8h_source.tex) (./mesh_8h.tex
+[230] [231]) (./io_8h_source.tex [232] [233]) (./les_8h_source.tex [234])
+(./lesScalar_8h.tex [235]) (./lesScalar_8h_source.tex) (./mesh_8h.tex
 Underfull \hbox (badness 10000) in paragraph at lines 8--10
 
  []
 
-[242]) (./mesh_8h_source.tex [243]) (./objects_8h.tex) (./objects_8h_source.tex
-[244]) (./overset_8h.tex
+[236]) (./mesh_8h_source.tex [237]) (./objects_8h.tex) (./objects_8h_source.tex
+[238]) (./overset_8h.tex
 Underfull \hbox (badness 10000) in paragraph at lines 8--10
 
  []
@@ -2534,24 +2395,24 @@ v/m/n/10 (Petsc[]Int d, [] $\OMS/cmsy/m/n/10 ^^C$\T1/phv/m/n/10 domain, Petsc[]
 Int level, const std[]::vector$\OML/cmm/m/it/10 <$
  []
 
-[245]) (./overset_8h_source.tex [246] [247]) (./peqn_8h.tex [248] [249])
-(./peqn_8h_source.tex [250] [251]) (./precursor_8h.tex)
-(./precursor_8h_source.tex [252]) (./teqn_8h.tex [253]) (./teqn_8h_source.tex
-[254]) (./tosca2PV_8h.tex [255] [256] [257]
+[239]) (./overset_8h_source.tex [240] [241]) (./peqn_8h.tex [242] [243])
+(./peqn_8h_source.tex [244] [245]) (./precursor_8h.tex)
+(./precursor_8h_source.tex [246]) (./teqn_8h.tex [247]) (./teqn_8h_source.tex
+[248]) (./tosca2PV_8h.tex [249] [250] [251]
 Underfull \hbox (badness 1371) in paragraph at lines 193--194
 []\T1/phv/m/n/10 Petsc[]Error[]Code \T1/phv/b/n/10 write[]KSection[]Symm[]Tenso
 r[]To[]XMF \T1/phv/m/n/10 ([] $\OMS/cmsy/m/n/10 ^^C$\T1/phv/m/n/10 mesh, const 
 char $\OMS/cmsy/m/n/10 ^^C$\T1/phv/m/n/10 filexmf, const char
  []
 
-[258]) (./tosca2PV_8h_source.tex [259] [260] [261] [262] [263])
+[252]) (./tosca2PV_8h_source.tex [253] [254] [255] [256] [257])
 (./turbines_8h.tex
 Underfull \hbox (badness 10000) in paragraph at lines 8--12
 
  []
 
-) (./turbines_8h_source.tex [264] [265] [266] [267] [268] [269] [270])
-(./ueqn_8h.tex) (./ueqn_8h_source.tex [271]) (./wallfunctions_8h.tex [272]
+) (./turbines_8h_source.tex [258] [259] [260] [261] [262] [263] [264])
+(./ueqn_8h.tex) (./ueqn_8h_source.tex [265]) (./wallfunctions_8h.tex [266]
 Underfull \hbox (badness 10000) in paragraph at lines 8--9
 
  []
@@ -2562,39 +2423,39 @@ Underfull \hbox (badness 1009) in paragraph at lines 58--59
  &theta[]Ref, Petsc[]Real &delta[]Theta,
  []
 
-) (./wallfunctions_8h_source.tex [273]
+) (./wallfunctions_8h_source.tex [267]
 Overfull \hbox (27.75554pt too wide) in paragraph at lines 9--9
 \T1/pcr/m/n/7 =================================================================
 ============================================ 
  []
 
-) (./wallmodel_8h.tex [274]) (./wallmodel_8h_source.tex [275])
+) (./wallmodel_8h.tex [268]) (./wallmodel_8h_source.tex [269])
 (./initialField_8c.tex
 Underfull \hbox (badness 10000) in paragraph at lines 8--13
 
  []
 
-[276]) (./initialization_8c.tex
+[270]) (./initialization_8c.tex
 Underfull \hbox (badness 10000) in paragraph at lines 8--17
 
  []
 
-[277]) (./io_8c.tex
+[271]) (./io_8c.tex
 Underfull \hbox (badness 10000) in paragraph at lines 8--12
 
  []
 
-[278] [279] [280]) (./les_8c.tex
+[272] [273] [274]) (./les_8c.tex
 Underfull \hbox (badness 10000) in paragraph at lines 8--12
 
  []
 
-[281]) (./mesh_8c.tex
+[275]) (./mesh_8c.tex
 Underfull \hbox (badness 10000) in paragraph at lines 8--12
 
  []
 
-[282]) (./overset_8c.tex
+[276]) (./overset_8c.tex
 Underfull \hbox (badness 10000) in paragraph at lines 8--16
 
  []
@@ -2606,7 +2467,7 @@ v/m/n/10 (Petsc[]Int d, [] $\OMS/cmsy/m/n/10 ^^C$\T1/phv/m/n/10 domain, Petsc[]
 Int level, const std[]::vector$\OML/cmm/m/it/10 <$
  []
 
-[283]
+[277]
 Underfull \hbox (badness 2134) in paragraph at lines 73--75
 []\T1/phv/m/n/10 Petsc[]Error[]Code \T1/phv/b/n/10 find[]Closest[]Donor[]C2[]P[
 ]_[][]Bins \T1/phv/m/n/10 ([] $\OMS/cmsy/m/n/10 ^^C$\T1/phv/m/n/10 mesh[]Donor,
@@ -2618,7 +2479,7 @@ Underfull \hbox (badness 10000) in paragraph at lines 8--12
 
  []
 
-[284] [285]) (./precursor_8c.tex [286]
+[278] [279]) (./precursor_8c.tex [280]
 Underfull \hbox (badness 10000) in paragraph at lines 8--18
 
  []
@@ -2628,22 +2489,22 @@ Underfull \hbox (badness 10000) in paragraph at lines 8--9
 
  []
 
-[287]) (./teqn__solvers_8h.tex
+[281]) (./teqn__solvers_8h.tex
 Underfull \hbox (badness 10000) in paragraph at lines 8--13
 
  []
 
-[288]) (./teqn__solvers_8h_source.tex) (./ueqn__solvers_8c.tex
+[282]) (./teqn__solvers_8h_source.tex) (./ueqn__solvers_8c.tex
 Underfull \hbox (badness 10000) in paragraph at lines 8--9
 
  []
 
-[289]) (./ueqn__solvers_8h.tex
+[283]) (./ueqn__solvers_8h.tex
 Underfull \hbox (badness 10000) in paragraph at lines 8--14
 
  []
 
-) (./ueqn__solvers_8h_source.tex [290]) (./teqn__sources_8c.tex
+) (./ueqn__solvers_8h_source.tex [284]) (./teqn__sources_8c.tex
 Underfull \hbox (badness 10000) in paragraph at lines 8--9
 
  []
@@ -2653,17 +2514,17 @@ Underfull \hbox (badness 10000) in paragraph at lines 8--12
 
  []
 
-[291]) (./teqn__sources_8h_source.tex) (./ueqn__sources_8c.tex
+[285]) (./teqn__sources_8h_source.tex) (./ueqn__sources_8c.tex
 Underfull \hbox (badness 10000) in paragraph at lines 8--9
 
  []
 
-) (./ueqn__sources_8h.tex [292]
+) (./ueqn__sources_8h.tex [286]
 Underfull \hbox (badness 10000) in paragraph at lines 8--13
 
  []
 
-) (./ueqn__sources_8h_source.tex [293]) (./teqn_8c.tex
+) (./ueqn__sources_8h_source.tex [287]) (./teqn_8c.tex
 Underfull \hbox (badness 10000) in paragraph at lines 8--14
 
  []
@@ -2673,17 +2534,17 @@ Underfull \hbox (badness 10000) in paragraph at lines 8--15
 
  []
 
-[294]) (./turbines__force_8h.tex
+[288]) (./turbines__force_8h.tex
 Underfull \hbox (badness 10000) in paragraph at lines 8--12
 
  []
 
-) (./turbines__force_8h_source.tex [295]) (./turbines__io_8h.tex
+) (./turbines__force_8h_source.tex [289]) (./turbines__io_8h.tex
 Underfull \hbox (badness 10000) in paragraph at lines 8--12
 
  []
 
-[296]
+[290]
 Underfull \hbox (badness 1609) in paragraph at lines 92--92
 []\T1/phv/m/sl/9 Reads the tur-bine blade pitch curve used in the tur-bine (giv
 en in the pitch[]Table sub-dict in-side the file
@@ -2696,7 +2557,7 @@ eters \T1/phv/m/n/10 (wind[]Turbine $\OMS/cmsy/m/n/10 ^^C$\T1/phv/m/n/10 wt, co
 nst char $\OMS/cmsy/m/n/10 ^^C$\T1/phv/m/n/10 dict[]Name, const char
  []
 
-[297]
+[291]
 Underfull \hbox (badness 1107) in paragraph at lines 112--113
 []\T1/phv/m/n/10 Petsc[]Error[]Code \T1/phv/b/n/10 read[]Yaw[]Controller[]Param
 eters \T1/phv/m/n/10 (wind[]Turbine $\OMS/cmsy/m/n/10 ^^C$\T1/phv/m/n/10 wt, co
@@ -2710,33 +2571,33 @@ meters \T1/phv/m/n/10 (wind[]Turbine $\OMS/cmsy/m/n/10 ^^C$\T1/phv/m/n/10 wt, c
 onst char $\OMS/cmsy/m/n/10 ^^C$\T1/phv/m/n/10 dict[]Name, const char
  []
 
-) (./turbines__io_8h_source.tex [298]) (./turbines__openfast_8h.tex)
+) (./turbines__io_8h_source.tex [292]) (./turbines__openfast_8h.tex)
 (./turbines__openfast_8h_source.tex
 Underfull \hbox (badness 10000) in paragraph at lines 3--1
 
  []
 
-[299]) (./turbines__parallel_8h.tex
+[293]) (./turbines__parallel_8h.tex
 Underfull \hbox (badness 10000) in paragraph at lines 8--12
 
  []
 
-[300]) (./turbines__parallel_8h_source.tex) (./turbines__phys_8h.tex
+[294]) (./turbines__parallel_8h_source.tex) (./turbines__phys_8h.tex
 Underfull \hbox (badness 10000) in paragraph at lines 8--12
 
  []
 
-[301]) (./turbines__phys_8h_source.tex) (./turbines__sampling_8h.tex
+[295]) (./turbines__phys_8h_source.tex) (./turbines__sampling_8h.tex
 Underfull \hbox (badness 10000) in paragraph at lines 8--12
 
  []
 
-[302]) (./turbines__sampling_8h_source.tex) (./ueqn_8c.tex
+[296]) (./turbines__sampling_8h_source.tex) (./ueqn_8c.tex
 Underfull \hbox (badness 10000) in paragraph at lines 8--15
 
  []
 
-[303]) [304] (./refman.ind
+[297]) [298] (./refman.ind
 LaTeX Font Info:    Font shape `T1/phv/m/n' will be
 (Font)              scaled to size 22.39185pt on input line 1.
 
@@ -2909,7 +2770,7 @@ Overfull \hbox (44.71814pt too wide) in paragraph at lines 107--109
 h,
  []
 
-[305
+[299
 
 
 
@@ -2978,45 +2839,114 @@ Overfull \hbox (68.31538pt too wide) in paragraph at lines 131--133
 pling.h,
  []
 
-[306] [307
+[300] [301
 
 ]) (./refman.aux)
+
+LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
+
 
 Package rerunfilecheck Warning: File `refman.out' has changed.
 (rerunfilecheck)                Rerun to get outlines right
 (rerunfilecheck)                or use package `bookmark'.
 
 Package rerunfilecheck Info: Checksums for `refman.out':
-(rerunfilecheck)             Before: 514644176272B4BEB5E3CEF561622DF8;82329
-(rerunfilecheck)             After:  DFFA8B3F3ED42C5D3B57ACF6B73A1B7C;82402.
+(rerunfilecheck)             Before: DFFA8B3F3ED42C5D3B57ACF6B73A1B7C;82402
+(rerunfilecheck)             After:  51E50B0AC97AE376C2419611D7BF35F7;80569.
  ) 
 Here is how much of TeX's memory you used:
- 24924 strings out of 480247
- 545157 string characters out of 5896151
- 818966 words of memory out of 5000000
- 38842 multiletter control sequences out of 15000+600000
- 522028 words of font info for 107 fonts, out of 8000000 for 9000
+ 24916 strings out of 480247
+ 545123 string characters out of 5896151
+ 820074 words of memory out of 5000000
+ 38841 multiletter control sequences out of 15000+600000
+ 527900 words of font info for 111 fonts, out of 8000000 for 9000
  14 hyphenation exceptions out of 8191
  99i,16n,117p,999b,572s stack positions out of 5000i,500n,10000p,200000b,80000s
-{/usr/share/texlive/texmf-dist/fonts/enc/dvips/base/8r.enc}</usr/share/texliv
-e/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/share/texlive/texm
-f-dist/fonts/type1/public/amsfonts/cm/cmmi12.pfb></usr/share/texlive/texmf-dist
-/fonts/type1/public/amsfonts/cm/cmmi7.pfb></usr/share/texlive/texmf-dist/fonts/
-type1/public/amsfonts/cm/cmmi8.pfb></usr/share/texlive/texmf-dist/fonts/type1/p
-ublic/amsfonts/cm/cmmi9.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/a
-msfonts/cm/cmsy10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfont
-s/cm/cmsy6.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cm
-sy7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb
-></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy9.pfb></usr/
-share/texlive/texmf-dist/fonts/type1/urw/courier/ucrr8a.pfb></usr/share/texlive
-/texmf-dist/fonts/type1/urw/courier/ucrro8a.pfb></usr/share/texlive/texmf-dist/
-fonts/type1/urw/helvetic/uhvb8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/
-urw/helvetic/uhvr8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/helvetic
-/uhvro8a.pfb>
-Output written on refman.pdf (319 pages, 1065554 bytes).
+pdfTeX warning (dest): name{page.303} has been referenced but does not exist,
+ replaced by a fixed one
+
+pdfTeX warning (dest): name{page.302} has been referenced but does not exist, r
+eplaced by a fixed one
+
+pdfTeX warning (dest): name{section.1.20} has been referenced but does not exis
+t, replaced by a fixed one
+
+pdfTeX warning (dest): name{section.1.19} has been referenced but does not exis
+t, replaced by a fixed one
+
+pdfTeX warning (dest): name{section.1.18} has been referenced but does not exis
+t, replaced by a fixed one
+
+pdfTeX warning (dest): name{section.1.17} has been referenced but does not exis
+t, replaced by a fixed one
+
+pdfTeX warning (dest): name{section.1.16} has been referenced but does not exis
+t, replaced by a fixed one
+
+pdfTeX warning (dest): name{section.1.15} has been referenced but does not exis
+t, replaced by a fixed one
+
+pdfTeX warning (dest): name{section.1.14} has been referenced but does not exis
+t, replaced by a fixed one
+
+pdfTeX warning (dest): name{section.1.13} has been referenced but does not exis
+t, replaced by a fixed one
+
+pdfTeX warning (dest): name{section.1.12} has been referenced but does not exis
+t, replaced by a fixed one
+
+pdfTeX warning (dest): name{section.1.11} has been referenced but does not exis
+t, replaced by a fixed one
+
+pdfTeX warning (dest): name{section.1.10} has been referenced but does not exis
+t, replaced by a fixed one
+
+pdfTeX warning (dest): name{section.1.9} has been referenced but does not exist
+, replaced by a fixed one
+
+pdfTeX warning (dest): name{section.1.8} has been referenced but does not exist
+, replaced by a fixed one
+
+pdfTeX warning (dest): name{section.1.7} has been referenced but does not exist
+, replaced by a fixed one
+
+pdfTeX warning (dest): name{section.1.6} has been referenced but does not exist
+, replaced by a fixed one
+
+pdfTeX warning (dest): name{section.1.5} has been referenced but does not exist
+, replaced by a fixed one
+
+pdfTeX warning (dest): name{section.1.4} has been referenced but does not exist
+, replaced by a fixed one
+
+pdfTeX warning (dest): name{section.1.3} has been referenced but does not exist
+, replaced by a fixed one
+
+pdfTeX warning (dest): name{section.1.2} has been referenced but does not exist
+, replaced by a fixed one
+
+pdfTeX warning (dest): name{section.1.1} has been referenced but does not exist
+, replaced by a fixed one
+
+{/usr/share/texlive/texmf-dist/fonts/enc/dvips/base/8r.enc}</usr/share/texlive/
+texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/share/texlive/texmf-
+dist/fonts/type1/public/amsfonts/cm/cmmi12.pfb></usr/share/texlive/texmf-dist/f
+onts/type1/public/amsfonts/cm/cmmi7.pfb></usr/share/texlive/texmf-dist/fonts/ty
+pe1/public/amsfonts/cm/cmmi8.pfb></usr/share/texlive/texmf-dist/fonts/type1/pub
+lic/amsfonts/cm/cmmi9.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/ams
+fonts/cm/cmsy10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/
+cm/cmsy6.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy
+7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb><
+/usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy9.pfb></usr/sh
+are/texlive/texmf-dist/fonts/type1/urw/courier/ucrr8a.pfb></usr/share/texlive/t
+exmf-dist/fonts/type1/urw/courier/ucrro8a.pfb></usr/share/texlive/texmf-dist/fo
+nts/type1/urw/helvetic/uhvb8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/ur
+w/helvetic/uhvbo8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/helvetic/
+uhvr8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/helvetic/uhvro8a.pfb>
+Output written on refman.pdf (313 pages, 977391 bytes).
 PDF statistics:
- 11249 PDF objects out of 12825 (max. 8388607)
- 10789 compressed objects within 108 object streams
- 3290 named destinations out of 3580 (max. 500000)
- 2718 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 11235 PDF objects out of 12825 (max. 8388607)
+ 10780 compressed objects within 108 object streams
+ 3282 named destinations out of 3580 (max. 500000)
+ 2721 words of extra memory for PDF output out of 10000 (max. 10000000)
 
