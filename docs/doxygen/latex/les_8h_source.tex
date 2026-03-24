@@ -1,0 +1,83 @@
+\doxysection{les.\+h}
+\hypertarget{les_8h_source}{}\label{les_8h_source}\index{/zfs60/nobackup/stipa/software/TOSCA/src/include/les.h@{/zfs60/nobackup/stipa/software/TOSCA/src/include/les.h}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ }
+\DoxyCodeLine{00003\ }
+\DoxyCodeLine{00004\ \textcolor{preprocessor}{\#ifndef\ \_LES\_H\_}}
+\DoxyCodeLine{00005\ \textcolor{preprocessor}{\#define\ \_LES\_H\_}}
+\DoxyCodeLine{00006\ }
+\DoxyCodeLine{00007\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{enum}\ \{}
+\DoxyCodeLine{00008\ \ \ \ \ SMAGORINSKY,}
+\DoxyCodeLine{00009\ \ \ \ \ STABILITY\_BASED,}
+\DoxyCodeLine{00010\ \ \ \ \ DSM,}
+\DoxyCodeLine{00011\ \ \ \ \ DLASI,}
+\DoxyCodeLine{00012\ \ \ \ \ DLASD,}
+\DoxyCodeLine{00013\ \ \ \ \ DPASD,}
+\DoxyCodeLine{00014\ \ \ \ \ AMD,}
+\DoxyCodeLine{00015\ \ \ \ \ VREMAN,}
+\DoxyCodeLine{00016\ \ \ \ \ BV,}
+\DoxyCodeLine{00017\ \ \ \ \ BAMD}
+\DoxyCodeLine{00018\ \}\ LesModel;}
+\DoxyCodeLine{00019\ }
+\DoxyCodeLine{00021\ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structles__}{les\_}}}
+\DoxyCodeLine{00022\ \{}
+\DoxyCodeLine{00023\ \ \ \ \ LesModel\ \ \ \ \ \ model;}
+\DoxyCodeLine{00024\ \ \ \ \ PetscReal\ \ \ \ \ maxCs;}
+\DoxyCodeLine{00025\ \ \ \ \ PetscReal\ \ \ \ \ amdCs;}
+\DoxyCodeLine{00026\ \ \ \ \ PetscInt\ \ \ \ \ \ turbStat;}
+\DoxyCodeLine{00027\ }
+\DoxyCodeLine{00028\ \ \ \ \ \textcolor{comment}{//\ Dynamic\ Smagorisnky}}
+\DoxyCodeLine{00029\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ lSx,\ lSy,\ lSz,\ lS;}
+\DoxyCodeLine{00030\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ lLM,\ lMM;}
+\DoxyCodeLine{00031\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ lQN,\ lNN;}
+\DoxyCodeLine{00032\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ lLM\_old,\ lMM\_old;}
+\DoxyCodeLine{00033\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ lQN\_old,\ lNN\_old;}
+\DoxyCodeLine{00034\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ lCs;}
+\DoxyCodeLine{00035\ }
+\DoxyCodeLine{00036\ \ \ \ \ \textcolor{comment}{//\ Scale\ dependent\ model}}
+\DoxyCodeLine{00037\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ lN;}
+\DoxyCodeLine{00038\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ lCh;}
+\DoxyCodeLine{00039\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structles___a172371b945cbac53e3d7def7e3f70cd8}{L}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00040\ }
+\DoxyCodeLine{00041\ \ \ \ \ \textcolor{comment}{//\ kEquation}}
+\DoxyCodeLine{00042\ }
+\DoxyCodeLine{00043\ \ \ \ \ \textcolor{comment}{//\ general}}
+\DoxyCodeLine{00044\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structles___a0a937980990eb1481b5b4c261d81727b}{lNu\_t}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00045\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ lKsgs;}
+\DoxyCodeLine{00046\ }
+\DoxyCodeLine{00047\ \ \ \ \ \textcolor{comment}{//eddy\ diffusivity\ parameters\ }}
+\DoxyCodeLine{00048\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structles___a7551a9b46d532e76c23b155b63c7c655}{lk\_t}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00049\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ lCsk;}
+\DoxyCodeLine{00050\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ ldTheta;}
+\DoxyCodeLine{00051\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ lKX,\ lXX;}
+\DoxyCodeLine{00052\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ lPY,\ lYY;}
+\DoxyCodeLine{00053\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ lKX\_old,\ lXX\_old;}
+\DoxyCodeLine{00054\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ lPY\_old,\ lYY\_old;}
+\DoxyCodeLine{00055\ }
+\DoxyCodeLine{00056\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structles___a0a5f6e9f96a252fda02ada517614f98f}{lTau}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00057\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structles___a115caeb5bf03f796bf0839030776d338}{lQ}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00058\ \ \ \ \ }
+\DoxyCodeLine{00059\ \ \ \ \ \textcolor{comment}{//\ initial\ nut\ field}}
+\DoxyCodeLine{00060\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ initFieldType;}
+\DoxyCodeLine{00061\ }
+\DoxyCodeLine{00062\ \ \ \ \ \textcolor{comment}{//\ access}}
+\DoxyCodeLine{00063\ \ \ \ \ \mbox{\hyperlink{structaccess__}{access\_}}\ \ \ \ \ \ \ *\mbox{\hyperlink{structles___ad57bc6baf4656454223f761bcdd51634}{access}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00064\ }
+\DoxyCodeLine{00065\ \};}
+\DoxyCodeLine{00066\ }
+\DoxyCodeLine{00067\ \textcolor{preprocessor}{\#endif}}
+\DoxyCodeLine{00068\ }
+\DoxyCodeLine{00070\ PetscErrorCode\ InitializeLES(\mbox{\hyperlink{structles__}{les\_}}\ *les);}
+\DoxyCodeLine{00071\ }
+\DoxyCodeLine{00073\ PetscErrorCode\ UpdateCs(\mbox{\hyperlink{structles__}{les\_}}\ *les);}
+\DoxyCodeLine{00074\ }
+\DoxyCodeLine{00076\ PetscErrorCode\ UpdateNut(\mbox{\hyperlink{structles__}{les\_}}\ *les);}
+\DoxyCodeLine{00077\ }
+\DoxyCodeLine{00079\ PetscErrorCode\ ComputeTurbulenceStatistics(\mbox{\hyperlink{structles__}{les\_}}\ *les);}
+\DoxyCodeLine{00080\ }
+\DoxyCodeLine{00081\ PetscErrorCode\ updateLESStructuralModelCartesianForm(\mbox{\hyperlink{structles__}{les\_}}\ *les);}
+\DoxyCodeLine{00082\ }
+\DoxyCodeLine{00083\ PetscErrorCode\ updateLESStructuralModelContravariantForm(\mbox{\hyperlink{structles__}{les\_}}\ *les);}
+
+\end{DoxyCode}

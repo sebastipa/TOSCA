@@ -1,0 +1,41 @@
+\doxysection{/zfs60/nobackup/stipa/software/\+TOSCA/src/solvers/teqn\+\_\+solvers.h File Reference}
+\hypertarget{teqn__solvers_8h}{}\label{teqn__solvers_8h}\index{/zfs60/nobackup/stipa/software/TOSCA/src/solvers/teqn\_solvers.h@{/zfs60/nobackup/stipa/software/TOSCA/src/solvers/teqn\_solvers.h}}
+
+
+Private temperature-\/equation solver function declarations.  
+
+
+{\ttfamily \#include "{}../include/base.\+h"{}}\newline
+{\ttfamily \#include "{}../include/domain.\+h"{}}\newline
+{\ttfamily \#include "{}../include/io.\+h"{}}\newline
+{\ttfamily \#include "{}../include/inline.\+h"{}}\newline
+{\ttfamily \#include "{}../sources/teqn\+\_\+sources.\+h"{}}\newline
+\doxysubsubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{teqn__solvers_8h_a650dbffdc54aff230b92013d0e9e2e86}\label{teqn__solvers_8h_a650dbffdc54aff230b92013d0e9e2e86} 
+Petsc\+Error\+Code {\bfseries FormT} (\mbox{\hyperlink{structteqn__}{teqn\+\_\+}} \texorpdfstring{$\ast$}{*}teqn, Vec \&Rhs, Petsc\+Real scale, Petsc\+Int form\+Mode=0)
+\begin{DoxyCompactList}\small\item\em Viscous and divergence terms. \end{DoxyCompactList}\item 
+\Hypertarget{teqn__solvers_8h_ab9607522235e6e63e49c6f6ff3851a7c}\label{teqn__solvers_8h_ab9607522235e6e63e49c6f6ff3851a7c} 
+Petsc\+Error\+Code {\bfseries Teqn\+SNES} (\mbox{\hyperlink{structteqn__}{teqn\+\_\+}} \texorpdfstring{$\ast$}{*}teqn)
+\begin{DoxyCompactList}\small\item\em Implicit SNES solver for T equation. \end{DoxyCompactList}\item 
+\Hypertarget{teqn__solvers_8h_ad875c9a3e748af0dc0b7831385d4f756}\label{teqn__solvers_8h_ad875c9a3e748af0dc0b7831385d4f756} 
+Petsc\+Error\+Code {\bfseries SNESFunc\+EvalT} (SNES snes, Vec T, Vec Rhs, void \texorpdfstring{$\ast$}{*}ptr)
+\begin{DoxyCompactList}\small\item\em SNES evaluation function. \end{DoxyCompactList}\item 
+\Hypertarget{teqn__solvers_8h_a0ee5106ef816c125fb59cf772ba0ef91}\label{teqn__solvers_8h_a0ee5106ef816c125fb59cf772ba0ef91} 
+Petsc\+Error\+Code {\bfseries Form\+Explicit\+RhsT} (\mbox{\hyperlink{structteqn__}{teqn\+\_\+}} \texorpdfstring{$\ast$}{*}teqn)
+\begin{DoxyCompactList}\small\item\em Compute RHS of temperature equation using current l\+Tmprt. \end{DoxyCompactList}\item 
+\Hypertarget{teqn__solvers_8h_a7437f6e16d2453fe90e43f3080f36ded}\label{teqn__solvers_8h_a7437f6e16d2453fe90e43f3080f36ded} 
+Petsc\+Error\+Code {\bfseries Teqn\+RK4} (\mbox{\hyperlink{structteqn__}{teqn\+\_\+}} \texorpdfstring{$\ast$}{*}teqn)
+\begin{DoxyCompactList}\small\item\em Solve Teqn using Runge\+Kutta 4. \end{DoxyCompactList}\item 
+\Hypertarget{teqn__solvers_8h_a617b09c068d49fc556396c04731a1973}\label{teqn__solvers_8h_a617b09c068d49fc556396c04731a1973} 
+Petsc\+Error\+Code {\bfseries Teqn\+ABBE} (\mbox{\hyperlink{structteqn__}{teqn\+\_\+}} \texorpdfstring{$\ast$}{*}teqn)
+\begin{DoxyCompactList}\small\item\em IMEX time step for T equation (AB2 convection + backward-\/\+Euler BDF1 diffusion) \end{DoxyCompactList}\item 
+\Hypertarget{teqn__solvers_8h_a28d2c2be45e01106022b22ff4236576e}\label{teqn__solvers_8h_a28d2c2be45e01106022b22ff4236576e} 
+Petsc\+Error\+Code {\bfseries ABBEMat\+Vec} (Mat A, Vec v, Vec Av)
+\begin{DoxyCompactList}\small\item\em Mat\+Shell operator for ABBE linear system\+: A\texorpdfstring{$\ast$}{*}v = v -\/ dt\texorpdfstring{$\ast$}{*}D(v) \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Private temperature-\/equation solver function declarations. 
+

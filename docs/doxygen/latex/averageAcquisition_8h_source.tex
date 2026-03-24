@@ -1,0 +1,62 @@
+\doxysection{average\+Acquisition.\+h}
+\hypertarget{averageAcquisition_8h_source}{}\label{averageAcquisition_8h_source}\index{/zfs60/nobackup/stipa/software/TOSCA/src/include/acquisition/averageAcquisition.h@{/zfs60/nobackup/stipa/software/TOSCA/src/include/acquisition/averageAcquisition.h}}
+\mbox{\hyperlink{averageAcquisition_8h}{Go to the documentation of this file.}}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ }
+\DoxyCodeLine{00003\ }
+\DoxyCodeLine{00004\ \textcolor{preprocessor}{\#ifndef\ \_AVERAGEACQUISITION\_H}}
+\DoxyCodeLine{00005\ \textcolor{preprocessor}{\#define\ \_AVERAGEACQUISITION\_H}}
+\DoxyCodeLine{00006\ }
+\DoxyCodeLine{00008\ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structavgFields}{avgFields}}}
+\DoxyCodeLine{00009\ \{}
+\DoxyCodeLine{00010\ \ \ \ \ \textcolor{comment}{//\ numerical}}
+\DoxyCodeLine{00011\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structavgFields_a5cfabdd5fca746df498df6eb18f1fda3}{divU}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00012\ }
+\DoxyCodeLine{00013\ \ \ \ \ \textcolor{comment}{//\ source\ terms}}
+\DoxyCodeLine{00014\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structavgFields_ad591f41ea3239e810a2a777b3aa32af4}{Coriolis}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00015\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structavgFields_a16ee5798f8a01940261d92aa18ac24ca}{Driving}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00016\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structavgFields_a445bc9520fec3f16218d5d8a92b29082}{xDamping}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00017\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structavgFields_af13c523159e911a73406a7ea3c878bc5}{CanopyForce}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00018\ }
+\DoxyCodeLine{00019\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structavgFields_a4b9fb26e995d8f99222aa73862d362dc}{windFarmForce}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00020\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structavgFields_ae8739e0832dddf4e579140e69da360ea}{yDampMappedU}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00021\ \ \ \ \ \textcolor{comment}{//\ turbulence\ criterions}}
+\DoxyCodeLine{00022\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structavgFields_a167f4a245fbcd55acd35b504e2472755}{Q}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00023\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structavgFields_a359d47fe3b37cac371e8531b6ec41dd9}{L2}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00024\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structavgFields_adaabee38188d0367a7b2f341ee5d58eb}{Qg}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00025\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structavgFields_af216d7601633ec92c762276b4e24b181}{Rg}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00026\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structavgFields_a2d98d1235164cdc6c7eafc33388c1589}{Qs}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00027\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structavgFields_afdbf8dfebb2aa45916dea473adf55146}{Rs}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00028\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structavgFields_a78850be015c84ac055174f88fafd818f}{Qr}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00029\ }
+\DoxyCodeLine{00030\ \ \ \ \ \textcolor{comment}{//\ averaging}}
+\DoxyCodeLine{00031\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structavgFields_aa4c9f2d2caef6524b78ae50fa7e68b34}{avgU}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00032\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structavgFields_a8f47b30c30a5d16b8c187662fd010be9}{avgP}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00033\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structavgFields_ad025c21cba02a6d8f291bc6204394972}{avgUU}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00034\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structavgFields_aa321f5cf74f2d5b8517e405ef61a1868}{avgDUU}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00035\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structavgFields_a348a0029c0f2c14606868ebf156f49cf}{avgP2}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00036\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structavgFields_a92f64b87d8983d1dbc3d835b84fb7645}{avgNut}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00037\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structavgFields_a1a83a15b79a66b9ceb3645fca75823c5}{avgCs}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00038\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structavgFields_a4a949a29ec7890f523b9eb896e1660d3}{avgOmega}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00039\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structavgFields_a6d0cee1176b62b71fd10febe1910731d}{avgOmegaOmega}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00040\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structavgFields_a78effa021c6a7996d2660619441ef72d}{avgUdotGradP}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00041\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structavgFields_a83d8db7dcc9fb343ac96b0c27a9401bb}{avgMagGradU}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00042\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structavgFields_a15ae89d45609b08b67446ce05a254302}{avgMagUU}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00043\ }
+\DoxyCodeLine{00044\ \ \ \ \ \textcolor{comment}{//\ phase\ averaging}}
+\DoxyCodeLine{00045\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structavgFields_aa562e69a2b3a813ed06a1ae0857e9db6}{pAvgU}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00046\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structavgFields_a21b6788830d116651151c62d0133d5ef}{pAvgP}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00047\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structavgFields_a05e7e8d1b4bb44da522618b5ebaab2b0}{pAvgUU}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00048\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structavgFields_a68cf4bcd488136fd2717b047a8344688}{pAvgP2}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00049\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structavgFields_adc24affd7d8aec15a2e6525af70c09c9}{pAvgNut}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00050\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structavgFields_ad634cba43868a3c1bb72a34e69ad9acc}{pAvgCs}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00051\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structavgFields_ae0b4335341c3433da99c1aee4cf8f77f}{pAvgOmega}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00052\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structavgFields_a6d2431d675b88945afe9567f7a0fdd9a}{pAvgOmegaOmega}};\ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00053\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structavgFields_a5739d6db26adcec7519c2581037b3174}{pAvgUdotGradP}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00054\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structavgFields_a09dfcca24a718f8a61fd5b58d3fb5401}{pAvgMagGradU}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00055\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structavgFields_aec8ca5b9e010cd915b496f6c25c0977f}{pAvgMagUU}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00056\ \};}
+\DoxyCodeLine{00057\ }
+\DoxyCodeLine{00058\ \textcolor{preprocessor}{\#endif}}
+
+\end{DoxyCode}

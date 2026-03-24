@@ -1,0 +1,155 @@
+\doxysection{io.\+h}
+\hypertarget{io_8h_source}{}\label{io_8h_source}\index{/zfs60/nobackup/stipa/software/TOSCA/src/include/io.h@{/zfs60/nobackup/stipa/software/TOSCA/src/include/io.h}}
+\mbox{\hyperlink{io_8h}{Go to the documentation of this file.}}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ }
+\DoxyCodeLine{00003\ }
+\DoxyCodeLine{00004\ \textcolor{preprocessor}{\#ifndef\ \_IO\_H\_}}
+\DoxyCodeLine{00005\ \textcolor{preprocessor}{\#define\ \_IO\_H\_}}
+\DoxyCodeLine{00006\ }
+\DoxyCodeLine{00008\ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structio__}{io\_}}}
+\DoxyCodeLine{00009\ \{}
+\DoxyCodeLine{00010\ \ \ \ \ word\ \ \ \ \ \ \mbox{\hyperlink{structio___a416d7d07788e249cc8540c6c64264250}{intervalType}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00011\ \ \ \ \ PetscReal\ \mbox{\hyperlink{structio___a0752e624851565298cbbb84fe565faa5}{timeInterval}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00012\ }
+\DoxyCodeLine{00013\ \ \ \ \ PetscInt\ \ \mbox{\hyperlink{structio___a92b1fdbee0836e1fd77561c0e88f6752}{runTimeWrite}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00014\ }
+\DoxyCodeLine{00015\ \ \ \ \ PetscInt\ \ \mbox{\hyperlink{structio___ae83332ed5163f6cc761a33c7d8ee7e7e}{purgeWrite}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00016\ }
+\DoxyCodeLine{00017\ \ \ \ \ PetscInt\ \ \mbox{\hyperlink{structio___a001632b86883960be243bdd05401ecd9}{averaging}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00018\ \ \ \ \ PetscReal\ \mbox{\hyperlink{structio___afc548dc711e49d1b80292ceaeb7d2dde}{avgPrd}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00019\ \ \ \ \ PetscReal\ \mbox{\hyperlink{structio___a61d88b87e794a4a7acaf63c8d98ddaee}{avgStartTime}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00020\ \ \ \ \ PetscInt\ \ \mbox{\hyperlink{structio___af75890506520277ba4f77ac3e949c63f}{phaseAveraging}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00021\ \ \ \ \ PetscReal\ \mbox{\hyperlink{structio___af94ffcd60ceaa067efdd2d1428d51ced}{phAvgPrd}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00022\ \ \ \ \ PetscReal\ \mbox{\hyperlink{structio___a5ec05b3970410cf0d1eeeb6923d1f8b8}{phAvgStartTime}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00023\ \ \ \ \ PetscInt\ \ \mbox{\hyperlink{structio___adaae95e397122760071c55c04f4d2bcd}{keBudgets}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00024\ \ \ \ \ PetscInt\ \ \mbox{\hyperlink{structio___ae68195f7381a22648b7db2f1170adaa8}{writePForce}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00025\ }
+\DoxyCodeLine{00026\ \ \ \ \ PetscInt\ \ \mbox{\hyperlink{structio___aefdf6ae24dc3f600a3ec8ff37dabc60e}{avgWeight}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00027\ \ \ \ \ PetscInt\ \ \mbox{\hyperlink{structio___a2b349cbb4947115f625ae02ac39a15bd}{pAvgWeight}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00028\ \ \ \ \ PetscInt\ \ \mbox{\hyperlink{structio___a62be5823f49ff1e10d4059683a8effb1}{keAvgWeight}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00029\ }
+\DoxyCodeLine{00030\ \ \ \ \ PetscInt\ \ qCrit;}
+\DoxyCodeLine{00031\ \ \ \ \ PetscInt\ \ l2Crit;}
+\DoxyCodeLine{00032\ \ \ \ \ PetscInt\ \ vgtQg;}
+\DoxyCodeLine{00033\ \ \ \ \ PetscInt\ \ vgtRg;}
+\DoxyCodeLine{00034\ \ \ \ \ PetscInt\ \ vgtQs;}
+\DoxyCodeLine{00035\ \ \ \ \ PetscInt\ \ vgtRs;}
+\DoxyCodeLine{00036\ \ \ \ \ PetscInt\ \ vgtQr;}
+\DoxyCodeLine{00037\ \ \ \ \ PetscInt\ \ windFarmForce;}
+\DoxyCodeLine{00038\ \ \ \ \ PetscInt\ \ sources;}
+\DoxyCodeLine{00039\ \ \ \ \ PetscInt\ \ buoyancy;}
+\DoxyCodeLine{00040\ \ \ \ \ PetscInt\ \ continuity;}
+\DoxyCodeLine{00041\ }
+\DoxyCodeLine{00042\ \ \ \ \ \textcolor{comment}{//\ runtime\ modifiable}}
+\DoxyCodeLine{00043\ \ \ \ \ word\ \ \ \ \ \ lastModification;}
+\DoxyCodeLine{00044\ }
+\DoxyCodeLine{00045\ \ \ \ \ \textcolor{comment}{//\ catalyst\ interface}}
+\DoxyCodeLine{00046\ \ \ \ \ PetscReal\ \ \ \ \ timeIntervalCatalyst;}
+\DoxyCodeLine{00047\ \ \ \ \ PetscReal\ \ \ \ \ startTimeCatalyst;}
+\DoxyCodeLine{00048\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ outputTypeCatalyst;}
+\DoxyCodeLine{00049\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structio___a848ebacf5859a33765d1755735e2d58e}{ioTypeCatalyst}};\ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00050\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structio___a9e8bb27acc5a881bc2cfe7f27bb2e558}{scriptNameCatalyst}};\ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00051\ }
+\DoxyCodeLine{00052\ \ \ \ \ \textcolor{comment}{//\ access\ database}}
+\DoxyCodeLine{00053\ \ \ \ \ \mbox{\hyperlink{structaccess__}{access\_}}\ \ \ *access;}
+\DoxyCodeLine{00054\ \};}
+\DoxyCodeLine{00055\ }
+\DoxyCodeLine{00056\ }
+\DoxyCodeLine{00057\ \textcolor{preprocessor}{\#endif}}
+\DoxyCodeLine{00058\ }
+\DoxyCodeLine{00060\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{io_8h_a68cb6557f006e2a0740834acd0d4e4db}{fatalErrorInFunction}}(\textcolor{keyword}{const}\ \textcolor{keywordtype}{char}*\ functionName,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}*\ errorMsg);}
+\DoxyCodeLine{00061\ }
+\DoxyCodeLine{00063\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{io_8h_ad22a6eea8f275f40823f32355beb2bbc}{warningInFunction}}(\textcolor{keyword}{const}\ \textcolor{keywordtype}{char}*\ functionName,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}*\ wrngMsg);}
+\DoxyCodeLine{00064\ }
+\DoxyCodeLine{00066\ word\ \mbox{\hyperlink{io_8h_ae57bcde696d8ccf1bd34ecc100b07fba}{thisCaseName}}();}
+\DoxyCodeLine{00067\ }
+\DoxyCodeLine{00069\ PetscErrorCode\ \mbox{\hyperlink{io_8h_aa8386d069befb8e442596f0829dd54d9}{getTimeList}}(\textcolor{keyword}{const}\ \textcolor{keywordtype}{char}*\ dataLoc,\ std::vector<PetscReal>\ \&timeSeries,\ PetscInt\ \&ntimes);}
+\DoxyCodeLine{00070\ }
+\DoxyCodeLine{00072\ PetscErrorCode\ \mbox{\hyperlink{io_8h_aedfb9d6612941b3f6c1331c8bb6b226f}{getFileList}}(\textcolor{keyword}{const}\ \textcolor{keywordtype}{char}*\ dataLoc,\ std::vector<word>\ \&fileSeries,\ PetscInt\ \&nfiles);}
+\DoxyCodeLine{00073\ }
+\DoxyCodeLine{00075\ PetscInt\ \mbox{\hyperlink{io_8h_a66788a88f4cf4b5e1736f22145f5c5f7}{foundInString}}(\textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *str,\ word\ keyword);}
+\DoxyCodeLine{00076\ }
+\DoxyCodeLine{00078\ PetscInt\ \mbox{\hyperlink{io_8h_a5aaeaa932a6981f3782117d3d346c0fc}{file\_exist}}(\textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *str);}
+\DoxyCodeLine{00079\ }
+\DoxyCodeLine{00081\ PetscInt\ \mbox{\hyperlink{io_8h_ab010bb297a9d7297532582459454ea4b}{dir\_exist}}(\textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *str);}
+\DoxyCodeLine{00082\ }
+\DoxyCodeLine{00084\ PetscInt\ \mbox{\hyperlink{io_8h_a9286943b493f9ad1888637d9af54d01a}{count\_files}}(\textcolor{keyword}{const}\ \textcolor{keywordtype}{char}*\ path);}
+\DoxyCodeLine{00085\ }
+\DoxyCodeLine{00087\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{io_8h_aff1d2ad6bef5bf436bf02e48adfef35c}{createDir}}(MPI\_Comm\ comm,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}*\ path);}
+\DoxyCodeLine{00088\ }
+\DoxyCodeLine{00090\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{io_8h_a2a7d4060c90481ce7ac9d6f81835ce66}{createDirNoRemove}}(MPI\_Comm\ comm,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}*\ path);}
+\DoxyCodeLine{00091\ }
+\DoxyCodeLine{00093\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{io_8h_a5921410df8275bc10192a334c4e4906c}{remove\_dir}}(MPI\_Comm\ comm,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *path2dir);}
+\DoxyCodeLine{00094\ }
+\DoxyCodeLine{00096\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{io_8h_a53420ce24429b7403771e6cada87332e}{remove\_subdirs}}(MPI\_Comm\ comm,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *path2dir);}
+\DoxyCodeLine{00097\ }
+\DoxyCodeLine{00099\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{io_8h_a597872b8208652663a2d178927a0943b}{remove\_subdirs\_except}}(MPI\_Comm\ comm,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *path2dir,\ \textcolor{keyword}{const}\ word\ name);}
+\DoxyCodeLine{00100\ }
+\DoxyCodeLine{00102\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{io_8h_a9a4a732a373e20205637cdc6822dc584}{remove\_subdirs\_except\_keep\_n}}(MPI\_Comm\ comm,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *path2dir,\ \textcolor{keyword}{const}\ word\ name,\ PetscInt\ nKeep);}
+\DoxyCodeLine{00103\ }
+\DoxyCodeLine{00105\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{io_8h_a7fc6972aaa70be99c519498611701db6}{remove\_subdirs\_except2}}(MPI\_Comm\ comm,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *path2dir,\ \textcolor{keyword}{const}\ word\ name1,\ \textcolor{keyword}{const}\ word\ name2);}
+\DoxyCodeLine{00106\ }
+\DoxyCodeLine{00108\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{io_8h_ac52f5887f76318a2318d4721802f3403}{remove\_subdirs\_except3}}(MPI\_Comm\ comm,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *path2dir,\ \textcolor{keyword}{const}\ word\ name1,\ \textcolor{keyword}{const}\ word\ name2,\ \textcolor{keyword}{const}\ word\ name3);}
+\DoxyCodeLine{00109\ }
+\DoxyCodeLine{00111\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{io_8h_a53dac50624de3ed052ba33311ccc3c0a}{remove\_subdirs\_except4}}(MPI\_Comm\ comm,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *path2dir,\ \textcolor{keyword}{const}\ word\ name1,\ \textcolor{keyword}{const}\ word\ name2,\ \textcolor{keyword}{const}\ word\ name3,\ \textcolor{keyword}{const}\ word\ name4);}
+\DoxyCodeLine{00112\ }
+\DoxyCodeLine{00114\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{io_8h_aa097d8eeb8c68619419ac7c6da7131dd}{remove\_subdirs\_except4\_keep\_n}}(MPI\_Comm\ comm,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *path2dir,\ \textcolor{keyword}{const}\ word\ name1,\ \textcolor{keyword}{const}\ word\ name2,\ \textcolor{keyword}{const}\ word\ name3,\ \textcolor{keyword}{const}\ word\ name4,\ PetscInt\ nKeep);}
+\DoxyCodeLine{00115\ }
+\DoxyCodeLine{00117\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{io_8h_aea57de8784231311b501c1f92e27a1af}{SetWriteDir}}(\mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh,\ \textcolor{keyword}{const}\ word\ str);}
+\DoxyCodeLine{00118\ }
+\DoxyCodeLine{00120\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{io_8h_aeed0361e411c0bff8d5bfc970ddda539}{writeBinaryField}}(\mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh,\ Vec\ \&V,\ \textcolor{keywordtype}{char}\ *file);}
+\DoxyCodeLine{00121\ }
+\DoxyCodeLine{00123\ PetscErrorCode\ \mbox{\hyperlink{io_8h_a24f88a2dc2894813377d8c3c8ebd92a7}{InitializeIO}}(\mbox{\hyperlink{structio__}{io\_}}\ *io);}
+\DoxyCodeLine{00124\ }
+\DoxyCodeLine{00126\ PetscErrorCode\ \mbox{\hyperlink{io_8h_ac928bac288d47df64ad361765ce346d0}{RereadIO}}(\mbox{\hyperlink{structdomain__}{domain\_}}\ *domain);}
+\DoxyCodeLine{00127\ }
+\DoxyCodeLine{00129\ PetscErrorCode\ \mbox{\hyperlink{io_8h_abc05c134a7d7cd8450beb5d68cef7a6f}{UpdateInput}}(\mbox{\hyperlink{structio__}{io\_}}\ *io,\ word\ \&modified);}
+\DoxyCodeLine{00130\ }
+\DoxyCodeLine{00132\ PetscErrorCode\ \mbox{\hyperlink{io_8h_a12060383ddd0234f9bdce3763bc218d5}{readFields}}(\mbox{\hyperlink{structdomain__}{domain\_}}\ *domain,\ PetscReal\ timeValue);}
+\DoxyCodeLine{00133\ }
+\DoxyCodeLine{00135\ word\ \mbox{\hyperlink{io_8h_ac90ef1148793012e47b2e2a99c631748}{getTimeName}}(\mbox{\hyperlink{structclock__}{clock\_}}\ *clock);}
+\DoxyCodeLine{00136\ }
+\DoxyCodeLine{00138\ word\ \mbox{\hyperlink{io_8h_a8df22decbcbea05a16bd4a7fbf7037fe}{getStartTimeName}}(\mbox{\hyperlink{structclock__}{clock\_}}\ *clock);}
+\DoxyCodeLine{00139\ }
+\DoxyCodeLine{00141\ word\ \mbox{\hyperlink{io_8h_a21b72fad893d59e1b4f5483dfcf66eeb}{getArbitraryTimeName}}(\mbox{\hyperlink{structclock__}{clock\_}}\ *clock,\ \textcolor{keywordtype}{double}\ timeValue);}
+\DoxyCodeLine{00142\ }
+\DoxyCodeLine{00144\ PetscErrorCode\ \mbox{\hyperlink{io_8h_ab1c2034549386da53eb15c67c7fa703d}{setRunTimeWrite}}(\mbox{\hyperlink{structdomain__}{domain\_}}\ *domain);}
+\DoxyCodeLine{00145\ }
+\DoxyCodeLine{00147\ PetscErrorCode\ \mbox{\hyperlink{io_8h_ad3f8d9d64294edb5d4f37cc38eb8af34}{initializeTimeDir}}(\mbox{\hyperlink{structio__}{io\_}}\ *io);}
+\DoxyCodeLine{00148\ }
+\DoxyCodeLine{00150\ PetscErrorCode\ \mbox{\hyperlink{io_8h_a2ae558c8b2c4e0b6ca0626180f42d2dc}{finalizeTimeDir}}(\mbox{\hyperlink{structio__}{io\_}}\ *io);}
+\DoxyCodeLine{00151\ }
+\DoxyCodeLine{00153\ PetscErrorCode\ \mbox{\hyperlink{io_8h_a653c14b73746089b529ecc70ad62fb6d}{writeFields}}(\mbox{\hyperlink{structio__}{io\_}}\ *io);}
+\DoxyCodeLine{00154\ }
+\DoxyCodeLine{00156\ PetscErrorCode\ \mbox{\hyperlink{io_8h_a5f8fc88b35d47c8350c91248852ce4a3}{readDictDouble}}(\textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *dictName,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *keyword,\ PetscReal\ *value);}
+\DoxyCodeLine{00157\ }
+\DoxyCodeLine{00159\ PetscErrorCode\ \mbox{\hyperlink{io_8h_a57804e3341077d959aff915fdcbd7fd7}{readDictVector}}(\textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *dictName,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *keyword,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ *value);}
+\DoxyCodeLine{00160\ }
+\DoxyCodeLine{00162\ PetscErrorCode\ \mbox{\hyperlink{io_8h_afd40ee45196e78edaf0e6996e0682d70}{readDictVector2D}}(\textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *dictName,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *keyword,\ \mbox{\hyperlink{structCpt2D}{Cpt2D}}\ *value);}
+\DoxyCodeLine{00163\ }
+\DoxyCodeLine{00165\ PetscErrorCode\ \mbox{\hyperlink{io_8h_a3c7c280a68596390486d409da1854301}{readDictInt}}(\textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *dictName,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *keyword,\ PetscInt\ *value);}
+\DoxyCodeLine{00166\ }
+\DoxyCodeLine{00168\ PetscErrorCode\ \mbox{\hyperlink{io_8h_a7a0754926617aa39a1011c902f168e2e}{readDictWord}}(\textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *dictName,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *keyword,\ word\ *value);}
+\DoxyCodeLine{00169\ }
+\DoxyCodeLine{00171\ PetscErrorCode\ \mbox{\hyperlink{io_8h_adb7a767202b3166576b9bff356c1a4ac}{readDictWordAndDouble}}(\textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *dictName,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *keyword,\ word\ *value1,\ PetscReal\ *value2);}
+\DoxyCodeLine{00172\ }
+\DoxyCodeLine{00174\ PetscErrorCode\ \mbox{\hyperlink{io_8h_a4e4f4e4dbf243726d33507af00789416}{readDictWordAndVector}}(\textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *dictName,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *keyword,\ word\ *value1,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ *value2);}
+\DoxyCodeLine{00175\ }
+\DoxyCodeLine{00177\ PetscErrorCode\ \mbox{\hyperlink{io_8h_a0f06639e16884fdfb0deb36a1cdf401f}{readSubDictDouble}}(\textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *dictName,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *subdict,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *keyword,\ PetscReal\ *value);}
+\DoxyCodeLine{00178\ }
+\DoxyCodeLine{00180\ PetscErrorCode\ \mbox{\hyperlink{io_8h_a12f01fd87a2b6d41ba0dfb5da941989f}{readSubDictInt}}(\textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *dictName,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *subdict,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *keyword,\ PetscInt\ *value);}
+\DoxyCodeLine{00181\ }
+\DoxyCodeLine{00183\ PetscErrorCode\ \mbox{\hyperlink{io_8h_ae37cac98e304a4bd87528a88e4c5686b}{readSubDictVector}}(\textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *dictName,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *subdict,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *keyword,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ *value);}
+\DoxyCodeLine{00184\ }
+\DoxyCodeLine{00186\ PetscErrorCode\ \mbox{\hyperlink{io_8h_a7e2d89b88bea0471c1b6775e37e3ac16}{readSubDictWord}}(\textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *dictName,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *subdict,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *keyword,\ word\ *value);}
+\DoxyCodeLine{00187\ }
+\DoxyCodeLine{00189\ PetscErrorCode\ \mbox{\hyperlink{io_8h_a63cd3b8f9f5efa4ce05adad15cf2a39d}{readSubDictIntArray}}(\textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *dictName,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *subdict,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *keyword,\ labelList\ \&value);}
+\DoxyCodeLine{00190\ }
+\DoxyCodeLine{00191\ std::string*\ readSubDictWordArray(\textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *dictName,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *subdict,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *keyword,\ PetscInt\ numW);}
+\DoxyCodeLine{00192\ }
+\DoxyCodeLine{00194\ word\ \mbox{\hyperlink{io_8h_ab73941600644a5529434bf0e0749e160}{trim}}(\textcolor{keyword}{const}\ word\&\ str);}
+\DoxyCodeLine{00195\ }
+\DoxyCodeLine{00197\ \textcolor{keywordtype}{bool}\ \mbox{\hyperlink{io_8h_acfc85dd88a488639367b2d643ec9a789}{isNumber}}(\textcolor{keyword}{const}\ word\&\ str);}
+
+\end{DoxyCode}

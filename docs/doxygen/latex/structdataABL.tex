@@ -1,0 +1,139 @@
+\doxysection{data\+ABL Struct Reference}
+\hypertarget{structdataABL}{}\label{structdataABL}\index{dataABL@{dataABL}}
+
+
+Struct defining ABL simulation acquisition data.  
+
+
+
+
+{\ttfamily \#include $<$abl\+Acquisition.\+h$>$}
+
+\doxysubsubsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{structdataABL_a297f1c5da3a7846c9badbac85949fbb4}\label{structdataABL_a297f1c5da3a7846c9badbac85949fbb4} 
+word {\bfseries time\+Name}
+\begin{DoxyCompactList}\small\item\em name of the time directory where ABL averages are written \end{DoxyCompactList}\item 
+\Hypertarget{structdataABL_ab7d7f84dbdfce34dcd69a1bed1cd3bbc}\label{structdataABL_ab7d7f84dbdfce34dcd69a1bed1cd3bbc} 
+Petsc\+Real {\bfseries avg\+Start\+Time}
+\begin{DoxyCompactList}\small\item\em start time of acquisition system \end{DoxyCompactList}\item 
+\Hypertarget{structdataABL_af78ea21b62ea7461d7ceaf9279823020}\label{structdataABL_af78ea21b62ea7461d7ceaf9279823020} 
+Petsc\+Real {\bfseries avg\+Prd}
+\begin{DoxyCompactList}\small\item\em acquisition time interval (overrides simulation time step if smaller) //!\texorpdfstring{$<$}{<} number of averages taken up to this time step (snapshot weighting) \end{DoxyCompactList}\item 
+\Hypertarget{structdataABL_a2399102103c749fb79944949340e2e26}\label{structdataABL_a2399102103c749fb79944949340e2e26} 
+Petsc\+Real \texorpdfstring{$\ast$}{*} {\bfseries cell\+Levels}
+\begin{DoxyCompactList}\small\item\em heights of the averaging planes \end{DoxyCompactList}\item 
+\Hypertarget{structdataABL_a9d690fa7e11a0a73d2b71e0dc3395212}\label{structdataABL_a9d690fa7e11a0a73d2b71e0dc3395212} 
+Petsc\+Real \texorpdfstring{$\ast$}{*} {\bfseries tot\+Vol\+Per\+Level}
+\begin{DoxyCompactList}\small\item\em total volume at each cell level \end{DoxyCompactList}\item 
+\Hypertarget{structdataABL_aa6a718e605ca10ae0feb68147584757d}\label{structdataABL_aa6a718e605ca10ae0feb68147584757d} 
+Petsc\+Int \texorpdfstring{$\ast$}{*} {\bfseries tot\+Cel\+Per\+Level}
+\begin{DoxyCompactList}\small\item\em total number of cells per level \end{DoxyCompactList}\item 
+\Hypertarget{structdataABL_aee070a17c1de612937fcf333fc5f2d28}\label{structdataABL_aee070a17c1de612937fcf333fc5f2d28} 
+Petsc\+Real \texorpdfstring{$\ast$}{*} {\bfseries UMean}
+\begin{DoxyCompactList}\small\item\em mean x velocity at each level \end{DoxyCompactList}\item 
+\Hypertarget{structdataABL_a67ab276790657d71be2185d8547b56f2}\label{structdataABL_a67ab276790657d71be2185d8547b56f2} 
+Petsc\+Real \texorpdfstring{$\ast$}{*} {\bfseries VMean}
+\begin{DoxyCompactList}\small\item\em mean y velocity at each level \end{DoxyCompactList}\item 
+\Hypertarget{structdataABL_a9c3572a7972643fc8064dea1c1c9035a}\label{structdataABL_a9c3572a7972643fc8064dea1c1c9035a} 
+Petsc\+Real \texorpdfstring{$\ast$}{*} {\bfseries WMean}
+\begin{DoxyCompactList}\small\item\em mean z velocity at each level \end{DoxyCompactList}\item 
+\Hypertarget{structdataABL_a6189fcc0a6574cc37eaf64a2e919e4b4}\label{structdataABL_a6189fcc0a6574cc37eaf64a2e919e4b4} 
+Petsc\+Real \texorpdfstring{$\ast$}{*} {\bfseries TMean}
+\begin{DoxyCompactList}\small\item\em mean temperature at each level \end{DoxyCompactList}\item 
+\Hypertarget{structdataABL_a9839618b48fd7ed64885f69693961d24}\label{structdataABL_a9839618b48fd7ed64885f69693961d24} 
+Petsc\+Real \texorpdfstring{$\ast$}{*} {\bfseries nut\+Mean}
+\begin{DoxyCompactList}\small\item\em mean turbulent viscosity at each level \end{DoxyCompactList}\item 
+\Hypertarget{structdataABL_a3d85b95a93f245d0d76c952b2f791ea1}\label{structdataABL_a3d85b95a93f245d0d76c952b2f791ea1} 
+Petsc\+Real \texorpdfstring{$\ast$}{*} {\bfseries ksgs\+Mean}
+\begin{DoxyCompactList}\small\item\em mean subgrid scale kinetic energy at each level \end{DoxyCompactList}\item 
+\Hypertarget{structdataABL_a58589a3d10bd9aea95011f02c6ccda25}\label{structdataABL_a58589a3d10bd9aea95011f02c6ccda25} 
+Petsc\+Real \texorpdfstring{$\ast$}{*} {\bfseries diff\+TMean}
+\begin{DoxyCompactList}\small\item\em mean turbulent diffusivity at each level \end{DoxyCompactList}\item 
+\Hypertarget{structdataABL_a85f38734d751fd2f194dc6c6d0a51e95}\label{structdataABL_a85f38734d751fd2f194dc6c6d0a51e95} 
+Vec {\bfseries UPrime}
+\begin{DoxyCompactList}\small\item\em fluctuating velocity field \end{DoxyCompactList}\item 
+\Hypertarget{structdataABL_af51a3b7d623530c01815a4e6c5828c0f}\label{structdataABL_af51a3b7d623530c01815a4e6c5828c0f} 
+Vec {\bfseries TPrime}
+\begin{DoxyCompactList}\small\item\em fluctuating temperature field \end{DoxyCompactList}\item 
+\Hypertarget{structdataABL_a97992de7de82a64f688447b8df92de90}\label{structdataABL_a97992de7de82a64f688447b8df92de90} 
+Petsc\+Real \texorpdfstring{$\ast$}{*} {\bfseries uu\+Mean}
+\item 
+\Hypertarget{structdataABL_a302ab4613c911821510ee8d5bdd38507}\label{structdataABL_a302ab4613c911821510ee8d5bdd38507} 
+Petsc\+Real \texorpdfstring{$\ast$}{*} {\bfseries uv\+Mean}
+\item 
+\Hypertarget{structdataABL_ad5f7a1d9eafb89a240037c544d5a6d95}\label{structdataABL_ad5f7a1d9eafb89a240037c544d5a6d95} 
+Petsc\+Real \texorpdfstring{$\ast$}{*} {\bfseries uw\+Mean}
+\item 
+\Hypertarget{structdataABL_ae229117244d8d2df49a4247809640262}\label{structdataABL_ae229117244d8d2df49a4247809640262} 
+Petsc\+Real \texorpdfstring{$\ast$}{*} {\bfseries vv\+Mean}
+\item 
+\Hypertarget{structdataABL_a4fdddfdb1f247cd0c98aa9d80c6f2670}\label{structdataABL_a4fdddfdb1f247cd0c98aa9d80c6f2670} 
+Petsc\+Real \texorpdfstring{$\ast$}{*} {\bfseries vw\+Mean}
+\item 
+\Hypertarget{structdataABL_aa15f5a7d10adb64ac02b085fa435a707}\label{structdataABL_aa15f5a7d10adb64ac02b085fa435a707} 
+Petsc\+Real \texorpdfstring{$\ast$}{*} {\bfseries ww\+Mean}
+\item 
+\Hypertarget{structdataABL_acd675b1793b6d305b5d87c4b27a4a965}\label{structdataABL_acd675b1793b6d305b5d87c4b27a4a965} 
+Petsc\+Real \texorpdfstring{$\ast$}{*} {\bfseries wuu\+Mean}
+\item 
+\Hypertarget{structdataABL_a047da5ddbdb7bb35c3c8d2b9c0bd2a95}\label{structdataABL_a047da5ddbdb7bb35c3c8d2b9c0bd2a95} 
+Petsc\+Real \texorpdfstring{$\ast$}{*} {\bfseries wuv\+Mean}
+\item 
+\Hypertarget{structdataABL_aa70a66b350f7bb6304aaa05985c58c74}\label{structdataABL_aa70a66b350f7bb6304aaa05985c58c74} 
+Petsc\+Real \texorpdfstring{$\ast$}{*} {\bfseries wuw\+Mean}
+\item 
+\Hypertarget{structdataABL_a7cb148540244c1ca5502692c4a097a61}\label{structdataABL_a7cb148540244c1ca5502692c4a097a61} 
+Petsc\+Real \texorpdfstring{$\ast$}{*} {\bfseries wvv\+Mean}
+\item 
+\Hypertarget{structdataABL_ae8464e9e2a02a0bddb0d74f0e49f9fce}\label{structdataABL_ae8464e9e2a02a0bddb0d74f0e49f9fce} 
+Petsc\+Real \texorpdfstring{$\ast$}{*} {\bfseries wvw\+Mean}
+\item 
+\Hypertarget{structdataABL_ad16e583f8079c83c23092d7ed7c833e2}\label{structdataABL_ad16e583f8079c83c23092d7ed7c833e2} 
+Petsc\+Real \texorpdfstring{$\ast$}{*} {\bfseries www\+Mean}
+\item 
+\Hypertarget{structdataABL_aa74f1de3ef4f1c13c758adb11f77f79c}\label{structdataABL_aa74f1de3ef4f1c13c758adb11f77f79c} 
+Petsc\+Real \texorpdfstring{$\ast$}{*} {\bfseries R11\+Mean}
+\item 
+\Hypertarget{structdataABL_a98a3cd3a0c316154283bd8cd2785f920}\label{structdataABL_a98a3cd3a0c316154283bd8cd2785f920} 
+Petsc\+Real \texorpdfstring{$\ast$}{*} {\bfseries R12\+Mean}
+\item 
+\Hypertarget{structdataABL_a3e4f6893d79c9bdd7680fb8653e3de82}\label{structdataABL_a3e4f6893d79c9bdd7680fb8653e3de82} 
+Petsc\+Real \texorpdfstring{$\ast$}{*} {\bfseries R13\+Mean}
+\item 
+\Hypertarget{structdataABL_a5628195b9f84496e1d821b2aedb0146c}\label{structdataABL_a5628195b9f84496e1d821b2aedb0146c} 
+Petsc\+Real \texorpdfstring{$\ast$}{*} {\bfseries R22\+Mean}
+\item 
+\Hypertarget{structdataABL_a914b16c16fb417782db0fe16f6bdbbd6}\label{structdataABL_a914b16c16fb417782db0fe16f6bdbbd6} 
+Petsc\+Real \texorpdfstring{$\ast$}{*} {\bfseries R23\+Mean}
+\item 
+\Hypertarget{structdataABL_a51985c137614ef4663e430566fec5682}\label{structdataABL_a51985c137614ef4663e430566fec5682} 
+Petsc\+Real \texorpdfstring{$\ast$}{*} {\bfseries R33\+Mean}
+\item 
+\Hypertarget{structdataABL_a69975fe0e2a05f5a9a63b02e0feb3821}\label{structdataABL_a69975fe0e2a05f5a9a63b02e0feb3821} 
+Petsc\+Real \texorpdfstring{$\ast$}{*} {\bfseries Tu\+Mean}
+\item 
+\Hypertarget{structdataABL_a3bfc48b3156e1183dcf34b3ede4f7e8f}\label{structdataABL_a3bfc48b3156e1183dcf34b3ede4f7e8f} 
+Petsc\+Real \texorpdfstring{$\ast$}{*} {\bfseries Tv\+Mean}
+\item 
+\Hypertarget{structdataABL_ab0be720fa9dcfef9e389be181f726331}\label{structdataABL_ab0be720fa9dcfef9e389be181f726331} 
+Petsc\+Real \texorpdfstring{$\ast$}{*} {\bfseries Tw\+Mean}
+\item 
+\Hypertarget{structdataABL_a7ebb3d8ac1160d4e5940a90379e881eb}\label{structdataABL_a7ebb3d8ac1160d4e5940a90379e881eb} 
+Petsc\+Real \texorpdfstring{$\ast$}{*} {\bfseries q1\+Mean}
+\item 
+\Hypertarget{structdataABL_ae289fcff6a1ce9fd49bc547d43e2af65}\label{structdataABL_ae289fcff6a1ce9fd49bc547d43e2af65} 
+Petsc\+Real \texorpdfstring{$\ast$}{*} {\bfseries q2\+Mean}
+\item 
+\Hypertarget{structdataABL_a410b4001d4780b2e696c337156268f43}\label{structdataABL_a410b4001d4780b2e696c337156268f43} 
+Petsc\+Real \texorpdfstring{$\ast$}{*} {\bfseries q3\+Mean}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Struct defining ABL simulation acquisition data. 
+
+The documentation for this struct was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+/zfs60/nobackup/stipa/software/\+TOSCA/src/include/acquisition/\mbox{\hyperlink{ablAcquisition_8h}{abl\+Acquisition.\+h}}\end{DoxyCompactItemize}

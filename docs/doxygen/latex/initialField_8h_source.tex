@@ -1,0 +1,60 @@
+\doxysection{initial\+Field.\+h}
+\hypertarget{initialField_8h_source}{}\label{initialField_8h_source}\index{/zfs60/nobackup/stipa/software/TOSCA/src/include/initialField.h@{/zfs60/nobackup/stipa/software/TOSCA/src/include/initialField.h}}
+\mbox{\hyperlink{initialField_8h}{Go to the documentation of this file.}}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ }
+\DoxyCodeLine{00003\ }
+\DoxyCodeLine{00004\ \textcolor{preprocessor}{\#ifndef\ INITIALFIELD\_H}}
+\DoxyCodeLine{00005\ \textcolor{preprocessor}{\#define\ INITIALFIELD\_H}}
+\DoxyCodeLine{00006\ }
+\DoxyCodeLine{00007\ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structModeData}{ModeData}}}
+\DoxyCodeLine{00008\ \{}
+\DoxyCodeLine{00009\ \ \ \ \ PetscReal\ \ \ kappaM;\ }
+\DoxyCodeLine{00010\ \ \ \ \ PetscReal\ \ \ khatx,\ khaty,\ khatz;}
+\DoxyCodeLine{00011\ \ \ \ \ PetscReal\ \ \ amp;}
+\DoxyCodeLine{00012\ \ \ \ \ PetscReal\ \ \ phi;}
+\DoxyCodeLine{00013\ \ \ \ \ PetscReal\ \ \ ktx,\ kty,\ ktz;}
+\DoxyCodeLine{00014\ \ \ \ \ PetscReal\ \ \ sx,\ sy,\ sz;}
+\DoxyCodeLine{00015\ \};}
+\DoxyCodeLine{00016\ }
+\DoxyCodeLine{00017\ \textcolor{preprocessor}{\#endif}}
+\DoxyCodeLine{00018\ }
+\DoxyCodeLine{00019\ \textcolor{comment}{//\ =============================================================================}}
+\DoxyCodeLine{00020\ \textcolor{comment}{//\ FUNCTIONS}}
+\DoxyCodeLine{00021\ \textcolor{comment}{//\ =============================================================================}}
+\DoxyCodeLine{00022\ }
+\DoxyCodeLine{00024\ PetscErrorCode\ \mbox{\hyperlink{initialField_8h_abf91ab6ea2e06c2659808e82ac0b43f1}{SetInitialField}}(\mbox{\hyperlink{structdomain__}{domain\_}}\ *domain);}
+\DoxyCodeLine{00025\ }
+\DoxyCodeLine{00027\ PetscErrorCode\ \mbox{\hyperlink{initialField_8h_a68bf64626ad6c4b9be20167319921a06}{SetInitialFieldPrecursor}}(\mbox{\hyperlink{structabl__}{abl\_}}\ *abl);}
+\DoxyCodeLine{00028\ }
+\DoxyCodeLine{00030\ PetscErrorCode\ \mbox{\hyperlink{initialField_8h_a66818d46dcefaf7be5b51afb089ba3ad}{SetInitialFieldU}}(\mbox{\hyperlink{structueqn__}{ueqn\_}}\ *ueqn);}
+\DoxyCodeLine{00031\ }
+\DoxyCodeLine{00033\ PetscErrorCode\ \mbox{\hyperlink{initialField_8h_a459d38c4068f65fae251879c89f20b8c}{SetInitialFieldT}}(\mbox{\hyperlink{structteqn__}{teqn\_}}\ *teqn);}
+\DoxyCodeLine{00034\ }
+\DoxyCodeLine{00036\ PetscErrorCode\ \mbox{\hyperlink{initialField_8h_ace385b7c8659af23806f469c0097b353}{SetInitialFieldP}}(\mbox{\hyperlink{structpeqn__}{peqn\_}}\ *peqn);}
+\DoxyCodeLine{00037\ }
+\DoxyCodeLine{00039\ PetscErrorCode\ \mbox{\hyperlink{initialField_8h_aa99b0c2efea7576452757d6eba7498c9}{SetInitialFieldLES}}(\mbox{\hyperlink{structles__}{les\_}}\ *les);}
+\DoxyCodeLine{00040\ }
+\DoxyCodeLine{00042\ PetscErrorCode\ \mbox{\hyperlink{initialField_8h_ab98ebeb72274b91bcf650647a02274c8}{SetUniformFieldU}}(\mbox{\hyperlink{structueqn__}{ueqn\_}}\ *ueqn,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \&uRef,\ PetscInt\ \&addPerturbations);}
+\DoxyCodeLine{00043\ }
+\DoxyCodeLine{00045\ PetscErrorCode\ SetABLInitialFlowU(\mbox{\hyperlink{structueqn__}{ueqn\_}}\ *ueqn);}
+\DoxyCodeLine{00046\ }
+\DoxyCodeLine{00047\ PetscErrorCode\ \mbox{\hyperlink{initialField_8h_a59c3087e88eb95e4ae77cf35b5f2b2e3}{SetABLInitialFlowUZilitinkevich}}(\mbox{\hyperlink{structueqn__}{ueqn\_}}\ *ueqn);}
+\DoxyCodeLine{00048\ }
+\DoxyCodeLine{00050\ PetscErrorCode\ \mbox{\hyperlink{initialField_8h_a0ea284a9fddff86203d18d0825afd352}{SetTaylorGreenFieldU}}(\mbox{\hyperlink{structueqn__}{ueqn\_}}\ *ueqn,\ PetscReal\ \&u0,\ PetscReal\ \&freq);}
+\DoxyCodeLine{00051\ }
+\DoxyCodeLine{00053\ PetscErrorCode\ \mbox{\hyperlink{initialField_8h_a1edeb123bbbac8fbe38bfddc84e19d99}{SpreadInletFlowU}}(\mbox{\hyperlink{structueqn__}{ueqn\_}}\ *ueqn);}
+\DoxyCodeLine{00054\ }
+\DoxyCodeLine{00056\ PetscErrorCode\ \mbox{\hyperlink{initialField_8h_a79f1d14865c6ca9abb0267094094af28}{SetUniformFieldT}}(\mbox{\hyperlink{structteqn__}{teqn\_}}\ *teqn,\ PetscReal\ \&tRef);}
+\DoxyCodeLine{00057\ }
+\DoxyCodeLine{00059\ PetscErrorCode\ \mbox{\hyperlink{initialField_8h_a913d5aa431ec054503bf33200176eae5}{SetLinearFieldT}}(\mbox{\hyperlink{structteqn__}{teqn\_}}\ *teqn,\ PetscReal\ \&tRef,\ PetscReal\ \&tLapse);}
+\DoxyCodeLine{00060\ }
+\DoxyCodeLine{00062\ PetscErrorCode\ \mbox{\hyperlink{initialField_8h_aa53f697c067a231b54aa8fa15237630e}{SetLinearCNBLFieldT}}(\mbox{\hyperlink{structteqn__}{teqn\_}}\ *teqn,\ PetscReal\ \&tRef,\ PetscReal\ \&tLapse,\ PetscReal\ \&hRef);}
+\DoxyCodeLine{00063\ }
+\DoxyCodeLine{00065\ PetscErrorCode\ \mbox{\hyperlink{initialField_8h_a97946094adc7fa8534a11c35b0b15499}{SetABLInitialFlowT}}(\mbox{\hyperlink{structteqn__}{teqn\_}}\ *teqn);}
+\DoxyCodeLine{00066\ }
+\DoxyCodeLine{00068\ PetscErrorCode\ \mbox{\hyperlink{initialField_8h_a68aaea71e33f6ad0b828763a59522431}{SpreadInletFlowT}}(\mbox{\hyperlink{structteqn__}{teqn\_}}\ *teqn);}
+\DoxyCodeLine{00069\ }
+\DoxyCodeLine{00071\ PetscErrorCode\ SetTaylorGreenFieldP(\mbox{\hyperlink{structpeqn__}{peqn\_}}\ *peqn);}
+
+\end{DoxyCode}

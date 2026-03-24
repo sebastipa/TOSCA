@@ -1,0 +1,88 @@
+\doxysection{turbines\+\_\+io.\+h}
+\hypertarget{turbines__io_8h_source}{}\label{turbines__io_8h_source}\index{/zfs60/nobackup/stipa/software/TOSCA/src/turbines/turbines\_io.h@{/zfs60/nobackup/stipa/software/TOSCA/src/turbines/turbines\_io.h}}
+\mbox{\hyperlink{turbines__io_8h}{Go to the documentation of this file.}}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{base_8h}{../include/base.h}}"{}}}
+\DoxyCodeLine{00002\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{domain_8h}{../include/domain.h}}"{}}}
+\DoxyCodeLine{00003\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{inline_8h}{../include/inline.h}}"{}}}
+\DoxyCodeLine{00004\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{turbines_8h}{../include/turbines.h}}"{}}\ \ }
+\DoxyCodeLine{00005\ }
+\DoxyCodeLine{00008\ }
+\DoxyCodeLine{00009\ \textcolor{preprocessor}{\#ifndef\ TRB\_IO\_H}}
+\DoxyCodeLine{00010\ \textcolor{preprocessor}{\#define\ TRB\_IO\_H}}
+\DoxyCodeLine{00011\ }
+\DoxyCodeLine{00013\ PetscErrorCode\ \mbox{\hyperlink{turbines__io_8h_ac2e05801940e1313c32796887a815ca8}{windTurbinesWrite}}(farm\_\ *farm);}
+\DoxyCodeLine{00014\ }
+\DoxyCodeLine{00016\ PetscErrorCode\ \mbox{\hyperlink{turbines__io_8h_a63518e35b9dfb74c25ea99e6b5b13705}{windTurbinesWriteCheckpoint}}(farm\_\ *farm);}
+\DoxyCodeLine{00017\ }
+\DoxyCodeLine{00019\ PetscErrorCode\ \mbox{\hyperlink{turbines__io_8h_a3e9db925e70e002c6ac524138f20a5b0}{windTurbinesReadCheckpoint}}(farm\_\ *farm);}
+\DoxyCodeLine{00020\ }
+\DoxyCodeLine{00022\ PetscErrorCode\ \mbox{\hyperlink{turbines__io_8h_a637189e7a10be1025f90cb9d362c0cfe}{printFarmProperties}}(farm\_\ *farm);}
+\DoxyCodeLine{00023\ }
+\DoxyCodeLine{00025\ PetscErrorCode\ \mbox{\hyperlink{turbines__io_8h_a1395cf5fd0b5c6a1ff08085c306e66e3}{writeFarmADMesh}}(farm\_\ *wf);}
+\DoxyCodeLine{00026\ }
+\DoxyCodeLine{00028\ PetscErrorCode\ \mbox{\hyperlink{turbines__io_8h_ae9f2e325c4e6d8ecb89bc159a8c43b1c}{writeFarmALMesh}}(farm\_\ *farm);}
+\DoxyCodeLine{00029\ }
+\DoxyCodeLine{00031\ PetscErrorCode\ \mbox{\hyperlink{turbines__io_8h_aa7e42a50644a1a07db9216c4b43446c1}{writeFarmTwrMesh}}(farm\_\ *wf);}
+\DoxyCodeLine{00032\ }
+\DoxyCodeLine{00034\ PetscErrorCode\ \mbox{\hyperlink{turbines__io_8h_a5bb1116bb8603565b4e870e324a218ff}{readActuatorModelParameters}}(\textcolor{keyword}{const}\ word\ actuatorModel,\ windTurbine\ *wt,\ \textcolor{keyword}{const}\ word\ meshName);\ }
+\DoxyCodeLine{00035\ }
+\DoxyCodeLine{00037\ PetscErrorCode\ \mbox{\hyperlink{turbines__io_8h_a760ef4fdb4ae1c19d3b9c115a1db37a9}{readADM}}(windTurbine\ *wt,\ \textcolor{keyword}{const}\ word\ meshName);}
+\DoxyCodeLine{00038\ }
+\DoxyCodeLine{00040\ PetscErrorCode\ \mbox{\hyperlink{turbines__io_8h_a039d4236894219bcbe5261fae5af8fbe}{meshADM}}(windTurbine\ *wt);}
+\DoxyCodeLine{00041\ }
+\DoxyCodeLine{00043\ PetscErrorCode\ \mbox{\hyperlink{turbines__io_8h_a98c772dc0c4ddc6dee4fc0b24cea9d5e}{readUADM}}(windTurbine\ *wt,\ \textcolor{keyword}{const}\ word\ meshName);}
+\DoxyCodeLine{00044\ }
+\DoxyCodeLine{00046\ PetscErrorCode\ \mbox{\hyperlink{turbines__io_8h_a11709a83bbc07dbe5c1f1a9b1caaa145}{meshUADM}}(windTurbine\ *wt);}
+\DoxyCodeLine{00047\ }
+\DoxyCodeLine{00049\ PetscErrorCode\ \mbox{\hyperlink{turbines__io_8h_a82f9308cdf2e56afd856dd845ca748df}{readALM}}(windTurbine\ *wt,\ \textcolor{keyword}{const}\ word\ meshName);}
+\DoxyCodeLine{00050\ }
+\DoxyCodeLine{00052\ PetscErrorCode\ \mbox{\hyperlink{turbines__io_8h_aa7c00f6b486f06bc1acb63fa65a5d3c1}{meshALM}}(windTurbine\ *wt);}
+\DoxyCodeLine{00053\ }
+\DoxyCodeLine{00055\ PetscErrorCode\ \mbox{\hyperlink{turbines__io_8h_a471fe08eb2b17521fc1620f50221e8af}{readAFM}}(windTurbine\ *wt,\ \textcolor{keyword}{const}\ word\ meshName);}
+\DoxyCodeLine{00056\ }
+\DoxyCodeLine{00058\ PetscErrorCode\ \mbox{\hyperlink{turbines__io_8h_ad8e946d45a1b5255e53104bea6c73202}{meshAFM}}(windTurbine\ *wt);}
+\DoxyCodeLine{00059\ }
+\DoxyCodeLine{00061\ PetscErrorCode\ \mbox{\hyperlink{turbines__io_8h_ad3ed3135eccd32d20e88878b0cc7432c}{initSamplePoints}}(windTurbine\ *wt,\ \textcolor{keyword}{const}\ word\ meshName);}
+\DoxyCodeLine{00062\ }
+\DoxyCodeLine{00064\ PetscErrorCode\ \mbox{\hyperlink{turbines__io_8h_a7377487afce8dcba7e05e3fa92392f25}{initTwrModel}}(windTurbine\ *wt,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \&base);}
+\DoxyCodeLine{00065\ }
+\DoxyCodeLine{00067\ PetscErrorCode\ \mbox{\hyperlink{turbines__io_8h_a94c683c5fb49621a08b051e3d4bdb618}{initNacModel}}(windTurbine\ *wt,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \&base);}
+\DoxyCodeLine{00068\ }
+\DoxyCodeLine{00070\ PetscErrorCode\ \mbox{\hyperlink{turbines__io_8h_a2e73d89ba91c9555b9dbdbe03d35ce7a}{readFarmProperties}}(farm\_\ *farm);}
+\DoxyCodeLine{00071\ }
+\DoxyCodeLine{00073\ PetscErrorCode\ \mbox{\hyperlink{turbines__io_8h_a5c1f74aeed3730ca296af57a164590f9}{readTurbineArray}}(farm\_\ *wf);}
+\DoxyCodeLine{00074\ }
+\DoxyCodeLine{00076\ PetscErrorCode\ \mbox{\hyperlink{turbines__io_8h_a1b7207213c5ab6d2ed368243f54d4a64}{readTurbineProperties}}(windTurbine\ *wt,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *dictName,\ \textcolor{keyword}{const}\ word\ meshName,\ \textcolor{keyword}{const}\ word\ modelName,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \&base);}
+\DoxyCodeLine{00077\ }
+\DoxyCodeLine{00079\ PetscErrorCode\ \mbox{\hyperlink{turbines__io_8h_a965b357761b1d07e1600a2cf23666431}{readAirfoilProperties}}(windTurbine\ *wt,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *dictName);}
+\DoxyCodeLine{00080\ }
+\DoxyCodeLine{00082\ PetscErrorCode\ \mbox{\hyperlink{turbines__io_8h_a4af3b60170aa7e2e37575dc8cf5bccb8}{readBladeProperties}}(windTurbine\ *wt,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *dictName,\ \textcolor{keyword}{const}\ PetscInt\ readThickness);}
+\DoxyCodeLine{00083\ }
+\DoxyCodeLine{00085\ PetscErrorCode\ \mbox{\hyperlink{turbines__io_8h_ad2ecf70494f6960878cd7bb1b6c3f99c}{readCtTable}}(windTurbine\ *wt,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *dictName);}
+\DoxyCodeLine{00086\ }
+\DoxyCodeLine{00088\ PetscErrorCode\ \mbox{\hyperlink{turbines__io_8h_aafc55056331b6bdeadc1985266c7d5a5}{readPitchTable}}(windTurbine\ *wt,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *dictName);}
+\DoxyCodeLine{00089\ }
+\DoxyCodeLine{00091\ PetscErrorCode\ \mbox{\hyperlink{turbines__io_8h_a654909baf9d6637187e37bda86a14e10}{readRpmTable}}(windTurbine\ *wt,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *dictName);}
+\DoxyCodeLine{00092\ }
+\DoxyCodeLine{00094\ PetscErrorCode\ \mbox{\hyperlink{turbines__io_8h_a597326fb8f6617e7647c85ab12e07ae7}{readTowerProperties}}(windTurbine\ *wt,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *dictName);}
+\DoxyCodeLine{00095\ }
+\DoxyCodeLine{00097\ PetscErrorCode\ \mbox{\hyperlink{turbines__io_8h_a74e7b69e22d55a5e910cf72ef68a4121}{readNacelleProperties}}(windTurbine\ *wt,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *dictName);}
+\DoxyCodeLine{00098\ }
+\DoxyCodeLine{00100\ PetscErrorCode\ \mbox{\hyperlink{turbines__io_8h_a4bb4e90d4b48776d8cefac8418edcecb}{readAirfoilTable}}(foilInfo\ *af,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *tableName);}
+\DoxyCodeLine{00101\ }
+\DoxyCodeLine{00103\ PetscErrorCode\ \mbox{\hyperlink{turbines__io_8h_a642de5fc034e14d5297502322c14c089}{readGenControllerParameters}}(windTurbine\ *wt,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *dictName,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *meshName);}
+\DoxyCodeLine{00104\ }
+\DoxyCodeLine{00106\ PetscErrorCode\ \mbox{\hyperlink{turbines__io_8h_a1d68afe95eef2c2e6df045755888ef05}{readPitchControllerParameters}}(windTurbine\ *wt,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *dictName,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *meshName);}
+\DoxyCodeLine{00107\ }
+\DoxyCodeLine{00109\ PetscErrorCode\ \mbox{\hyperlink{turbines__io_8h_a94e00e0f0b3852a822827c2cb266361b}{readYawControllerParameters}}(windTurbine\ *wt,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *dictName,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *meshName);}
+\DoxyCodeLine{00110\ }
+\DoxyCodeLine{00112\ PetscErrorCode\ \mbox{\hyperlink{turbines__io_8h_ac1dc3a6f4b8ec97fed5723c333f6cbcf}{readWindFarmControlTable}}(windTurbine\ *wt);}
+\DoxyCodeLine{00113\ }
+\DoxyCodeLine{00115\ PetscErrorCode\ \mbox{\hyperlink{turbines__io_8h_aa730e87183b63c607b1014ff65c260e5}{readDipcControllerParameters}}(windTurbine\ *wt,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *dictName,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *meshName);}
+\DoxyCodeLine{00116\ }
+\DoxyCodeLine{00118\ PetscErrorCode\ \mbox{\hyperlink{turbines__io_8h_aebc447ac913b72dc8c09e145ed8525b0}{checkTurbineMesh}}(farm\_\ *farm);}
+\DoxyCodeLine{00119\ }
+\DoxyCodeLine{00120\ \textcolor{preprocessor}{\#endif}}
+
+\end{DoxyCode}

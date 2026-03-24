@@ -1,0 +1,99 @@
+\doxysection{abl\+Acquisition.\+h}
+\hypertarget{ablAcquisition_8h_source}{}\label{ablAcquisition_8h_source}\index{/zfs60/nobackup/stipa/software/TOSCA/src/include/acquisition/ablAcquisition.h@{/zfs60/nobackup/stipa/software/TOSCA/src/include/acquisition/ablAcquisition.h}}
+\mbox{\hyperlink{ablAcquisition_8h}{Go to the documentation of this file.}}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ }
+\DoxyCodeLine{00008\ }
+\DoxyCodeLine{00009\ \textcolor{preprocessor}{\#ifndef\ \_ABLACQUISITION\_H\_}}
+\DoxyCodeLine{00010\ \textcolor{preprocessor}{\#define\ \_ABLACQUISITION\_H\_}}
+\DoxyCodeLine{00011\ }
+\DoxyCodeLine{00013\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{struct}}
+\DoxyCodeLine{00014\ \{}
+\DoxyCodeLine{00015\ \ \ \ \ word\ \ \ \ \ \mbox{\hyperlink{structlevel3LM_afbbab5ac43d9ccb0dfebc6bb7402d944}{levelName}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00016\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \mbox{\hyperlink{structlevel3LM_af09009a2ebe0b4c6a236c512d7f6aee0}{hStart}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00017\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \mbox{\hyperlink{structlevel3LM_ac2e593690c34bf4939a5eb8dbde879c8}{hEnd}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00018\ }
+\DoxyCodeLine{00019\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ **\mbox{\hyperlink{structlevel3LM_a48bbea8f473c5536786740f2d9f61e29}{U}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00020\ \ \ \ \ PetscReal\ **\mbox{\hyperlink{structlevel3LM_a5eae051a01dae7d44b482802319081a9}{P}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00021\ \}\ \mbox{\hyperlink{structlevel3LM}{level3LM}};}
+\DoxyCodeLine{00022\ }
+\DoxyCodeLine{00024\ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structdata3LM}{data3LM}}}
+\DoxyCodeLine{00025\ \{}
+\DoxyCodeLine{00026\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structdata3LM_a1e3d760b6f7f5cd64435a9f6147948c6}{checkPointTimeName}};\ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00027\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \mbox{\hyperlink{structdata3LM_ade2fa477042f005508cf8139c56d0256}{nstw}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00028\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \mbox{\hyperlink{structdata3LM_a32a63a5912eb9db9c3dd45b2e6ac1416}{nspw}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00029\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structdata3LM_a39a22801e79f695f8de87ea60239dff1}{upDir}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00030\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structdata3LM_a367008126b5fd0077c74d93a5c9cfd08}{streamDir}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00031\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structdata3LM_a6014eeee4043899527cc89597ae0c597}{spanDir}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00032\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \ **\mbox{\hyperlink{structdata3LM_ab127c5d3d0ff6c2aebf10131b0174b1d}{points}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00033\ \ \ \ \ \mbox{\hyperlink{structcellIds}{cellIds}}\ \ \ \ \ \ \ \ **\mbox{\hyperlink{structdata3LM_a11687d9cf99b55e98bd2b82e2413d961}{closestCells}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00034\ }
+\DoxyCodeLine{00035\ \ \ \ \ PetscReal\ \ \ \ \ \ \mbox{\hyperlink{structdata3LM_a93a90ff8a202e8a59eddea8a26cc42c9}{avgStartTime}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00036\ \ \ \ \ PetscReal\ \ \ \ \ \ \mbox{\hyperlink{structdata3LM_a39f1fc1954805cb2ed3201c84322aa74}{avgPrd}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00037\ }
+\DoxyCodeLine{00038\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \mbox{\hyperlink{structdata3LM_a9319b497e3f2a3138a14a24ee728a82c}{avgWeight}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00039\ }
+\DoxyCodeLine{00040\ \ \ \ \ \mbox{\hyperlink{structlevel3LM}{level3LM}}\ \ \ \ \ \ \ **\mbox{\hyperlink{structdata3LM_ae2f7d1d0f6d7e035a4fef38b0e641f96}{levels}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00041\ }
+\DoxyCodeLine{00042\ \ \ \ \ PetscReal\ \ \ \ \ \ **\mbox{\hyperlink{structdata3LM_ad25fa044a2deeb5bba1fcf090ea73784}{etaTBL}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00043\ \ \ \ \ PetscReal\ \ \ \ \ \ **\mbox{\hyperlink{structdata3LM_a97489f8255385307766f639247081738}{etaLBL}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00044\ \ \ \ \ PetscReal\ \ \ \ \ \ **etaIBL;}
+\DoxyCodeLine{00045\ \ \ \ \ PetscReal\ \ \ \ \ \ **bkgU;}
+\DoxyCodeLine{00046\ \ \ \ \ PetscReal\ \ \ \ \ \ xSample;}
+\DoxyCodeLine{00047\ \ \ \ \ PetscInt\ \ \ \ \ \ \ kSample;}
+\DoxyCodeLine{00048\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structdata3LM_a5cfd2b31c4c493b107ee697eb9c0bd82}{avgU}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00049\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structdata3LM_a0f35f05d082247976affac2e00336871}{avgdTdz}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00050\ \};}
+\DoxyCodeLine{00051\ }
+\DoxyCodeLine{00053\ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structdataABL}{dataABL}}}
+\DoxyCodeLine{00054\ \{}
+\DoxyCodeLine{00055\ \ \ \ \ word\ \ \ \ \ \ \mbox{\hyperlink{structdataABL_a297f1c5da3a7846c9badbac85949fbb4}{timeName}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00056\ \ \ \ \ PetscReal\ \mbox{\hyperlink{structdataABL_ab7d7f84dbdfce34dcd69a1bed1cd3bbc}{avgStartTime}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00057\ \ \ \ \ PetscReal\ \mbox{\hyperlink{structdataABL_af78ea21b62ea7461d7ceaf9279823020}{avgPrd}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00058\ }
+\DoxyCodeLine{00059\ \ \ \ \ PetscReal\ *\mbox{\hyperlink{structdataABL_a2399102103c749fb79944949340e2e26}{cellLevels}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00060\ \ \ \ \ PetscReal\ *\mbox{\hyperlink{structdataABL_a9d690fa7e11a0a73d2b71e0dc3395212}{totVolPerLevel}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00061\ \ \ \ \ PetscInt\ \ *\mbox{\hyperlink{structdataABL_aa6a718e605ca10ae0feb68147584757d}{totCelPerLevel}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00062\ \ \ \ \ PetscReal\ *\mbox{\hyperlink{structdataABL_aee070a17c1de612937fcf333fc5f2d28}{UMean}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00063\ \ \ \ \ PetscReal\ *\mbox{\hyperlink{structdataABL_a67ab276790657d71be2185d8547b56f2}{VMean}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00064\ \ \ \ \ PetscReal\ *\mbox{\hyperlink{structdataABL_a9c3572a7972643fc8064dea1c1c9035a}{WMean}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00065\ \ \ \ \ PetscReal\ *\mbox{\hyperlink{structdataABL_a6189fcc0a6574cc37eaf64a2e919e4b4}{TMean}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00066\ \ \ \ \ PetscReal\ *\mbox{\hyperlink{structdataABL_a9839618b48fd7ed64885f69693961d24}{nutMean}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00067\ \ \ \ \ PetscReal\ *\mbox{\hyperlink{structdataABL_a3d85b95a93f245d0d76c952b2f791ea1}{ksgsMean}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00068\ \ \ \ \ PetscReal\ *\mbox{\hyperlink{structdataABL_a58589a3d10bd9aea95011f02c6ccda25}{diffTMean}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00069\ \ \ \ \ Vec\ \ \ \ \ \ \ \mbox{\hyperlink{structdataABL_a85f38734d751fd2f194dc6c6d0a51e95}{UPrime}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00070\ \ \ \ \ Vec\ \ \ \ \ \ \ \mbox{\hyperlink{structdataABL_af51a3b7d623530c01815a4e6c5828c0f}{TPrime}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00071\ }
+\DoxyCodeLine{00072\ \ \ \ \ PetscReal\ *uuMean;}
+\DoxyCodeLine{00073\ \ \ \ \ PetscReal\ *uvMean;}
+\DoxyCodeLine{00074\ \ \ \ \ PetscReal\ *uwMean;}
+\DoxyCodeLine{00075\ \ \ \ \ PetscReal\ *vvMean;}
+\DoxyCodeLine{00076\ \ \ \ \ PetscReal\ *vwMean;}
+\DoxyCodeLine{00077\ \ \ \ \ PetscReal\ *wwMean;}
+\DoxyCodeLine{00078\ }
+\DoxyCodeLine{00079\ \ \ \ \ PetscReal\ *wuuMean;}
+\DoxyCodeLine{00080\ \ \ \ \ PetscReal\ *wuvMean;}
+\DoxyCodeLine{00081\ \ \ \ \ PetscReal\ *wuwMean;}
+\DoxyCodeLine{00082\ \ \ \ \ PetscReal\ *wvvMean;}
+\DoxyCodeLine{00083\ \ \ \ \ PetscReal\ *wvwMean;}
+\DoxyCodeLine{00084\ \ \ \ \ PetscReal\ *wwwMean;}
+\DoxyCodeLine{00085\ }
+\DoxyCodeLine{00086\ \ \ \ \ PetscReal\ *R11Mean;}
+\DoxyCodeLine{00087\ \ \ \ \ PetscReal\ *R12Mean;}
+\DoxyCodeLine{00088\ \ \ \ \ PetscReal\ *R13Mean;}
+\DoxyCodeLine{00089\ \ \ \ \ PetscReal\ *R22Mean;}
+\DoxyCodeLine{00090\ \ \ \ \ PetscReal\ *R23Mean;}
+\DoxyCodeLine{00091\ \ \ \ \ PetscReal\ *R33Mean;}
+\DoxyCodeLine{00092\ }
+\DoxyCodeLine{00093\ \ \ \ \ PetscReal\ *TuMean;}
+\DoxyCodeLine{00094\ \ \ \ \ PetscReal\ *TvMean;}
+\DoxyCodeLine{00095\ \ \ \ \ PetscReal\ *TwMean;}
+\DoxyCodeLine{00096\ }
+\DoxyCodeLine{00097\ \ \ \ \ PetscReal\ *q1Mean;}
+\DoxyCodeLine{00098\ \ \ \ \ PetscReal\ *q2Mean;}
+\DoxyCodeLine{00099\ \ \ \ \ PetscReal\ *q3Mean;}
+\DoxyCodeLine{00100\ \};}
+\DoxyCodeLine{00101\ }
+\DoxyCodeLine{00102\ \textcolor{preprocessor}{\#endif}}
+
+\end{DoxyCode}

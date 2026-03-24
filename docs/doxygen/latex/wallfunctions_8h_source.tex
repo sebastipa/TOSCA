@@ -1,0 +1,66 @@
+\doxysection{wallfunctions.\+h}
+\hypertarget{wallfunctions_8h_source}{}\label{wallfunctions_8h_source}\index{/zfs60/nobackup/stipa/software/TOSCA/src/include/wallfunctions.h@{/zfs60/nobackup/stipa/software/TOSCA/src/include/wallfunctions.h}}
+\mbox{\hyperlink{wallfunctions_8h}{Go to the documentation of this file.}}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ }
+\DoxyCodeLine{00003\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{io_8h}{io.h}}"{}}}
+\DoxyCodeLine{00004\ }
+\DoxyCodeLine{00005\ \textcolor{comment}{//\ WALL\ FUNCTIONS}}
+\DoxyCodeLine{00006\ \textcolor{comment}{//\ =============================================================================================================\ //}}
+\DoxyCodeLine{00007\ }
+\DoxyCodeLine{00008\ PetscReal\ uTauCabot(PetscReal\ nu,\ PetscReal\ u,\ PetscReal\ y,\ PetscReal\ guess,\ PetscReal\ dpdn);}
+\DoxyCodeLine{00009\ }
+\DoxyCodeLine{00010\ PetscReal\ utau\_wf(PetscReal\ nu,\ PetscReal\ ks,\ PetscReal\ sb,\ PetscReal\ Ut\_mag);}
+\DoxyCodeLine{00011\ }
+\DoxyCodeLine{00012\ PetscReal\ uTauCabotRoughness(PetscReal\ nu,\ PetscReal\ u,\ PetscReal\ y,\ PetscReal\ guess,\ PetscReal\ dpdn,\ PetscReal\ ks);}
+\DoxyCodeLine{00013\ }
+\DoxyCodeLine{00014\ PetscReal\ uTauCabot(PetscReal\ nu,\ PetscReal\ u,\ PetscReal\ y,\ PetscReal\ guess,\ PetscReal\ dpdn);}
+\DoxyCodeLine{00015\ }
+\DoxyCodeLine{00016\ \textcolor{keywordtype}{void}\ \ \ \ \ \ wallFunctionCabot(PetscReal\ nu,\ PetscReal\ sc,\ PetscReal\ sb,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ Ua,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ Uc,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ *Ub,\ PetscReal\ *ustar,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ nf);}
+\DoxyCodeLine{00017\ }
+\DoxyCodeLine{00018\ \textcolor{keywordtype}{void}\ \ \ \ \ \ wallFunctionCabotRoughness(PetscReal\ nu,\ PetscReal\ ks,\ PetscReal\ sc,\ PetscReal\ sb,}
+\DoxyCodeLine{00019\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ Ua,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ Uc,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ *Ub,\ PetscReal\ *ustar,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ nf);}
+\DoxyCodeLine{00020\ }
+\DoxyCodeLine{00021\ \textcolor{keywordtype}{void}\ \ \ \ \ \ wallFunctionPowerlaw(PetscReal\ nu,\ PetscReal\ sc,\ PetscReal\ sb,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ Ua,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ Uc,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ *Ub,\ PetscReal\ *ustar,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ nf);}
+\DoxyCodeLine{00022\ }
+\DoxyCodeLine{00023\ \textcolor{keywordtype}{void}\ \ \ \ \ \ wallFunctionPowerlawAPG(PetscReal\ nu,\ PetscReal\ sc,\ PetscReal\ sb,\ PetscReal\ roughness,\ PetscReal\ kappa,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ Ua,}
+\DoxyCodeLine{00024\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ Uc,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ *Ub,\ PetscReal\ *ustar,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ nf,\ PetscReal\ dpdx,\ PetscReal\ dpdy,\ PetscReal\ dpdz);}
+\DoxyCodeLine{00025\ }
+\DoxyCodeLine{00026\ \textcolor{keywordtype}{void}\ \ \ \ \ \ wallFunctionLogLawAPG(PetscReal\ nu,\ PetscReal\ sc,\ PetscReal\ sb,\ PetscReal\ roughness,\ PetscReal\ kappa,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ Ua,}
+\DoxyCodeLine{00027\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ Uc,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ *Ub,\ PetscReal\ *ustar,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ nf,\ PetscReal\ dpdx,\ PetscReal\ dpdy,\ PetscReal\ dpdz);}
+\DoxyCodeLine{00028\ }
+\DoxyCodeLine{00029\ \textcolor{keywordtype}{void}\ \ \ \ \ \ slipBC(PetscReal\ sc,\ PetscReal\ sb,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ Ua,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ Uc,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ *Ub,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ nf);}
+\DoxyCodeLine{00030\ }
+\DoxyCodeLine{00031\ \textcolor{keywordtype}{void}\ \ \ \ \ \ wallFunctionSchumann(PetscReal\ nu,\ PetscReal\ sc,\ PetscReal\ sb,\ PetscReal\ roughness,}
+\DoxyCodeLine{00032\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ PetscReal\ kappa,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ Ua,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ Uc,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ *Ub,\ PetscReal\ *ustar,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ nf);}
+\DoxyCodeLine{00033\ }
+\DoxyCodeLine{00034\ \textcolor{keywordtype}{void}\ \ \ \ \ \ wallShearVelocityBC(PetscReal\ nu,\ PetscReal\ sc,\ PetscReal\ sb,\ PetscReal\ roughness,}
+\DoxyCodeLine{00035\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ PetscReal\ kappa,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ Ua,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ Uc,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ *Ub,\ PetscReal\ *ustar,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ nf);}
+\DoxyCodeLine{00036\ }
+\DoxyCodeLine{00037\ \textcolor{keywordtype}{void}\ \ \ \ \ \ wallShearVelocityBCQuadratic(PetscReal\ nu,\ \ PetscReal\ sd,\ PetscReal\ sc,\ PetscReal\ sb,\ PetscReal\ roughness,}
+\DoxyCodeLine{00038\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ PetscReal\ kappa,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ Ua,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ Ud,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ Uc,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ *Ub,\ PetscReal\ *ustar,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ nf);}
+\DoxyCodeLine{00039\ }
+\DoxyCodeLine{00040\ \textcolor{keywordtype}{void}\ \ \ \ \ \ wallShearGhostVelocityBC(PetscReal\ sd,\ PetscReal\ sc,\ PetscReal\ sb,\ PetscReal\ roughness,}
+\DoxyCodeLine{00041\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ PetscReal\ kappa,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ Ua,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ Ud,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ Uc,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ *Ub,\ PetscReal\ *ustar,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ nf);}
+\DoxyCodeLine{00042\ }
+\DoxyCodeLine{00043\ \textcolor{keywordtype}{void}\ \ \ \ \ \ ghostTempVelocityBCShumann(\mbox{\hyperlink{structShumann}{Shumann}}\ *wm,\ PetscReal\ sd,\ PetscReal\ sc,\ PetscReal\ sb,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ Ua,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ Ud,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ *Ub,}
+\DoxyCodeLine{00044\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ PetscReal\ Td,\ PetscReal\ surfaceTemp,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ nf,\ PetscInt\ k,\ PetscInt\ j,\ PetscInt\ i);}
+\DoxyCodeLine{00045\ }
+\DoxyCodeLine{00046\ \textcolor{keywordtype}{void}\ uStarShumann}
+\DoxyCodeLine{00047\ (}
+\DoxyCodeLine{00048\ \ \ \ \ PetscReal\ \&UParallelMeanMag,\ PetscReal\ \&wallDist,\ PetscReal\ \&z0,}
+\DoxyCodeLine{00049\ \ \ \ \ PetscReal\ \&gammaM,\ PetscReal\ \&kappa,\ PetscReal\ \&qwall,\ PetscReal\ \&thetaRef,}
+\DoxyCodeLine{00050\ \ \ \ \ PetscReal\ \&uStar,\ PetscReal\ \&phiM,\ PetscReal\ \&L,}
+\DoxyCodeLine{00051\ \ \ \ \ PetscInt\ k,\ PetscInt\ j,\ PetscInt\ i}
+\DoxyCodeLine{00052\ );}
+\DoxyCodeLine{00053\ }
+\DoxyCodeLine{00054\ \textcolor{keywordtype}{void}\ qWallShumann}
+\DoxyCodeLine{00055\ (}
+\DoxyCodeLine{00056\ \ \ \ \ PetscReal\ \&UParallelMeanMag,\ PetscReal\ \&wallDist,\ PetscReal\ \&z0,}
+\DoxyCodeLine{00057\ \ \ \ \ PetscReal\ \&gammaM,\ PetscReal\ \&gammaH,\ PetscReal\ \&alphaH,}
+\DoxyCodeLine{00058\ \ \ \ \ PetscReal\ \&thetaRef,\ PetscReal\ \&deltaTheta,\ PetscReal\ \&kappa,}
+\DoxyCodeLine{00059\ \ \ \ \ PetscReal\ \&qWall,\ PetscReal\ \&uStar,\ PetscReal\ \&phiM,\ PetscReal\ \&phiH,\ PetscReal\ \&L,}
+\DoxyCodeLine{00060\ \ \ \ \ PetscInt\ k,\ PetscInt\ j,\ PetscInt\ i}
+\DoxyCodeLine{00061\ );}
+
+\end{DoxyCode}

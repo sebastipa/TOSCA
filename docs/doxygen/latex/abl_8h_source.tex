@@ -1,0 +1,314 @@
+\doxysection{abl.\+h}
+\hypertarget{abl_8h_source}{}\label{abl_8h_source}\index{/zfs60/nobackup/stipa/software/TOSCA/src/include/abl.h@{/zfs60/nobackup/stipa/software/TOSCA/src/include/abl.h}}
+\mbox{\hyperlink{abl_8h}{Go to the documentation of this file.}}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ }
+\DoxyCodeLine{00003\ }
+\DoxyCodeLine{00004\ \textcolor{preprocessor}{\#ifndef\ \_ABL\_H\_}}
+\DoxyCodeLine{00005\ \textcolor{preprocessor}{\#define\ \_ABL\_H\_}}
+\DoxyCodeLine{00006\ }
+\DoxyCodeLine{00007\ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structabl__}{abl\_}}}
+\DoxyCodeLine{00008\ \{}
+\DoxyCodeLine{00009\ \ \ \ \ \textcolor{comment}{//\ flags}}
+\DoxyCodeLine{00010\ \ \ \ \ PetscInt\ \ \ \ \ \mbox{\hyperlink{structabl___a590aa24c22eb83f069f7ae3be60842b7}{controllerActive}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00011\ \ \ \ \ PetscInt\ \ \ \ \ \mbox{\hyperlink{structabl___a27d11cb892b9c0b354e70d07f5a908fc}{controllerActiveT}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00012\ \ \ \ \ PetscInt\ \ \ \ \ \mbox{\hyperlink{structabl___a6e57fd97a0d1cc0949cf15a7b2f33edc}{coriolisActive}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00013\ }
+\DoxyCodeLine{00014\ \ \ \ \ \textcolor{comment}{//\ physical\ quantities}}
+\DoxyCodeLine{00015\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a747f03126b89bb449d66337367b428eb}{uTau}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00016\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a451e822dbddc79ce66d08404e73a8f16}{hRough}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00017\ \ \ \ \ \mbox{\hyperlink{structCpt2D}{Cpt2D}}\ \ \ \ \ \ \ \ \mbox{\hyperlink{structabl___a60073ae14c01565cef89a554f15f8ed3}{uRef}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00018\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a147c7d2a19ccf252146136859c1ee72e}{hRef}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00019\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a7be0cf4ad79d0d5b435de8794bc59feb}{hGeo}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00020\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a27a8d67536f774070fea8a11ceeec673}{hInv}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00021\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a819b0d533d65c25e633f7bbfc6904285}{dInv}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00022\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___abccdd76b28a18541d916cbf0338d006c}{gInv}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00023\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___aa5ac52f05eecb154eb8cfa1ab579d16d}{gABL}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00024\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a8c0d8e97e1a2b0784166fc8ed0af9f98}{tRef}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00025\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a9766f282ed23fc023e5cd60a9621ffec}{gTop}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00026\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a058ed1ef8e64b7c63d34111b0138ba48}{vkConst}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00027\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a4f37e6b0af726d992358b3e834e8b348}{smear}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00028\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a1b092b5fa13ec3c1fdd8566de9effeaf}{fc}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00029\ \ \ \ \ PetscInt\ \ \ \ \ \mbox{\hyperlink{structabl___a50006e21af16c7b5bf662441b7de618b}{perturbations}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00030\ }
+\DoxyCodeLine{00031\ \ \ \ \ PetscReal\ \ \ *\mbox{\hyperlink{structabl___a38d711ba7c73a6d3e06bf609f3700ee5}{cellLevels}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00032\ }
+\DoxyCodeLine{00033\ \ \ \ \ \textcolor{comment}{//\ temperature\ controller}}
+\DoxyCodeLine{00034\ \ \ \ \ PetscReal\ \ \ \ *\mbox{\hyperlink{structabl___a865be189a7511ce1560c24af04e12abd}{tDes}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00035\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structabl___ab9cf549e370b34cb550f0cf6bc04c2b1}{controllerTypeT}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00036\ \ \ \ \ }
+\DoxyCodeLine{00037\ \ \ \ \ \textcolor{comment}{//\ velocity\ controller\ (common)}}
+\DoxyCodeLine{00038\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structabl___abcd085afbab9635d1b6c409874eaff38}{controllerType}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00039\ \ \ \ \ word\ \ \ \ \ \ \ \ \ controllerAction;}
+\DoxyCodeLine{00040\ \ \ \ \ word\ \ \ \ \ \ \ \ \ controllerActionT;}
+\DoxyCodeLine{00041\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___aa7a759b82d05659158dfe2645cf68bf4}{relax}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00042\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a24573f93f561589bb0fc6bbe1b425680}{alpha}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00043\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a5dc295936b63613fee1f1eccd6ac8371}{timeWindow}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00044\ \ \ \ \ PetscReal\ \ \ \ *\mbox{\hyperlink{structabl___a2383f45c333625e0eb38db603598e5f0}{totVolPerLevel}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00045\ \ \ \ \ PetscInt\ \ \ \ \ *\mbox{\hyperlink{structabl___ac9434a6f32f0b2c55cf73c53ce4f7950}{totCelPerLevel}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00046\ \ \ \ \ PetscInt\ \ \ \ \ *\mbox{\hyperlink{structabl___a089f9bb6e42ac7a1cef419fedb51e7c3}{closestLabels}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00047\ \ \ \ \ PetscReal\ \ \ \ *\mbox{\hyperlink{structabl___ad8d15ba01c8309d2ffa8951aa1b251ab}{levelWeights}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00048\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a00b4c0db26925cbf1f523d07105b600b}{controllerMaxHeight}};\ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00049\ }
+\DoxyCodeLine{00050\ \ \ \ \ \textcolor{comment}{//\ geostrophic\ damping\ for\ pressure\ controller}}
+\DoxyCodeLine{00051\ \ \ \ \ PetscInt\ \ \ \ \ \mbox{\hyperlink{structabl___ad8339d5dbf1d15142c6dca69e748ff75}{geostrophicDampingActive}};\ \ \ \ \ \ \ }
+\DoxyCodeLine{00052\ \ \ \ \ PetscInt\ \ \ \ \ \mbox{\hyperlink{structabl___a71ef64ae05b231a7863b07520d9b4104}{mesoScaleInputActive}};\ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00053\ \ \ \ \ }
+\DoxyCodeLine{00054\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a2f6043c1b920d783434ce04d81a41931}{geoDampAvgDT}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00055\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \mbox{\hyperlink{structabl___aef71917e0bc59ca9801c2c0a49688322}{geoDampAvgS}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00056\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \mbox{\hyperlink{structabl___ae475acdbe4f0334c61dd30ae1028143d}{geoDampUBar}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00057\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ *\mbox{\hyperlink{structabl___a0d7bdd021a394a4ad940990992865e77}{geoDampU}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00058\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a1911a7fd2c3d57ad3d2eedc3b1a51e6c}{geoDampAlpha}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00059\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___afbb7a24629124b7094898be74e262724}{geoDampH}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00060\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a773b82cc6eaf60b5952e89c981dab0ce}{geoDampDelta}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00061\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___ac0de339fceb030d08d3bb742055d7774}{geoDampC}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00062\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a5f4e5d464397a8617d3731c04b2614d6}{geoDampStart}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00063\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a68bf1741a834f3d65e81446c357144ab}{geoDampWindow}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00064\ }
+\DoxyCodeLine{00065\ \ \ \ \ \textcolor{comment}{//\ geostrophic\ controller}}
+\DoxyCodeLine{00066\ \ \ \ \ PetscInt\ \ \ \ \ *\mbox{\hyperlink{structabl___a9cf7e5294be637ef6189c4e48aa57a96}{closestLabelsGeo}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00067\ \ \ \ \ PetscReal\ \ \ \ *\mbox{\hyperlink{structabl___a72c3beae1348e149e4fc3ba381a79d69}{levelWeightsGeo}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00068\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \mbox{\hyperlink{structabl___a0df4e5a1132afab0a6b3569498d442a0}{uGeoBar}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00069\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a2271e65ecb1eaeae4f387a194e770c6c}{refHubAngle}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00070\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___ad8c45c847f3a64af978ecc48f9c6ff5e}{geoAngle}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00071\ \ \ \ \ PetscInt\ \ \ \ \ \mbox{\hyperlink{structabl___ae7e0ea0e9ccc5741d0fa3c97a47da6ae}{windAngleController}};\ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00072\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ a,\mbox{\hyperlink{structabl___a5df5832fba85dc4c5104e271424d6dbd}{b}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00073\ }
+\DoxyCodeLine{00074\ \ \ \ \ \textcolor{comment}{//\ read\ and\ average}}
+\DoxyCodeLine{00075\ \ \ \ \ PetscInt\ \ \ \ \ \mbox{\hyperlink{structabl___a28ff2b56d0d1e1447e664f9387002c27}{currentCloseIdx}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00076\ \ \ \ \ PetscInt\ \ \ \ \ currentCloseIdxT;\ \ \ \ }
+\DoxyCodeLine{00077\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a2a5a12f7497094ceb8761af6f40c751b}{sourceAvgStartTime}};\ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00078\ \ \ \ \ PetscReal\ \ \ \ **\mbox{\hyperlink{structabl___a8b8a086933497cb3b3d055fcab6c983a}{preCompSources}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00079\ \ \ \ \ PetscReal\ \ \ \ ***\mbox{\hyperlink{structabl___ab881b30f43d47d5e0cea78fa777c6166}{timeHtSources}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00080\ \ \ \ \ PetscReal\ \ \ \ ***\mbox{\hyperlink{structabl___a681f9a0779f7e0d98c0e01bc40c1471a}{timeHtSourcesT}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00081\ \ \ \ \ PetscInt\ \ \ \ \ \mbox{\hyperlink{structabl___ad1acc36e1df5602ee77ec593c90f84b7}{nSourceTimes}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00082\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \mbox{\hyperlink{structabl___af2526caf4d5521bafd0d2315acac11f1}{cumulatedSource}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00083\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ *\mbox{\hyperlink{structabl___a5b4c5a03e6fdf90aca017c788097f9d4}{cumulatedSourceHt}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00084\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a68a91e9d5dc3987bf7f4d8c40f9d65f7}{avgTimeStep}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00085\ }
+\DoxyCodeLine{00086\ \ \ \ \ \textcolor{comment}{//\ z\ damping\ layer\ (Rayleigh\ damping)}}
+\DoxyCodeLine{00087\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a922e8ba983bea9c1d95efe9a0d3be433}{zDampingStart}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00088\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a8ab73684fece3284c16debe6a74fdfbf}{zDampingEnd}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00089\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___ade3b8e0e1c9916ce07bd0d57b75da47f}{zDampingAlpha}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00090\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ *\mbox{\hyperlink{structabl___a405a3988bd22b2bd78cd52917c6e0941}{uBarMeanZ}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00091\ \ \ \ \ PetscInt\ \ \ \ \ avgWeight;}
+\DoxyCodeLine{00092\ \ \ \ \ PetscInt\ \ \ \ \ \mbox{\hyperlink{structabl___a69abd109845cfac4f34218651071eb76}{zDampingAlsoXY}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00093\ \ \ \ \ PetscInt\ \ \ \ \ \mbox{\hyperlink{structabl___a2d8e77f8e50f69685ca54c1f11ed6b83}{zDampingXYType}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00094\ }
+\DoxyCodeLine{00095\ \ \ \ \ \textcolor{comment}{//\ kLeft\ damping\ layer}}
+\DoxyCodeLine{00096\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a8ad1a36acef7f0aa6a2a4d512f02b021}{kLeftPatchDist}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00097\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___ad93bc201bea58a33715d1816f2455ddd}{kLeftDampingAlpha}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00098\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \mbox{\hyperlink{structabl___a1092a629fadbc1eb4da9eb376f720d22}{kLeftDampingUBar}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00099\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a58db10b4e280a5fbfa613c69037f88ea}{kLeftDampingFilterHeight}};\ \ \ \ \ \ \ }
+\DoxyCodeLine{00100\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a87636125d893d5532e2d3463f4f45a1c}{kLeftDampingFilterWidth}};\ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00101\ }
+\DoxyCodeLine{00102\ \ \ \ \ \textcolor{comment}{//\ kRight\ damping\ layer}}
+\DoxyCodeLine{00103\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a601a8b92ba7ab83358c3a0a9b1b586a9}{kRightPatchDist}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00104\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a725fdf17a238558f7e81ef8e3e5ddd15}{kRightDampingAlpha}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00105\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \mbox{\hyperlink{structabl___a97ed839a9f06838bc718f8901f2699e4}{kRightDampingUBar}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00106\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___ab161df5e550c76e849498cccbeb229db}{kRightDampingFilterHeight}};\ \ \ \ \ \ \ }
+\DoxyCodeLine{00107\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a9cf66ce1245b0a47c039a017989ea917}{kRightDampingFilterWidth}};\ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00108\ }
+\DoxyCodeLine{00109\ \ \ \ \ \textcolor{comment}{//\ x\ damping\ layer\ (recycling\ fringe\ region)}}
+\DoxyCodeLine{00110\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___ab1a65b797ff7d7ff9ec813e06603d6bd}{xDampingStart}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00111\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a44e2a73c647664369a9138bda4c9bbf1}{xDampingEnd}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00112\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a86cdb1b84dc0a20e2e56a07909800a99}{xDampingDelta}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00113\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a95ca99fba1da597016e53f6767f977fc}{xDampingAlpha}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00114\ }
+\DoxyCodeLine{00115\ \ \ \ \ \textcolor{comment}{//\ x\ damping\ layer\ controller\ parameters}}
+\DoxyCodeLine{00116\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structabl___aac5ab23151e356bb1d52bea7d3280967}{xDampingControlType}};\ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00117\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___ae2946c57ee451454a7f5e6f69d9f1584}{advDampingXStart}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00118\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a13e4c263e71bee1749603fd982899c3c}{advDampingXEnd}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00119\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a9bce493ef569d016c32108058f269f70}{advDampingXDeltaStart}};\ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00120\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a80a37176b51b09a8b094bb35edd52fb0}{advDampingXDeltaEnd}};\ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00121\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a9be88226aab5ee082c5743165fcaee00}{xDampingTimeWindow}};\ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00122\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a94b14b15f992950cb1af50cee0a1e97c}{xDampingVBar}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00123\ \ \ \ \ PetscReal\ \ \ \ vEnd,\ \mbox{\hyperlink{structabl___af02a0a70fafa2e53bf82b888e7a6c370}{vStart}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00124\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a35d53c93b95781a43ce414eda563dea1}{xDampingError}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00125\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a4d6519dd04d4dfd1d4dba6bdff2f4b34}{xDampingLineSamplingYmin}};\ \ \ \ \ \ \ }
+\DoxyCodeLine{00126\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a9c563a72d38c4e2290ab5e7b44ac3226}{xDampingLineSamplingYmax}};\ \ \ \ \ \ \ }
+\DoxyCodeLine{00127\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___add05f30e721d46d446470d4e77143ef6}{xDampingTimeStart}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00128\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___ad8506da0c0ea7031196bc9f1bc248dcf}{xDampingDeltaV}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00129\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___ad188482c237a149da2e62ffb4ae3e82e}{xDampingCoeff}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00130\ \ \ \ \ PetscInt\ \ \ \ *\mbox{\hyperlink{structabl___a9c5a72c4791076dc2f1785f5142cd5f5}{closestLabelsFringe}};\ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00131\ \ \ \ \ PetscReal\ \ \ *\mbox{\hyperlink{structabl___a32bae85c92330ec6761b999a2af791b0}{levelWeightsFringe}};\ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00132\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a077c8273f65e1f99f1c693b94519af98}{advDampingYStart}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00133\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a08ba02a1ecfbf9dfbca7a0837ee49024}{advDampingYEnd}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00134\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___af974e80e56fd8c0d7dfc8cfd584a500a}{advDampingYDeltaStart}};\ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00135\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a8b2613efa53d6572160f597052efb812}{advDampingYDeltaEnd}};\ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00136\ }
+\DoxyCodeLine{00137\ \ \ \ \ \textcolor{comment}{//\ y\ damping\ layer\ (can\ only\ be\ applied\ together\ with\ the\ x\ damping\ layer)}}
+\DoxyCodeLine{00138\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___aa53d3c26b66972c530f6842b9c2dfee2}{yDampingStart}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00139\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a542e7f82940277916e12f18f88460b4f}{yDampingEnd}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00140\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a033c4b6d2780f234ae6cb0d6e7d1f3e4}{yDampingDelta}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00141\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___a3c2c6d5709187bdf542625854a39106f}{yDampingAlpha}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00142\ \ \ \ \ PetscInt\ \ \ \ \ \mbox{\hyperlink{structabl___abab998b2c4a0d1a2a89fce5d94e54fd1}{yDampingNumPeriods}};\ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00143\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structabl___a996144011fb485eeefe8123dcbd239c7}{uBarInstY}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00144\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structabl___a91c28e9672e0ad80481f7d0b7c4629fc}{tBarInstY}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00145\ \ \ \ }
+\DoxyCodeLine{00146\ \ \ \ \ PetscInt\ \ \ \ \ \mbox{\hyperlink{structabl___afdd35a2796bda36694e81ca6d3c0716e}{numSourceProc}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00147\ \ \ \ \ PetscInt\ \ \ \ \ *\mbox{\hyperlink{structabl___a1da6cbe0db3f722faac67bfd2e503503}{sourceProcList}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00148\ \ \ \ \ MPI\_Comm\ \ \ \ \ *\mbox{\hyperlink{structabl___adb5cc4aa0b503c27323c1ae381080e42}{yDamp\_comm}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00149\ \ \ \ \ PetscMPIInt\ \ *\mbox{\hyperlink{structabl___af17481e41b39ac84dac0ac3e020c0321}{srcCommLocalRank}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00150\ \ \ \ \ \mbox{\hyperlink{structcellIds}{cellIds}}\ \ \ \ \ \ *\mbox{\hyperlink{structabl___ac39988f372a1ac2e8037253361281a25}{srcMinInd}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00151\ \ \ \ \ \mbox{\hyperlink{structcellIds}{cellIds}}\ \ \ \ \ \ *\mbox{\hyperlink{structabl___ac439887df337b7d50c02c20cb796d811}{srcMaxInd}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00152\ \ \ \ \ PetscInt\ \ \ \ \ *\mbox{\hyperlink{structabl___aa8ef219c16e6fe5278d6c356e628b985}{isdestProc}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00153\ \ \ \ \ \mbox{\hyperlink{structcellIds}{cellIds}}\ \ \ \ \ \ **\mbox{\hyperlink{structabl___a2591d43997130254c40a6d51e95f6d82}{destMinInd}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00154\ \ \ \ \ \mbox{\hyperlink{structcellIds}{cellIds}}\ \ \ \ \ \ **\mbox{\hyperlink{structabl___aa63cc25227c56b183b628a08f77ec4c0}{destMaxInd}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00155\ \ \ \ \ PetscInt\ \ \ \ \ \ *\mbox{\hyperlink{structabl___a046f5529b95d834ea750fea79a049901}{srcNumI}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00156\ \ \ \ \ PetscInt\ \ \ \ \ \ *\mbox{\hyperlink{structabl___adb65bdbc955734409dbc7216edf9339a}{srcNumJ}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00157\ \ \ \ \ PetscInt\ \ \ \ \ \ *\mbox{\hyperlink{structabl___a0d9a4705f627d40ecfbd3896cebe1e74}{srcNumK}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00158\ \ \ \ \ MPI\_Request\ \ *\mbox{\hyperlink{structabl___acfa691113a6e374a35b66399751af11a}{mapRequest}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00159\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ **\mbox{\hyperlink{structabl___a2521346afaa40f40a6b12feff5310baf}{velMapped}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00160\ \ \ \ \ PetscReal\ \ \ \ **tMapped;}
+\DoxyCodeLine{00161\ \ \ \ \ PetscInt\ \ \ \ \ **\mbox{\hyperlink{structabl___ae2e6b3180d1733e0fba67d6b127466bc}{closestKCell}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00162\ \ \ \ \ PetscReal\ \ \ \ **\mbox{\hyperlink{structabl___a28b6a4820d28ae8aeba5348bce372772}{wtsKCell}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00163\ }
+\DoxyCodeLine{00164\ \ \ \ \ \textcolor{comment}{//\ type\ of\ uBar\ computation}}
+\DoxyCodeLine{00165\ \ \ \ \ PetscInt\ \ \ \ \ \mbox{\hyperlink{structabl___a989768efc95117b2064ba49bc5e5c4c6}{xFringeUBarSelectionType}};\ \ \ \ \ \ \ }
+\DoxyCodeLine{00166\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ **\mbox{\hyperlink{structabl___a71065a2e84185fca412eb9c81e25e58e}{uBarInstX}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00167\ \ \ \ \ PetscReal\ \ \ \ **\mbox{\hyperlink{structabl___a394cb2b5be9118a738fc99dec706068e}{tBarInstX}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00168\ \ \ \ \ PetscInt\ \ \ \ \ **\mbox{\hyperlink{structabl___a7253b6009191c2202b7cf2ef790dc763}{nProcsKLine}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00169\ }
+\DoxyCodeLine{00170\ \ \ \ \ \textcolor{comment}{//\ side\ force\ for\ fringe\ region\ testing}}
+\DoxyCodeLine{00171\ \ \ \ \ PetscReal\ \ \ \ xStartCanopy,\ \mbox{\hyperlink{structabl___a52d6bca0eb34ea89f87715cb5fdaa4f4}{xEndCanopy}};\ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00172\ \ \ \ \ PetscReal\ \ \ \ yStartCanopy,\ \mbox{\hyperlink{structabl___a330eb865dd6ddedd5bd30ebcf2b2b94c}{yEndCanopy}};\ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00173\ \ \ \ \ PetscReal\ \ \ \ zStartCanopy,\ \mbox{\hyperlink{structabl___a2d6b70f8f3c140b4f9db9298003ebb03}{zEndCanopy}};\ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00174\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structabl___aa67b80c539a9f375a8dc7c92cf74c699}{cftCanopy}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00175\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \mbox{\hyperlink{structabl___afcdef8218ba1528eeb581a50038170d8}{diskDirCanopy}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00176\ }
+\DoxyCodeLine{00177\ \ \ \ \ \textcolor{comment}{//\ turbulent\ flow\ initialization}}
+\DoxyCodeLine{00178\ \ \ \ \ PetscReal\ \ \ \ zPeak;}
+\DoxyCodeLine{00179\ \ \ \ \ PetscReal\ \ \ \ deltaV;}
+\DoxyCodeLine{00180\ \ \ \ \ PetscReal\ \ \ \ deltaU;}
+\DoxyCodeLine{00181\ \ \ \ \ PetscReal\ \ \ \ Uperiods;}
+\DoxyCodeLine{00182\ \ \ \ \ PetscReal\ \ \ \ Vperiods;}
+\DoxyCodeLine{00183\ }
+\DoxyCodeLine{00184\ \ \ \ \ \textcolor{comment}{//\ mesoscale\ input\ parameters}}
+\DoxyCodeLine{00185\ \ \ \ \ PetscReal\ \ \ \ *timeV;}
+\DoxyCodeLine{00186\ \ \ \ \ PetscReal\ \ \ \ *hV;}
+\DoxyCodeLine{00187\ \ \ \ \ PetscReal\ \ \ \ *timeT;}
+\DoxyCodeLine{00188\ \ \ \ \ PetscReal\ \ \ \ *hT;}
+\DoxyCodeLine{00189\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ **uMeso;}
+\DoxyCodeLine{00190\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ *uGeoPrev;}
+\DoxyCodeLine{00191\ \ \ \ \ PetscReal\ \ \ \ **tMeso;}
+\DoxyCodeLine{00192\ }
+\DoxyCodeLine{00193\ \ \ \ \ PetscInt\ \ \ \ \ numhV;}
+\DoxyCodeLine{00194\ \ \ \ \ PetscInt\ \ \ \ \ numhT;}
+\DoxyCodeLine{00195\ \ \ \ \ PetscInt\ \ \ \ \ numtV;}
+\DoxyCodeLine{00196\ \ \ \ \ PetscInt\ \ \ \ \ numtT;}
+\DoxyCodeLine{00197\ }
+\DoxyCodeLine{00198\ \ \ \ \ PetscInt\ \ \ \ \ **velInterpIdx;}
+\DoxyCodeLine{00199\ \ \ \ \ PetscReal\ \ \ \ **velInterpWts;}
+\DoxyCodeLine{00200\ }
+\DoxyCodeLine{00201\ \ \ \ \ PetscInt\ \ \ \ \ **tempInterpIdx;}
+\DoxyCodeLine{00202\ \ \ \ \ PetscReal\ \ \ \ **tempInterpWts;}
+\DoxyCodeLine{00203\ }
+\DoxyCodeLine{00204\ \ \ \ \ PetscInt\ \ \ \ \ lowestIndV;}
+\DoxyCodeLine{00205\ \ \ \ \ PetscInt\ \ \ \ \ lowestIndT;}
+\DoxyCodeLine{00206\ \ \ \ \ PetscInt\ \ \ \ \ highestIndV;}
+\DoxyCodeLine{00207\ \ \ \ \ PetscInt\ \ \ \ \ highestIndT;}
+\DoxyCodeLine{00208\ \ \ \ \ PetscInt\ \ \ \ \ lMesoIndV;}
+\DoxyCodeLine{00209\ \ \ \ \ PetscInt\ \ \ \ \ hMesoIndV;}
+\DoxyCodeLine{00210\ \ \ \ \ PetscReal\ \ \ \ lowestSrcHt;}
+\DoxyCodeLine{00211\ }
+\DoxyCodeLine{00212\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ *luMean;}
+\DoxyCodeLine{00213\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ *guMean;}
+\DoxyCodeLine{00214\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ *srcPA;}
+\DoxyCodeLine{00215\ \ \ \ \ }
+\DoxyCodeLine{00216\ \ \ \ \ PetscInt\ \ \ \ \ \mbox{\hyperlink{structabl___ac8252cbce38b2bb08c7486afb1e3e02b}{closestTimeIndV}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00217\ \ \ \ \ PetscReal\ \ \ \ closestTimeWtV;}
+\DoxyCodeLine{00218\ \ \ \ \ PetscInt\ \ \ \ \ \mbox{\hyperlink{structabl___aaf7c7a5b5f45a238fd5bce4bbc21d10b}{closestTimeIndT}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00219\ \ \ \ \ PetscReal\ \ \ \ closestTimeWtT;}
+\DoxyCodeLine{00220\ \ \ \ \ }
+\DoxyCodeLine{00221\ \ \ \ \ PetscInt\ \ \ \ \ polyOrder;}
+\DoxyCodeLine{00222\ \ \ \ \ PetscInt\ \ \ \ \ polyOrderT;}
+\DoxyCodeLine{00223\ \ \ \ \ word\ \ \ \ \ \ \ \ \ wtDist;}
+\DoxyCodeLine{00224\ \ \ \ \ PetscReal\ \ \ \ **polyCoeffM;}
+\DoxyCodeLine{00225\ \ \ \ \ PetscReal\ \ \ \ **polyCoeffT;}
+\DoxyCodeLine{00226\ }
+\DoxyCodeLine{00227\ \ \ \ \ \textcolor{comment}{//averaging\ }}
+\DoxyCodeLine{00228\ \ \ \ \ PetscInt\ \ \ \ \ averageSource;}
+\DoxyCodeLine{00229\ \ \ \ \ PetscReal\ \ \ \ currAvgtime;}
+\DoxyCodeLine{00230\ \ \ \ \ PetscReal\ \ \ \ tAvgWindow;}
+\DoxyCodeLine{00231\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ *avgsrc;}
+\DoxyCodeLine{00232\ }
+\DoxyCodeLine{00233\ \ \ \ \ word\ \ \ \ \ \ \ \ \ flType;}
+\DoxyCodeLine{00234\ \ \ \ \ word\ \ \ \ \ \ \ \ \ flTypeT;}
+\DoxyCodeLine{00235\ \ \ \ \ PetscReal\ \ \ \ *avgTotalStress;}
+\DoxyCodeLine{00236\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ *avgStress;}
+\DoxyCodeLine{00237\ \ \ \ \ PetscReal\ \ \ \ *avgHeatFlux;}
+\DoxyCodeLine{00238\ \ \ \ \ PetscReal\ \ \ \ hAvgTime;}
+\DoxyCodeLine{00239\ \ \ \ \ PetscReal\ \ \ \ bottomSrcHtV;}
+\DoxyCodeLine{00240\ \ \ \ \ PetscReal\ \ \ \ bottomSrcHtT;}
+\DoxyCodeLine{00241\ }
+\DoxyCodeLine{00242\ \ \ \ \ PetscReal\ \ \ \ ablHt;}
+\DoxyCodeLine{00243\ \ \ \ \ PetscReal\ \ \ \ ablHtStartTime;}
+\DoxyCodeLine{00244\ \ \ \ \ PetscReal\ \ \ \ heatFluxSwitch;}
+\DoxyCodeLine{00245\ \ \ \ \ }
+\DoxyCodeLine{00246\ \ \ \ \ \textcolor{comment}{//continuous\ wavelet\ transform\ parameters\ }}
+\DoxyCodeLine{00247\ \ \ \ \ PetscInt\ \ \ \ \ kernelRadius;}
+\DoxyCodeLine{00248\ \ \ \ \ PetscReal\ \ \ \ sigma;\ \ }
+\DoxyCodeLine{00249\ \ \ \ \ PetscReal\ \ \ \ omega;}
+\DoxyCodeLine{00250\ }
+\DoxyCodeLine{00251\ \ \ \ \ \textcolor{comment}{//discrete\ wavelet\ transform\ parameters\ }}
+\DoxyCodeLine{00252\ \ \ \ \ word\ \ \ \ \ \ \ \ waveName;}
+\DoxyCodeLine{00253\ \ \ \ \ word\ \ \ \ \ \ \ \ waveTMethod;}
+\DoxyCodeLine{00254\ \ \ \ \ word\ \ \ \ \ \ \ \ waveExtn;}
+\DoxyCodeLine{00255\ \ \ \ \ word\ \ \ \ \ \ \ \ waveConv;}
+\DoxyCodeLine{00256\ \ \ \ \ PetscInt\ \ \ \ waveLevel;}
+\DoxyCodeLine{00257\ \ \ \ \ PetscInt\ \ \ \ waveletBlend;}
+\DoxyCodeLine{00258\ }
+\DoxyCodeLine{00259\ \ \ \ \ \textcolor{comment}{//\ concurrent\ precursor}}
+\DoxyCodeLine{00260\ \ \ \ \ \mbox{\hyperlink{structprecursor__}{precursor\_}}\ \ \ \ *\mbox{\hyperlink{structabl___a41dede04c91239d3a70f49856316df51}{precursor}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00261\ }
+\DoxyCodeLine{00262\ \ \ \ \ \textcolor{comment}{//\ access\ database}}
+\DoxyCodeLine{00263\ \ \ \ \ \mbox{\hyperlink{structaccess__}{access\_}}\ \ \ \ \ \ \ *access;}
+\DoxyCodeLine{00264\ \};}
+\DoxyCodeLine{00265\ }
+\DoxyCodeLine{00266\ \textcolor{preprocessor}{\#endif}}
+\DoxyCodeLine{00267\ }
+\DoxyCodeLine{00269\ PetscErrorCode\ \mbox{\hyperlink{abl_8h_a789201b933463a26cd1cc015d801fa5a}{InitializeABL}}(\mbox{\hyperlink{structabl__}{abl\_}}\ *abl);}
+\DoxyCodeLine{00270\ }
+\DoxyCodeLine{00272\ PetscReal\ \mbox{\hyperlink{abl_8h_a8937d622b80a3052edf761076cfb982a}{NieuwstadtGeostrophicWind}}(\mbox{\hyperlink{structabl__}{abl\_}}\ *abl);}
+\DoxyCodeLine{00273\ }
+\DoxyCodeLine{00275\ PetscErrorCode\ \mbox{\hyperlink{abl_8h_abd2f60e7625d91bae4ae4820a3f86069}{readMesoScaleTemperatureData}}(\mbox{\hyperlink{structabl__}{abl\_}}\ *abl);}
+\DoxyCodeLine{00276\ }
+\DoxyCodeLine{00277\ PetscErrorCode\ readMesoScaleVelocityData(\mbox{\hyperlink{structabl__}{abl\_}}\ *abl);}
+\DoxyCodeLine{00278\ }
+\DoxyCodeLine{00279\ PetscErrorCode\ findVelocityInterpolationWeights(\mbox{\hyperlink{structabl__}{abl\_}}\ *abl);}
+\DoxyCodeLine{00280\ }
+\DoxyCodeLine{00281\ PetscErrorCode\ findVelocityInterpolationWeightsOnePt(\mbox{\hyperlink{structabl__}{abl\_}}\ *abl);}
+\DoxyCodeLine{00282\ }
+\DoxyCodeLine{00283\ PetscErrorCode\ findTemperatureInterpolationWeights(\mbox{\hyperlink{structabl__}{abl\_}}\ *abl);}
+\DoxyCodeLine{00284\ }
+\DoxyCodeLine{00285\ PetscErrorCode\ initializeYDampingMapping(\mbox{\hyperlink{structabl__}{abl\_}}\ *abl);}
+\DoxyCodeLine{00286\ }
+\DoxyCodeLine{00287\ PetscErrorCode\ setWeightsYDamping(\mbox{\hyperlink{structabl__}{abl\_}}\ *abl);}
+\DoxyCodeLine{00288\ }
+\DoxyCodeLine{00289\ PetscErrorCode\ computeLSqPolynomialCoefficientMatrix(\mbox{\hyperlink{structabl__}{abl\_}}\ *abl);}
+\DoxyCodeLine{00290\ }
+\DoxyCodeLine{00291\ PetscErrorCode\ computeLSqPolynomialCoefficientMatrixT(\mbox{\hyperlink{structabl__}{abl\_}}\ *abl);}
+\DoxyCodeLine{00292\ }
+\DoxyCodeLine{00293\ PetscErrorCode\ findTimeHeightSeriesInterpolationWts(\mbox{\hyperlink{structabl__}{abl\_}}\ *abl);}
+\DoxyCodeLine{00294\ }
+\DoxyCodeLine{00295\ PetscErrorCode\ findTimeHeightSeriesInterpolationWtsT(\mbox{\hyperlink{structabl__}{abl\_}}\ *abl);}
+\DoxyCodeLine{00296\ }
+\DoxyCodeLine{00297\ PetscErrorCode\ findABLHeight(\mbox{\hyperlink{structabl__}{abl\_}}\ *abl);}
+\DoxyCodeLine{00298\ }
+\DoxyCodeLine{00299\ PetscErrorCode\ waveletTransformContinuousVector(\mbox{\hyperlink{structabl__}{abl\_}}\ *abl,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ *srcPAIn,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ *srcPAOut,\ PetscInt\ sigLength);}
+\DoxyCodeLine{00300\ }
+\DoxyCodeLine{00301\ PetscErrorCode\ waveletTransformContinuousScalar(\mbox{\hyperlink{structabl__}{abl\_}}\ *abl,\ PetscReal\ *srcPAIn,\ PetscReal\ *srcPAOut,\ PetscInt\ sigLength);}
+\DoxyCodeLine{00302\ }
+\DoxyCodeLine{00303\ \textcolor{preprocessor}{\#if\ USE\_PYTHON}}
+\DoxyCodeLine{00304\ \textcolor{preprocessor}{\ \ \ \ \#ifdef\ \_\_cplusplus}}
+\DoxyCodeLine{00305\ \ \ \ \ \textcolor{keyword}{extern}\ \textcolor{stringliteral}{"{}C"{}}\ \{}
+\DoxyCodeLine{00306\ \textcolor{preprocessor}{\ \ \ \ \#endif}}
+\DoxyCodeLine{00307\ \ \ \ \ \ \ \ \ PetscErrorCode\ pywavedecVector(\mbox{\hyperlink{structabl__}{abl\_}}\ *abl,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ *src,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ *dest,\ PetscInt\ nlevels);}
+\DoxyCodeLine{00308\ \ \ \ \ \ \ \ \ PetscErrorCode\ pywavedecScalar(\mbox{\hyperlink{structabl__}{abl\_}}\ *abl,\ PetscReal\ *srcPAIn,\ PetscReal\ *srcPAOut,\ PetscInt\ sigLength);}
+\DoxyCodeLine{00309\ \textcolor{preprocessor}{\ \ \ \ \#ifdef\ \_\_cplusplus}}
+\DoxyCodeLine{00310\ \ \ \ \ \}}
+\DoxyCodeLine{00311\ \textcolor{preprocessor}{\ \ \ \ \#endif}}
+\DoxyCodeLine{00312\ \textcolor{preprocessor}{\#endif}}
+
+\end{DoxyCode}
