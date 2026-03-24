@@ -21,8 +21,8 @@
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Turbine Models" href="turbine_models.html" />
-    <link rel="prev" title="Controllers" href="flow_controllers.html" /> 
+    <link rel="next" title="Immersed Boundary Method" href="ibm.html" />
+    <link rel="prev" title="Flow Controllers and Mesoscale Coupling" href="flow_controllers.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -53,16 +53,18 @@
 <li class="toctree-l1 current"><a class="reference internal" href="../tosca_theory_guide.html">Theory Guide</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="governing_equations.html">Governing Equations</a></li>
 <li class="toctree-l2"><a class="reference internal" href="numerics.html">Numerical Method</a></li>
+<li class="toctree-l2"><a class="reference internal" href="time_integration.html">Time Integration Schemes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="advection_schemes.html">Advection Schemes</a></li>
 <li class="toctree-l2"><a class="reference internal" href="parallel_efficiency.html">Parallel Efficiency</a></li>
-<li class="toctree-l2"><a class="reference internal" href="turbulence_models.html">Sub-grid Scale Model</a></li>
-<li class="toctree-l2"><a class="reference internal" href="flow_controllers.html">Controllers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="turbulence_models.html">Sub-grid Scale Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="flow_controllers.html">Flow Controllers and Mesoscale Coupling</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Precursor, Fringe Regions &amp; Damping Layers</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#background">Background</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#hybrid-off-line-concurrent-precursor">Hybrid Off-line / Concurrent Precursor</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#fringe-region">Fringe Region</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#rayleigh-damping-and-advection-damping">Rayleigh Damping and Advection Damping</a></li>
 </ul>
 </li>
+<li class="toctree-l2"><a class="reference internal" href="ibm.html">Immersed Boundary Method</a></li>
 <li class="toctree-l2"><a class="reference internal" href="turbine_models.html">Turbine Models</a></li>
 </ul>
 </li>
@@ -96,36 +98,57 @@
              
   <section id="precursor-fringe-regions-damping-layers">
 <span id="precursor-section"></span><h1>Precursor, Fringe Regions &amp; Damping Layers<a class="headerlink" href="#precursor-fringe-regions-damping-layers" title="Link to this heading"></a></h1>
-<section id="background">
-<h2>Background<a class="headerlink" href="#background" title="Link to this heading"></a></h2>
-<p>Wind turbine wake recovery and power production are strongly influenced by background atmospheric turbulence. To prescribe a physical turbulent inflow for wind farm simulations, TOSCA supports a hybrid off-line/concurrent precursor methodology that combines the computational efficiency of off-line techniques with the wave-reflection suppression of the concurrent approach.</p>
-<p>In the classic <em>precursor–successor</em> method, a simulation of the ABL without turbines is advanced until turbulence reaches a statistically steady state. Velocity and temperature are then saved on inlet planes at each time step, forming an inflow database that is replayed in the successor simulation. This approach works well for isolated turbine studies without thermal stratification, but it does not prevent atmospheric gravity waves from reflecting off inlet and outlet boundaries.</p>
-<p>When thermal stratification is present, gravity waves propagate above and through the capping inversion. A carefully designed simulation must prevent these waves from being reflected by the domain boundaries. This requirement, combined with the need for a time-resolved turbulent inflow, motivates the concurrent-precursor approach, in which a companion domain (the precursor) is advanced in sync with the successor. Damping forces in a fringe region restore the desired inflow at each time step, simultaneously absorbing outgoing waves emanating from the wind farm.</p>
-</section>
+<p>Wind turbine wake recovery and power production are strongly influenced by background atmospheric turbulence. To prescribe a physical turbulent inflow for wind
+farm simulations, TOSCA supports a hybrid off-line/concurrent precursor methodology that combines the reduced compute cost of off-line (inflow-outflow) precursor
+techniques with the capability of the concurrent approach to suppress gravity wave-reflections.</p>
+<p>In the classic off-line <em>precursor–successor</em> method, a simulation of the ABL without turbines is advanced until turbulence reaches a statistically steady state. Velocity
+and temperature are then saved on inflow planes at each time step, forming an inflow database that is replayed in the successor simulation. This approach works well
+for isolated turbine studies without thermal stratification. However, in the case of gravity waves triggered by terrain features or wind farms, inflow-outflow
+boundary conditions do not prevent atmospheric gravity waves from reflecting at the non-periodic domain boundaries.</p>
+<p>When these gravity waves are present, a carefully-designed simulation must prevent them
+from being reflected by the domain boundaries. This requirement, combined with the need for a time-resolved turbulent inflow, motivates the concurrent-precursor
+approach, in which a companion domain (the concurrent precursor) is advanced in sync with the successor. In this case, damping forces in a fringe region restore
+the desired inflow at each time step, simultaneously absorbing outgoing waves emanating from the wind farm. Optionally, advection damping can be also applied
+so that spurious waves are not advected into the physical domain, interacting with the physical waves.</p>
 <section id="hybrid-off-line-concurrent-precursor">
 <h2>Hybrid Off-line / Concurrent Precursor<a class="headerlink" href="#hybrid-off-line-concurrent-precursor" title="Link to this heading"></a></h2>
 <p>TOSCA exploits the flexibility of the finite-volume formulation by combining the two techniques in a three-phase procedure:</p>
-<ol class="arabic simple">
-<li><p><strong>Off-line precursor phase.</strong> The ABL is spun up to a statistically steady state on a small <em>off-line precursor domain</em> whose only constraint is that the successor’s spanwise extent is an integer multiple of the off-line domain’s spanwise width. This phase can use an arbitrarily small domain dictated by the current flow physics rather than the eventual successor domain size (which is set by gravity wave physics). When turbulence is statistically steady, velocity and temperature planes are saved to an inflow database.</p></li>
-<li><p><strong>Concurrent-precursor spin-up.</strong> The concurrent-precursor and successor simulations are launched together, using inflow-outflow boundary conditions in the former for one flow-through time. The off-line inflow data is periodized in the spanwise direction and extrapolated in the vertical direction to fill the concurrent-precursor inlet. To ensure that no periodic content from the off-line phase corrupts the flow above the inversion layer (where the geostrophic wind must be truly steady), the off-line precursor data at the uppermost cells is blended with a time-averaged state using hyperbolic weighting functions before injection.</p></li>
-<li><p><strong>Fully periodic concurrent-precursor.</strong> After the turbulent inflow has reached the outlet (one flow-through time), the concurrent-precursor streamwise boundary conditions are switched to periodic. From this point the precursor is self-sustained; both domains are advanced simultaneously for one successor flow-through time to develop wind-farm-induced gravity waves and turbine wakes.</p></li>
-</ol>
+<p>1. Off-line precursor phase: the ABL is spun up to a statistically steady state on a small off-line precursor domain whose only constraint is that the
+successor’s spanwise extent is an integer multiple of the off-line domain’s spanwise width. This phase can use an arbitrarily small domain dictated by the current
+flow physics rather than the eventual successor domain size (which is set by gravity wave physics). When turbulence is statistically steady, velocity and temperature
+planes are saved to an inflow database.</p>
+<p>2. Concurrent-precursor spin-up: the concurrent-precursor and successor simulations are launched together, using inflow-outflow boundary conditions in the
+concurrent-precursor for one flow-through time. The off-line inflow data is periodized in the spanwise direction and extrapolated in the vertical direction to
+fill the concurrent-precursor inlet. To ensure that no periodic content from the off-line phase corrupts the flow above the inversion layer (where the
+geostrophic wind must be truly steady), the off-line precursor data at the uppermost cells is blended with a time-averaged state using hyperbolic weighting
+functions before injection.</p>
+<p>3. Fully periodic concurrent-precursor: after the turbulent inflow has reached the outlet (one flow-through time), the concurrent-precursor streamwise boundary
+conditions are switched to periodic. From this point the precursor is self-sustained; both domains are advanced simultaneously for one successor flow-through time
+to develop wind-farm-induced gravity waves and turbine wakes.</p>
 </section>
 <section id="fringe-region">
 <h2>Fringe Region<a class="headerlink" href="#fringe-region" title="Link to this heading"></a></h2>
-<p>The successor domain uses streamwise periodic boundary conditions to avoid inlet/outlet wave reflections. A fringe (sponge) region at the downwind end of the domain damps turbine wake and wave perturbations and restores the flow to the concurrent-precursor inflow target, preventing wakes from re-entering the domain. Body forces in the fringe region are computed at each time step from the concurrent-precursor instantaneous velocity and temperature fields.</p>
+<p>The successor domain uses streamwise periodic boundary conditions to avoid inlet/outlet wave reflections. A fringe (sponge) region at the upwind start of the domain
+damps turbine wake and wave perturbations and restores the flow to the concurrent-precursor inflow target, preventing wakes from re-entering the domain. Body forces
+in the fringe region are computed at each time step from the concurrent-precursor instantaneous velocity and temperature fields.</p>
 <figure class="align-center" id="id1">
 <a class="reference internal image-reference" href="../_images/fringe-region-schematic.jpg"><img alt="../_images/fringe-region-schematic.jpg" src="../_images/fringe-region-schematic.jpg" style="width: 90%;" />
 </a>
 <figcaption>
-<p><span class="caption-text">Schematic of the fringe-region layout in the hybrid off-line/concurrent precursor framework. The successor domain (right) uses periodic streamwise boundary conditions; the fringe zone (shaded) at the downstream end restores the flow to the concurrent-precursor target and absorbs turbine-wake and gravity-wave perturbations.</span><a class="headerlink" href="#id1" title="Link to this image"></a></p>
+<p><span class="caption-text">Schematic of the fringe-region layout in the hybrid off-line/concurrent precursor framework. The successor domain (right) uses periodic streamwise boundary
+conditions, the fringe zone (shaded) at the downstream end restores the flow to the concurrent-precursor target and absorbs turbine-wake and gravity-wave
+perturbations.</span><a class="headerlink" href="#id1" title="Link to this image"></a></p>
 </figcaption>
 </figure>
 </section>
 <section id="rayleigh-damping-and-advection-damping">
 <h2>Rayleigh Damping and Advection Damping<a class="headerlink" href="#rayleigh-damping-and-advection-damping" title="Link to this heading"></a></h2>
-<p>To suppress wave reflections from the upper boundary, a Rayleigh damping layer is applied in the upper portion of the domain. The dominant vertical wavelength of atmospheric gravity waves is estimated as <span class="math notranslate nohighlight">\(\lambda_z = 2\pi G/N\)</span>, where <span class="math notranslate nohighlight">\(G\)</span> is the geostrophic wind speed and <span class="math notranslate nohighlight">\(N\)</span> is the Brunt–Väisälä frequency. The Rayleigh damping layer is designed to contain at least one full vertical wavelength.</p>
-<p>For subcritical capping-inversion Froude numbers (<span class="math notranslate nohighlight">\(Fr &lt; 1\)</span>), where interfacial waves can propagate against the flow and interact with fringe-generated disturbances, the advection-damping technique of Lanzilao and Meyers (2022) is applied in a region downstream of the fringe exit. This technique suppresses the horizontal advection of vertical velocity fluctuations in the damping region, preventing spurious wave interactions from being advected into the physical domain.————————————-</p>
+<p>To suppress wave reflections from the upper boundary, a Rayleigh damping layer is applied in the upper portion of the domain. The dominant vertical wavelength of
+atmospheric gravity waves is estimated as <span class="math notranslate nohighlight">\(\lambda_z = 2\pi G/N\)</span>, where <span class="math notranslate nohighlight">\(G\)</span> is the geostrophic wind speed and <span class="math notranslate nohighlight">\(N\)</span> is the Brunt–Väisälä frequency.
+The Rayleigh damping layer should be designed to contain at least one full vertical wavelength.</p>
+<p>For subcritical capping-inversion Froude numbers (<span class="math notranslate nohighlight">\(Fr &lt; 1\)</span>), where interfacial waves can propagate against the flow and interact with fringe-generated disturbances,
+the advection-damping technique of Lanzilao and Meyers (2022) is applied in a region downstream of the fringe exit. This technique suppresses the horizontal advection
+of vertical velocity fluctuations in the damping region, preventing spurious wave interactions from being advected into the physical domain.</p>
 </section>
 </section>
 
@@ -133,8 +156,8 @@
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="flow_controllers.html" class="btn btn-neutral float-left" title="Controllers" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="turbine_models.html" class="btn btn-neutral float-right" title="Turbine Models" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="flow_controllers.html" class="btn btn-neutral float-left" title="Flow Controllers and Mesoscale Coupling" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="ibm.html" class="btn btn-neutral float-right" title="Immersed Boundary Method" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

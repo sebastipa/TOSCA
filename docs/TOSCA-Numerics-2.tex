@@ -1,0 +1,2799 @@
+%% TOSCA_Ueqn_Solvers.tex
+%% Comprehensive documentation of the momentum equation solvers
+%% implemented in TOSCA (src/ueqn.c, src/include/ueqn.h).
+%%
+%% Compile with:  pdflatex TOSCA_Ueqn_Solvers.tex  (twice for references)
+%%
+
+\documentclass[12pt,a4paper]{article}
+
+% ── Packages ──────────────────────────────────────────────────────────────────
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{amsmath,amssymb,bm}
+\usepackage{mathtools}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{hyperref}
+\usepackage{caption}
+\usepackage{graphicx}
+\usepackage{enumitem}
+\usepackage{tcolorbox}
+\usepackage{parskip}
+
+% ── Colours ───────────────────────────────────────────────────────────────────
+\definecolor{tosca-blue}{RGB}{0,84,166}
+\definecolor{tosca-grey}{RGB}{90,90,90}
+\definecolor{code-bg}{RGB}{248,248,248}
+\definecolor{code-kw}{RGB}{0,0,200}
+\definecolor{code-cm}{RGB}{0,130,0}
+\definecolor{warn-bg}{RGB}{255,248,220}
+\definecolor{warn-border}{RGB}{200,160,0}
+\definecolor{info-bg}{RGB}{230,244,255}
+\definecolor{info-border}{RGB}{0,100,180}
+
+% ── Listings style ────────────────────────────────────────────────────────────
+\lstdefinestyle{cstyle}{
+	language=C,
+	backgroundcolor=\color{code-bg},
+	basicstyle=\ttfamily\small,
+	keywordstyle=\color{code-kw}\bfseries,
+	commentstyle=\color{code-cm}\itshape,
+	stringstyle=\color{red!60!black},
+	frame=single,
+	framerule=0.4pt,
+	rulecolor=\color{tosca-grey!40},
+	breaklines=true,
+	numbers=left,
+	numberstyle=\tiny\color{tosca-grey},
+	numbersep=8pt,
+	tabsize=4,
+	showstringspaces=false,
+	morekeywords={PetscErrorCode,PetscReal,PetscInt,PetscBool,Vec,SNES,KSP,PC,
+		Mat,DM,DMDALocalInfo,MPI_Comm,word,Cmpnts,
+		PETSC_TRUE,PETSC_FALSE,PETSC_NULL,PETSC_DEFAULT}
+}
+\lstset{style=cstyle}
+
+% ── tcolorbox presets ─────────────────────────────────────────────────────────
+\tcbuselibrary{breakable}
+\newtcolorbox{notebox}[1][]{
+	colback=info-bg, colframe=info-border,
+	fonttitle=\bfseries, title=#1,
+	breakable, left=6pt, right=6pt}
+\newtcolorbox{warnbox}[1][]{
+	colback=warn-bg, colframe=warn-border,
+	fonttitle=\bfseries, title=#1,
+	breakable, left=6pt, right=6pt}
+
+% ── Math macros ───────────────────────────────────────────────────────────────
+\newcommand{\bU}{\bm{U}}
+\newcommand{\bu}{\bm{u}}
+\newcommand{\bn}{\bm{n}}
+\newcommand{\bxi}{\bm{\xi}}
+\newcommand{\bfp}{\bm{f}_p}
+\newcommand{\cN}{\mathcal{N}}
+\newcommand{\cL}{\mathcal{L}}
+\newcommand{\cP}{\mathcal{P}}
+\newcommand{\cS}{\mathcal{S}}
+\newcommand{\dt}{\Delta t}
+\newcommand{\half}{\tfrac{1}{2}}
+\newcommand{\ddt}[1]{\dfrac{\partial #1}{\partial t}}
+\newcommand{\ddx}[2]{\dfrac{\partial #1}{\partial #2}}
+\newcommand{\doi}[1]{\href{https://doi.org/#1}{\texttt{doi:#1}}}
+
+% ── Hyperref ──────────────────────────────────────────────────────────────────
+\hypersetup{
+	colorlinks=true,
+	linkcolor=tosca-blue,
+	urlcolor=tosca-blue,
+	citecolor=tosca-blue,
+	pdftitle={TOSCA U-equation Solvers},
+	pdfauthor={TOSCA development notes}
+}
+
+% ──────────────────────────────────────────────────────────────────────────────
+\begin{document}
+	
+	\begin{titlepage}
+		\centering
+		\vspace*{2cm}
+		{\LARGE\bfseries\color{tosca-blue} TOSCA Momentum Equation ---\\[0.4em]
+			Solvers, Discretisation, and Implementation}\\[1.5em]
+		{\large Development notes for \texttt{src/ueqn.c} and \texttt{src/include/ueqn.h}}\\[3em]
+		\hrule height 1pt
+		\vspace{1em}
+		{\large March 2026}\\[0.5em]
+		{\normalsize Covers all \texttt{ddtScheme} options:\\
+			\texttt{crankNicholson} $\cdot$ \texttt{forwardEuler} $\cdot$
+			\texttt{rungeKutta4} $\cdot$ \texttt{IMEX}}
+		\vspace{1em}
+		\hrule height 1pt
+		\vfill
+		{\small This document serves as a self-contained reference for the
+			PETSc-based momentum solver in TOSCA, including all recent
+			optimisations (loop fusion, KSP selector, IMEX-CNAB scheme).}
+	\end{titlepage}
+	
+	\tableofcontents
+	\clearpage
+	
+	% ==============================================================================
+	\section{Overview of TOSCA}
+	% ==============================================================================
+	
+	TOSCA is a curvilinear, incompressible Navier--Stokes solver built on PETSc.
+	It uses a \emph{staggered} arrangement of contravariant fluxes on a
+	body-fitted structured mesh. The governing equations are solved on a
+	computational domain $\hat\Omega$ obtained by the diffeomorphism
+	$\bm{x}(i,j,k)$, where $(i,j,k)$ are the curvilinear indices.
+	
+	The primary velocity unknown is the \emph{contravariant flux}
+	\begin{equation}
+		U_\alpha = J^{-1}\, g^{\alpha\beta}\, u_\beta / J
+		\qquad \alpha = 1,2,3
+	\end{equation}
+	stored in \texttt{ueqn->Ucont}.
+	The auxiliary Cartesian velocity \texttt{ueqn->Ucat}
+	is reconstructed via \texttt{contravariantToCartesian} and
+	is used for viscous stress and Coriolis evaluations.
+	
+	% ==============================================================================
+	\section{Governing Equations}
+	% ==============================================================================
+	
+	\subsection{Incompressible Navier--Stokes in Contravariant Form}
+	
+	The incompressible momentum equation in strong conservation form reads
+	\begin{equation}
+		\ddt{\bu} + \nabla\cdot(\bu\otimes\bu)
+		= -\nabla p + \nabla\cdot(2\nu_\text{eff}\,\mathbf{S})
+		+ \bm{f}
+		\label{eq:NS}
+	\end{equation}
+	where $\nu_\text{eff} = \nu + \nu_t$ is the sum of molecular and SGS
+	viscosity (LES), $\mathbf{S}=\tfrac{1}{2}(\nabla\bu+\nabla\bu^\top)$
+	is the strain-rate tensor, and $\bm{f}$ collects body forces
+	(Coriolis, buoyancy, canopy drag, ABL driving source, wind-farm
+	actuator).
+	
+	After projection onto the curvilinear face-area vectors the momentum
+	equation is cast in semi-discrete form as
+	\begin{equation}
+		\boxed{
+			\ddt{U} = \underbrace{-\cP(U)}_{\text{pressure}}
+			+ \underbrace{\cN(U)}_{\text{convection}}
+			+ \underbrace{\cL(U)}_{\text{viscous}}
+			+ \underbrace{\cS}_{\text{sources}}
+		}
+		\label{eq:semidiscrete}
+	\end{equation}
+	where each operator is a vector of size $N_\text{dof}=3\,N_x N_y N_z$.
+	
+	\begin{notebox}[Sign convention]
+		The convective operator $\cN(U)$ and viscous operator $\cL(U)$
+		are defined to appear on the right-hand side with a positive sign.
+		The divergence contribution in \texttt{FormU} is stored as
+		$-\nabla\cdot(\bu\,U)$, so a positive contribution to the RHS
+		corresponds to acceleration.
+	\end{notebox}
+	
+	\subsection{Source Terms}
+	
+	\begin{center}
+		\begin{tabular}{lll}
+			\toprule
+			Term & Symbol & Activation flag \\
+			\midrule
+			Pressure gradient & $\cP = \nabla p$ & always active \\
+			Coriolis & $\bm{f}_\text{c} = -2\bm{\Omega}\times\bu$ & \texttt{isAblActive}, \texttt{coriolisActive} \\
+			Buoyancy & $\bm{f}_\theta = g\,\theta'/\theta_0\,\hat{\bm{e}}_z$ & \texttt{isTeqnActive} \\
+			Canopy drag & $\bm{f}_y = -C_{ft}|\bu|^2/(2H_c)\,\hat{\bm{d}}$ & \texttt{isCanopyActive} \\
+			ABL driving & $\bm{f}_s$ (PI controller) & \texttt{controllerActive} \\
+			Wind-farm & \texttt{sourceFarmCont} & \texttt{isWindFarmActive} \\
+			Sponge/Rayleigh & \texttt{dampingSourceU} & various damping flags \\
+			\bottomrule
+		\end{tabular}
+	\end{center}
+	
+	% ==============================================================================
+	\section{\texttt{FormU}: the Core Assembly Routine}
+	% ==============================================================================
+	
+	\texttt{FormU} is the workhorse that evaluates the convective and
+	viscous contributions to the momentum RHS. Its signature is:
+	
+	\begin{lstlisting}
+		PetscErrorCode FormU(
+		ueqn_    *ueqn,
+		Vec      &Rhs,            // output RHS vector (accumulated)
+		PetscReal scale,          // weight applied to all contributions
+		PetscInt  formMode = 0);  // 0=full, 1=conv-only, 2=visc-only
+	\end{lstlisting}
+	
+	\subsection{Internal Algorithm}
+	
+	\textbf{Step 1 -- Divergence and viscous local arrays.}
+	The function zeroes the local arrays
+	\texttt{lDiv1/2/3} and \texttt{lVisc1/2/3} and populates them in a
+	single fused loop over all interior cell faces
+	(i, j, k directions computed in one pass):
+	\begin{itemize}
+		\item \emph{Divergence} (\texttt{formMode $\neq$ 2}):
+		upwind or central interpolation of Cartesian velocity
+		$\bu$ to each face, multiplied by the face-normal contravariant
+		flux (flux limiter optionally applied).
+		Available schemes: \texttt{centralUpwind}, \texttt{centralUpwindW},
+		\texttt{central}, \texttt{central4}, \texttt{weno3},
+		\texttt{quickDiv}.
+		\item \emph{Viscous stress} (\texttt{formMode $\neq$ 1}):
+		velocity gradients computed via curvilinear chain rule and
+		projected onto the face metric tensor $g^{\alpha\beta}$;
+		includes the SGS contribution $\nu_t$ when LES is active.
+	\end{itemize}
+	
+	\textbf{Step 2 -- Halo exchange.}
+	\texttt{DMLocalToLocal} scatters the populated local arrays to ghost
+	cells so that the subsequent divergence stencil can access them.
+	
+	\textbf{Step 3 -- Cell-centred flux assembly.}
+	A second loop assembles the face contributions into the cell-centred
+	field \texttt{lFp}:
+	\begin{equation}
+		f_{p,i} = \sum_{\alpha=1}^{3}
+		\Bigl[\texttt{div}_\alpha[k][j][i] - \texttt{div}_\alpha[k-\delta_z][j-\delta_y][i-\delta_x]\Bigr]
+		+ [\text{viscous analogously}]
+	\end{equation}
+	Boundary ghost-cell corrections (no-slip, symmetry) are applied here.
+	
+	\textbf{Step 4 -- Projection loop.}
+	Each cell-centred flux $f_p$ is projected onto the three face-area
+	vectors to obtain the contravariant contribution to \texttt{Rhs}:
+	\begin{align}
+		\texttt{rhs}[k][j][i].x &\mathrel{+}=
+		\texttt{scale} \cdot \texttt{iaj}[k][j][i]
+		\cdot \frac{1}{2}\bigl[
+		(\bm{\xi}_{i}\cdot \bm{f}_p)[k][j][i]
+		+ (\bm{\xi}_{i}\cdot \bm{f}_p)[k][j][i{+}1]
+		\bigr] \\
+		\texttt{rhs}[k][j][i].y &\mathrel{+}=
+		\texttt{scale} \cdot \texttt{jaj}[k][j][i]
+		\cdot \frac{1}{2}\bigl[
+		(\bm{\eta}_{j}\cdot \bm{f}_p)[k][j][i]
+		+ (\bm{\eta}_{j}\cdot \bm{f}_p)[k][j{+}1][i]
+		\bigr] \\
+		\texttt{rhs}[k][j][i].z &\mathrel{+}=
+		\texttt{scale} \cdot \texttt{kaj}[k][j][i]
+		\cdot \frac{1}{2}\bigl[
+		(\bm{\zeta}_{k}\cdot \bm{f}_p)[k][j][i]
+		+ (\bm{\zeta}_{k}\cdot \bm{f}_p)[k{+}1][j][i]
+		\bigr]
+	\end{align}
+	
+	\subsection{\texttt{formMode} Parameter}
+	
+	\begin{center}
+		\begin{tabular}{cll}
+			\toprule
+			\texttt{formMode} & Included physics & Use case \\
+			\midrule
+			0 (default) & convection + viscosity & all legacy callers, explicit schemes \\
+			1 & convection only & IMEX: compute $\cN^n$ explicitly \\
+			2 & viscosity only  & IMEX: evaluate $\cL(U^{n+1})$ implicitly \\
+			\bottomrule
+		\end{tabular}
+	\end{center}
+	
+	\begin{notebox}[Default argument]
+		The C++ default argument \texttt{formMode = 0} ensures that all
+		existing calls (\texttt{FormExplicitRhsU}, \texttt{main.c},
+		\texttt{precursor.c}) continue to work without modification.
+	\end{notebox}
+	
+	% ==============================================================================
+	\section{Time-Stepping Schemes}
+	% ==============================================================================
+	
+	TOSCA supports four time-stepping schemes selected via
+	\texttt{-dUdtScheme} in \texttt{control.dat}. All schemes operate on
+	the contravariant flux vector $U = $\texttt{Ucont}.
+	
+	% ------------------------------------------------------------------------------
+	\subsection{Forward Euler (\texttt{forwardEuler})}
+	% ------------------------------------------------------------------------------
+	
+	\paragraph{Method.}
+	First-order explicit (Euler forward):
+	\begin{equation}
+		U^{n+1} = U^n + \dt\,\mathcal{F}(U^n)
+	\end{equation}
+	where $\mathcal{F} = \cN + \cL + \cS - \cP$ is the full RHS.
+	
+	\paragraph{Implementation (\texttt{UeqnEuler}).}
+	\begin{enumerate}
+		\item \texttt{FormExplicitRhsU} evaluates $\mathcal{F}(U^n)$ into \texttt{Rhs}.
+		\item \texttt{VecScale(Rhs, dt)}, then \texttt{VecAXPY(Rhs, 1, Ucont)}.
+		\item Solution stored: \texttt{VecCopy(Rhs, Ucont)}.
+	\end{enumerate}
+	
+	\paragraph{Stability.}
+	Conditionally stable. Requires $\text{CFL} < 1$ and
+	$\nu\,\dt/\Delta x^2 < \tfrac{1}{2}$ (viscous CFL). Practical for
+	inviscid problems at moderate CFL.
+	
+	% ------------------------------------------------------------------------------
+	\subsection{Runge--Kutta 4 (\texttt{rungeKutta4})}
+	% ------------------------------------------------------------------------------
+	
+	\paragraph{Method.}
+	Classic four-stage, fourth-order explicit RK (RK4):
+	\begin{equation}
+		U^{n+1} = U^n + \dt\,\sum_{i=1}^{4} b_i K_i,
+		\qquad
+		K_i = \mathcal{F}(U^n + a_i\,\dt\,K_{i-1})
+	\end{equation}
+	with Butcher tableau coefficients
+	$\bm{b} = (\tfrac{1}{6},\tfrac{1}{3},\tfrac{1}{3},\tfrac{1}{6})^\top$
+	and $\bm{a} = (0,\tfrac{1}{2},\tfrac{1}{2},1)^\top$.
+	
+	\paragraph{Implementation (\texttt{UeqnRK4}).}
+	Four sequential calls to \texttt{FormExplicitRhsU} (each evaluates
+	$\mathcal{F}$ via \texttt{FormU(..., PETSC\_FALSE, 0)}). Accumulation
+	into \texttt{Utmp}; result copied to \texttt{Ucont}.
+	
+	\paragraph{Cost.} Four \texttt{FormU} evaluations per step
+	($\approx 2\times$ the cost of forward Euler per equivalent accuracy).
+	Best choice when the time step is limited by accuracy rather than
+	stability.
+	
+	% ------------------------------------------------------------------------------
+	\subsection{Crank--Nicolson / SNES (\texttt{crankNicholson})}
+	\label{sec:cranknicholson}
+	% ------------------------------------------------------------------------------
+	
+	\paragraph{Method.}
+	Fully implicit, first-order accurate (second-order in practice with the
+	Adams--Bashforth blending of $\texttt{Rhs\_o}$):
+	\begin{equation}
+		\frac{U^{n+1} - U^n}{\dt}
+		= \mathcal{F}(U^{n+1})
+		+ \half\, \mathcal{F}(U^n)
+		\qquad [\text{it} > \text{itStart}]
+		\label{eq:BE}
+	\end{equation}
+	This is a nonlinear equation for $U^{n+1}$; it is solved using
+	PETSc's SNES framework.
+	
+	\subsubsection{SNES Configuration}
+	
+	\begin{center}
+		\begin{tabular}{ll}
+			\toprule
+			Component & Setting \\
+			\midrule
+			SNES type & \texttt{SNESNEWTONTR} (Newton trust-region) \\
+			Jacobian  & \texttt{MATMFFD\_WP} (matrix-free finite difference) \\
+			Eisenstat--Walker & EW3 (adaptive inner KSP tolerance) \\
+			Max outer iterations & \texttt{-snesMaxItersU} (default: 20) \\
+			Abs.\ exit tolerance & \texttt{-absTolU} (default: $10^{-5}$) \\
+			Rel.\ exit tolerance & \texttt{-relTolU} (default: $10^{-30}$) \\
+			\midrule
+			KSP solver & \texttt{-kspTypeU}: \texttt{BiCGStab} (default) or \texttt{GMRES} \\
+			GMRES restart & \texttt{-kspGMRESRestartU} (default: 30) \\
+			Preconditioner & \texttt{PCNONE} \\
+			\bottomrule
+		\end{tabular}
+	\end{center}
+	
+	\subsubsection{SNES Residual: \texttt{UeqnSNES}}
+	
+	The residual function registered with PETSc for the Crank--Nicolson
+	SNES is:
+	\begin{equation}
+		F(U) = \dt\,\Bigl[\bm{b}_U + \texttt{FormU}(U,\,\texttt{scale})\Bigr]
+		- U + U^n = 0
+		\label{eq:SNESres}
+	\end{equation}
+	where $\bm{b}_U$ is a precomputed constant-RHS buffer (built once per
+	time step in \texttt{SolveUEqn}) and \texttt{scale} equals $\half$ for
+	$\text{it} > \text{itStart}$ and $1$ otherwise.
+	
+	\paragraph{Key optimisation: \texttt{bU} buffer.}
+	$\bm{b}_U$ accumulates all source terms that do \emph{not} depend on
+	the current SNES iterate $U$:
+	\begin{equation}
+		\bm{b}_U = -\nabla p
+		\;\pm\text{buoyancy}
+		\;+\; \half\,\mathcal{F}^n
+		\;+\;\text{farm source}
+	\end{equation}
+	This is evaluated \emph{once} before \texttt{SNESSolve} is called,
+	rather than on every SNES function evaluation
+	($\mathcal{O}(\text{outer}\times\text{inner})$ calls).
+	
+	\subsubsection{SNES Initial Guess: Explicit Euler Predictor}
+	
+	Rather than starting from $U^n$, an explicit Euler prediction is used:
+	\begin{equation}
+		U^{\star} = U^n + \dt\left(\bm{b}_U + \half\,\mathcal{F}^n\right)
+		\label{eq:predictor}
+	\end{equation}
+	implemented as:
+	\begin{lstlisting}
+		VecCopy  (ueqn->Ucont_o, ueqn->Utmp);
+		VecAXPY  (ueqn->Utmp, clock->dt,        ueqn->bU);   // bU holds 0.5*Rhs_o term
+		VecAXPY  (ueqn->Utmp, 0.5*clock->dt,    ueqn->Rhs_o);// +other 0.5 -> full Rhs_o weight
+		SNESSolve(ueqn->snesU, PETSC_NULL,       ueqn->Utmp);
+	\end{lstlisting}
+	The predictor typically reduces the number of SNES outer iterations by
+	2--3$\times$ compared to starting from $U^n$.
+	
+	\subsubsection{Procedure Summary (\texttt{SolveUEqn} / Crank--Nicolson)}
+	
+	\begin{enumerate}
+		\item Build $\bm{b}_U$ (pressure, buoyancy, $\half\mathcal{F}^n$, farm).
+		\item Compute explicit predictor $U^\star$.
+		\item \texttt{SNESSolve} (calls \texttt{UeqnSNES} internally for each residual eval):
+		\begin{enumerate}
+			\item Copy $\bm{b}_U \to \texttt{Rhs}$.
+			\item \texttt{FormU}$(U, \texttt{Rhs}, \text{scale}, 0)$
+			(conv + visc + Coriolis + canopy + sourceU).
+			\item \texttt{dampingSourceU}, \texttt{meanGradPForcing} (separate traversals).
+			\item Scale by $\dt$, add $-U + U^n$.
+		\end{enumerate}
+		\item Store result: \texttt{VecCopy(Utmp, Ucont)}.
+		\item Report: final residual norm, SNES iterations, total linear iterations, wall time.
+	\end{enumerate}
+	
+	% ------------------------------------------------------------------------------
+	\subsection{IMEX-CNAB (\texttt{IMEX})}
+	\label{sec:imex}
+	% ------------------------------------------------------------------------------
+	
+	\paragraph{Method.}
+	Implicit--Explicit Crank--Nicolson Adams--Bashforth (IMEX-CNAB):
+	convection is treated \emph{explicitly} with a \emph{blended} Adams--Bashforth
+	stencil, while viscosity is treated \emph{implicitly} with
+	Crank--Nicolson (CN):
+	
+	\begin{equation}
+		\boxed{
+			\frac{U^{n+1} - U^n}{\dt}
+			= \bm{b}_U
+			+ \underbrace{\half\,\cL(U^{n+1})}_{\text{implicit (CN)}}
+		}
+		\label{eq:IMEX}
+	\end{equation}
+	where the explicit buffer is
+	\begin{equation}
+		\bm{b}_U
+		= -\cP
+		\;\pm\text{buoy}
+		\;+\;\underbrace{\tfrac{3}{2}\cN^n
+			- \tfrac{1}{2}\cN^{n-1}}_{\text{AB2 convection}}
+		\;+\;\underbrace{\half\cL^n}_{\text{CN explicit half}}
+		\;+\;\cS
+		\label{eq:bU}
+	\end{equation}
+	with $\cS$ containing all source terms (Coriolis, canopy, sourceU,
+	farm, damping, meanGradP).
+	Convection uses Adams--Bashforth~2 (AB2, coefficients $3/2$ and $-1/2$)
+	on all steps after the first; on the first step \texttt{RhsConv\_o} is
+	not yet available and pure forward-Euler ($\cN^n$ only) is used.
+
+	\begin{notebox}[First step]
+		On the first time-step (\texttt{it == itStart}), \texttt{RhsConv\_o} is
+		not yet available. The scheme uses pure forward-Euler convection
+		($\cN^n$ only) for that step.
+	\end{notebox}
+	
+	\paragraph{Key property: exact linearity and direct KSP.}
+	The residual
+	\begin{equation}
+		F(U^{n+1}) = \dt\,\bm{b}_U
+		+ \dt\cdot\text{scale}\cdot\cL(U^{n+1})
+		- U^{n+1} + U^n = 0
+		\label{eq:IMEXres}
+	\end{equation}
+	is \emph{linear} in $U^{n+1}$ because $\cL$ (the discrete viscous operator)
+	is a linear function of its argument.
+	Rearranging gives the linear system
+	\begin{equation}
+		A\,U^{n+1} = b,
+		\qquad
+		A\,v \;\equiv\; v - \dt\cdot\text{scale}\cdot\cL(v),
+		\qquad
+		b \;=\; U^n + \dt\,\bm{b}_U,
+		\label{eq:IMEXlinear}
+	\end{equation}
+	where $\text{scale} = \half$ for it $>$ itStart and $1$ on the first step.
+	TOSCA exploits this linearity by solving~\eqref{eq:IMEXlinear}
+	\emph{directly} with a standalone PETSc \texttt{KSP} object
+	(\texttt{kspIMEX}), bypassing SNES entirely and eliminating the Newton
+	trust-region infrastructure.
+
+	\paragraph{Stability advantage.}
+	The CN viscosity is unconditionally stable, eliminating the viscous
+	time-step restriction $\nu\,\dt/\Delta x^2 < \tfrac{1}{2}$ that plagues
+	fully explicit schemes at high Reynolds number or fine mesh spacing.
+	The maximum admissible CFL depends on $\beta$ (see the table above):
+	pure AB2 ($\beta=1$) is limited to CFL $\lesssim 0.5$, while forward
+	Euler ($\beta=0$) tolerates CFL $<1$ at the cost of first-order temporal
+	accuracy in the convective term.
+	
+	\paragraph{Accuracy.}
+	With $\beta=1$ (AB2 + CN) the scheme is formally second-order in time.
+	With $\beta<1$ the convective part is a blended first/second-order method;
+	the overall scheme degrades to first order for $\beta=0$.
+	On the first step the scheme is always first-order regardless of $\beta$
+	(see note above).
+	
+	\subsubsection{The \texttt{IMEXMatVec} MatShell Operator}
+	\label{sec:imexmatvec}
+
+	The linear operator $A$ in~\eqref{eq:IMEXlinear} is registered with PETSc
+	as a \texttt{MatShell} (matrix-free) object stored in \texttt{ueqn->JvIMEX}.
+	Each matrix-vector product $w = A\,v$ is performed by the callback
+	\texttt{IMEXMatVec}:
+
+	\begin{lstlisting}
+PetscErrorCode IMEXMatVec(Mat A, Vec v, Vec Av)
+{
+    PetscReal dt    = clock->dt;
+    PetscReal scale = (clock->it > clock->itStart) ? 0.5 : 1.0;
+
+    // 1. Load v into the Ucont workspace and scatter to ghost cells
+    VecCopy(v, ueqn->Ucont);
+    DMGlobalToLocalBegin/End(fda, Ucont -> lUcont);
+
+    // 2. Apply boundary conditions to the iterate v
+    resetNoPenetrationFluxes(ueqn);      // zero no-slip/slip walls
+    resetFacePeriodicFluxesVector(...);
+
+    // 3. Reconstruct Cartesian velocity for viscous stress evaluation
+    contravariantToCartesian(ueqn);
+    resetCellPeriodicFluxes(...);
+
+    // 4. Evaluate scale * L(v) into scratch buffer ueqn->Rhs
+    VecSet(ueqn->Rhs, 0.0);
+    FormU(ueqn, ueqn->Rhs, scale, 2); // visc-only: Rhs = scale*L(v)
+    VecScale(ueqn->Rhs, dt);                        // Rhs = dt*scale*L(v)
+    resetNonResolvedCellFaces(mesh, ueqn->Rhs);     // zero non-resolved faces in operator
+
+    // 5. Av = v - dt*scale*L(v)   (identity minus viscous correction)
+    VecCopy(v, Av);
+    VecAXPY(Av, -1.0, ueqn->Rhs);
+}
+	\end{lstlisting}
+
+	\begin{notebox}[Scratch vectors and aliasing]
+		\texttt{IMEXMatVec} uses \texttt{ueqn->Ucont}, \texttt{ueqn->lUcont},
+		\texttt{ueqn->Ucat}, \texttt{ueqn->lUcat}, and \texttt{ueqn->Rhs} as
+		workspace on every mat-vec call. The KSP solution is therefore held in
+		\texttt{RhsConv\_o} (not in \texttt{Ucont}) to prevent aliasing between
+		the KSP iterate and the operator scratch space. After \texttt{KSPSolve}
+		completes, \texttt{RhsConv\_o} is copied to \texttt{Ucont} (Step~6,
+		Section~\ref{sec:imexproc}).
+	\end{notebox}
+
+	\subsubsection{Boundary-Face Sanitization of the KSP Right-Hand Side}
+	\label{sec:imexrhs}
+
+	At non-resolved faces (unused ghost faces, IBM solid-fluid interfaces,
+	and inflow/outflow boundary faces) the physical flux is either zero or
+	prescribed externally and must not be perturbed by source terms.
+	In the old \texttt{UeqnIMEXSNES} residual,
+	\texttt{resetNonResolvedCellFaces} acted on the combined
+	$\dt\,(\bm{b}_U + \text{scale}\,\cL(U^{n+1}))$ vector, which implicitly
+	zeroed the $\dt\,\bm{b}_U$ contribution at those faces.
+	In the direct-KSP formulation the RHS $b = U^n + \dt\,\bm{b}_U$
+	must be sanitized \emph{before} \texttt{KSPSolve} is called:
+
+	\begin{lstlisting}
+// b = U^n + dt*bU
+VecCopy(ueqn->Ucont_o, ueqn->Utmp);
+VecAXPY(ueqn->Utmp, clock->dt, ueqn->bU);
+// Zero dt*bU contributions at non-resolved boundary / IBM faces
+resetNonResolvedCellFaces(mesh, ueqn->Utmp);
+	\end{lstlisting}
+
+	\begin{warnbox}[Blow-up without RHS sanitization]
+		Without this call, pressure-gradient and source-term contributions
+		accumulate at ghost/IBM/boundary faces each step at rate
+		$O(\dt\,|\bm{b}_U|)$, causing exponential growth of the velocity
+		field within $O(1/\dt)$ steps.
+	\end{warnbox}
+
+	\subsubsection{Reference Residual Formulation: \texttt{UeqnIMEXSNES}}
+
+	The function \texttt{UeqnIMEXSNES} expresses the same linear system
+	as a SNES residual and is retained for testing and verification.
+	It can be used to cross-check \texttt{IMEXMatVec} by confirming
+	$F(U) = b - A\,U$:
+
+	\begin{lstlisting}
+		// Copy prebuilt explicit buffer
+		VecCopy(ueqn->bU, Rhs);
+
+		// Add ONLY the implicit viscous half (visc-only FormU)
+		PetscReal scale = (clock->it > clock->itStart) ? 0.5 : 1.0;
+		FormU(ueqn, Rhs, scale, 2);  // formMode=2: viscosity only
+
+		// Form residual F = dt * Rhs - U^{n+1} + U^n
+		VecScale(Rhs, dt);
+		VecAXPY (Rhs, -1.0, Ucont);
+		VecAXPY (Rhs,  1.0, ueqn->Ucont_o);
+	\end{lstlisting}
+
+	\subsubsection{Procedure Summary (\texttt{UeqnIMEX})}
+	\label{sec:imexproc}
+	
+	\begin{enumerate}
+		\item Synchronise $U^n$ state (ghost cells, periodic BCs, Cartesian).
+		\item Evaluate convective RHS at $U^n$:
+		$\cN^n \to \texttt{RhsConv}$
+		via \texttt{FormU}$(\cdot, 1.0, 1)$ (\texttt{formMode}=1).
+		\item Evaluate viscous RHS at $U^n$:
+		$\cL^n \to \texttt{Rhs}$
+		via \texttt{FormU}$(\cdot, 1.0, 2)$ (\texttt{formMode}=2).
+		\item Build $\bm{b}_U$ (see \eqref{eq:IMEX}):
+		\begin{lstlisting}
+			VecCopy (ueqn->dP, ueqn->bU);    VecScale(ueqn->bU, -1.0);
+			// buoyancy (if it > itStart)
+			// AB2: VecAXPY(bU, +1.5, RhsConv); VecAXPY(bU, -0.5, RhsConv_o);
+			// CN explicit half: VecAXPY(bU, +0.5, Rhs);   (Rhs holds Visc^n)
+			// Coriolis, CanopyForce, sourceU, dampingSourceU, meanGradPForcing
+		\end{lstlisting}
+		\item Build the KSP right-hand side and set the initial guess:
+		\begin{lstlisting}
+// b = U^n + dt*bU  (stored in Utmp)
+VecCopy (ueqn->Ucont_o, ueqn->Utmp);
+VecAXPY (ueqn->Utmp, clock->dt, ueqn->bU);
+// Zero dt*bU at non-resolved boundary / IBM faces (Section~\ref{sec:imexrhs})
+resetNonResolvedCellFaces(mesh, ueqn->Utmp);
+// x0 = b  (explicit-Euler is a near-exact initial guess for nearly-identity A)
+VecCopy (ueqn->Utmp, ueqn->RhsConv_o);
+		\end{lstlisting}
+		\item \texttt{KSPSolve(kspIMEX, Utmp, RhsConv\_o)} --- each
+		matrix-vector product calls \texttt{IMEXMatVec}
+		(Section~\ref{sec:imexmatvec}).
+		The solution is returned in \texttt{RhsConv\_o} to avoid aliasing
+		with the operator scratch space in \texttt{Ucont}.
+		\item \texttt{VecCopy(RhsConv\_o, Ucont)}; scatter to ghost cells.
+		\item Rotate convective buffers: \texttt{VecCopy(RhsConv, RhsConv\_o)}.
+		\item Report residual norm, KSP iteration count, wall time.
+	\end{enumerate}
+
+	\subsubsection{Cost Comparison}
+	
+	\begin{center}
+		\begin{tabular}{lccl}
+			\toprule
+			Scheme & \texttt{FormU} calls/step & Linear solves & Note \\
+			\midrule
+			\texttt{forwardEuler}  & 1 & 0 & 1st order, CFL$<$1 \\
+			\texttt{rungeKutta4}   & 4 & 0 & 4th order, CFL$<$1 \\
+			\texttt{crankNicholson} & $\sim$55 & $\sim$55 & 2nd eff., unconditional \\
+			\texttt{IMEX}          & 3 & 1 & 2nd order, CN visc stable \\
+			\bottomrule
+		\end{tabular}
+	\end{center}
+	
+	The \texttt{crankNicholson} estimate assumes 5 SNES outer iterations
+	$\times$ 11 KSP inner iterations; each KSP iteration calls
+	\texttt{FormU} twice (via \texttt{MATMFFD} Jacobian-vector product).
+
+	\subsubsection{KSP Solver Choice for IMEX: GMRES vs.\ BiCGStab}
+	\label{sec:ksp-theory}
+
+	\paragraph{Spectrum of the IMEX operator.}
+	The operator $A\,v = v - \dt\cdot\text{scale}\cdot\cL(v)$, where
+	$\cL = \nu_\text{eff}\nabla^2$ (plus SGS contributions), has eigenvalues
+	\begin{equation}
+		\lambda_A = 1 + \dt\cdot\text{scale}\cdot\nu_\text{eff}\,k^2 \;\geq\; 1,
+	\end{equation}
+	since the discrete viscous operator $\cL$ is negative semi-definite on
+	bounded domains (eigenvalues $\lambda_\cL = -\nu_\text{eff}k^2 \leq 0$).
+	$A$ is therefore \emph{positive definite} with all eigenvalues $\geq 1$.
+	The condition number
+	\begin{equation}
+		\kappa(A) \;\approx\;
+		\frac{1 + \dt\cdot\text{scale}\cdot\nu_\text{eff}\,k_{\max}^2}{1}
+	\end{equation}
+	can reach $O(10^2)$--$O(10^3)$ in ABL simulations with large $\dt$ and
+	large LES eddy viscosity $\nu_\text{eff} \sim O(1)\;\text{m}^2/\text{s}$.
+	Despite positive definiteness, the discrete $A$ exhibits mild
+	\emph{non-symmetry} because the contravariant--Cartesian--contravariant
+	projection on non-uniform curvilinear meshes is not self-adjoint.
+
+	\paragraph{GMRES.}
+	GMRES~\cite{Saad1986} minimises the residual over the Krylov space of dimension $k$:
+	$\|r_k\|_2 = \min_{p \in \mathcal{P}_k,\,p(0)=1}\|p(A)\,r_0\|_2$.
+	The residual decreases \emph{monotonically}; the method is
+	unconditionally convergent for any nonsingular $A$ (within finite
+	arithmetic precision). With the default restart $m=30$, GMRES
+	handles the mild non-symmetry and moderate conditioning of the IMEX
+	operator reliably. \textbf{GMRES is the recommended choice for IMEX.}
+
+	\paragraph{Standard BiCGStab and the breakdown problem.}
+	BiCGStab (\texttt{KSPBCGS}) uses Petrov-Galerkin bi-orthogonalisation
+	with a shadow residual $\hat{r} = r_0$ (fixed).
+	Each step requires the inner product $\langle\hat{r},\,r_k\rangle \neq 0$.
+	For the IMEX operator:
+	\begin{itemize}
+		\item The initial guess $x_0 = b$ is already close to the solution
+		      (the operator is nearly the identity for small $\dt\nu_\text{eff}k^2$).
+		\item The initial residual $r_0 = b - A\,x_0$ is therefore $O(\dt)$ and
+		      may be small relative to machine precision at fine grid spacings.
+		\item On non-uniform curvilinear meshes the operator has mild complex eigenvalues,
+		      which can cause $\langle\hat{r},\,r_k\rangle \to 0$ (near-breakdown)
+		      after a few steps, stalling convergence.
+	\end{itemize}
+	In practice, \texttt{KSPBCGS} stalls after $O(10)$--$O(100)$ iterations
+	without converging, even when the system is well-posed.
+
+	\paragraph{BiCGStab($L$) and the TOSCA implementation.}
+	BiCGStab($L$), introduced by Sleijpen and Fokkema~\cite{Sleijpen1993}, appends a polynomial
+	smoother of degree $L$ in $A$ to each outer BiCGStab step.
+	This yields $2L$ matrix-vector products per outer iteration (same as
+	$L$ standard BiCGStab steps) but with superior orthogonality, eliminating
+	the near-breakdown modes.
+	With $L=2$, the method is robust for the IMEX operator spectrum
+	without incurring the large memory footprint of long-restart GMRES
+	($m \gg 30$).
+	TOSCA automatically promotes \texttt{-kspTypeU BiCGStab} to
+	\texttt{KSPBCGSL} with $L=2$ when the \texttt{IMEX} scheme is active:
+	\begin{lstlisting}
+if(kspType == "BiCGStab" && dUdtScheme == IMEX)
+{
+    KSPSetType(kspIMEX, KSPBCGSL);
+    KSPBCGSLSetEll(kspIMEX, 2);   // L=2 polynomial smoother
+}
+	\end{lstlisting}
+
+	\paragraph{Tolerance configuration.}
+	The IMEX KSP is configured with
+	\begin{lstlisting}
+KSPSetTolerances(kspIMEX,
+    ueqn->relExitTol,   // rtol = 1e-30 (effectively disabled)
+    ueqn->absExitTol,   // atol = 1e-5  (governs convergence)
+    1e30,               // dtol: no divergence check
+    1000);              // max iterations
+	\end{lstlisting}
+	Setting \texttt{relExitTol} $= 10^{-30}$ means the solver declares
+	convergence solely on \texttt{absExitTol}, regardless of the initial
+	residual magnitude.
+	This is identical to the \texttt{crankNicholson} inner-KSP behaviour and
+	avoids excessive iteration when the initial residual is already near the
+	absolute tolerance.
+
+	% ==============================================================================
+	\section{IMEX Biharmonic Hyperviscosity}
+	\label{sec:hypervisc}
+	% ==============================================================================
+
+	\subsection{Motivation}
+
+	Central-difference convection schemes (\texttt{central}, \texttt{centralUpwind})
+	do not provide sufficient odd-even damping to suppress high-wavenumber
+	errrors that accumulate over many time-steps on structured meshes.
+	The worst-offender wavenumber is the mesh Nyquist mode
+	$\kappa h = \pi$ (i.e.\ a chequerboard pattern with alternating
+	signs on adjacent cells). Because this mode is invisible to
+	centred second-order operators (zero convective flux), it grows
+	unbounded without dedicated dissipation. The symptoms in practice
+	are spatial noise, ringing near stiff gradients, and, in
+	severe cases, divergence of the SNES solve.
+
+	The standard remedy~\cite{Lele1992,Ghosal1996} for finite-difference
+	and finite-volume LES is an \emph{explicit biharmonic}
+	(fourth-order Laplacian) correction: it targets energy only near
+	$\kappa h = \pi$ while leaving the resolved energy-containing
+	motions virtually unaffected.
+
+	\subsection{Mathematical Formulation}
+
+	\subsubsection{Index-Space Biharmonic Operator}
+
+	Define the one-dimensional fourth-order difference operator acting
+	on a grid function $v_n$ with uniform index spacing:
+	\begin{equation}
+		\delta^4_d\, v_n
+		= v_{n+2} - 4v_{n+1} + 6v_n - 4v_{n-1} + v_{n-2}.
+		\label{eq:delta4}
+	\end{equation}
+	Note that $\delta^4_d = (\delta^2_d)^2$ where
+	$\delta^2_d v_n = v_{n+1} - 2v_n + v_{n-1}$ is the standard
+	finite-difference Laplacian.
+
+	The Fourier symbol of $\delta^4_d$ on a grid with spacing $h$ is
+	\begin{equation}
+		\widehat{\delta^4}(\kappa)
+		= 4\bigl(\cos\kappa h - 1\bigr)^2
+		\in [0,\,16].
+		\label{eq:symbol}
+	\end{equation}
+	The symbol vanishes at $\kappa h = 0$ (zero effect on the mean)
+	and reaches its maximum value of $16$ at the Nyquist wavenumber
+	$\kappa h = \pi$. The three-directional sum has the symbol
+	$\widehat{\delta^4}_i + \widehat{\delta^4}_j + \widehat{\delta^4}_k$
+	with maximum $48$ at the grid corner $(\pi,\pi,\pi)$.
+
+	\subsubsection{Per-Step Velocity Correction}
+
+	IMEX builds an explicit RHS buffer $\bm{b}_U$ (see Section~\ref{sec:imex})
+	and then scales it by $\dt$. The hyperviscosity correction is added to this
+	buffer as
+	\begin{equation}
+		\bm{b}_U \mathrel{-}=
+		\frac{\varepsilon_4}{\dt}
+		\bigl(\delta^4_i + \delta^4_j + \delta^4_k\bigr)\, U^n,
+		\label{eq:bU_hv}
+	\end{equation}
+	so that after the \texttt{VecScale(Rhs, dt)} step the net
+	per-step velocity correction is
+	\begin{equation}
+		\boxed{
+			\Delta U_{\mathrm{hv}}
+			= -\varepsilon_4
+			\bigl(\delta^4_i + \delta^4_j + \delta^4_k\bigr)\, U^n.
+		}
+		\label{eq:DU_hv}
+	\end{equation}
+	The coefficient $\varepsilon_4 \geq 0$ is the hyperviscosity amplitude
+	set via \texttt{-imexHyperVisc4U} in \texttt{control.dat}.
+
+	\subsubsection{Filtering Interpretation}
+
+	Equation~\eqref{eq:DU_hv} is equivalent to applying the spectral-space
+	\emph{low-pass filter}
+	\begin{equation}
+		\widehat{G}(\bm{\kappa})
+		= 1 - \varepsilon_4
+		\sum_{d\in\{i,j,k\}} 4(\cos\kappa_d h - 1)^2
+		\label{eq:filter}
+	\end{equation}
+	to the solution at every time step. For small wavenumbers
+	$\kappa h \ll 1$, $\widehat{G} \approx 1 - O((\kappa h)^4)$, so
+	resolved-scale turbulence is unaffected. At the Nyquist point
+	$\bm{\kappa}h = (\pi,\pi,\pi)$, $\widehat{G} = 1 - 48\varepsilon_4$.
+	This is the same class of spectral-vanishing-viscosity
+	approach discussed by Karamanos \& Karniadakis~\cite{Karamanos2000}
+	and the compact-filter framework of Lele~\cite{Lele1992}, here
+	evaluated in index space rather than in physical space.
+
+	\subsection{Stability Analysis}
+	\label{sec:hypervisc:stability}
+
+	The hyperviscosity correction is applied \emph{explicitly}.
+	Write the Fourier-space update for the worst-case mode:
+	\begin{equation}
+		\hat{U}^{n+1} = \hat{U}^n\,\widehat{G} = \hat{U}^n
+		\bigl(1 - 48\,\varepsilon_4\bigr).
+	\end{equation}
+	For stable, non-amplifying, monotone damping the amplification factor
+	must satisfy $0 \leq 1 - 48\varepsilon_4 \leq 1$, giving
+	\begin{equation}
+		\boxed{\varepsilon_4 \leq \frac{1}{48} \approx 0.021.}
+		\label{eq:stability}
+	\end{equation}
+	Note that this is an \emph{independent} constraint from the convective
+	CFL and the viscous parabolic constraint; it involves only $\varepsilon_4$
+	and is independent of $\dt$, mesh spacing, and flow velocity.
+
+	\begin{warnbox}[Stability limit]
+		Do not set \texttt{-imexHyperVisc4U} $> 0.021$.
+		Values in the range $0.021 < \varepsilon_4 < 0.042$
+		will over-damp without causing instability;
+		$\varepsilon_4 > 0.042$ amplifies the Nyquist mode and causes
+		immediately diverging solutions.
+	\end{warnbox}
+
+	\subsection{Boundary Treatment}
+	\label{sec:hypervisc:bc}
+
+	The stencil~\eqref{eq:delta4} requires four neighbours ($\pm 1$,
+	$\pm 2$). TOSCA has one valid interior ghost cell on each side (at
+	$0$ and $mx-1$), but the $\pm 2$ reach requires special treatment
+	at cells adjacent to boundaries.
+
+	\subsubsection{\texttt{ii/jj/kk\_periodic} (PETSc native periodic)}
+
+	PETSc fills ghost cells at negative and beyond-maximum indices during
+	\texttt{DMGlobalToLocalBegin/End}. All four offsets are used directly.
+	No index remapping is needed.
+
+	\subsubsection{\texttt{i/j/k\_periodic} (single-process ghosted periodic)}
+
+	\texttt{resetFacePeriodicFluxesVector} sets
+	\texttt{lUcont[0] = lUcont[mx-2]} (left ghost). The right ghost
+	\texttt{lUcont[mx-1]} is \emph{not} filled. The valid
+	read range is $[0,\,mx-2]$ with period $mx-2$.
+	Index remapping near both boundaries is therefore required:
+
+	\begin{center}
+		\begin{tabular}{cll}
+			\toprule
+			cell $i$ & Remapped indices & Reason \\
+			\midrule
+			$i = 1$ & $i_{-2} \leftarrow mx-3$ & wrap $-1$ mod $(mx-2)$ \\
+			$i = mx-2$ & $i_{+2} \leftarrow 2$ & avoid junk ghost $mx-1$ \\
+			\bottomrule
+		\end{tabular}
+	\end{center}
+
+	After the loop, $\texttt{rhs}[k][j][0]$ is overwritten with
+	$\texttt{rhs}[k][j][mx-2]$ to propagate the computed
+	hyperviscosity correction to the left periodic face.
+
+	\subsubsection{Non-periodic (wall, inlet/outlet)}
+
+	Only one filled ghost cell is available at each non-periodic boundary;
+	\texttt{lUcont[mx-1]} contains junk data and must not be read.
+	All four offsets are clamped to the valid interior range $[1,\,mx-2]$:
+	\begin{equation}
+		i_{\pm1} = \mathrm{clamp}(i\pm1,\;1,\;mx-2),
+		\qquad
+		i_{\pm2} = \mathrm{clamp}(i\pm2,\;1,\;mx-2).
+		\label{eq:clamp}
+	\end{equation}
+	When $i = 1$ the clamp gives $i_{-1} = i_{-2} = 1$; substituting
+	into~\eqref{eq:delta4} with the repeated-value padding yields
+	\begin{equation}
+		\delta^4 v_1 = v_3 - 4v_2 + 6v_1 - 4v_1 + v_1
+		= v_3 - 4v_2 + 3v_1,
+	\end{equation}
+	which evaluates to zero when $v$ is locally constant
+	(zero-gradient / slip condition). This is the correct physical
+	behaviour at a slip wall: the hyperviscosity correction
+	vanishes where the flux is already smooth, so \emph{no artificial
+	no-slip boundary condition is introduced}.
+
+	\begin{notebox}[Why not mirror-image padding?]
+		A symmetric (mirror) ghost would enforce zero normal gradient
+		of the \emph{correction} but would couple the correction to the
+		normal velocity component and could create spurious wall-normal
+		flux. Nearest-value clamping avoids this and is consistent with
+		a slip boundary for all three contravariant flux components.
+	\end{notebox}
+
+	\subsection{Implementation Summary}
+
+	The function \texttt{hyperViscosityU(ueqn, Rhs, scale)} performs:
+
+	\begin{enumerate}
+		\item Early exit if $\varepsilon_4 = 0$.
+		\item Compute effective coefficient
+		$\texttt{eps} = \texttt{scale}\cdot \varepsilon_4 / \dt$.
+		\item Loop over all interior faces
+		$(i,j,k)\in[\texttt{lxs},\texttt{lxe})\times\cdots$:
+		\begin{enumerate}
+			\item Compute remapped indices \texttt{im2,im1,ip1,ip2}
+			(and analogues in $j,k$) according to
+			Section~\ref{sec:hypervisc:bc}.
+			\item For each face type (\texttt{.x}, \texttt{.y}, \texttt{.z}),
+			skip IBM solid cells via \texttt{nvert} check, then accumulate
+			\begin{align*}
+				b_4 &=
+				\underbrace{U_{i+2} - 4U_{i+1} + 6U_i - 4U_{i-1} + U_{i-2}}_{
+					\delta^4_i\, U_i}\\
+				&\quad
+				+\underbrace{U_{j+2} - 4U_{j+1} + 6U_j - 4U_{j-1} + U_{j-2}}_{
+					\delta^4_j\, U_j}\\
+				&\quad
+				+\underbrace{U_{k+2} - 4U_{k+1} + 6U_k - 4U_{k-1} + U_{k-2}}_{
+					\delta^4_k\, U_k},
+			\end{align*}
+			then subtract: $\texttt{rhs}[k][j][i] \mathrel{-}= \texttt{eps}\cdot b_4$.
+		\end{enumerate}
+	\end{enumerate}
+
+	The call site in \texttt{UeqnIMEX} is:
+	\begin{lstlisting}
+	if(ueqn->hyperVisc4 > 0.0)
+	    hyperViscosityU(ueqn, ueqn->bU, 1.0);
+	\end{lstlisting}
+	Placed \emph{after} all other explicit contributions are assembled
+	into \texttt{bU} and \emph{before} the SNES solve.
+
+	\subsection{Control Parameters}
+
+	\begin{center}
+		\begin{tabular}{llll}
+			\toprule
+			Option & Type & Default & Description \\
+			\midrule
+			\texttt{-imexHyperVisc4U} & real & 0.0 & Hyperviscosity amplitude $\varepsilon_4$
+			(\texttt{IMEX} only) \\
+			\bottomrule
+		\end{tabular}
+	\end{center}
+
+	Example:
+	\begin{lstlisting}[language={},style=cstyle]
+	-dUdtScheme       IMEX
+	-divScheme        centralUpwind
+	-kspTypeU         BiCGStab
+	-imexHyperVisc4U  0.01     # biharmonic hyperviscosity (recommended: 0.005-0.02)
+	\end{lstlisting}
+
+	\subsection{Best Practices}
+	\label{sec:hypervisc:bestpractices}
+
+	\begin{enumerate}
+		\item \textbf{Start small.} Begin with $\varepsilon_4 = 0.005$ and
+		increase only if chequerboard noise remains visible in velocity
+		spectra or if the SNES fails to converge. Values
+		$\varepsilon_4 \in [0.005,\,0.015]$ are typical for ABL simulations
+		with \texttt{centralUpwind}.
+
+		\item \textbf{Respect the stability bound.} Always keep
+		$\varepsilon_4 < 1/48 \approx 0.021$ (see~\eqref{eq:stability}).
+		Values above this threshold will over-damp resolved scales;
+		values above $1/24 \approx 0.042$ cause the Nyquist mode to grow.
+
+		\item \textbf{IMEX only.} The parameter \texttt{-imexHyperVisc4U}
+		is read only when \texttt{-dUdtScheme IMEX} is selected.
+		It has no effect on \texttt{crankNicholson}, \texttt{forwardEuler},
+		or \texttt{rungeKutta4} (the SNES schemes are unconditionally stable
+		with respect to odd-even modes via their implicit structure).
+
+		\item \textbf{Not a substitute for a good scheme.} Hyperviscosity
+		suppresses Nyquist noise but cannot fix a fundamentally unstable
+		convection scheme. If the simulation is underresolved, use a higher
+		\texttt{divScheme} (e.g.\ \texttt{weno3}) or coarsen the mesh
+		rather than increasing $\varepsilon_4$.
+
+		\item \textbf{Verify with spectra.} After setting $\varepsilon_4$,
+		plot the energy spectrum of the streamwise velocity at a representative
+		plane. The inertial subrange should follow $E(\kappa) \sim \kappa^{-5/3}$
+		without artificial pile-up near $\kappa h = \pi$ and without excessive
+		kill-off of the $\kappa^{-5/3}$ cascade.
+
+		\item \textbf{Combination with \texttt{central4}.} The
+		\texttt{central4} divergence scheme already applies its own
+		hyperviscosity via \texttt{-hyperVisc} (acting on Cartesian velocity
+		gradients). Using \texttt{-imexHyperVisc4U} simultaneously is
+		redundant and may over-damp. Keep one active at a time.
+
+		\item \textbf{IBM boundaries.} The nvert guard
+		(\texttt{nvert[k][j][i] + nvert[k][j][i+1] < 1.0}) skips the
+		correction at IBM solid-fluid interfaces. No special action is
+		required; the correction automatically vanishes at cells flagged
+		as solid.
+	\end{enumerate}
+
+	% ==============================================================================
+	\section{Key Data Structures}
+	% ==============================================================================
+	
+	\subsection{Primary \texttt{ueqn\_} Vectors}
+	
+	\begin{center}
+		\begin{tabular}{lll}
+			\toprule
+			Field & Type & Description \\
+			\midrule
+			\texttt{Ucont} / \texttt{lUcont} & \texttt{Vec} & Global/local contravariant flux $U$\\
+			\texttt{Ucont\_o} & \texttt{Vec} & $U^n$ (previous step) \\
+			\texttt{Ucat} / \texttt{lUcat} & \texttt{Vec} & Cartesian velocity \\
+			\texttt{Utmp} & \texttt{Vec} & Scratch / SNES initial guess \\
+			\texttt{Rhs} & \texttt{Vec} & Working RHS accumulator \\
+			\texttt{Rhs\_o} & \texttt{Vec} & $\mathcal{F}^n$ (full RHS at prev.\ step, \texttt{crankNicholson}) \\
+			\texttt{dP} & \texttt{Vec} & Pressure gradient $\nabla p$ \\
+			\texttt{bTheta} & \texttt{Vec} & Buoyancy source $\bm{f}_\theta$ \\
+			\texttt{sourceU} / \texttt{lsourceU} & \texttt{Vec} & ABL PI-controller source \\
+			\midrule
+			\multicolumn{3}{l}{\emph{crankNicholson only}} \\
+			\texttt{bU} & \texttt{Vec} & Constant RHS buffer (prebuilt per step) \\
+			\midrule
+			\multicolumn{3}{l}{\emph{IMEX only}} \\
+			\texttt{bU} & \texttt{Vec} & Explicit IMEX buffer (prebuilt per step) \\
+			\texttt{RhsConv} & \texttt{Vec} & $\cN^n$ (conv-only RHS, current step) \\
+			\texttt{RhsConv\_o} & \texttt{Vec} & $\cN^{n-1}$ / KSP solution buffer (see \S\ref{sec:imexmatvec}) \\
+			\texttt{kspIMEX} & \texttt{KSP} & Standalone KSP for the IMEX linear solve \\
+			\texttt{JvIMEX} & \texttt{Mat} & MatShell: $A\,v = v - \dt\cdot\text{scale}\cdot\cL(v)$ \\
+			\midrule
+			\multicolumn{3}{l}{\emph{Intermediate FormU arrays}} \\
+			\texttt{lDiv1/2/3} & \texttt{Vec} & Face-local divergence contributions \\
+			\texttt{lVisc1/2/3} & \texttt{Vec} & Face-local viscous contributions \\
+			\texttt{lFp} & \texttt{Vec} & Cell-centred combined flux (before projection) \\
+			\bottomrule
+		\end{tabular}
+	\end{center}
+	
+	\subsection{SNES/KSP Objects}
+
+	\paragraph{\texttt{crankNicholson} objects.}
+	\begin{center}
+		\begin{tabular}{lll}
+			\toprule
+			Field & Type & Description \\
+			\midrule
+			\texttt{snesU} & \texttt{SNES} & PETSc nonlinear solver context \\
+			\texttt{JU} & \texttt{Mat} & Matrix-free MFFD Jacobian approximation \\
+			\texttt{ksp} & \texttt{KSP} & Inner Krylov linear solver (inside SNES) \\
+			\texttt{pc} & \texttt{PC} & Preconditioner (currently \texttt{PCNONE}) \\
+			\bottomrule
+		\end{tabular}
+	\end{center}
+
+	\paragraph{\texttt{IMEX} objects.}
+	\begin{center}
+		\begin{tabular}{lll}
+			\toprule
+			Field & Type & Description \\
+			\midrule
+			\texttt{kspIMEX} & \texttt{KSP} & Standalone KSP for the IMEX linear solve \\
+			\texttt{JvIMEX} & \texttt{Mat} & MatShell: $A\,v = v - \dt\cdot\text{scale}\cdot\cL(v)$ \\
+			\bottomrule
+		\end{tabular}
+	\end{center}
+
+	\paragraph{Shared solver parameters.}
+	\begin{center}
+		\begin{tabular}{lll}
+			\toprule
+			Field & Type & Description \\
+			\midrule
+			\texttt{kspType} & \texttt{word} & \texttt{"BiCGStab"} or \texttt{"GMRES"} \\
+			\texttt{gmresRestart} & \texttt{PetscInt} & GMRES restart parameter (default 30) \\
+			\texttt{snesMaxIter} & \texttt{PetscInt} & Max SNES outer iterations (\texttt{crankNicholson}) \\
+			\texttt{relExitTol} & \texttt{PetscReal} & Relative stopping tolerance ($10^{-30}$ default) \\
+			\texttt{absExitTol} & \texttt{PetscReal} & Absolute stopping tolerance ($10^{-5}$ default) \\
+			\bottomrule
+		\end{tabular}
+	\end{center}
+	
+	% ==============================================================================
+	\section{Control Parameters (\texttt{control.dat})}
+	% ==============================================================================
+	
+	\begin{center}
+		\begin{tabular}{llll}
+			\toprule
+			Key & Type & Default & Description \\
+			\midrule
+			\texttt{-dUdtScheme} & string & --- & Time scheme (mandatory) \\
+			\texttt{-divScheme} & string & --- & Divergence scheme (mandatory) \\
+			\texttt{-kspTypeU} & string & --- & KSP type (mandatory if implicit) \\
+			\texttt{-snesMaxItersU} & int & 20 & Max SNES outer iterations \\
+			\texttt{-absTolU} & real & $10^{-5}$ & SNES absolute tolerance \\
+			\texttt{-relTolU} & real & $10^{-30}$ & SNES relative tolerance \\
+			\texttt{-kspGMRESRestartU} & int & 30 & GMRES restart (if GMRES) \\
+			\texttt{-hyperVisc} & real & 1.0 & Hyperviscosity (if \texttt{central4}) \\
+			\texttt{-imexHyperVisc4U} & real & 0.0 & Biharmonic hyperviscosity $\varepsilon_4$ (\texttt{IMEX} only, see \S\ref{sec:hypervisc}) \\
+		\end{tabular}
+	\end{center}
+	
+	Example \texttt{control.dat} block:
+	
+	\begin{lstlisting}[language={},style=cstyle]
+		# Momentum equation
+		-dUdtScheme     crankNicholson  # or: forwardEuler, rungeKutta4, IMEX
+		-divScheme      centralUpwind
+		-kspTypeU       BiCGStab        # mandatory for crankNicholson and IMEX
+		-snesMaxItersU  5
+		-absTolU        1e-5
+	\end{lstlisting}
+	
+	For IMEX (second-order, CFL$\,{<}\,0.5$; GMRES recommended,
+	see Section~\ref{sec:ksp-theory}):
+	\begin{lstlisting}[language={},style=cstyle]
+	-dUdtScheme       IMEX
+	-divScheme        centralUpwind
+	-kspTypeU         GMRES          # recommended for IMEX
+	-kspGMRESRestartU 30
+	-absTolU          1e-5
+	\end{lstlisting}
+
+	\begin{notebox}[BiCGStab for IMEX]
+		Setting \texttt{-kspTypeU BiCGStab} with the IMEX scheme automatically
+		activates \texttt{KSPBCGSL} with $L=2$ (BiCGStab with a degree-2
+		polynomial smoother) instead of standard \texttt{KSPBCGS}.
+		Standard BiCGStab cannot reliably solve the IMEX system ---
+		see Section~\ref{sec:ksp-theory} for the breakdown analysis.
+	\end{notebox}
+
+	For IMEX at higher CFL (first-order convection, CFL$\,{<}\,1.0$):
+	\begin{lstlisting}[language={},style=cstyle]
+-dUdtScheme       IMEX
+-divScheme        centralUpwind
+-kspTypeU         GMRES
+	\end{lstlisting}
+	
+	% ==============================================================================
+	\section{Optimisations Implemented}
+	% ==============================================================================
+	
+	\subsection{Precomputed Constant-RHS Buffer (\texttt{bU})}
+	
+	Prior to this optimisation, every SNES function evaluation recomputed
+	all source terms (pressure gradient, buoyancy, wind-farm source) that
+	do not depend on the current iterate. For a solve with 5 Newton
+	iterations $\times$ 11 KSP steps, this meant $\sim$55 redundant
+	evaluations of these terms.
+	
+	The vector \texttt{bU} is now built \emph{once} per time step in
+	\texttt{SolveUEqn} before \texttt{SNESSolve} is called.
+	In \texttt{UeqnSNES} the function begins with
+	\texttt{VecCopy(ueqn->bU, Rhs)} instead of the sequence
+	\texttt{VecSet + multiple VecAXPY}.
+	
+	\subsection{Loop Fusion in the Projection Step}
+	
+	The Coriolis, canopy drag, and ABL driving source are evaluated inline
+	within the projection loop of \texttt{FormU}, improving data locality
+	and eliminating the overhead of three extra loop launches.
+	
+	\subsection{Dead Code Removal in the Projection Loop}
+	
+	The original projection loop computed:
+	\begin{itemize}
+		\item Four dot products per spatial direction ($v0, v1, v2, v3$) to
+		support a higher-order stencil.
+		\item Twelve cell-width divisions ($d0$--$d3$) for a flux-limited
+		scheme.
+		\item Three calls to \texttt{getFace2Cell4Stencil*} per cell.
+	\end{itemize}
+	None of these were used in the final \texttt{central(v1, v2)} assignment.
+	Removing them reduces $\sim$40 floating-point operations and 3 function
+	calls per cell in the projection loop.
+	
+	\subsection{Explicit Euler Predictor as SNES Initial Guess}
+	
+	Starting the Newton iteration from the explicit Euler prediction
+	$U^\star$ (\eqref{eq:predictor}) rather than $U^n$ was found to reduce
+	the average number of SNES outer iterations from $\sim$8 to $\sim$5
+	and total linear iterations from $\sim$25 to $\sim$11 in representative
+	ABL test cases.
+	
+	\subsection{Selectable KSP Solver}
+
+	The Krylov solver is selected at runtime via \texttt{-kspTypeU}.
+	The behaviour differs between the two implicit schemes:
+
+	\paragraph{\texttt{crankNicholson} --- SNES inner KSP.}
+	Both \texttt{BiCGStab} and \texttt{GMRES} are effective here.
+	\texttt{BiCGStab} is the default (lower memory, handles mild non-symmetry).
+	\texttt{GMRES} provides monotone residual reduction and is preferred for
+	poorly-conditioned or highly non-symmetric cases.
+	The Eisenstat--Walker (EW3) adaptive tolerance strategy is always active:
+	it progressively tightens the inner KSP tolerance as the outer SNES
+	residual decreases, avoiding over-solving in early Newton steps.
+
+	\paragraph{\texttt{IMEX} --- standalone KSP.}
+	\textbf{GMRES is strongly recommended} (see Section~\ref{sec:ksp-theory}).
+	Standard BiCGStab (\texttt{KSPBCGS}) is automatically replaced by
+	\texttt{KSPBCGSL} with $L=2$ to prevent near-breakdown on the IMEX
+	near-identity operator.
+	The Eisenstadt--Walker strategy does \emph{not} apply here (there is no
+	outer SNES).
+	Convergence is governed by \texttt{absExitTol}; the relative tolerance
+	\texttt{relExitTol} is set to $10^{-30}$ (effectively disabled).
+	
+	\subsection{Measured Performance (\texttt{crankNicholson})}
+	
+	\begin{center}
+		\begin{tabular}{lccc}
+			\toprule
+			Version & SNES iters & Linear iters & Wall time / step \\
+			\midrule
+			Baseline & $\sim$8 & $\sim$25 & 0.717 s \\
+			After all optimisations & 5 & 11 & 0.449 s \\
+			\midrule
+			Improvement & $\mathbf{-37.5\%}$ & -- & $\mathbf{-37\%}$ \\
+			\bottomrule
+		\end{tabular}
+	\end{center}
+	
+	% ==============================================================================
+	\section{Schematics and Flow Diagrams}
+	% ==============================================================================
+	
+	\subsection{\texttt{SolveUEqn} Control Flow}
+	
+	\begin{center}
+		\fbox{
+			\begin{minipage}{0.88\textwidth}
+				\textbf{SolveUEqn}
+				\begin{enumerate}[leftmargin=1.2em]
+					\item \texttt{VecSet(Rhs, 0)}
+					\item \textbf{if} \texttt{ddtScheme == "crankNicholson"}
+					\begin{itemize}
+						\item Build \texttt{bU}, compute \texttt{Utmp} (explicit predictor)
+						\item \texttt{SNESSolve} $\to$ \texttt{UeqnSNES} (residual) repeated
+						\item Print: residual, iters, linear iters, time
+					\end{itemize}
+					\item \textbf{else if} \texttt{ddtScheme == "forwardEuler"}
+					\begin{itemize}
+						\item $\to$ \texttt{UeqnEuler}
+					\end{itemize}
+					\item \textbf{else if} \texttt{ddtScheme == "rungeKutta4"}
+					\begin{itemize}
+						\item $\to$ \texttt{UeqnRK4}
+					\end{itemize}
+					\item \textbf{else if} \texttt{ddtScheme == "IMEX"}
+					\begin{itemize}
+						\item $\to$ \texttt{UeqnIMEX}
+					\end{itemize}
+					\item Post-processing: \texttt{resetNoPenetrationFluxes},
+					IBM BCs, overset BCs, \texttt{adjustFluxesLocal}
+				\end{enumerate}
+			\end{minipage}
+		}
+	\end{center}
+	
+	\subsection{\texttt{FormU} Call Graph}
+	
+	\begin{center}
+		\begin{tabular}{lcc}
+			\toprule
+			Caller & \texttt{formMode} & Scale \\
+			\midrule
+			\texttt{UeqnSNES} (crankNicholson) & 0 (full) & $0.5$ or $1$ \\
+			\texttt{IMEXMatVec} (IMEX KSP mat-vec) & 2 (visc-only) & $0.5$ or $1$ \\
+			\texttt{UeqnIMEXSNES} (reference only) & 2 (visc-only) & $0.5$ or $1$ \\
+			\texttt{UeqnIMEX} (conv eval) & 1 (conv-only) & 1 \\
+			\texttt{UeqnIMEX} (visc eval) & 2 (visc-only) & 1 \\
+			\texttt{FormExplicitRhsU} (fwdEuler/RK4) & 0 (full) & 1 \\
+			\texttt{main.c / precursor.c} (init $\mathcal{F}^n$) & 0 (full) & 1 \\
+			\bottomrule
+		\end{tabular}
+	\end{center}
+	
+	% ==============================================================================
+	\section{Known Limitations and Future Work}
+	% ==============================================================================
+	
+	\begin{itemize}
+		\item \textbf{Pressure--velocity coupling.} All four schemes use
+		\texttt{SolveUEqn} and the pressure solver separately; they do
+		not form a coupled problem. The IMEX scheme already uses a direct
+		KSP rather than SNES; further cost reduction via a
+		fractional-step/projection approach would require a modified
+		pressure-correction step to maintain second-order accuracy.
+		
+		\item \textbf{IMEX first step.} On the first time-step, the IMEX scheme
+		uses forward-Euler convection (no $\cN^{n-1}$ available), degrading
+		to first-order for that step regardless of $\beta$. A consistent
+		initialisation (e.g.\ two smaller sub-steps) would improve transient
+		accuracy.
+		
+		\item \textbf{IMEX CFL constraint.} The pure AB2 ($\beta=1$) stability
+		limit CFL $\lesssim 0.5$ can be restrictive. Reducing $\beta$
+		relaxes this at the cost of first-order temporal accuracy in the
+		convective term. A value $\beta=0$ (forward Euler) is stable for
+		CFL $<1$. For CFL $>1$ the fully implicit
+		\texttt{crankNicholson} scheme should be used.
+		
+		\item \textbf{Preconditioner.} \texttt{PCNONE} is used for all
+		schemes. A block-ILU(0) or diagonal Jacobi preconditioner could
+		reduce the number of KSP iterations from $\sim$11 to $\sim$2--3
+		for the Crank--Nicolson scheme.
+		
+		\item \textbf{Variable time step.} The IMEX bU buffer formula assumes
+		constant $\dt$. If variable time stepping is introduced, the AB2
+		coefficients must be replaced by BDF2/variable-step AB2.
+
+		\item \textbf{Hyperviscosity anisotropy.} The index-space
+		operator~\eqref{eq:delta4} penalises equally in all three index
+		directions regardless of the local mesh stretching. On highly
+		anisotropic grids (e.g.\ wall-resolved boundary layers with
+		$\Delta z / \Delta x \ll 1$), the physical dissipation is
+		stronger in the coarsely-resolved wall-normal direction than in
+		the streamwise direction. A metric-weighted biharmonic
+		($\delta^4 / h^4$) would be more consistent but requires knowledge
+		of local mesh spacings and is not currently implemented.
+	\end{itemize}
+	
+	% ==============================================================================
+	\appendix
+	\section{Relation Between \texttt{Rhs\_o} and \texttt{RhsConv}}
+	% ==============================================================================
+	
+	These two vectors serve different purposes:
+	
+	\paragraph{\texttt{Rhs\_o} (Crank--Nicolson).}
+	Contains the \emph{full} right-hand side $\mathcal{F}(U^n)$
+	evaluated by \texttt{FormExplicitRhsU} after each successful step
+	in \texttt{main.c}/\texttt{precursor.c}. Used as the Adams--Bashforth
+	blend in the Crank--Nicolson bU buffer:
+	$\bm{b}_U \mathrel{+}= \half\,\mathcal{F}^n$.
+	
+	\paragraph{\texttt{RhsConv} / \texttt{RhsConv\_o} (IMEX).}
+	Contain \emph{only} the convective contribution $\cN(U^n)$,
+	evaluated once per step inside \texttt{UeqnIMEX} before the SNES
+	solve. The rotation \texttt{RhsConv} $\to$ \texttt{RhsConv\_o} at
+	end of step maintains the AB2 two-step history without external
+	intervention from \texttt{main.c}.
+	
+	\section{Files Modified in This Session}
+	
+	\begin{center}
+		\begin{tabular}{ll}
+			\toprule
+			File & Changes \\
+			\midrule
+			\texttt{src/include/ueqn.h} & Added \texttt{RhsConv}, \texttt{RhsConv\_o},
+			updated \texttt{bU} doc, \\
+			& new \texttt{formMode} default arg, declarations for \\
+			& \texttt{UeqnIMEX}, \texttt{UeqnIMEXSNES} \\
+			\texttt{src/ueqn.c} & Added \texttt{IMEX} block in \texttt{InitializeUEqn} \\
+			& Added \texttt{IMEXMatVec} MatShell callback \\
+			& Replaced SNES with standalone \texttt{kspIMEX} + \texttt{JvIMEX} MatShell \\
+			& \texttt{resetNonResolvedCellFaces} on KSP RHS (blow-up fix) \\
+			& \texttt{KSPBCGSL} ($L$=2) for IMEX; \texttt{rtol}=\texttt{relExitTol} \\
+			& Added \texttt{UeqnIMEXSNES} (reference residual formulation) \\
+			& Added \texttt{UeqnIMEX} function \\
+			& Added \texttt{formMode} param to \texttt{FormU} \\
+			& Wired \texttt{UeqnIMEX} into \texttt{SolveUEqn} \\
+			& Loop fusion, dead code removal, \texttt{bU} buffer \\
+			& Explicit Euler predictor, KSP selector \\
+			\texttt{src/main.c} & Updated \texttt{FormU} call signature \\
+			\texttt{src/precursor.c} & Updated \texttt{FormU} call signature \\
+			\bottomrule
+		\end{tabular}
+	\end{center}
+	
+	% ==============================================================================
+	\begin{thebibliography}{9}
+
+	\bibitem{Sleijpen1993}
+	Sleijpen, G.L.G. and Fokkema, D.R. (1993).
+	``BiCGstab($\ell$) for linear equations involving unsymmetric matrices
+	with complex spectrum.''
+	\textit{Electronic Transactions on Numerical Analysis}, \textbf{1}, 11--32.
+
+	\bibitem{Saad1986}
+	Saad, Y. and Schultz, M.H. (1986).
+	``GMRES: A generalized minimal residual algorithm for solving nonsymmetric
+	linear systems.''
+	\textit{SIAM Journal on Scientific and Statistical Computing},
+	\textbf{7}(3), 856--869.
+	\doi{10.1137/0907058}
+
+	\bibitem{Lele1992}
+	Lele, S.K. (1992).
+	``Compact finite difference schemes with spectral-like resolution.''
+	\textit{Journal of Computational Physics}, \textbf{103}(1), 16--42.
+	\doi{10.1016/0021-9991(92)90324-R}
+
+	\bibitem{Ghosal1996}
+	Ghosal, S. (1996).
+	``An analysis of numerical errors in large-eddy simulations of turbulence.''
+	\textit{Journal of Computational Physics}, \textbf{125}(1), 187--206.
+	\doi{10.1006/jcph.1996.0088}
+
+	\bibitem{Karamanos2000}
+	Karamanos, G.-S. and Karniadakis, G.E. (2000).
+	``A spectral vanishing viscosity method for large-eddy simulations.''
+	\textit{Journal of Computational Physics}, \textbf{163}(1), 22--50.
+	\doi{10.1006/jcph.2000.6552}
+
+	\bibitem{Vreman1996}
+	Vreman, B., Geurts, B. and Kuerten, H. (1996).
+	``Comparison of numerical schemes in large-eddy simulation of the
+	temporal mixing layer.''
+	\textit{International Journal for Numerical Methods in Fluids},
+	\textbf{22}(4), 297--311.
+	\doi{10.1002/fld.1650220403}
+
+	\end{thebibliography}
+
+% ============================================================
+%  PART II — TEMPERATURE EQUATION SOLVERS
+% ============================================================
+\clearpage
+\part*{Part II — Temperature Equation Solvers}
+\addcontentsline{toc}{part}{Part II — Temperature Equation Solvers}
+
+% ----------------------------------------------------------------
+\section{Governing Equation for Temperature}
+\label{sec:teqn-governing}
+% ----------------------------------------------------------------
+
+The filtered (LES) or Reynolds-averaged temperature transport equation solved by TOSCA is
+
+\begin{equation}
+  \frac{\partial T}{\partial t}
+  + \nabla\!\cdot\!(\mathbf{u}\,T)
+  = \nabla\!\cdot\!(\kappa_{\text{eff}}\,\nabla T)
+  + s_T,
+  \label{eq:teqn}
+\end{equation}
+
+where $T$ is the potential temperature, $\mathbf{u}$ the resolved velocity,
+$\kappa_{\text{eff}}$ the effective thermal diffusivity (molecular plus SGS), and
+$s_T$ a source/sink term (e.g.\ nudging, Rayleigh damping).
+In curvilinear coordinates the convective flux through an $\xi^1$-face reads
+$q_{\text{conv}}^{(1)} = -U^1 T$
+and the diffusive flux
+
+\begin{equation}
+  q_{\text{visc}}^{(1)}
+  = \kappa_{\text{eff}}\,\frac{1}{J^2}
+    \bigl(g^{11}\,\partial_\xi T
+         + g^{21}\,\partial_\eta T
+         + g^{31}\,\partial_\zeta T\bigr)
+    J,
+\end{equation}
+
+with $g^{ij}$ the metric-tensor components and $J$ the Jacobian of the mapping.
+The cell-RHS is the sum of all face fluxes times $J$ (stored as \texttt{rhs}).
+
+% ----------------------------------------------------------------
+\section{\texttt{FormT} — Core Assembly Routine}
+\label{sec:formT}
+% ----------------------------------------------------------------
+
+\texttt{FormT(teqn, Rhs, scale, formMode)} assembles the spatial operator
+$\mathcal{F}(T) = \nabla\!\cdot\!(-\mathbf{u}T + \kappa_{\text{eff}}\nabla T)$
+and writes \texttt{scale}\,$\times \mathcal{F}(T)$ into \texttt{Rhs}.
+
+\subsection*{Signature}
+
+\begin{lstlisting}[language=C,basicstyle=\ttfamily\small]
+PetscErrorCode FormT(teqn_ *teqn, Vec Rhs, PetscReal scale,
+                     PetscInt formMode);
+\end{lstlisting}
+
+\subsection*{\texttt{formMode} parameter}
+
+\begin{center}
+\begin{tabular}{clp{8cm}}
+\toprule
+\textbf{Value} & \textbf{Macro / name} & \textbf{Effect} \\
+\midrule
+0 & \texttt{FULL} & Both convective and diffusive fluxes assembled. \\
+1 & \texttt{CONV\_ONLY} & Only convective fluxes ($\nabla\!\cdot\!(-\mathbf{u}T)$). \\
+2 & \texttt{DIFF\_ONLY} & Only diffusive fluxes ($\nabla\!\cdot\!(\kappa_{\text{eff}}\nabla T)$). \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection*{Algorithm}
+
+\begin{enumerate}
+  \item Scatter ghost cells for $T$, $\mathbf{U}^{\text{cont}}$, face normals,
+        $\nu_t$ (SGS), limiters.
+  \item \textbf{Fused face loop} — a single triple-nested loop over
+        $(k,j,i)\in[z_s,z_e)\times[y_s,y_e)\times[x_s,x_e)$:
+        \begin{itemize}
+          \item Skip if $i{=}m_x{-}1$ or $j{=}m_y{-}1$ or $k{=}m_z{-}1$.
+          \item \textbf{$\xi$-face} (guard $j\neq 0 \land k\neq 0$):
+                compute metric $g^{11},g^{21},g^{31}$ from \texttt{icsi/ieta/izet};
+                call \texttt{Compute\_dscalar\_i} and
+                \texttt{getFace2Cell4StencilCsi};
+                write \texttt{div[k][j][i].x} and \texttt{visc[k][j][i].x}.
+          \item \textbf{$\eta$-face} (guard $i\neq 0 \land k\neq 0$):
+                analogous with \texttt{jcsi/jeta/jzet}, writing \texttt{.y}.
+          \item \textbf{$\zeta$-face} (guard $i\neq 0 \land j\neq 0$):
+                analogous with \texttt{kcsi/keta/kzet}, writing \texttt{.z}.
+        \end{itemize}
+  \item Halo exchange (\texttt{DMLocalToLocal}) on \texttt{lDivT} and \texttt{lViscT}.
+  \item \textbf{Accumulation loop} over the local-with-ghost range:
+        \[
+          \texttt{rhs}[k][j][i]
+          = \texttt{scale}\times
+            \bigl[
+              (d_x + d_y + d_z)_{\text{conv}}\cdot\mathbf{1}_{f\neq 2}
+            + (v_x + v_y + v_z)_{\text{visc}}\cdot\mathbf{1}_{f\neq 1}
+            \bigr]
+            \times J_{kji},
+        \]
+        where subscripts $f\neq 2$ / $f\neq 1$ reflect \texttt{formMode}.
+\end{enumerate}
+
+\subsection*{Loop fusion rationale}
+
+Prior to this optimisation \texttt{FormT} contained three identical
+\texttt{for k for j for i} loops (one per face direction), each traversing
+$N_k\times N_j\times N_i$ cells.  Fusing them into a single loop with
+per-direction \texttt{if}-guards:
+\begin{itemize}
+  \item reduces loop-overhead by $3\times$,
+  \item improves cache reuse — all three face contributions for cell $(k,j,i)$
+        are computed while that cache line is hot,
+  \item matches the existing fusion in \texttt{FormU} (momentum equation).
+\end{itemize}
+The different boundary exclusions ($j{=}0$/$k{=}0$ for $\xi$, etc.) become
+lightweight branch conditions inside the single loop body.
+
+% ----------------------------------------------------------------
+\section{Time-Stepping Schemes for the Temperature Equation}
+\label{sec:teqn-schemes}
+% ----------------------------------------------------------------
+
+The active scheme is selected by \texttt{(teqn\_)}$\to$\texttt{ddtScheme}
+(set in \texttt{control.dat}).
+
+\subsection{Forward Euler}
+\label{ssec:teqn-fe}
+
+\begin{equation}
+  T^{n+1} = T^n + \Delta t\,\mathcal{F}(T^n).
+\end{equation}
+
+Implemented directly in \texttt{SolveTEqn} via a single \texttt{FormT} call
+(\texttt{formMode}=0) followed by \texttt{VecAXPY}.
+
+\subsection{Runge--Kutta 4 (\texttt{rungeKutta4})}
+\label{ssec:teqn-rk4}
+
+Classical four-stage explicit RK:
+\begin{align}
+  k_1 &= \Delta t\,\mathcal{F}(T^n), \notag\\
+  k_2 &= \Delta t\,\mathcal{F}(T^n + \tfrac{1}{2}k_1), \notag\\
+  k_3 &= \Delta t\,\mathcal{F}(T^n + \tfrac{1}{2}k_2), \notag\\
+  k_4 &= \Delta t\,\mathcal{F}(T^n + k_3), \notag\\
+  T^{n+1} &= T^n + \tfrac{1}{6}(k_1 + 2k_2 + 2k_3 + k_4). \notag
+\end{align}
+
+Stability limit: $\text{CFL} \lesssim 2\sqrt{2}$ (convection-dominated).
+
+\subsection{Backward Euler / SNES (\texttt{backwardEuler})}
+\label{ssec:teqn-be}
+
+\subsubsection*{Residual form}
+
+The nonlinear system to solve at each time step is
+\begin{equation}
+  \mathbf{F}(T^{n+1}) \;=\;
+  T^{n+1} - T^n
+  - \Delta t\,\mathcal{F}(T^{n+1})
+  - \Delta t\,\mathcal{D}(T^{n+1})
+  - s_T
+  \;=\; \mathbf{0},
+  \label{eq:teqn-snes-residual}
+\end{equation}
+where $\mathcal{D}$ denotes the Rayleigh damping source and $s_T$ the remaining
+source terms.
+Note: \texttt{sourceT} is added \emph{without} a $\Delta t$ factor (the
+convention is that \texttt{sourceT} already encodes a time-integrated
+contribution for one step).
+
+\subsubsection*{Explicit Euler predictor}
+
+Before handing the nonlinear system to SNES, an explicit Euler step provides a
+warm start:
+\begin{equation}
+  T^{*} = T^n + \Delta t\,\mathcal{F}(T^n),
+  \label{eq:teqn-predictor}
+\end{equation}
+computed via \texttt{FormT(teqn, RhsTmp, dt, 0)}.
+The predictor is stored in \texttt{TmprtTmp} and used as the initial guess for
+SNES (\texttt{SNESSolve(snes, NULL, TmprtTmp)}).
+
+\subsubsection*{SNES configuration}
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+Parameter & Value / source \\
+\midrule
+Type & \texttt{SNESNEWTONLS} \\
+Relative tolerance & \texttt{teqn->solverTol} \\
+Max iterations & \texttt{teqn->solverItMax} \\
+KSP inner solver & inherited from PETSc defaults \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{BDF2 / SNES (\texttt{BDF2})}
+\label{ssec:teqn-bdf2}
+
+\subsubsection*{Motivation}
+
+Backward Euler is only first-order accurate in time; Crank--Nicolson is second-order but neutrally stable ($|G|=1$ at all wavenumbers), meaning any
+numerical perturbation is neither damped nor amplified.  In practice the neutral
+stability of Crank--Nicolson leads to divergence in stratified LES because the
+LES sub-grid model, the buoyancy coupling, and SNES residual tolerances all
+deposit small high-frequency errors that accumulate without bound.  
+BDF2 (second-order Backward Differentiation Formula) provides second-order
+accuracy with mild A-stable dissipation ($|G|<1$ at high wavenumbers), which
+damps these errors without corrupting the resolved low-wavenumber dynamics.
+
+\subsubsection*{Residual form}
+
+BDF2 uses a three-level time-derivative approximation.  At step $n+1$ the
+residual to solve is
+\begin{equation}
+  \mathbf{F}(T^{n+1}) \;=\;
+  \frac{3}{2}\,T^{n+1} - 2\,T^n + \frac{1}{2}\,T^{n-1}
+  - \Delta t\,\mathcal{F}(T^{n+1})
+  - s_T
+  \;=\; \mathbf{0},
+  \label{eq:teqn-bdf2-residual}
+\end{equation}
+where $\mathcal{F}(T^{n+1})$ is the full right-hand side (convection + diffusion
++ Rayleigh damping) evaluated at the new time level.  On the first step
+($\text{it} = \text{itStart}$) BDF2 falls back to Backward Euler (only $T^n$
+available), giving first-order accuracy for that step only.
+
+Implementation in \texttt{TeqnSNES}: when \texttt{ddtScheme == "BDF2"} and
+$\text{it} > \text{itStart}$ the time-derivative terms in the residual vector
+are assembled as
+\begin{lstlisting}[language=C,basicstyle=\ttfamily\small]
+VecAXPY(Rhs, -3.0/2.0, T);           // -3/2 T^{n+1}  (from SNES iterate)
+VecAXPY(Rhs,  2.0,     teqn->Tmprt_o);   //  +2   T^n
+VecAXPY(Rhs, -1.0/2.0, teqn->Tmprt_oo); //  -1/2 T^{n-1}
+\end{lstlisting}
+\noindent
+For the first step the existing two-level fall-back ($-T^{n+1}+T^n$, i.e.\ Backward Euler)
+is applied automatically.
+
+\subsubsection*{History rotation}
+
+At the beginning of each time step (before the step is taken):
+\begin{lstlisting}[language=C,basicstyle=\ttfamily\small]
+// main.c — start of time step
+if(ddtScheme == "BDF2")
+    VecCopy(Tmprt_o, Tmprt_oo);   // T^{n-1} <- T^n
+VecCopy(Tmprt, Tmprt_o);          // T^n     <- T^{current}
+\end{lstlisting}
+\noindent
+The additional storage vector \texttt{Tmprt\_oo} is allocated in
+\texttt{InitializeTEqn} only when \texttt{ddtScheme == "BDF2"}.
+
+\subsubsection*{Ghost-cell behaviour}
+
+At ghost/IBM cells \texttt{resetNonResolvedCellCentersScalar} zeros the
+residual before the time-derivative terms are added.  The BDF2
+residual at a ghost cell is therefore
+$-\tfrac{3}{2}T^{n+1}_{\text{ghost}} + 2T^n_{\text{ghost}} - \tfrac{1}{2}T^{n-1}_{\text{ghost}} = 0$,
+which effectively extrapolates the ghost value as
+$T^{n+1}_{\text{ghost}} = \tfrac{4}{3}T^n - \tfrac{1}{3}T^{n-1}$.
+For time-invariant boundary conditions ($T^n_{\text{ghost}}=T^{n-1}_{\text{ghost}}=T_{\text{BC}}$)
+this extrapolation recovers $T_{\text{BC}}$ exactly; for time-varying BCs the
+error is $O(\Delta t^2)$, consistent with the global second-order accuracy.
+
+\subsubsection*{SNES configuration}
+
+Identical to Backward Euler: \texttt{SNESNEWTONLS}, matrix-free MFFD Jacobian
+(\texttt{JT}), BiCGStab or GMRES inner KSP (\texttt{ksp}/\texttt{pc}),
+tolerance controlled by \texttt{-absTolT} and \texttt{-relTolT}.
+
+\subsection{IMEX-CNAB-BE (\texttt{IMEX})}
+\label{ssec:teqn-imex}
+
+\subsubsection*{Motivation}
+
+Treating the nonlinear convection explicitly avoids a nonlinear solve;
+treating diffusion implicitly removes the thermal diffusivity constraint on
+$\Delta t$.  Unlike the momentum IMEX which uses Crank--Nicolson (CN) for
+diffusion, the temperature IMEX uses \emph{backward Euler} for diffusion.
+This choice decouples $T^{n+1}$ from $\mathbf{u}^{n+1}$: the velocity field
+is not yet updated when the temperature KSP is called, so CN would require
+an estimate of $\nabla\!\cdot\!(\kappa_{\text{eff}}\nabla T)$ at $t^{n+1}$
+using a velocity that has not yet converged.
+
+\subsubsection*{Operator splitting}
+
+Write $\mathcal{F} = \mathcal{N} + \mathcal{D}$ (convection + diffusion).
+The IMEX-CNAB-BE update is
+\begin{equation}
+  \underbrace{(I - \Delta t\,\mathcal{D})}_{A}\,T^{n+1}
+  = T^n + \Delta t\,b_T,
+  \label{eq:teqn-imex-system}
+\end{equation}
+with the explicit right-hand side
+\begin{equation}
+  b_T = c_1\,\mathcal{N}(T^n) + c_2\,\mathcal{N}(T^{n-1})
+       + \mathcal{D}_{\text{damp}}(T^n) + s_T / \Delta t,
+  \label{eq:bT}
+\end{equation}
+where $c_1, c_2$ are the Adams--Bashforth~2 blending coefficients
+(first step: $c_1{=}1, c_2{=}0$; subsequent: $c_1{=}3/2, c_2{=}{-}1/2$)
+and $\mathcal{D}_{\text{damp}}$ is the Rayleigh damping operator.
+
+\subsubsection*{Matrix-vector product — \texttt{IMEXTMatVec}}
+
+The linear operator $A = I - \Delta t\,\mathcal{D}$ is represented as a
+MatShell.  Its action on a vector $v$ is:
+
+\begin{equation}
+  A\,v = v - \Delta t\,\mathcal{D}(v)
+       = v - \Delta t\,\texttt{FormT}(v,\,\texttt{scale}{=}1.0,\,\texttt{DIFF\_ONLY}).
+  \label{eq:IMEXTMatVec}
+\end{equation}
+
+The \texttt{scale} argument is always $1.0$; the factor $\Delta t$ is applied
+externally in \texttt{IMEXTMatVec} before subtraction.
+This is in contrast to the momentum \texttt{IMEXMatVec}, which uses a
+Crank--Nicolson factor of $0.5$.
+
+\begin{tcolorbox}[colback=blue!5,colframe=blue!50!black,title=Key difference from momentum IMEX]
+  \textbf{Momentum (IMEX-CNAB):}
+  $A_U\,v = v - \tfrac{\Delta t}{2}\,\mathcal{D}_U(v)$
+  \hfill (Crank--Nicolson, $\theta=0.5$)\\[4pt]
+  \textbf{Temperature (IMEX-BE):}
+  $A_T\,v = v - \Delta t\,\mathcal{D}_T(v)$
+  \hfill (Backward Euler, $\theta=1.0$)\\[4pt]
+  The backward-Euler choice avoids requiring $\mathbf{u}^{n+1}$ for
+  the diffusion term when $\kappa_{\text{eff}}$ depends on SGS quantities
+  computed from velocity.
+\end{tcolorbox}
+
+\subsubsection*{\texttt{TeqnIMEX} — seven-step procedure}
+
+\begin{enumerate}
+  \item[\textbf{1.}] Compute $\mathcal{N}(T^n)$:
+        \texttt{FormT(teqn, conv, 1.0, CONV\_ONLY)}.
+  \item[\textbf{2.}] Build $b_T = c_1\,\mathcal{N}^n + c_2\,\mathcal{N}^{n-1}
+        + \mathcal{D}_{\text{damp}} + s_T/\Delta t$
+        and store in \texttt{teqn->bT}.
+  \item[\textbf{3.}] Form the RHS of the linear system:
+        \texttt{TmprtTmp = $T^n$ + $\Delta t\,b_T$} \;
+        (i.e.\ \texttt{VecWAXPY(TmprtTmp, dt, bT, Tmprt)})
+        then add $s_T$ (\texttt{sourceT(teqn, TmprtTmp, 1.0)}).
+  \item[\textbf{4.}] Set up the MatShell $A$ (\texttt{MatCreateShell},
+        \texttt{MatShellSetOperation}) pointing to \texttt{IMEXTMatVec}.
+  \item[\textbf{5.}] Configure KSP: type from \texttt{kspType} (default
+        \texttt{KSPBCGSL}), tolerances from \texttt{solverTol} /
+        \texttt{solverItMax}.
+  \item[\textbf{6.}] Solve $A\,T^{n+1} = \texttt{TmprtTmp}$.
+  \item[\textbf{7.}] Store $\mathcal{N}^n \to \mathcal{N}^{n-1}$
+        (\texttt{VecCopy(RhsConv, RhsConv\_o)}).
+\end{enumerate}
+
+\subsubsection*{Control parameters for IMEX}
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{Parameter} & \textbf{\texttt{teqn\_} field} & \textbf{Default / notes} \\
+\midrule
+KSP solver type & \texttt{kspType} &
+  \texttt{"bcgsl"} (BiCGStab$(\ell{=}2)$); also accepts
+  \texttt{"gmres"}, \texttt{"fgmres"} \\
+GMRES restart & \texttt{gmresRestart} & 30 \\
+Relative tolerance & \texttt{solverTol} & $10^{-5}$ \\
+Max iterations & \texttt{solverItMax} & 200 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsubsection*{Buffer fields}
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{Field} & \textbf{Type} & \textbf{Content} \\
+\midrule
+\texttt{bT}       & \texttt{Vec} & Explicit RHS blended convection + damping + source \\
+\texttt{RhsConv}  & \texttt{Vec} & $\mathcal{N}(T^n)$ — current convective RHS \\
+\texttt{RhsConv\_o} & \texttt{Vec} & $\mathcal{N}(T^{n-1})$ — previous convective RHS \\
+\texttt{JvIMEX}   & \texttt{Mat} & MatShell for $A = I - \Delta t\,\mathcal{D}$ \\
+\texttt{kspIMEX}  & \texttt{KSP} & PETSc KSP context for IMEX linear solve \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+% ----------------------------------------------------------------
+\section{U--T Buoyancy Coupling and the T Predictor}
+\label{sec:teqn-coupling}
+% ----------------------------------------------------------------
+
+\subsection*{The coupling problem}
+
+The main time loop advances fields in the following order:
+
+\begin{center}
+\texttt{Buoyancy}$(T^n)$ $\;\to\;$
+\texttt{SolveUEqn} $\;\to\;$
+\texttt{SolvePEqn} $\;\to\;$
+\texttt{SolveTEqn}
+\end{center}
+
+\texttt{Buoyancy} writes the buoyancy acceleration $\mathbf{b}(T^n)$ into
+\texttt{bTheta}, which \texttt{FormU} then uses.  Because $T^n$ is one step
+behind, the buoyancy seen by the momentum update is lagged:
+
+\begin{equation}
+  \mathbf{u}^{n+1}
+  = \text{advance}\bigl(\mathbf{u}^n,\,\mathbf{b}(T^n)\bigr),
+  \quad\text{error }\sim \Delta t\,\partial_t\mathbf{b} = O(\Delta t).
+\end{equation}
+
+For stably-stratified flow this $O(\Delta t)$ phase error between velocity
+and temperature introduces a spurious phase lag in the buoyancy restoring
+force.  When the Brunt--Väisälä period $\tau_N = 2\pi/N$ is comparable to
+$\Delta t$, the lag grows into a numerical instability.
+
+\subsection*{T predictor (\texttt{TmprtPredictor})}
+
+To reduce the coupling error to $O(\Delta t^2)$, the momentum step can
+optionally be preceded by a single cheap convection-only forward-Euler step:
+
+\begin{equation}
+  T^* = T^n + \Delta t\,\mathcal{N}(T^n),
+  \label{eq:Tpredictor}
+\end{equation}
+
+where $\mathcal{N}$ is the convective operator evaluated with the
+\emph{already-updated} $\mathbf{u}^{n+1}$ contravariant fluxes
+(formMode~=~1, scale~=~1.0).
+The modified time loop becomes:
+
+\begin{center}
+\texttt{TmprtPredictor}: $T^*=T^n+\Delta t\,\mathcal{N}(T^n)$
+$\;\to\;$
+\texttt{Buoyancy}$(T^*)$
+$\;\to\;$
+\texttt{SolveUEqn}
+$\;\to\;$
+\texttt{SolvePEqn}
+$\;\to\;$
+\texttt{TmprtRestoreFromOld}: $\texttt{lTmprt}\leftarrow T^n$
+$\;\to\;$
+\texttt{SolveTEqn}
+\end{center}
+
+Since $T^* \approx T^{n+1/2}$ to first order,
+the buoyancy error is reduced to $O(\Delta t^2)$:
+
+\begin{equation}
+  \mathbf{b}(T^*) = \mathbf{b}(T^n) + \Delta t\,\partial_t\mathbf{b}\big|_n
+  + O(\Delta t^2),
+\end{equation}
+
+which matches the second-order accuracy of the velocity schemes (RK4, IMEX,
+backward Euler).
+
+\textbf{Why convection only?}
+Advection is the dominant mechanism that repositions the temperature inversion
+layer within one time step.
+Diffusion changes $T$ on the diffusion time-scale
+$\tau_\kappa = h^2/\kappa_{\text{eff}} \gg \Delta t$ for large CFL, so
+neglecting it in the predictor introduces an error well below $O(\Delta t^2)$.
+The predictor therefore adds only one \texttt{FormT(CONV\_ONLY)} call
+(roughly one-fifth of a full \texttt{FormT}) and one halo scatter per step.
+
+\textbf{Restore before \texttt{SolveTEqn}.}
+The predictor temporarily stores $T^*$ in \texttt{Tmprt}/\texttt{lTmprt}.
+Before \texttt{SolveTEqn} is called, \texttt{TmprtRestoreFromOld} copies
+\texttt{Tmprt\_o} (which holds $T^n$, saved at the start of the time step)
+back into \texttt{Tmprt}/\texttt{lTmprt}.  This ensures that \texttt{TeqnIMEX}
+Step~2 (which reads \texttt{lTmprt} as $T^n$) and \texttt{TeqnSNES} (which
+uses \texttt{Tmprt\_o} as the old state) are both consistent: the T solver
+always advances from $T^n$, not from $T^*$.
+
+\subsection*{Activation}
+
+The predictor is controlled by the \texttt{-teqnPredictorU} PETSc option
+(set in \texttt{control.dat} or on the command line):
+
+\begin{lstlisting}[language={}]
+-teqnPredictorU    forwardEuler;    # or "none" (default)
+\end{lstlisting}
+
+The option is read in \texttt{InitializeUEqn} and stored in
+\texttt{ueqn\_::teqnPredictorScheme}.  It is independent of both the U and T
+\texttt{ddtScheme} choices (it applies to any combination).
+
+% ----------------------------------------------------------------
+\section{Key Design Decisions}
+\label{sec:teqn-design}
+% ----------------------------------------------------------------
+
+\begin{enumerate}
+  \item \textbf{Backward Euler for diffusion (not CN)}: Avoids coupling
+        $T^{n+1}$ to $\kappa_{\text{eff}}(\mathbf{u}^{n+1})$ before the
+        velocity update; the linear system for $T$ is self-contained.
+
+  \item \textbf{\texttt{sourceT} convention}: The source term is added
+        \emph{without} scaling by $\Delta t$ in both \texttt{TeqnSNES} and
+        \texttt{TeqnIMEX}.  In \texttt{TeqnSNES} the \texttt{Rhs} vector is
+        first scaled by $\Delta t$ with \texttt{VecScale(Rhs, dt)}, then
+        \texttt{sourceT(teqn, Rhs, 1.0)} is called; the source therefore
+        enters at its physical magnitude, not scaled by $\Delta t$.
+        In \texttt{TeqnIMEX} the source is added to the already-built
+        right-hand side \texttt{TmprtTmp = $T^n + \Delta t\,b_T$}, again
+        without an extra $\Delta t$ factor.
+
+  \item \textbf{Explicit predictor for SNES warm start}: Used as an initial
+        guess for the SNES (\texttt{backwardEuler}) to reduce nonlinear
+        iterations; distinct from the buoyancy predictor above.
+
+  \item \textbf{Loop fusion in \texttt{FormT}}: The original three separate
+        triple-nested loops (one per face direction) were replaced by a single
+        fused loop with per-direction guards, matching the optimisation
+        already present in \texttt{FormU}.
+
+  \item \textbf{T predictor before \texttt{SolveUEqn}}: Optional
+        (\texttt{-teqnPredictorU forwardEuler}) — reduces U--T buoyancy
+        coupling error from $O(\Delta t)$ to $O(\Delta t^2)$ at the cost
+        of one extra \texttt{FormT(CONV\_ONLY)} call per time step.
+\end{enumerate}
+
+% ================================================================
+\section{Pressure Boundary-Condition Ordering Bug and Fix}
+\label{sec:peqn-bc-bug}
+% ================================================================
+
+\subsection{Background: pressure update pipeline}
+\label{sec:peqn-bc-bug-bg}
+
+At the end of each pressure-projection step the following sequence is
+executed inside \texttt{SolvePEqn} (after the Poisson solver converges):
+
+\begin{enumerate}
+  \item \textbf{\texttt{phiToPhi}} — converts the raw solver output
+        ($\phi_2$) to the actual pressure correction $\phi$.
+  \item \textbf{\texttt{UpdatePressure}} — adds $\phi$ to $p$ for every
+        fluid cell, computes and subtracts the domain mean (compatibility
+        condition), then scatters $P \to \mathtt{lP}$.
+  \item \textbf{\texttt{SetPressureReference}} — pins the gauge by
+        subtracting $p_{1,1,1}$ from every non-solid cell, then
+        scatters $P \to \mathtt{lP}$.
+  \item \textbf{\texttt{UpdatePressureBCs}} — reads \texttt{lP} and
+        reflects the correct Neumann (zero-gradient) or specified
+        boundary values into the ghost rows of $P$, then scatters
+        $P \to \mathtt{lP}$.
+  \item \textbf{\texttt{ProjectVelocity}} — uses \texttt{lP} to correct
+        the contravariant fluxes $U^*_{\text{cont}} \to U_{\text{cont}}$.
+  \item \textbf{Next step}: \texttt{GradP} builds the pressure-gradient
+        forcing from \texttt{lP} for the momentum equation.
+\end{enumerate}
+
+\subsection{The bug: premature call to \texttt{UpdatePressureBCs}}
+\label{sec:peqn-bc-bug-desc}
+
+In the original code \texttt{UpdatePressureBCs} was called from
+\emph{inside} \texttt{UpdatePressure}, between the first accumulation
+loop (which adds $\phi$ to $p$ for fluid cells) and the
+\texttt{MPI\_Allreduce} that computes the domain mean.  The full
+execution order was therefore:
+
+\begin{enumerate}
+  \item Fluid cells: $p \mathrel{+}= \phi$
+  \item \textbf{\texttt{UpdatePressureBCs}} — sets ghost-row values of
+        $P$ from \texttt{lP}, which still holds data from the
+        \emph{previous} time step at this point.
+  \item \texttt{MPI\_Allreduce} — compute mean $\bar{p}$
+  \item Fluid cells: $p \mathrel{-}= \bar{p}$
+  \item \textbf{All remaining cells} (\texttt{else} branch):
+        $p_{k,j,i} = 0$ — this branch covers ghost rows as well as
+        IBM/overset cells, so it \emph{overwrites} the values that
+        \texttt{UpdatePressureBCs} had just written.
+  \item Scatter $P \to \mathtt{lP}$: ghost cells in \texttt{lP} become
+        exactly $0$.
+  \item \texttt{SetPressureReference}: subtracts the gauge shift
+        $g = p_{1,1,1}$ from \emph{all} non-IBM cells, including ghost
+        rows $\Rightarrow$ ghost cells in \texttt{lP} become $-g$.
+\end{enumerate}
+
+After this sequence every ghost cell in \texttt{lP} holds $-g$ instead
+of the correct zero-gradient extrapolation.
+
+\subsection{Consequences}
+\label{sec:peqn-bc-bug-consequences}
+
+\paragraph{Spurious pressure gradient at boundaries.}
+\texttt{GradP} evaluates face-centred pressure gradients by differencing
+values of \texttt{lP} at neighbouring cell centres.  For a cell adjacent
+to any non-periodic boundary the stencil reads one interior value $p_I$
+and one ghost value $p_g$.  With the bug, $p_g = -g$, so
+
+\begin{equation}
+  \nabla p\big|_{\partial\Omega} \;\approx\; \frac{p_I - (-g)}{h}
+  = \frac{p_I + g}{h},
+\end{equation}
+
+an error of magnitude $g/h$ that is \emph{wrong by construction}
+and changes sign and amplitude with the time-varying gauge shift $g$.
+
+\paragraph{Contaminated Poisson right-hand side.}
+The spurious boundary gradient enters the momentum equation and
+corrupts $\mathbf{U}^{n+1}_{\text{cont}}$ at all boundary-adjacent
+faces.  \texttt{SetRHS} computes the divergence of
+$\mathbf{U}^{n+1}_{\text{cont}}$, so the Poisson right-hand side
+$\nabla \cdot \mathbf{U}^*/\Delta t$ is also contaminated, even though
+the matrix stencil itself is correct.  The solver faithfully minimises
+the residual of the \emph{wrong} system.
+
+\paragraph{Closed feedback loop and pressure oscillations.}
+Because $g$ is the domain-mean pressure, which changes every step due
+to open-boundary flux imbalances, buoyancy, or mean-gradient forcing,
+the magnitude and sign of the error varies in time.  This produces a
+self-sustaining oscillation whose amplitude can grow to the point where
+the instantaneous min/max pressure range is far larger than the
+physically meaningful variation; subtracting the spatial mean does not
+suppress this oscillation because the contamination is spatially
+structured (concentrated at boundaries and propagated inward by the
+elliptic solver), not a uniform DC shift.
+
+\subsection{The fix}
+\label{sec:peqn-bc-bug-fix}
+
+\texttt{UpdatePressureBCs} is removed from \texttt{UpdatePressure} and
+called in \texttt{SolvePEqn} \emph{after} \texttt{SetPressureReference},
+so that it reads the fully corrected, gauge-fixed \texttt{lP}:
+
+\begin{lstlisting}[caption={Corrected call order in \texttt{SolvePEqn}
+  (\texttt{src/peqn.c}).},label=lst:peqn-fix]
+phiToPhi(peqn);
+UpdatePressure(peqn);          // p += phi, mean-subtracted, P->lP
+SetPressureReference(peqn);    // gauge shift, P->lP
+UpdatePressureBCs(peqn);       // ghost BCs from correct lP, P->lP  <-- moved here
+ProjectVelocity(peqn);         // correct fluxes using final lP
+\end{lstlisting}
+
+Inside \texttt{UpdatePressure} the call to \texttt{UpdatePressureBCs}
+is deleted.  \texttt{lP} is now consistent at every point where it is
+subsequently read (\texttt{ProjectVelocity}, \texttt{GradP}).
+
+\begin{warnbox}[Affected solvers]
+The bug was present in all time-stepping schemes because
+\texttt{SolvePEqn} is called identically from the Forward~Euler,
+Runge--Kutta~4, Crank--Nicolson, and IMEX loops.  All schemes benefit
+from the reordering.
+\end{warnbox}
+
+% ============================================================
+\section{Pressure Poisson Solver (\texttt{peqn})}
+\label{sec:peqn}
+
+TOSCA uses a fractional-step (operator-splitting) projection method.
+After the momentum equation advances the velocity to a predicted state
+$\widetilde{U}^*$ that is not necessarily divergence-free, a pressure
+correction $\phi$ is obtained by solving a Poisson equation; the
+corrected contravariant flux is then projected onto the divergence-free
+manifold.  The entire sequence is orchestrated by \texttt{SolvePEqn}.
+
+% ------------------------------------------------------------
+\subsection{Overall Sequence (\texttt{SolvePEqn})}
+\label{sec:peqn-sequence}
+
+\begin{lstlisting}[caption={Body of \texttt{SolvePEqn} (\texttt{src/peqn.c}).},
+                   label=lst:solvePEqn]
+// 1. IBM flux correction (IBM/overset only)
+AdjustIBMFlux(peqn);
+
+// 2. Dynamic-IBM matrix refresh (if needed)
+//    HYPRE: in-place re-initialise (avoids dangling-pointer hang)
+//    PETSc: destroy/recreate KSP
+SetCoeffMatrix(peqn);
+
+// 3. Divergence-based RHS + compatibility condition
+SetRHS(peqn);
+
+// 4. Linear solve  (HYPRE or PETSc, see Sec. sec:peqn-solvers)
+//    Initial guess = phi from previous timestep (warm start)
+// -> overwrites peqn->phi
+
+// 5. Post-solve: subtract mean of phi (null-space removal)
+SubtractAverageHypre / SubtractAveragePETSc(peqn);
+
+// 6. Scatter flat phi -> 3-D DMDA field
+phiToPhi(peqn);
+
+// 7. Accumulate pressure and subtract its mean
+UpdatePressure(peqn);         // p^{n+1} = p^n + Phi, mean-subtracted
+
+// 8. Gauge fix: p[1][1][1] = 0
+SetPressureReference(peqn);
+
+// 9. Fill ghost cells from final lP
+UpdatePressureBCs(peqn);      // MUST be after SetPressureReference
+
+// 10. Project contravariant fluxes
+ProjectVelocity(peqn);
+\end{lstlisting}
+
+Steps 7--9 must appear in the order shown; see
+Section~\ref{sec:peqn-bc-bug} for the consequences of calling
+\texttt{UpdatePressureBCs} earlier.
+
+% ------------------------------------------------------------
+\subsection{DOF Numbering (\texttt{SetPoissonConnectivity})}
+\label{sec:peqn-connectivity}
+
+\texttt{SetPoissonConnectivity} assigns a global degree-of-freedom
+index to every interior cell (including IBM and overset cells).  The
+mapping is:
+
+\begin{equation}
+  \texttt{matID}(i,j,k) = \texttt{lid}[k][j][i] + \texttt{nUntilThisRank},
+\end{equation}
+
+where \texttt{lid} is a rank-local counter that visits cells in
+$(k,j,i)$ order, and \texttt{nUntilThisRank} is the accumulated DOF
+count of all lower-ranked processes.  The per-rank range
+$[\texttt{thisRankStart},\texttt{thisRankEnd}]$ is communicated via
+\texttt{MPI\_Allreduce} and used by both the HYPRE and PETSc paths for
+consistent parallel matrix layout.
+
+IBM/overset cells receive a valid DOF ID but their rows in the matrix
+are treated as trivial equations $\phi_i = 0$ (see below).  The
+\texttt{phi} PETSc vector is sized to \texttt{gndof[rank]} local
+entries, matching the DOF layout exactly.
+
+% ------------------------------------------------------------
+\subsection{Poisson Matrix (\texttt{SetCoeffMatrix})}
+\label{sec:peqn-matrix}
+
+The discrete Laplacian on the curvilinear grid gives a 19-point stencil
+per fluid cell.  At each cell-face $\alpha\in\{i,j,k\}$ the contribution
+involves the metric-tensor component
+
+\begin{equation}
+  g^{(\alpha)}_{\beta\gamma}
+  = \bigl(\nabla\xi^\beta \cdot \nabla\xi^\gamma\bigr)\,J_\alpha,
+\end{equation}
+
+where $J_\alpha$ is the face Jacobian (\texttt{iaj}/\texttt{jaj}/\texttt{kaj}).
+Each face contributes up to nine off-diagonal entries (the
+$3\times3$ cross-derivative block at the face), leading to the 19-point
+stencil (1 diagonal + 6 face-centred + 12 edge-centred).
+
+IBM and overset cells receive the trivial row $A_{ii}=1$,
+$A_{ij}=0$~($j\neq i$), so their solution is identically zero and they
+contribute nothing to the divergence-constraint.
+
+A face contribution is \emph{excluded} whenever the neighbour cell in
+the direction of differentiation is an IBM cell or a domain boundary
+under a zero-gradient (Neumann) condition; this is equivalent to setting
+the normal derivative of $\phi$ to zero at that face, which is the
+correct Neumann boundary condition.
+
+% ------------------------------------------------------------
+\subsection{Right-Hand Side and Compatibility (\texttt{SetRHS})}
+\label{sec:peqn-rhs}
+
+The RHS of the Poisson system is the divergence of the predicted
+contravariant flux divided by $\Delta t$:
+
+\begin{equation}
+  b_{ijk}
+  = \frac{1}{\Delta t}
+    \bigl(
+      \widetilde{U}^{\xi}_{i+\tfrac12} - \widetilde{U}^{\xi}_{i-\tfrac12}
+    + \widetilde{U}^{\eta}_{j+\tfrac12} - \widetilde{U}^{\eta}_{j-\tfrac12}
+    + \widetilde{U}^{\zeta}_{k+\tfrac12} - \widetilde{U}^{\zeta}_{k-\tfrac12}
+    \bigr).
+\end{equation}
+
+IBM/overset cells receive $b_{ijk}=0$ (consistent with $A_{ii}=1$,
+solution $\phi=0$).
+
+The Poisson system has a constant null space (pure Neumann problem),
+so the compatibility condition $\sum_\Omega b_i = 0$ must be enforced.
+\texttt{SetRHS} does this by computing the mean divergence over fluid
+(non-IBM, non-overset) cells via \texttt{MPI\_Allreduce} and
+subtracting it from every fluid-cell RHS entry.
+
+% ------------------------------------------------------------
+\subsection{Null-Space Removal from the Solution}
+\label{sec:peqn-nullspace}
+
+After each linear solve the constant mode in $\phi$ is removed by
+\texttt{SubtractAverageHypre} / \texttt{SubtractAveragePETSc}: the
+mean of $\phi$ is computed over \emph{fluid and calculated cells only}
+(filtered by \texttt{isFluidCell} \&\& \texttt{isCalculatedCell}) and
+subtracted from those same cells.  The two functions are numerically
+equivalent after the fix described in Section~\ref{sec:peqn-bc-bug}.
+
+IBM/overset cells, whose solution is identically zero, are excluded from
+both the mean computation and the subtraction; including them would
+dilute the mean and introduce a spurious shift.
+
+% ------------------------------------------------------------
+\subsection{Linear Solvers}
+\label{sec:peqn-solvers}
+
+The solver backend is selected via \texttt{solverType} in
+\texttt{control.dat}.
+
+\subsubsection{HYPRE path (\texttt{solverType = HYPRE})}
+
+The outer Krylov method is either GMRES (type~1) or PCG (type~2), both
+wrapped around a BoomerAMG preconditioner configured in
+\texttt{CreateHypreSolver}:
+
+\begin{lstlisting}[caption={BoomerAMG configuration in \texttt{CreateHypreSolver}.}]
+HYPRE_BoomerAMGSetInterpType(hyprePC, 13);    // FF1 interpolation
+HYPRE_BoomerAMGSetStrongThreshold(hyprePC, amgThresh); // 0.5--0.6
+HYPRE_BoomerAMGSetCoarsenType(hyprePC, amgCoarsenType);// e.g. HMIS=10
+HYPRE_BoomerAMGSetCycleType(hyprePC, 1);      // V-cycle
+HYPRE_BoomerAMGSetMaxIter(hyprePC, 3);        // 3 AMG sweeps per KSP iter
+HYPRE_BoomerAMGSetSmoothType(hyprePC, 7);     // Pilut smoother
+HYPRE_BoomerAMGSetSmoothNumSweeps(hyprePC, 3);
+\end{lstlisting}
+
+BoomerAMG is $\mathcal{O}(N)$ scalable; convergence is independent of
+grid size when the strong threshold and coarsening type are correctly
+tuned (0.5 for Cartesian-like meshes, 0.6 for highly distorted ones).
+
+The BoomerAMG hierarchy is built (setup) only at the first timestep or
+when the IBM body moves.  On subsequent steps the existing hierarchy is
+reused, making each solve essentially free of setup cost.
+
+\paragraph{Dynamic IBM.}
+When the IBM body moves, the matrix values change but the DOF layout
+does not (\texttt{SetPoissonConnectivity} always assigns IDs to all
+interior cells regardless of IBM status).  The matrix and vectors are
+therefore \emph{re-initialised in place} via
+\texttt{HYPRE\_IJMatrixInitialize} and \texttt{HYPRE\_IJVectorInitialize}
+rather than destroyed and recreated:
+
+\begin{warnbox}[Dynamic-IBM HYPRE pattern]
+\texttt{HYPRE\_IJMatrixDestroy} frees the underlying ParCSR object.
+However, \texttt{HYPRE\_BoomerAMGSetup} retains an internal pointer to
+that object; destroying it leaves a dangling pointer that causes a
+random use-after-free hang on the next \texttt{HYPRE\_BoomerAMGSetup}
+call.  Re-initialising in place keeps the ParCSR pointer valid and
+eliminates the hang.
+\end{warnbox}
+
+\subsubsection{PETSc path (\texttt{solverType = PETSc})}
+
+The PETSc path uses FGMRES with a PCGAMG algebraic-multigrid
+preconditioner, configured in \texttt{CreatePETScSolver}:
+
+\begin{lstlisting}[caption={PETSc solver configuration in \texttt{CreatePETScSolver}.}]
+PCSetType(petscPC, PCGAMG);
+PCGAMGSetNSmooths(petscPC, 1);      // 1 smoother sweep per level
+KSPSetPCSide(ksp, PC_RIGHT);        // FGMRES only supports right preconditioning
+KSPSetType(ksp, KSPFGMRES);         // FGMRES: supports variable PC
+KSPGMRESSetRestart(ksp, 20);        // restart after 20 vectors
+KSPSetInitialGuessNonzero(ksp, PETSC_TRUE); // warm start
+KSPSetUp(ksp);                      // build AMG hierarchy
+\end{lstlisting}
+
+Key design choices:
+\begin{itemize}
+  \item \textbf{FGMRES} (not PGMRES): AMG preconditioners can vary
+    between applications (e.g.\ after the hierarchy is re-built);
+    FGMRES handles variable preconditioners correctly, PGMRES assumes
+    the preconditioner is fixed.
+  \item \textbf{Restart 20}: PCGAMG typically converges in fewer than
+    20 iterations for Poisson on well-resolved LES grids; a restart of
+    100 (the previous default) pre-allocated 100 basis vectors
+    needlessly.
+  \item \textbf{Warm start}: \texttt{KSPSetInitialGuessNonzero} tells
+    KSP to use the current content of \texttt{phi} as initial guess,
+    carrying over the solution from the previous timestep.
+\end{itemize}
+
+For dynamic IBM the PETSc path performs a full
+\texttt{DestroyPETScSolver}+\texttt{CreatePETScSolver} cycle, which
+triggers a PCGAMG hierarchy rebuild via \texttt{KSPSetUp}.  This is
+more expensive than the HYPRE in-place reuse but is safe
+(\texttt{KSPDestroy} is a clean teardown with no dangling-pointer risk).
+
+% ------------------------------------------------------------
+\subsection{Post-Solve Pressure Update}
+\label{sec:peqn-pupdate}
+
+\subsubsection{\texttt{phiToPhi}: flat vector to 3-D field}
+
+The flat PETSc vector \texttt{phi} (DOF-ordered, length
+\texttt{thisRankSize}) is scattered into the 3-D global DMDA vector
+\texttt{Phi} and its ghost-padded local counterpart \texttt{lPhi}.
+IBM and overset cells receive $\Phi = 0$ explicitly.
+
+\subsubsection{\texttt{UpdatePressure}: accumulate and de-mean}
+
+\begin{equation}
+  p^{n+1}_{ijk} = p^n_{ijk} + \Phi_{ijk}
+  \quad \text{for fluid cells},
+\end{equation}
+
+followed by subtraction of the spatial mean of $p^{n+1}$ over all
+fluid-and-calculated cells (via \texttt{MPI\_Allreduce}).  This
+intermediate de-meaning prevents unbounded pressure drift but does not
+constitute the final gauge fix.
+
+\subsubsection{\texttt{SetPressureReference}: gauge fix}
+
+The cell $(i,j,k)=(1,1,1)$ is chosen as pressure reference.  Its
+value is broadcast via \texttt{MPI\_Allreduce} (the rank that owns
+the cell loads it into the local contribution; all other ranks
+contribute zero) and then subtracted from every non-IBM,
+non-zeroed cell.  After this step $p[1][1][1]=0$ exactly.
+
+\subsubsection{\texttt{ProjectVelocity}: divergence-free projection}
+
+The corrected contravariant flux is
+
+\begin{equation}
+  U^{n+1}_{\text{ctv},\alpha} =
+  \widetilde{U}^*_{\text{ctv},\alpha}
+  - \Delta t\,
+    \bigl((\nabla\xi^\beta\cdot\nabla\xi^\alpha)J_\alpha\bigr)
+    \frac{\partial\phi}{\partial\xi^\beta},
+\end{equation}
+
+where the pressure-gradient difference $\partial\phi/\partial\xi^\beta$
+at each face is evaluated using the same stencil as
+\texttt{SetCoeffMatrix}, ensuring exact consistency between the
+projection and the Poisson operator: the projected fluxes are
+divergence-free to machine precision.
+
+% ------------------------------------------------------------
+\subsection{Pressure Gradient for the Momentum Equation (\texttt{GradP})}
+\label{sec:peqn-gradp}
+
+\texttt{GradP} computes the contravariant pressure-gradient vector
+$\mathbf{dP}$ used as a source term in the momentum equation.  It
+employs \emph{adaptive order}:
+
+\begin{itemize}
+  \item 4th-order central differences in the interior, away from
+    IBM/overset interfaces and domain boundaries.
+  \item 2nd-order central differences within one cell of an IBM or
+    overset interface, or within two cells of a domain boundary.
+  \item 1st-order one-sided (upwind) differences at domain-boundary
+    corner faces where two non-periodic boundaries meet (to avoid
+    referencing out-of-domain ghost cells).
+\end{itemize}
+
+The stencil switches are applied per face and per direction
+independently, so a face near one boundary can use 4th order
+in the two tangential directions while using 2nd order in the
+normal direction.
+
+\begin{notebox}[Note: \texttt{GradP} vs.\ \texttt{ProjectVelocity} stencils]
+  \texttt{GradP} (momentum source) and \texttt{ProjectVelocity}
+  (flux correction) use deliberately \emph{different} stencils for
+  $\nabla p$.  \texttt{ProjectVelocity} uses the exact transpose of
+  the \texttt{SetCoeffMatrix} stencil (ensuring machine-precision
+  divergence-free projection), while \texttt{GradP} uses the
+  adaptive-order scheme above for accuracy in the interior.  This
+  is intentional and does not introduce inconsistency in the
+  time-integration.
+\end{notebox}
+
+
+% ============================================================
+%  PART III — OVERSET METHOD
+% ============================================================
+\clearpage
+\part*{Part III — Overset Method}
+\addcontentsline{toc}{part}{Part III — Overset Method}
+
+% ----------------------------------------------------------------
+\section{Concept and Domain Hierarchy}
+\label{sec:overset-concept}
+% ----------------------------------------------------------------
+
+TOSCA's overset (chimera) method couples two or more structured meshes that
+partially overlap in physical space.
+The standard configuration is a \textbf{two-level cascade}:
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{Role} & \textbf{Alias} & \textbf{Purpose} \\
+\midrule
+Background (parent) & coarse mesh & large-scale domain; provides far-field BCs \\
+Fine insert (child)  & fine mesh   & resolved region (turbine, terrain detail) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The fine mesh is fully embedded inside the background domain.  The two
+meshes share no grid points; information is exchanged only through
+\emph{trilinear interpolation} at selected interface cells.
+
+\begin{notebox}[Recursive nesting]
+  \texttt{UpdateDomainInterpolation} is recursive: a fine mesh can
+  itself serve as the background for a still-finer mesh, enabling
+  cascaded refinement.  The discussion below focuses on the two-level
+  case; the recursive extension is straightforward.
+\end{notebox}
+
+% ----------------------------------------------------------------
+\section{Cell Classification via \texttt{meshTag}}
+\label{sec:overset-meshtag}
+% ----------------------------------------------------------------
+
+Each cell in every domain carries a scalar field \texttt{meshTag}
+(stored in \texttt{mesh->lmeshTag} and \texttt{mesh->meshTag}).
+The field is set once during initialisation and remains fixed for
+non-moving domains.  Three cell classes are defined:
+
+\begin{center}
+\begin{tabular}{llll}
+\toprule
+\textbf{Classification} & \textbf{Tag range} & \textbf{Predicate} & \textbf{Meaning} \\
+\midrule
+Calculated cell & $\texttt{meshTag} < 0.1$       & \texttt{isCalculatedCell} & Normal fluid; fully solved \\
+Interpolated cell & $0.1 < \texttt{meshTag} < 1.5$ & \texttt{isInterpolatedCell} & Interface layer; value set by overset interpolation \\
+Zeroed cell       & $\texttt{meshTag} > 1.5$       & \texttt{isZeroedCell}        & Solid-equivalent blanked region; all fluxes zeroed \\
+\midrule
+Overset cell      & $\texttt{meshTag} > 0.1$       & \texttt{isOversetCell}       & Union of interpolated + zeroed \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{Background mesh (parent).}
+Interior and boundary cells that lie outside the fine-mesh footprint are
+\emph{calculated}.  Cells inside the fine-mesh footprint are \emph{zeroed}
+(hole-cut blanked): all residuals and fluxes are suppressed there.
+A thin collar of cells at the edge of the hole is \emph{interpolated}:
+these receive values from the fine mesh (C2P direction) and act as
+Dirichlet-like boundary conditions for the background solver.
+
+\paragraph{Fine mesh (child).}
+Interior cells are fully \emph{calculated}.
+The outermost layer of interior cells (the ghost fringe) is
+\emph{interpolated}: values are received from the background mesh (P2C
+direction) and override the solver solution, coupling the two domains.
+
+\paragraph{Face classifiers.}
+Companion predicates (\texttt{isInterpolatedIFace}, \texttt{isZeroedKFace},
+etc.) check the sum of \texttt{meshTag} at the two cells sharing a face;
+they are used in \texttt{setBackgroundBC} to set contravariant fluxes at
+interface faces.
+
+% ----------------------------------------------------------------
+\section{Initialisation (\texttt{InitializeOverset})}
+\label{sec:overset-init}
+% ----------------------------------------------------------------
+
+Overset initialisation, called once before the time loop, performs five
+steps:
+
+\begin{enumerate}
+  \item \textbf{Hole object definition.}
+        The bounding box (or STL surface) of the fine
+        mesh is converted to an IBM-like hole object inside the
+        background domain.
+
+  \item \textbf{Tag propagation.}
+        The \texttt{meshTag} field is assigned using the hole object:
+        interior cells within the hole are tagged as zeroed ($= 3$),
+        the adjacent fringe as interpolated ($= 1$).
+        Nearby IBM solid cells receive an elevated tag ($= 4 \to 2$ or $3$)
+        to prevent incorrect solver behaviour at IBM--overset intersections.
+
+  \item \textbf{P2C acceptor list (\texttt{createAcceptorCellOverset}).}
+        For each interpolated cell on the fine mesh, the routine records
+        the receiving rank and cell indices, and launches an octree
+        donor search inside the background mesh to find the
+        enclosing cell.  The result is a list of
+        \texttt{aCell} structs (one per acceptor), each storing:
+        rank of donor, trilinear weights, and the 8 surrounding
+        donor-cell indices.
+
+  \item \textbf{C2P acceptor list (\texttt{createAcceptorCellBackground}).}
+        For each interpolated cell on the background mesh, the routine
+        identifies the eight corresponding fine-mesh vertices used for the
+        C2P averaging stencil (one donor per vertex corner of the
+        background cell), again via octree search.
+
+  \item \textbf{Barrier synchronisation.}
+        A global \texttt{MPI\_Barrier} after initialisation ensures all
+        processes have completed the search before the time loop starts.
+\end{enumerate}
+
+% ----------------------------------------------------------------
+\section{Per-Step Interpolation (\texttt{UpdateOversetInterpolation})}
+\label{sec:overset-update}
+% ----------------------------------------------------------------
+
+At the end of each time step, after all domain solvers have advanced to
+$t^{n+1}$, the function
+
+\begin{lstlisting}[language=C, style=cstyle]
+PetscErrorCode UpdateOversetInterpolation(domain_ *domain);
+\end{lstlisting}
+
+is called once from \texttt{main.c}.  It loops over all top-level
+domains and calls the recursive helper \texttt{UpdateDomainInterpolation},
+which performs interpolation in two passes:
+
+\begin{enumerate}
+  \item \textbf{P2C pass (\texttt{interpolateACellTrilinearP2C}).}
+        For every interpolated cell on the \emph{fine} mesh, trilinear
+        interpolation from the background mesh donor provides updated
+        values of $\mathbf{u}$, $T$, and $p$.
+
+  \item \textbf{C2P pass (\texttt{interpolateACellTrilinearC2P}).}
+        For every interpolated cell on the \emph{background} mesh, values
+        of $\mathbf{u}$, $T$, and $p$ are collected from the eight
+        surrounding fine-mesh cells and averaged (spatial average over
+        $2\times2\times2$ stencil) to provide coarse-cell values.
+
+  \item \textbf{Scatter.}
+        After all MPI communication completes, updated global vectors are
+        scattered to their ghost-padded local counterparts
+        (\texttt{DMGlobalToLocal}).
+
+  \item \textbf{Recursive descent.}
+        If the fine mesh itself hosts a finer child, the procedure is
+        applied recursively before returning.
+\end{enumerate}
+
+\begin{notebox}[Why 8-vertex averaging for C2P?]
+  The C2P direction transfers fine-mesh data to a coarser background
+  cell.  Using a single interpolated point (as in P2C) would discard
+  spatial variation resolved by the fine mesh.  Averaging over the
+  $2\times2\times2$ vertices provides a physically meaningful, low-pass
+  filtered boundary condition for the background solver.  It is
+  equivalent to a cell-volume weighted injection in the context of
+  multigrid prolongation/restriction.
+\end{notebox}
+
+% ----------------------------------------------------------------
+\section{Variable Linkage}
+\label{sec:overset-variables}
+% ----------------------------------------------------------------
+
+\subsection{Transferred fields}
+
+\begin{center}
+\begin{tabular}{lllll}
+\toprule
+\textbf{Variable} & \textbf{Direction} & \textbf{Donor source} & \textbf{Acceptor target} & \textbf{MPI tag} \\
+\midrule
+\texttt{Ucat} (Cartesian $\mathbf{u}$) & P2C & \texttt{ueqnD->lUcat}  & \texttt{ueqnA->Ucat} $\to$ \texttt{lUcat} & 0 \\
+\texttt{Tmprt} (pot.\ temperature $T$) & P2C & \texttt{teqnD->lTmprt} & \texttt{teqnA->Tmprt} $\to$ \texttt{lTmprt} & 1 \\
+\texttt{P} (pressure $p$)              & P2C & \texttt{peqnD->lP}     & \texttt{peqnA->P} $\to$ \texttt{lP}       & 2 \\
+\midrule
+\texttt{Ucat} (8-avg) & C2P & \texttt{ueqnD->lUcat}  & \texttt{ueqnA->Ucat} $\to$ \texttt{lUcat} & $b$ \\
+\texttt{Tmprt} (8-avg) & C2P & \texttt{teqnD->lTmprt} & \texttt{teqnA->Tmprt} $\to$ \texttt{lTmprt} & $b{+}N_A$ \\
+\texttt{P} (8-avg)    & C2P & \texttt{peqnD->lP}     & \texttt{peqnA->P} $\to$ \texttt{lP}       & $b{+}2N_A$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Here $b$ is a base tag offset that differs per domain pair, and $N_A$ is the
+number of acceptor cells on that rank.
+The three variables use consecutive tag offsets within each pass,
+ensuring no tag collision between simultaneous \texttt{MPI\_Send}/\texttt{MPI\_Recv}
+calls.
+
+\subsection{How the transferred fields feed into each solver}
+
+\paragraph{Velocity — \texttt{Ucat} / \texttt{lUcat}.}
+After the scatter, \texttt{setBackgroundBC} is called at the end of both
+P2C and C2P interpolation functions.
+For every interpolated \emph{face}, it projects the ghost-layer Cartesian
+velocity stored in \texttt{lUcat} onto the local face-area vectors to obtain
+contravariant fluxes \texttt{ucont[k][j][i].x/y/z}:
+
+\begin{lstlisting}[style=cstyle, language=C, caption={\texttt{setBackgroundBC} projects interpolated Cartesian velocity to contravariant fluxes.}]
+if (isInterpolatedIFace(k, j, i, i+1, meshTag))
+{
+    ucont[k][j][i].x =
+        0.5*(  ucat[k][j][i  ].x * icsi[k][j][i  ].x
+             + ucat[k][j][i  ].y * icsi[k][j][i  ].y
+             + ucat[k][j][i  ].z * icsi[k][j][i  ].z
+             + ucat[k][j][i+1].x * icsi[k][j][i+1].x
+             + ... );
+}
+\end{lstlisting}
+
+This is the primary mechanism by which the overset boundary condition enters
+\texttt{FormU}: the contravariant flux at an interface face carries the
+interpolated velocity from the neighbouring domain, not the locally computed
+value.  For zeroed cells, the flux is set to zero (\texttt{isZeroedIFace}
+branch), suppressing all convective and viscous contributions across the
+hole boundary.
+
+\paragraph{Pressure — \texttt{P} / \texttt{lP}.}
+The pressure field at interface and blanked cells is fully controlled by
+the overset interpolation; the Poisson solver does \emph{not} modify it.
+This is guaranteed by the trivial-row construction in
+\texttt{SetCoeffMatrix}: every overset cell (\texttt{isOversetCell})
+receives the identity equation $A_{ii}=1$, $A_{ij}=0$ $(j\neq i)$, so
+the Poisson solver sets $\phi=0$ for those cells.
+After \texttt{UpdatePressure} adds $\phi=0$ to $p$, the pressure at
+interface cells is exactly the value deposited by the previous overset
+interpolation step.
+
+\texttt{GradP} reads \texttt{lP} across the interface (including
+ghost cells at interpolated and zeroed positions) to compute the
+pressure-gradient term $\nabla p$ for the momentum equation.
+Because \texttt{lP} is fully populated by \texttt{UpdateOversetInterpolation}
+before the next step's \texttt{SolveUEqn} is called, \texttt{GradP}
+receives consistent, physically meaningful values at every stencil position.
+
+\paragraph{Temperature — \texttt{Tmprt} / \texttt{lTmprt}.}
+The temperature at interface cells is deposited by overset interpolation.
+\texttt{FormT} evaluates convective and diffusive fluxes across the interface
+using the ghost-layer values in \texttt{lTmprt}, thereby coupling thermal
+transport between the two domains.
+Blanked cells receive $T=0$ from the zeroed-flux treatment, ensuring
+no spurious heat source.
+
+\begin{warnbox}[One-step lag]
+  \texttt{UpdateOversetInterpolation} is called \emph{after} all domain
+  solvers have advanced to $t^{n+1}$.  The interpolated values deposited
+  into \texttt{lUcat}, \texttt{lP}, and \texttt{lTmprt} therefore correspond
+  to state $t^{n+1}$ of the \emph{donor} domain, and are consumed by the
+  \emph{acceptor} domain on the \emph{next} time step ($t^{n+1}$ to
+  $t^{n+2}$).  This introduces a one-step lag between coupled domains.
+  For well-resolved, low-CFL simulations the lag is negligible; for large
+  CFL or tightly coupled problems it may require implicit coupling
+  (not currently implemented).
+\end{warnbox}
+
+% ----------------------------------------------------------------
+\section{Position in the Time Loop}
+\label{sec:overset-timeloop}
+% ----------------------------------------------------------------
+
+The following pseudocode shows the call order inside the main time loop
+for each domain \texttt{d}:
+
+\begin{lstlisting}[style=cstyle, language=C, caption={Simplified main time loop with overset calls (src/main.c).}]
+for (each time step)
+{
+    for (d = 0; d < nDomains; d++)
+    {
+        Buoyancy(ueqn, T^n);          // buoyancy from lTmprt (prev step)
+
+        SolveUEqn(ueqn);              // uses lUcat, lP from prev overset step
+        SolvePEqn(peqn);              // phi=0 at overset cells; lP unchanged there
+        contravariantToCartesian(ueqn);
+
+        SolveTEqn(teqn);              // uses lTmprt from prev overset step
+
+        UpdateCartesianBCs(ueqn);
+        UpdateContravariantBCs(ueqn);
+    }
+
+    if (isOversetActive)
+        UpdateOversetInterpolation(domain); // deposit lUcat, lP, lTmprt for next step
+}
+\end{lstlisting}
+
+Key observations:
+\begin{itemize}
+  \item \texttt{SolveUEqn} and \texttt{SolvePEqn} consume the
+        overset-interpolated values from the \emph{previous} call to
+        \texttt{UpdateOversetInterpolation}.
+
+  \item \texttt{UpdateOversetInterpolation} is called once per global step,
+        \emph{after} all domains have been advanced, not interleaved.
+        The recursive descent inside \texttt{UpdateDomainInterpolation}
+        ensures parent-to-child (P2C) is applied before
+        child-to-parent (C2P) within each level.
+
+  \item The Poisson solver correctly ignores overset cells: their identity
+        rows force $\phi=0$, so \texttt{UpdatePressure} leaves their
+        pressure unchanged, and the only update to $p$ at those cells
+        is the one performed by \texttt{UpdateOversetInterpolation}.
+\end{itemize}
+
+% ----------------------------------------------------------------
+\section{Known Limitations}
+\label{sec:overset-limitations}
+% ----------------------------------------------------------------
+
+\begin{itemize}
+  \item \textbf{Load-set interpolation not implemented.}
+        Only trilinear (8-point) interpolation is available.
+        Higher-order or least-squares schemes are not currently supported.
+
+  \item \textbf{Rotating meshes not implemented.}
+        The acceptor lists are built assuming fixed mesh positions.
+        Mesh rotation or translation would require rebuilding the
+        acceptor lists every step (expensive) or using a moving-mesh
+        framework not currently present.
+
+  \item \textbf{One-step coupling lag.}
+        See the warning box in Section~\ref{sec:overset-variables}.
+        Tightly coupled phenomena (e.g.\ rapidly oscillating pressure
+        waves near the interface) are limited by this lag.
+
+  \item \textbf{Poisson null-space at interface.}
+        Because interface cells contribute $\phi=0$ (identity rows),
+        they are excluded from the divergence-free projection.
+        Small divergence errors may accumulate at the overset fringe
+        over long runs; it is recommended to monitor continuity errors
+        at overset boundaries.
+\end{itemize}
+
+\end{document}
+
+

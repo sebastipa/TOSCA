@@ -5,11 +5,11 @@ Sub-grid Scale Models
 ---------------------
 
 TOSCA provides ten SGS models that fall into three categories: *functional* (eddy-viscosity) models, which reproduce the forward energy cascade but
-discard structural information; a purely *structural* model; and *mixed* models that combine both approaches.  All models operate in generalized curvilinear
-coordinates following the partial-transformation framework of Ge and Sotiropoulos (2007) and the GCC extension of Armenio and Piomelli (2000).  The model is
-selected with the keyword ``-lesModel`` in ``control.dat``.
+discard structural information, purely *structural* models, and *mixed* models, which combine both approaches. All models operate in generalized curvilinear
+coordinates following the partial-transformation framework of Ge and Sotiropoulos (2007) and the GCC extension of Armenio and Piomelli (2000). SGS turbulence models
+are selected with the keyword ``-lesModel`` keyword in the ``control.dat`` file.
 
-Under the linear eddy-viscosity hypothesis the deviatoric part of the SGS stress tensor is
+Under the linear eddy-viscosity hypothesis, the deviatoric part of the SGS stress tensor is
 
 .. math::
 
@@ -31,7 +31,7 @@ volume cubic root :math:`\Delta = J^{-1/3}`.
    :widths: 28 22 50
 
    * - Model name
-     - ``-lesModel``
+     - keyword
      - Category
    * - Smagorinsky
      - ``smagorinsky``
@@ -59,10 +59,10 @@ volume cubic root :math:`\Delta = J^{-1/3}`.
      - Functional — frame-invariant eddy viscosity
    * - Bardina–Vreman (BV)
      - ``bardinaVreman``
-     - Mixed — Bardina scale-similarity + Vreman eddy viscosity
+     - Mixed — Bardina scale-similarity (structural) + Vreman eddy viscosity
    * - Bardina–AMD (BAMD)
      - ``bardinaAMD``
-     - Mixed — Bardina scale-similarity + AMD eddy viscosity
+     - Mixed — Bardina scale-similarity (structural) + AMD eddy viscosity
 
 Functional Models
 ~~~~~~~~~~~~~~~~~
@@ -77,8 +77,7 @@ expressed as :math:`C_s^2`):
 
     \nu_t = \left(C_s\,\Delta\right)^2\,|\overline{S}|.
 
-The coefficient is assigned globally for the entire domain.  It is well-known that it over-predicts SGS dissipation near solid walls.  It is suitable for
-coarse exploratory runs where simplicity and low overhead are priorities.
+The coefficient is assigned globally for the entire domain.  This model generally over-predicts SGS dissipation near solid walls.  
 
 Stability-Dependent Smagorinsky Model
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -109,9 +108,9 @@ All dynamic variants determine :math:`C_s(\mathbf{x},t)` from the resolved flow 
 
 .. math::
 
-    L^r_i = \widetilde{\overline{V}^r\,\overline{u}_i} - \widetilde{\overline{V}^r}\,\widetilde{\overline{u}}_i
+    L^r_i = \widetilde{\overline{V}^r\,\overline{u}_i} - \widetilde{\overline{V}^r}\,\widetilde{\overline{u}}_i,
 
-(computable directly from resolved quantities) from the model prediction.  The forcing tensor is
+computable directly from resolved quantities from the model prediction.  The forcing tensor is
 
 .. math::
 
@@ -130,10 +129,10 @@ covariant metric tensor :math:`g_{ij}` before the minimisation.  The scale-invar
 
 Four averaging strategies for the angle brackets are available:
 
-**DSM** (``dynamicSmagorinsky``) — local box averaging over the 3×3×3 stencil with a Simpson integration kernel (Ghosal et al. 1995); best for homogeneous
+**DSM** (``dynamicSmagorinsky``): local box averaging over the 3×3×3 stencil with a Simpson integration kernel (Ghosal et al. 1995), best for homogeneous
 or weakly inhomogeneous flows.
 
-**DLASI** (``dynamicLASI``) — Lagrangian averaging along fluid path lines (Meneveau et al. 1996); assumes *scale invariance* (:math:`C_s` is the same at
+**DLASI** (``dynamicLASI``): Lagrangian averaging along fluid path lines (Meneveau et al. 1996), assumes *scale invariance* (:math:`C_s` is the same at
 the grid and test-filter scales).  The averaged numerator :math:`I_{LM}` and denominator :math:`I_{MM}` evolve in time via the relaxation
 
 .. math::
@@ -144,6 +143,7 @@ the grid and test-filter scales).  The averaged numerator :math:`I_{LM}` and den
     \epsilon = \frac{\Delta t/T_s}{1+\Delta t/T_s},
 
 with Lagrangian time scale :math:`T_s = 1.5\Delta\,[|I_{LM}\,I_{MM}|]^{-1/8} + \varepsilon`.  The lookup uses trilinear backward-in-time interpolation.
+This is one of the recommended combination for production LES runs in TOSCA.
 
 **DLASD** (``dynamicLASD``) — Lagrangian averaging with *scale dependence* (Porté-Agel et al. 2000, Bou-Zeid et al. 2005).  A second, coarser test filter at
 scale :math:`4\Delta` provides the scale-dependence parameter
@@ -155,9 +155,10 @@ scale :math:`4\Delta` provides the scale-dependence parameter
     C^2_{s,\Delta} = \frac{C^2_{s,2\Delta}}{\max(\beta,\,0.125)}.
 
 :math:`\beta` is clipped at 0.125 to prevent numerical instability in regions where the scale similarity assumption breaks down.
+This is one of the recommended combination for production LES runs in TOSCA.
 
 **DPASD** (``dynamicPASD``) — same scale-dependent formulation as DLASD, but uses horizontal plane averaging instead of Lagrangian path-line averaging.
-Suitable for flows with a clear direction of statistical homogeneity (e.g., flat-terrain ABL precursors).
+Suitable for flows with a clear direction of statistical homogeneity (e.g., flat-terrain atmospheric boundary layers with no turbines).
 
 Anisotropic Minimum Dissipation (AMD) Model
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -173,7 +174,7 @@ inequality for the box-filter energy.  The resulting eddy viscosity is
     \right),
 
 where :math:`\hat\partial_j = \sqrt{C_p}\,\delta_j\,\partial_j` is the scaled gradient operator (:math:`\delta_j` the cell width in direction :math:`j`,
-:math:`C_p` a modified Poincaré constant set by ``-amdCs``; default 0.1).  The model is purely dissipative (no backscatter), low-overhead (no filtering),
+:math:`C_p` a modified Poincaré constant set by ``-amdCs``, with default value 0.1).  The model is purely dissipative (no backscatter), low-overhead (no filtering),
 and well-suited to wall-bounded flows because :math:`\nu_t \to 0` in the absence of velocity gradients.  In curvilinear coordinates the gradients are
 computed in curvilinear directions and then projected to Cartesian components using the metric terms.
 
@@ -234,15 +235,15 @@ for flows where a scale-invariant coefficient is a reasonable approximation.
 Bardina–AMD (BAMD) Model
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-``bardinaAMD`` — the Bardina structural term is combined with the AMD eddy viscosity.  The AMD coefficient is set via ``-amdCs`` (default 0.1).  Among all
-mixed models tested in the validation study (Ajay et al., in preparation), BAMD combined with the ``-central4`` + ``-hyperVisc`` advection scheme shows the
-best balance of accuracy and computational efficiency across Taylor–Green vortex, turbulent channel flow, and ABL flow over heterogeneous terrain test cases.
-It is the recommended combination for production LES runs in TOSCA.
+``bardinaAMD`` — the Bardina structural term is combined with the AMD eddy viscosity.  The AMD coefficient is set via ``-amdCs`` (with default value 0.1).  Among all
+mixed models tested in the validation study (published in JCP, Ajay et al. 2025), BAMD combined with the ``-central4`` advection scheme (with 0.8 ``-hyperVisc``) shows the
+best balance between accuracy and computational efficiency across Taylor–Green vortex flow, turbulent channel flow, and ABL flow over heterogeneous terrain test cases.
+This is one of the recommended combination for production LES runs in TOSCA.
 
 .. _sgs-temp-flux:
 
-SGS Temperature Flux
-~~~~~~~~~~~~~~~~~~~~
+SGS Temperature Closure
+~~~~~~~~~~~~~~~~~~~~~~~
 
 Sub-grid scale temperature fluxes are modeled following Moeng (1984) through a turbulent thermal diffusivity :math:`\kappa_t = \nu_t / Pr_t`, where the
 turbulent Prandtl number depends on the local stability:
