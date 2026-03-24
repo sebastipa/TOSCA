@@ -1,0 +1,554 @@
+\doxysection{turbines.\+h}
+\hypertarget{turbines_8h_source}{}\label{turbines_8h_source}\index{/zfs60/nobackup/stipa/software/TOSCA/src/include/turbines.h@{/zfs60/nobackup/stipa/software/TOSCA/src/include/turbines.h}}
+\mbox{\hyperlink{turbines_8h}{Go to the documentation of this file.}}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{base_8h}{base.h}}"{}}}
+\DoxyCodeLine{00002\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{domain_8h}{domain.h}}"{}}}
+\DoxyCodeLine{00003\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{io_8h}{io.h}}"{}}}
+\DoxyCodeLine{00004\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{inline_8h}{inline.h}}"{}}}
+\DoxyCodeLine{00005\ }
+\DoxyCodeLine{00006\ \textcolor{preprocessor}{\#if\ USE\_OPENFAST}}
+\DoxyCodeLine{00007\ \textcolor{preprocessor}{\ \ \ \ \#include\ "{}OpenFAST.H"{}}}
+\DoxyCodeLine{00008\ \textcolor{preprocessor}{\#endif}}
+\DoxyCodeLine{00009\ }
+\DoxyCodeLine{00014\ }
+\DoxyCodeLine{00015\ \textcolor{preprocessor}{\#ifndef\ FARM\_H}}
+\DoxyCodeLine{00016\ \textcolor{preprocessor}{\#define\ FARM\_H}}
+\DoxyCodeLine{00017\ }
+\DoxyCodeLine{00019\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{struct}}
+\DoxyCodeLine{00020\ \{}
+\DoxyCodeLine{00021\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ name;\ \ \ }
+\DoxyCodeLine{00022\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ size;\ \ \ }
+\DoxyCodeLine{00023\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ *aoa;\ \ \ }
+\DoxyCodeLine{00024\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ *cl;\ \ \ }
+\DoxyCodeLine{00025\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ *cd;\ \ \ }
+\DoxyCodeLine{00026\ \}foilInfo;}
+\DoxyCodeLine{00027\ }
+\DoxyCodeLine{00029\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{struct}}
+\DoxyCodeLine{00030\ \{}
+\DoxyCodeLine{00031\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ size;\ \ \ }
+\DoxyCodeLine{00032\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ *radius;\ \ \ }
+\DoxyCodeLine{00033\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ *chord;\ \ \ }
+\DoxyCodeLine{00034\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ *twist;\ \ \ }
+\DoxyCodeLine{00035\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ *thick;\ \ \ }
+\DoxyCodeLine{00036\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ \ *foilIds;\ \ \ }
+\DoxyCodeLine{00037\ \}bladeAeroInfo;}
+\DoxyCodeLine{00038\ }
+\DoxyCodeLine{00040\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{struct}}
+\DoxyCodeLine{00041\ \{}
+\DoxyCodeLine{00042\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ size;\ \ \ }
+\DoxyCodeLine{00043\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ *Uref;\ \ \ }
+\DoxyCodeLine{00044\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ *Ct;\ \ \ }
+\DoxyCodeLine{00045\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ *Cp;\ \ \ }
+\DoxyCodeLine{00046\ \}ctTable;}
+\DoxyCodeLine{00047\ }
+\DoxyCodeLine{00049\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{struct}}
+\DoxyCodeLine{00050\ \{}
+\DoxyCodeLine{00051\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ size;\ \ \ }
+\DoxyCodeLine{00052\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ *Uref;\ \ \ }
+\DoxyCodeLine{00053\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ *pitch;\ \ }
+\DoxyCodeLine{00054\ \}pitchTable;}
+\DoxyCodeLine{00055\ }
+\DoxyCodeLine{00057\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{struct}}
+\DoxyCodeLine{00058\ \{}
+\DoxyCodeLine{00059\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ size;\ \ \ }
+\DoxyCodeLine{00060\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ *Uref;\ \ \ }
+\DoxyCodeLine{00061\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ *rpm;\ \ }
+\DoxyCodeLine{00062\ \}rpmTable;}
+\DoxyCodeLine{00063\ }
+\DoxyCodeLine{00065\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{struct}}
+\DoxyCodeLine{00066\ \{}
+\DoxyCodeLine{00067\ \ \ \ \ \textcolor{comment}{//\ mesh\ level\ preoperties}}
+\DoxyCodeLine{00068\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ \ \ nPoints;\ \ \ }
+\DoxyCodeLine{00069\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ *points;\ \ \ }
+\DoxyCodeLine{00070\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ *dA;\ \ \ }
+\DoxyCodeLine{00071\ }
+\DoxyCodeLine{00072\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ center;\ \ \ }
+\DoxyCodeLine{00073\ }
+\DoxyCodeLine{00074\ \ \ \ \ PetscInt\ \ \ thisRigControlled;\ \ \ }
+\DoxyCodeLine{00075\ \ \ \ \ MPI\_Comm\ \ \ \ \ \ \ \ \ \ \ \ UPW\_COMM;\ \ \ }
+\DoxyCodeLine{00076\ }
+\DoxyCodeLine{00077\ \ \ \ \ \mbox{\hyperlink{structcellIds}{cellIds}}\ \ \ \ \ *controlledCells;\ \ \ }
+\DoxyCodeLine{00078\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ nControlled;\ \ \ }
+\DoxyCodeLine{00079\ }
+\DoxyCodeLine{00080\ \ \ \ \ \textcolor{comment}{//\ time-\/varying\ variables}}
+\DoxyCodeLine{00081\ \ \ \ \ PetscInt\ \ \ *thisPtControlled;\ \ \ }
+\DoxyCodeLine{00082\ \ \ \ \ \mbox{\hyperlink{structcellIds}{cellIds}}\ \ \ \ \ \ \ \ *closestCells;\ \ \ }
+\DoxyCodeLine{00083\ }
+\DoxyCodeLine{00084\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ Uref;\ \ \ }
+\DoxyCodeLine{00085\ }
+\DoxyCodeLine{00086\ \}\ upSampling;}
+\DoxyCodeLine{00087\ }
+\DoxyCodeLine{00089\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{struct}}
+\DoxyCodeLine{00090\ \{}
+\DoxyCodeLine{00091\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ point;\ \ \ }
+\DoxyCodeLine{00092\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ Uref;\ \ \ }
+\DoxyCodeLine{00093\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ Ct;\ \ \ }
+\DoxyCodeLine{00094\ }
+\DoxyCodeLine{00095\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ projectionType;\ \ \ }
+\DoxyCodeLine{00096\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ \ \ \ \ sampleType;\ \ \ }
+\DoxyCodeLine{00097\ \ \ \ \ PetscReal\ \ \ \ \ rtrUFilterFreq;\ \ \ }
+\DoxyCodeLine{00098\ }
+\DoxyCodeLine{00099\ \ \ \ \ \textcolor{comment}{//\ time-\/varying\ variables}}
+\DoxyCodeLine{00100\ \ \ \ \ \mbox{\hyperlink{structcellIds}{cellIds}}\ \ \ \ \ \ \ \ \ \ closestCell;\ \ \ }
+\DoxyCodeLine{00101\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ U;\ \ \ }
+\DoxyCodeLine{00102\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ B;\ \ \ }
+\DoxyCodeLine{00103\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ axialF;\ \ \ }
+\DoxyCodeLine{00104\ }
+\DoxyCodeLine{00105\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ rtrThrust;\ \ \ }
+\DoxyCodeLine{00106\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ aeroPwr;\ \ \ }
+\DoxyCodeLine{00107\ }
+\DoxyCodeLine{00108\ \ \ \ \ PetscInt\ \ \ \ thisPtControlled;\ \ \ }
+\DoxyCodeLine{00109\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ searchDone;\ \ \ }
+\DoxyCodeLine{00110\ }
+\DoxyCodeLine{00111\ \ \ \ \ \textcolor{comment}{//\ debug\ switch}}
+\DoxyCodeLine{00112\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ dbg;\ \ \ }
+\DoxyCodeLine{00113\ }
+\DoxyCodeLine{00114\ \}\ AFM;}
+\DoxyCodeLine{00115\ }
+\DoxyCodeLine{00117\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{struct}}
+\DoxyCodeLine{00118\ \{}
+\DoxyCodeLine{00119\ \ \ \ \ \textcolor{comment}{//\ settings}}
+\DoxyCodeLine{00120\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ projectionType;\ \ \ }
+\DoxyCodeLine{00121\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ \ \ \ \ sampleType;\ \ \ }
+\DoxyCodeLine{00122\ }
+\DoxyCodeLine{00123\ \ \ \ \ \textcolor{comment}{//\ mesh\ level\ preoperties}}
+\DoxyCodeLine{00124\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ \ \ nPoints;\ \ \ }
+\DoxyCodeLine{00125\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ *points;\ \ \ }
+\DoxyCodeLine{00126\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ *dr;\ \ \ }
+\DoxyCodeLine{00127\ }
+\DoxyCodeLine{00128\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ \ \ nRadial;\ \ \ }
+\DoxyCodeLine{00129\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ \ nAzimuth;\ \ \ }
+\DoxyCodeLine{00130\ }
+\DoxyCodeLine{00131\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ Uref;\ \ \ }
+\DoxyCodeLine{00132\ }
+\DoxyCodeLine{00133\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ *chord;\ \ \ }
+\DoxyCodeLine{00134\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ *twist;\ \ \ }
+\DoxyCodeLine{00135\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ *thick;\ \ \ }
+\DoxyCodeLine{00136\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ *solidity;\ \ \ }
+\DoxyCodeLine{00137\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ **foilIds;\ \ \ }
+\DoxyCodeLine{00138\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ **iw;\ \ \ }
+\DoxyCodeLine{00139\ }
+\DoxyCodeLine{00140\ \ \ \ \ \textcolor{comment}{//\ time-\/varying\ variables}}
+\DoxyCodeLine{00141\ \ \ \ \ PetscInt\ \ \ *thisPtControlled;\ \ \ }
+\DoxyCodeLine{00142\ \ \ \ \ \mbox{\hyperlink{structcellIds}{cellIds}}\ \ \ \ \ \ \ \ *closestCells;\ \ \ }
+\DoxyCodeLine{00143\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ *Cd;\ \ \ }
+\DoxyCodeLine{00144\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ *Cl;\ \ \ }
+\DoxyCodeLine{00145\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ *alpha;\ \ \ }
+\DoxyCodeLine{00146\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ *U;\ \ \ }
+\DoxyCodeLine{00147\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ *gWind;\ \ \ }
+\DoxyCodeLine{00148\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ *B;\ \ \ }
+\DoxyCodeLine{00149\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ *axialF;\ \ \ }
+\DoxyCodeLine{00150\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ *tangtF;\ \ \ }
+\DoxyCodeLine{00151\ }
+\DoxyCodeLine{00152\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ rtrAvgMagU;\ \ \ }
+\DoxyCodeLine{00153\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ rtrTorque;\ \ \ }
+\DoxyCodeLine{00154\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ rtrThrust;\ \ \ }
+\DoxyCodeLine{00155\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ aeroPwr;\ \ \ }
+\DoxyCodeLine{00156\ }
+\DoxyCodeLine{00157\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ azimuth;\ \ \ }
+\DoxyCodeLine{00158\ }
+\DoxyCodeLine{00159\ \ \ \ \ \textcolor{comment}{//\ debug\ switch}}
+\DoxyCodeLine{00160\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ dbg;\ \ \ }
+\DoxyCodeLine{00161\ }
+\DoxyCodeLine{00162\ \}\ ALM;}
+\DoxyCodeLine{00163\ }
+\DoxyCodeLine{00165\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{struct}}
+\DoxyCodeLine{00166\ \{}
+\DoxyCodeLine{00167\ \ \ \ \ \textcolor{comment}{//\ mesh\ level\ preoperties}}
+\DoxyCodeLine{00168\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ \ \ nPoints;\ \ \ }
+\DoxyCodeLine{00169\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ *points;\ \ \ }
+\DoxyCodeLine{00170\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ *dr;\ \ \ }
+\DoxyCodeLine{00171\ }
+\DoxyCodeLine{00172\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ \ \ nRadial;\ \ \ }
+\DoxyCodeLine{00173\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ \ nAzimuth;\ \ \ }
+\DoxyCodeLine{00174\ }
+\DoxyCodeLine{00175\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ Uref;\ \ \ }
+\DoxyCodeLine{00176\ }
+\DoxyCodeLine{00177\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ *chord;\ \ \ }
+\DoxyCodeLine{00178\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ *twist;\ \ \ }
+\DoxyCodeLine{00179\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ *solidity;\ \ \ }
+\DoxyCodeLine{00180\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ **foilIds;\ \ \ }
+\DoxyCodeLine{00181\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ **iw;\ \ \ }
+\DoxyCodeLine{00182\ }
+\DoxyCodeLine{00183\ \ \ \ \ \textcolor{comment}{//\ time-\/varying\ variables}}
+\DoxyCodeLine{00184\ \ \ \ \ PetscInt\ \ \ *thisPtControlled;\ \ \ }
+\DoxyCodeLine{00185\ \ \ \ \ \mbox{\hyperlink{structcellIds}{cellIds}}\ \ \ \ \ \ \ \ *closestCells;\ \ \ }
+\DoxyCodeLine{00186\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ *Cd;\ \ \ }
+\DoxyCodeLine{00187\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ *Cl;\ \ \ }
+\DoxyCodeLine{00188\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ *alpha;\ \ \ }
+\DoxyCodeLine{00189\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ *U;\ \ \ }
+\DoxyCodeLine{00190\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ *B;\ \ \ }
+\DoxyCodeLine{00191\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ *axialF;\ \ \ }
+\DoxyCodeLine{00192\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ *tangtF;\ \ \ }
+\DoxyCodeLine{00193\ }
+\DoxyCodeLine{00194\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ rtrAvgMagU;\ \ \ }
+\DoxyCodeLine{00195\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ rtrTorque;\ \ \ }
+\DoxyCodeLine{00196\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ rtrThrust;\ \ \ }
+\DoxyCodeLine{00197\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ aeroPwr;\ \ \ }
+\DoxyCodeLine{00198\ }
+\DoxyCodeLine{00199\ \ \ \ \ \textcolor{comment}{//\ debug\ switch}}
+\DoxyCodeLine{00200\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ dbg;\ \ \ }
+\DoxyCodeLine{00201\ }
+\DoxyCodeLine{00202\ \}\ ADM;}
+\DoxyCodeLine{00203\ }
+\DoxyCodeLine{00205\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{struct}}
+\DoxyCodeLine{00206\ \{}
+\DoxyCodeLine{00207\ \ \ \ \ \textcolor{comment}{//\ mesh\ level\ preoperties}}
+\DoxyCodeLine{00208\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ \ \ nPoints;\ \ \ }
+\DoxyCodeLine{00209\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ *points;\ \ \ }
+\DoxyCodeLine{00210\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ *dA;\ \ \ }
+\DoxyCodeLine{00211\ }
+\DoxyCodeLine{00212\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ \ \ nRadial;\ \ \ }
+\DoxyCodeLine{00213\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ \ nAzimuth;\ \ \ }
+\DoxyCodeLine{00214\ }
+\DoxyCodeLine{00215\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ \ \ \ \ sampleType;\ \ \ }
+\DoxyCodeLine{00216\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ Uref;\ \ \ }
+\DoxyCodeLine{00217\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ Ct;\ \ \ }
+\DoxyCodeLine{00218\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ axiInd;\ \ \ }
+\DoxyCodeLine{00219\ }
+\DoxyCodeLine{00220\ \ \ \ \ \textcolor{comment}{//\ time-\/varying\ variables}}
+\DoxyCodeLine{00221\ \ \ \ \ PetscInt\ \ \ *thisPtControlled;\ \ \ }
+\DoxyCodeLine{00222\ \ \ \ \ \mbox{\hyperlink{structcellIds}{cellIds}}\ \ \ \ \ \ \ \ *closestCells;\ \ \ }
+\DoxyCodeLine{00223\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ *U;\ \ \ }
+\DoxyCodeLine{00224\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ *B;\ \ \ }
+\DoxyCodeLine{00225\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ *axialF;\ \ \ }
+\DoxyCodeLine{00226\ }
+\DoxyCodeLine{00227\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ rtrAvgMagU;\ \ \ }
+\DoxyCodeLine{00228\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ rtrThrust;\ \ \ }
+\DoxyCodeLine{00229\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ aeroPwr;\ \ \ }
+\DoxyCodeLine{00230\ }
+\DoxyCodeLine{00231\ \ \ \ \ \textcolor{comment}{//\ debug\ switch}}
+\DoxyCodeLine{00232\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ dbg;\ \ \ }
+\DoxyCodeLine{00233\ \}\ UADM;}
+\DoxyCodeLine{00234\ }
+\DoxyCodeLine{00236\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{struct}}
+\DoxyCodeLine{00237\ \{}
+\DoxyCodeLine{00238\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ rBase;\ \ \ }
+\DoxyCodeLine{00239\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ rTop;\ \ \ }
+\DoxyCodeLine{00240\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ Cd;\ \ \ }
+\DoxyCodeLine{00241\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ eps;\ \ \ }
+\DoxyCodeLine{00242\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ prjNSigma;\ \ \ }
+\DoxyCodeLine{00243\ }
+\DoxyCodeLine{00244\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ \ \ nPoints;\ \ \ }
+\DoxyCodeLine{00245\ }
+\DoxyCodeLine{00246\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ *points;\ \ \ }
+\DoxyCodeLine{00247\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ *dA;\ \ \ }
+\DoxyCodeLine{00248\ }
+\DoxyCodeLine{00249\ \ \ \ \ \mbox{\hyperlink{structcellIds}{cellIds}}\ \ \ \ \ *controlledCells;\ \ \ }
+\DoxyCodeLine{00250\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ nControlled;\ \ \ }
+\DoxyCodeLine{00251\ }
+\DoxyCodeLine{00252\ \ \ \ \ PetscInt\ \ \ *thisPtControlled;\ \ \ }
+\DoxyCodeLine{00253\ \ \ \ \ \mbox{\hyperlink{structcellIds}{cellIds}}\ \ \ \ \ \ \ \ *closestCells;\ \ \ }
+\DoxyCodeLine{00254\ }
+\DoxyCodeLine{00255\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ *U;\ \ \ }
+\DoxyCodeLine{00256\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ *B;\ \ \ }
+\DoxyCodeLine{00257\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ *tangF;\ \ \ }
+\DoxyCodeLine{00258\ }
+\DoxyCodeLine{00259\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ twrThrust;\ \ \ }
+\DoxyCodeLine{00260\ }
+\DoxyCodeLine{00261\ \ \ \ \ MPI\_Comm\ \ \ \ \ \ \ \ \ \ \ \ TWR\_COMM;\ \ \ }
+\DoxyCodeLine{00262\ \ \ \ \ PetscMPIInt\ \ \ \ \ \ \ \ nProcsTwr;\ \ \ }
+\DoxyCodeLine{00263\ }
+\DoxyCodeLine{00264\ \}\ towerModel;}
+\DoxyCodeLine{00265\ }
+\DoxyCodeLine{00267\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{struct}}
+\DoxyCodeLine{00268\ \{}
+\DoxyCodeLine{00269\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ Cd;\ \ \ }
+\DoxyCodeLine{00270\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ eps;\ \ \ }
+\DoxyCodeLine{00271\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ prjNSigma;\ \ \ }
+\DoxyCodeLine{00272\ }
+\DoxyCodeLine{00273\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ point;\ \ \ }
+\DoxyCodeLine{00274\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ A;\ \ \ }
+\DoxyCodeLine{00275\ }
+\DoxyCodeLine{00276\ \ \ \ \ \mbox{\hyperlink{structcellIds}{cellIds}}\ \ \ \ \ *controlledCells;\ \ \ }
+\DoxyCodeLine{00277\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ nControlled;\ \ \ }
+\DoxyCodeLine{00278\ }
+\DoxyCodeLine{00279\ \ \ \ \ PetscInt\ \ \ \ thisPtControlled;\ \ \ }
+\DoxyCodeLine{00280\ \ \ \ \ \mbox{\hyperlink{structcellIds}{cellIds}}\ \ \ \ \ \ \ \ \ \ closestCell;\ \ \ }
+\DoxyCodeLine{00281\ }
+\DoxyCodeLine{00282\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ U;\ \ \ }
+\DoxyCodeLine{00283\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ B;\ \ \ }
+\DoxyCodeLine{00284\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ tangF;\ \ \ }
+\DoxyCodeLine{00285\ }
+\DoxyCodeLine{00286\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ nacThrust;\ \ \ }
+\DoxyCodeLine{00287\ }
+\DoxyCodeLine{00288\ \ \ \ \ MPI\_Comm\ \ \ \ \ \ \ \ \ \ \ \ NAC\_COMM;\ \ \ }
+\DoxyCodeLine{00289\ \ \ \ \ PetscMPIInt\ \ \ \ \ \ \ \ nProcsNac;\ \ \ }
+\DoxyCodeLine{00290\ }
+\DoxyCodeLine{00291\ \}\ nacelleModel;}
+\DoxyCodeLine{00292\ }
+\DoxyCodeLine{00294\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{struct}}
+\DoxyCodeLine{00295\ \{}
+\DoxyCodeLine{00296\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \ \ \ \ samplePoint;\ \ }
+\DoxyCodeLine{00297\ \ \ \ \ \mbox{\hyperlink{structcellIds}{cellIds}}\ \ \ \ \ \ \ \ \ \ \ closestCell;\ \ }
+\DoxyCodeLine{00298\ \ \ \ \ PetscInt\ anemometerControlled;\ \ }
+\DoxyCodeLine{00299\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ U;\ \ }
+\DoxyCodeLine{00300\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \ anemFilterFreq;\ \ }
+\DoxyCodeLine{00301\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ acquisitionFreq;\ \ }
+\DoxyCodeLine{00302\ \}\ anemometer;}
+\DoxyCodeLine{00303\ }
+\DoxyCodeLine{00305\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{struct}}
+\DoxyCodeLine{00306\ \{}
+\DoxyCodeLine{00307\ \ \ \ \ \textcolor{comment}{//\ global\ parameters\ (all\ turbine\ models)}}
+\DoxyCodeLine{00308\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ index;\ \ \ }
+\DoxyCodeLine{00309\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ id;\ \ \ }
+\DoxyCodeLine{00310\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ type;\ \ \ }
+\DoxyCodeLine{00311\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ \ \ nBlades;\ \ \ }
+\DoxyCodeLine{00312\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ rTip;\ \ \ }
+\DoxyCodeLine{00313\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ rHub;\ \ \ }
+\DoxyCodeLine{00314\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ hTwr;\ \ \ }
+\DoxyCodeLine{00315\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ ovrHang;\ \ \ }
+\DoxyCodeLine{00316\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ precone;\ \ \ }
+\DoxyCodeLine{00317\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ twrDir;\ \ \ }
+\DoxyCodeLine{00318\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ upTilt;\ \ \ }
+\DoxyCodeLine{00319\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ genEff;\ \ \ }
+\DoxyCodeLine{00320\ }
+\DoxyCodeLine{00321\ \ \ \ \ \textcolor{comment}{//\ moving\ turbine\ flag\ }}
+\DoxyCodeLine{00322\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ \ trbMoved;\ \ \ }
+\DoxyCodeLine{00323\ }
+\DoxyCodeLine{00324\ \ \ \ \ \textcolor{comment}{//\ additional\ info\ for\ ADM\ and\ ALM\ models}}
+\DoxyCodeLine{00325\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ rotDir;\ \ \ }
+\DoxyCodeLine{00326\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ \ \ \ nFoils;\ \ \ }
+\DoxyCodeLine{00327\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ \ \ \ **foilNames;\ \ \ }
+\DoxyCodeLine{00328\ \ \ \ \ foilInfo\ \ \ \ \ \ \ \ \ \ \ \ \ **foils;\ \ \ }
+\DoxyCodeLine{00329\ \ \ \ \ bladeAeroInfo\ \ \ \ \ \ \ \ \ \ blade;\ \ \ }
+\DoxyCodeLine{00330\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \ \ \ \ \ omega\_hat;\ \ \ }
+\DoxyCodeLine{00331\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ rtrOmega;\ \ \ }
+\DoxyCodeLine{00332\ }
+\DoxyCodeLine{00333\ \ \ \ \ anemometer\ \ \ \ \ \ \ \ \ \ \ \ \ \ WDAS;\ \ \ }
+\DoxyCodeLine{00334\ }
+\DoxyCodeLine{00335\ \ \ \ \ \textcolor{comment}{//\ time-\/varying\ parameters\ }}
+\DoxyCodeLine{00336\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \ \ \ \ \ rotCenter;\ \ \ }
+\DoxyCodeLine{00337\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ twrTop;\ \ \ }
+\DoxyCodeLine{00338\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ rtrDir;\ \ \ }
+\DoxyCodeLine{00339\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ rtrAxis;\ \ \ }
+\DoxyCodeLine{00340\ }
+\DoxyCodeLine{00341\ \ \ \ \ \textcolor{comment}{//\ rotor\ models}}
+\DoxyCodeLine{00342\ \ \ \ \ ADM\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ adm;\ \ \ }
+\DoxyCodeLine{00343\ \ \ \ \ UADM\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ uadm;\ \ \ }
+\DoxyCodeLine{00344\ \ \ \ \ ALM\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ alm;\ \ \ }
+\DoxyCodeLine{00345\ \ \ \ \ AFM\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ afm;\ \ \ }
+\DoxyCodeLine{00346\ }
+\DoxyCodeLine{00347\ \ \ \ \ \textcolor{comment}{//\ tower\ model}}
+\DoxyCodeLine{00348\ \ \ \ \ towerModel\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ twr;\ \ \ }
+\DoxyCodeLine{00349\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ includeTwr;\ \ \ }
+\DoxyCodeLine{00350\ }
+\DoxyCodeLine{00351\ \ \ \ \ \textcolor{comment}{//\ nacelle\ model}}
+\DoxyCodeLine{00352\ \ \ \ \ nacelleModel\ \ \ \ \ \ \ \ \ \ \ \ \ nac;\ \ \ }
+\DoxyCodeLine{00353\ \ \ \ \ PetscInt\ \ \ \ \ \ includeNacelle;\ \ \ }
+\DoxyCodeLine{00354\ }
+\DoxyCodeLine{00355\ \ \ \ \ \textcolor{comment}{//\ sampling\ points\ 2.5\ RD\ upstream}}
+\DoxyCodeLine{00356\ \ \ \ \ upSampling\ \ \ \ \ \ \ \ \ *upPoints;\ \ \ }
+\DoxyCodeLine{00357\ }
+\DoxyCodeLine{00358\ \ \ \ \ \textcolor{comment}{//\ useful\ conversion\ factors}}
+\DoxyCodeLine{00359\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ deg2rad;\ \ \ }
+\DoxyCodeLine{00360\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ rad2deg;\ \ \ }
+\DoxyCodeLine{00361\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ rpm2RadSec;\ \ \ }
+\DoxyCodeLine{00362\ }
+\DoxyCodeLine{00363\ \ \ \ \ \textcolor{comment}{//\ communication\ color}}
+\DoxyCodeLine{00364\ \ \ \ \ MPI\_Comm\ \ \ \ \ \ \ \ \ \ \ \ TRB\_COMM;\ \ \ }
+\DoxyCodeLine{00365\ \ \ \ \ PetscMPIInt\ \ \ \ \ \ \ writerRank;\ \ \ }
+\DoxyCodeLine{00366\ \ \ \ \ PetscMPIInt\ \ \ \ \ \ \ \ nProcsTrb;\ \ \ }
+\DoxyCodeLine{00367\ }
+\DoxyCodeLine{00368\ \ \ \ \ \textcolor{comment}{//\ torque\ controller\ (ADM\ and\ ALM\ models)}}
+\DoxyCodeLine{00369\ \ \ \ \ word\ \ \ \ \ \ \ genControllerType;\ \ \ }
+\DoxyCodeLine{00370\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ genOmega;\ \ \ }
+\DoxyCodeLine{00371\ \ \ \ \ PetscReal\ \ \ \ \ \ \ rtrOmegaFilt;\ \ \ }
+\DoxyCodeLine{00372\ \ \ \ \ PetscReal\ \ \ rtrSpdFilterFreq;\ \ \ }
+\DoxyCodeLine{00373\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ cutInGenSpd;\ \ \ }
+\DoxyCodeLine{00374\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ cutInGenTq;\ \ \ }
+\DoxyCodeLine{00375\ \ \ \ \ PetscReal\ \ regTwoStartGenSpd;\ \ \ }
+\DoxyCodeLine{00376\ \ \ \ \ PetscReal\ \ \ \ regTwoEndGenSpd;\ \ \ }
+\DoxyCodeLine{00377\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ ratedGenTq;\ \ \ }
+\DoxyCodeLine{00378\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ omegaKP;\ \ \ }
+\DoxyCodeLine{00379\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ genTorque;\ \ \ }
+\DoxyCodeLine{00380\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ genPwr;\ \ \ }
+\DoxyCodeLine{00381\ \ \ \ \ PetscInt\ \ \ \ \ \ \ tqRateLimiter;\ \ \ }
+\DoxyCodeLine{00382\ \ \ \ \ PetscInt\ \ \ \ \ \ \ rtrSpdLimiter;\ \ \ }
+\DoxyCodeLine{00383\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ tqMaxRate;\ \ \ }
+\DoxyCodeLine{00384\ \ \ \ \ PetscReal\ \ \ \ \ \ ratedRotorSpd;\ \ \ }
+\DoxyCodeLine{00385\ }
+\DoxyCodeLine{00386\ \ \ \ \ \textcolor{comment}{//\ Ct\ curve\ for\ UADM/AFM\ models}}
+\DoxyCodeLine{00387\ \ \ \ \ ctTable\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ctTbl;\ \ \ }
+\DoxyCodeLine{00388\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ctType;\ \ \ }
+\DoxyCodeLine{00389\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ variableCp;\ \ \ }
+\DoxyCodeLine{00390\ }
+\DoxyCodeLine{00391\ \ \ \ \ \textcolor{comment}{//\ rotor\ dynamics\ (if\ torque\ controller\ is\ active)}}
+\DoxyCodeLine{00392\ \ \ \ \ PetscReal\ \ driveTrainInertia;\ \ \ \ }
+\DoxyCodeLine{00393\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ genInertia;\ \ \ \ }
+\DoxyCodeLine{00394\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ hubInertia;\ \ \ \ }
+\DoxyCodeLine{00395\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ bldInertia;\ \ \ \ }
+\DoxyCodeLine{00396\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ gbxRatioG2R;\ \ \ \ }
+\DoxyCodeLine{00397\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ gbxEff;\ \ \ \ }
+\DoxyCodeLine{00398\ \ \ \ \ rpmTable\ \ \ \ \ \ \ \ \ \ \ \ \ \ rpmTbl;\ \ \ \ }
+\DoxyCodeLine{00399\ \ \ \ \ word\ \ \ \ \ \ \ rpmControllerType;}
+\DoxyCodeLine{00400\ }
+\DoxyCodeLine{00401\ \ \ \ \ \textcolor{comment}{//\ pitch\ controller\ (ADM\ and\ ALM\ models)}}
+\DoxyCodeLine{00402\ \ \ \ \ word\ \ \ \ \ pitchControllerType;\ \ \ }
+\DoxyCodeLine{00403\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ *pitch;\ \ \ }
+\DoxyCodeLine{00404\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ collPitch;\ \ \ }
+\DoxyCodeLine{00405\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ pitchKP;\ \ \ }
+\DoxyCodeLine{00406\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ pitchKI;\ \ \ }
+\DoxyCodeLine{00407\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ pitchKD;\ \ \ }
+\DoxyCodeLine{00408\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ pitchS2R;\ \ \ }
+\DoxyCodeLine{00409\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ errPID;\ \ \ }
+\DoxyCodeLine{00410\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ intErrPID;\ \ \ }
+\DoxyCodeLine{00411\ \ \ \ \ pitchTable\ \ \ \ \ \ \ \ \ \ pitchTbl;\ \ \ }
+\DoxyCodeLine{00412\ }
+\DoxyCodeLine{00413\ \ \ \ \ PetscInt\ \ \ \ pitchRateLimiter;\ \ \ }
+\DoxyCodeLine{00414\ \ \ \ \ PetscInt\ \ \ pitchAngleLimiter;\ \ \ }
+\DoxyCodeLine{00415\ \ \ \ \ PetscReal\ \ \ \ \ \ \ pitchMaxRate;\ \ \ }
+\DoxyCodeLine{00416\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ pitchMin;\ \ \ }
+\DoxyCodeLine{00417\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ pitchMax;\ \ \ }
+\DoxyCodeLine{00418\ }
+\DoxyCodeLine{00419\ \ \ \ \ \textcolor{comment}{//\ yaw\ controller\ (ADM\ and\ ALM\ models)}}
+\DoxyCodeLine{00420\ \ \ \ \ word\ \ \ \ \ \ \ yawControllerType;\ \ \ }
+\DoxyCodeLine{00421\ \ \ \ \ word\ \ \ \ \ \ \ \ \ yawSamplingType;\ \ \ }
+\DoxyCodeLine{00422\ \ \ \ \ PetscReal\ \ \ yawAverageWindow;\ \ \ }
+\DoxyCodeLine{00423\ \ \ \ \ PetscReal\ \ \ \ yawAllowedError;\ \ \ }
+\DoxyCodeLine{00424\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ yawMin;\ \ \ }
+\DoxyCodeLine{00425\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ yawMax;\ \ \ }
+\DoxyCodeLine{00426\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ yawAngle;\ \ \ }
+\DoxyCodeLine{00427\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ flowAngle;\ \ \ }
+\DoxyCodeLine{00428\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ yawError;\ \ \ }
+\DoxyCodeLine{00429\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ yawSpeed;\ \ \ }
+\DoxyCodeLine{00430\ \ \ \ \ \mbox{\hyperlink{structcellIds}{cellIds}}\ \ \ \ \ \ \ \ \ yawSampleIds;\ \ \ }
+\DoxyCodeLine{00431\ }
+\DoxyCodeLine{00432\ \ \ \ \ \textcolor{comment}{//\ wind\ farm\ overall\ controller}}
+\DoxyCodeLine{00433\ \ \ \ \ PetscReal\ wfControlCollPitch;\ \ \ }
+\DoxyCodeLine{00434\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ wfControlCt;\ \ \ }
+\DoxyCodeLine{00435\ \ \ \ \ PetscInt\ \ \ \ \ \ wfControlNData;\ \ \ }
+\DoxyCodeLine{00436\ \ \ \ \ PetscReal\ \ \ \ *wfControlTimes;\ \ \ }
+\DoxyCodeLine{00437\ \ \ \ \ PetscReal\ \ \ *wfControlValues;\ \ \ }
+\DoxyCodeLine{00438\ \ \ \ \ PetscInt\ \ \ \ \ currentCloseIdx;\ \ \ }
+\DoxyCodeLine{00439\ }
+\DoxyCodeLine{00440\ \ \ \ \ \textcolor{comment}{//\ dynamic\ individual\ pitch\ controller}}
+\DoxyCodeLine{00441\ \ \ \ \ word\ \ \ \ \ \ \ dipcControllerType;\ \ \ }
+\DoxyCodeLine{00442\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ dipcHelixAmp;\ \ \ }
+\DoxyCodeLine{00443\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ \ \ \ dipcHelixDir;\ \ \ }
+\DoxyCodeLine{00444\ \ \ \ \ PetscReal\ \ \ \ \ \ \ dipcHelixFreq;\ \ \ }
+\DoxyCodeLine{00445\ }
+\DoxyCodeLine{00446\ \ \ \ \ \textcolor{comment}{//\ numerical\ parameters\ and\ flags\ }}
+\DoxyCodeLine{00447\ \ \ \ \ PetscInt\ \ \ turbineControlled;\ \ \ }
+\DoxyCodeLine{00448\ \ \ \ \ \mbox{\hyperlink{structcellIds}{cellIds}}\ \ \ \ \ *controlledCells;\ \ \ }
+\DoxyCodeLine{00449\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ nControlled;\ \ \ }
+\DoxyCodeLine{00450\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ eps;\ \ \ }
+\DoxyCodeLine{00451\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ eps\_x;\ \ \ }
+\DoxyCodeLine{00452\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ eps\_y;\ \ \ }
+\DoxyCodeLine{00453\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ eps\_z;\ \ \ }
+\DoxyCodeLine{00454\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ flat;\ \ \ }
+\DoxyCodeLine{00455\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ r12;\ \ \ }
+\DoxyCodeLine{00456\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ I;\ \ \ }
+\DoxyCodeLine{00457\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ prjNSigma;\ \ \ }
+\DoxyCodeLine{00458\ }
+\DoxyCodeLine{00459\ \ \ \ \ \textcolor{comment}{//\ debug\ switch}}
+\DoxyCodeLine{00460\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ dbg;\ \ \ }
+\DoxyCodeLine{00461\ }
+\DoxyCodeLine{00462\ \ \ \ \ \textcolor{comment}{//\ OpenFAST\ coupling\ parameters\ }}
+\DoxyCodeLine{00463\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ useOpenFAST;\ \ \ \textcolor{comment}{//<\ turbine\ specific\ flag\ to\ use\ OpenFAST\ (it\ exists\ and\ is\ always\ zero\ when\ USE\_OPENFAST\ is\ off)}}
+\DoxyCodeLine{00464\ }
+\DoxyCodeLine{00465\ \textcolor{preprocessor}{\#if\ USE\_OPENFAST}}
+\DoxyCodeLine{00466\ }
+\DoxyCodeLine{00467\ \ \ \ \ \textcolor{comment}{//\ access\ and\ connectivity\ }}
+\DoxyCodeLine{00468\ \ \ \ \ fast::OpenFAST\ \ \ \ \ \ \ \ \ *FAST;\ \ \ }
+\DoxyCodeLine{00469\ \ \ \ \ fast::fastInputs\ \ \ \ \ \ \ \ \ *fi;\ \ \ }
+\DoxyCodeLine{00470\ \ \ \ \ PetscInt\ \ \ \ \ \ \ openfastIndex;\ \ \ }
+\DoxyCodeLine{00471\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ initialized;\ \ \ }
+\DoxyCodeLine{00472\ }
+\DoxyCodeLine{00473\ \ \ \ \ \textcolor{comment}{//\ time-\/varying\ parameters}}
+\DoxyCodeLine{00474\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ base;\ \ \ \ }
+\DoxyCodeLine{00475\ \ \ \ \ }
+\DoxyCodeLine{00476\ \ \ \ \ \textcolor{comment}{//\ number\ of\ points\ for\ velocity\ sampling\ and\ force\ projection}}
+\DoxyCodeLine{00477\ \ \ \ \ PetscInt\ \ \ \ \ nBladeVelPtsOF;\ \ \ \ }
+\DoxyCodeLine{00478\ \ \ \ \ PetscInt\ \ \ \ \ \ \ nTwrVelPtsOF;\ \ \ \ }
+\DoxyCodeLine{00479\ \ \ \ \ PetscInt\ \ \ nBladeForcePtsOF;\ \ \ \ }
+\DoxyCodeLine{00480\ \ \ \ \ PetscInt\ \ \ \ \ nTwrForcePtsOF;\ \ \ \ }
+\DoxyCodeLine{00481\ }
+\DoxyCodeLine{00482\ \ \ \ \ \textcolor{comment}{//\ arrays\ containing\ the\ coordinates\ and\ values\ of\ the\ velocity\ and\ force\ points}}
+\DoxyCodeLine{00483\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \ *velPtsBlade;\ \ \ }
+\DoxyCodeLine{00484\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ *velValsBlade;\ \ \ }
+\DoxyCodeLine{00485\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ *forcePtsBlade;\ \ \ }
+\DoxyCodeLine{00486\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ *forceValsBlade;\ \ \ }
+\DoxyCodeLine{00487\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \ \ \ *velPtsTwr;\ \ \ }
+\DoxyCodeLine{00488\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \ \ *velValsTwr;\ \ \ }
+\DoxyCodeLine{00489\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \ *forcePtsTwr;\ \ \ }
+\DoxyCodeLine{00490\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ *forceValsTwr;\ \ \ }
+\DoxyCodeLine{00491\ }
+\DoxyCodeLine{00492\ \ \ \ \ \textcolor{comment}{//\ helper\ variables\ }}
+\DoxyCodeLine{00493\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ forcePtBladeOld;\ \ \ }
+\DoxyCodeLine{00494\ }
+\DoxyCodeLine{00495\ \ \ \ \ \textcolor{comment}{//\ processors\ controlling\ the\ OpenFAST\ points}}
+\DoxyCodeLine{00496\ \ \ \ \ PetscInt\ \ \ *thisBladeVelPtControlled;\ }
+\DoxyCodeLine{00497\ \ \ \ \ \mbox{\hyperlink{structcellIds}{cellIds}}\ \ \ \ \ \ \ \ *closestBladeVelCells;\ }
+\DoxyCodeLine{00498\ \ \ \ \ PetscInt\ *thisBladeForcePtControlled;\ }
+\DoxyCodeLine{00499\ \ \ \ \ \mbox{\hyperlink{structcellIds}{cellIds}}\ \ \ \ \ \ *closestBladeForceCells;\ }
+\DoxyCodeLine{00500\ \ \ \ \ PetscInt\ \ \ \ \ *thisTwrVelPtControlled;\ }
+\DoxyCodeLine{00501\ \ \ \ \ \mbox{\hyperlink{structcellIds}{cellIds}}\ \ \ \ \ \ \ \ \ \ *closestTwrVelCells;\ }
+\DoxyCodeLine{00502\ \ \ \ \ PetscInt\ \ \ *thisTwrForcePtControlled;\ }
+\DoxyCodeLine{00503\ \ \ \ \ \mbox{\hyperlink{structcellIds}{cellIds}}\ \ \ \ \ \ \ \ *closestTwrForceCells;\ }
+\DoxyCodeLine{00504\ }
+\DoxyCodeLine{00505\ \textcolor{preprocessor}{\#endif}}
+\DoxyCodeLine{00506\ }
+\DoxyCodeLine{00507\ \}\ windTurbine;}
+\DoxyCodeLine{00508\ }
+\DoxyCodeLine{00510\ \textcolor{keyword}{struct\ }farm\_}
+\DoxyCodeLine{00511\ \{}
+\DoxyCodeLine{00512\ \ \ \ \ \textcolor{comment}{//\ main\ parametes}}
+\DoxyCodeLine{00513\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ name;\ \ \ }
+\DoxyCodeLine{00514\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ size;\ \ \ }
+\DoxyCodeLine{00515\ \ \ \ \ Cmpnts\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ *base;\ \ \ }
+\DoxyCodeLine{00516\ \ \ \ \ PetscInt\ \ *farmControlActive;\ \ \ }
+\DoxyCodeLine{00517\ }
+\DoxyCodeLine{00518\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ **turbineTypes;\ \ \ }
+\DoxyCodeLine{00519\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ \ \ **turbineIds;\ \ \ }
+\DoxyCodeLine{00520\ \ \ \ \ word\ \ \ \ \ \ \ \ \ **turbineModels;\ \ \ }
+\DoxyCodeLine{00521\ }
+\DoxyCodeLine{00522\ \ \ \ \ windTurbine\ \ \ \ \ \ \ \ \ \ \ \ \ **wt;\ \ \ }
+\DoxyCodeLine{00523\ }
+\DoxyCodeLine{00524\ \ \ \ \ \textcolor{comment}{//\ output\ parameters}}
+\DoxyCodeLine{00525\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ timeStart;\ \ \ }
+\DoxyCodeLine{00526\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ \ \ intervalType;\ \ \ }
+\DoxyCodeLine{00527\ \ \ \ \ PetscReal\ \ \ \ \ \ \ timeInterval;\ \ \ }
+\DoxyCodeLine{00528\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ writeNumber;\ \ \ }
+\DoxyCodeLine{00529\ }
+\DoxyCodeLine{00530\ \ \ \ \ \textcolor{comment}{//\ debug\ switch}}
+\DoxyCodeLine{00531\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ dbg;\ \ \ }
+\DoxyCodeLine{00532\ }
+\DoxyCodeLine{00533\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ lsourceFarmCat,\ \ \ }
+\DoxyCodeLine{00534\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ sourceFarmCont;\ \ \ }
+\DoxyCodeLine{00535\ }
+\DoxyCodeLine{00536\ \ \ \ \ \textcolor{comment}{//\ access\ database}}
+\DoxyCodeLine{00537\ \ \ \ \ access\_\ \ \ \ \ \ \ \ \ \ \ \ \ \ *access;\ \ \ }
+\DoxyCodeLine{00538\ }
+\DoxyCodeLine{00539\ \ \ \ \ \textcolor{comment}{//\ CFL\ control\ for\ ALM:\ blade\ tip\ cannot\ move\ more\ than\ one\ cell}}
+\DoxyCodeLine{00540\ \ \ \ \ PetscInt\ \ \ \ \ \ \ checkCFL;\ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00541\ \ \ \ \ PetscReal\ \ \ \ \ \ maxTipSpeed;\ \ \ \ \ }
+\DoxyCodeLine{00542\ }
+\DoxyCodeLine{00543\ \textcolor{preprocessor}{\#if\ USE\_OPENFAST}}
+\DoxyCodeLine{00544\ }
+\DoxyCodeLine{00545\ \ \ \ \ \textcolor{comment}{//\ OpenFAST\ coupling\ parameters\ }}
+\DoxyCodeLine{00546\ \ \ \ \ fast::OpenFAST\ \ \ \ \ \ \ \ \ *FAST;\ \ \ }
+\DoxyCodeLine{00547\ \ \ \ \ fast::fastInputs\ \ \ \ \ \ \ \ \ \ fi;\ \ \ }
+\DoxyCodeLine{00548\ \ \ \ \ }
+\DoxyCodeLine{00549\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ nOpenFAST;\ \ \ }
+\DoxyCodeLine{00550\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ *openfastIds;\ \ \ }
+\DoxyCodeLine{00551\ \ \ \ \ PetscInt\ \ \ \ \ \ \ nFastSubSteps;\ \ \ }
+\DoxyCodeLine{00552\ \ \ \ \ PetscInt\ \ \ \ fastTimeInterval;\ \ \ }
+\DoxyCodeLine{00553\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ fastRestart;\ \ \ }
+\DoxyCodeLine{00554\ \textcolor{preprocessor}{\#endif}}
+\DoxyCodeLine{00555\ }
+\DoxyCodeLine{00556\ \};}
+\DoxyCodeLine{00557\ }
+\DoxyCodeLine{00558\ \textcolor{comment}{//\ Top\ level\ functions}}
+\DoxyCodeLine{00559\ \textcolor{comment}{//\ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{00560\ }
+\DoxyCodeLine{00562\ PetscErrorCode\ InitializeWindFarm(farm\_\ *farm);}
+\DoxyCodeLine{00563\ }
+\DoxyCodeLine{00565\ PetscErrorCode\ UpdateWindTurbines(farm\_\ *farm);}
+\DoxyCodeLine{00566\ }
+\DoxyCodeLine{00568\ PetscErrorCode\ computeMaxTipSpeed(farm\_\ *farm);}
+\DoxyCodeLine{00569\ }
+\DoxyCodeLine{00570\ \textcolor{preprocessor}{\#endif\ }}
+
+\end{DoxyCode}

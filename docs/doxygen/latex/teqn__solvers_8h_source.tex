@@ -1,0 +1,32 @@
+\doxysection{teqn\+\_\+solvers.\+h}
+\hypertarget{teqn__solvers_8h_source}{}\label{teqn__solvers_8h_source}\index{/zfs60/nobackup/stipa/software/TOSCA/src/solvers/teqn\_solvers.h@{/zfs60/nobackup/stipa/software/TOSCA/src/solvers/teqn\_solvers.h}}
+\mbox{\hyperlink{teqn__solvers_8h}{Go to the documentation of this file.}}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{base_8h}{../include/base.h}}"{}}}
+\DoxyCodeLine{00002\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{domain_8h}{../include/domain.h}}"{}}}
+\DoxyCodeLine{00003\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{io_8h}{../include/io.h}}"{}}}
+\DoxyCodeLine{00004\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{inline_8h}{../include/inline.h}}"{}}}
+\DoxyCodeLine{00005\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{teqn__sources_8h}{../sources/teqn\_sources.h}}"{}}}
+\DoxyCodeLine{00006\ }
+\DoxyCodeLine{00009\ }
+\DoxyCodeLine{00010\ \textcolor{preprocessor}{\#ifndef\ TEQN\_SOLVERS\_H}}
+\DoxyCodeLine{00011\ \textcolor{preprocessor}{\#define\ TEQN\_SOLVERS\_H}}
+\DoxyCodeLine{00012\ }
+\DoxyCodeLine{00013\ }
+\DoxyCodeLine{00015\ PetscErrorCode\ \mbox{\hyperlink{teqn__solvers_8h_a650dbffdc54aff230b92013d0e9e2e86}{FormT}}(\mbox{\hyperlink{structteqn__}{teqn\_}}\ *teqn,\ Vec\ \&Rhs,\ PetscReal\ scale,\ PetscInt\ formMode\ =\ 0);}
+\DoxyCodeLine{00016\ }
+\DoxyCodeLine{00018\ PetscErrorCode\ \mbox{\hyperlink{teqn__solvers_8h_ab9607522235e6e63e49c6f6ff3851a7c}{TeqnSNES}}(\mbox{\hyperlink{structteqn__}{teqn\_}}\ *teqn);}
+\DoxyCodeLine{00019\ }
+\DoxyCodeLine{00021\ PetscErrorCode\ \mbox{\hyperlink{teqn__solvers_8h_ad875c9a3e748af0dc0b7831385d4f756}{SNESFuncEvalT}}(SNES\ snes,\ Vec\ T,\ Vec\ Rhs,\ \textcolor{keywordtype}{void}\ *ptr);}
+\DoxyCodeLine{00022\ }
+\DoxyCodeLine{00024\ PetscErrorCode\ \mbox{\hyperlink{teqn__solvers_8h_a0ee5106ef816c125fb59cf772ba0ef91}{FormExplicitRhsT}}(\mbox{\hyperlink{structteqn__}{teqn\_}}\ *teqn);}
+\DoxyCodeLine{00025\ }
+\DoxyCodeLine{00027\ PetscErrorCode\ \mbox{\hyperlink{teqn__solvers_8h_a7437f6e16d2453fe90e43f3080f36ded}{TeqnRK4}}(\mbox{\hyperlink{structteqn__}{teqn\_}}\ *teqn);}
+\DoxyCodeLine{00028\ }
+\DoxyCodeLine{00030\ PetscErrorCode\ \mbox{\hyperlink{teqn__solvers_8h_a617b09c068d49fc556396c04731a1973}{TeqnABBE}}(\mbox{\hyperlink{structteqn__}{teqn\_}}\ *teqn);}
+\DoxyCodeLine{00031\ }
+\DoxyCodeLine{00033\ PetscErrorCode\ \mbox{\hyperlink{teqn__solvers_8h_a28d2c2be45e01106022b22ff4236576e}{ABBEMatVec}}(Mat\ A,\ Vec\ v,\ Vec\ Av);}
+\DoxyCodeLine{00034\ }
+\DoxyCodeLine{00035\ \textcolor{preprocessor}{\#endif}}
+
+\end{DoxyCode}

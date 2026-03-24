@@ -1,0 +1,37 @@
+\doxysection{ueqn\+\_\+solvers.\+h}
+\hypertarget{ueqn__solvers_8h_source}{}\label{ueqn__solvers_8h_source}\index{/zfs60/nobackup/stipa/software/TOSCA/src/solvers/ueqn\_solvers.h@{/zfs60/nobackup/stipa/software/TOSCA/src/solvers/ueqn\_solvers.h}}
+\mbox{\hyperlink{ueqn__solvers_8h}{Go to the documentation of this file.}}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{base_8h}{../include/base.h}}"{}}}
+\DoxyCodeLine{00002\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{domain_8h}{../include/domain.h}}"{}}}
+\DoxyCodeLine{00003\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{io_8h}{../include/io.h}}"{}}}
+\DoxyCodeLine{00004\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{inline_8h}{../include/inline.h}}"{}}\ \ }
+\DoxyCodeLine{00005\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{inflow_8h}{../include/inflow.h}}"{}}}
+\DoxyCodeLine{00006\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{ueqn__sources_8h}{../sources/ueqn\_sources.h}}"{}}}
+\DoxyCodeLine{00007\ }
+\DoxyCodeLine{00010\ }
+\DoxyCodeLine{00011\ \textcolor{preprocessor}{\#ifndef\ UEQN\_SOLVERS\_H}}
+\DoxyCodeLine{00012\ \textcolor{preprocessor}{\#define\ UEQN\_SOLVERS\_H}}
+\DoxyCodeLine{00013\ }
+\DoxyCodeLine{00015\ PetscErrorCode\ FormU(\mbox{\hyperlink{structueqn__}{ueqn\_}}\ *ueqn,\ Vec\ \&Rhs,\ PetscReal\ scale,\ PetscInt\ formMode\ =\ 0);}
+\DoxyCodeLine{00016\ }
+\DoxyCodeLine{00018\ PetscErrorCode\ UeqnSNES(\mbox{\hyperlink{structueqn__}{ueqn\_}}\ *ueqn);}
+\DoxyCodeLine{00019\ }
+\DoxyCodeLine{00021\ PetscErrorCode\ SNESFuncEval(SNES\ snes,\ Vec\ Ucont,\ Vec\ Rhs,\ \textcolor{keywordtype}{void}\ *ptr);}
+\DoxyCodeLine{00022\ }
+\DoxyCodeLine{00024\ PetscErrorCode\ ExplicitRhsU(\mbox{\hyperlink{structueqn__}{ueqn\_}}\ *ueqn,\ PetscInt\ formMode\ =\ 0);}
+\DoxyCodeLine{00025\ }
+\DoxyCodeLine{00027\ PetscErrorCode\ UeqnFE(\mbox{\hyperlink{structueqn__}{ueqn\_}}\ *ueqn);}
+\DoxyCodeLine{00028\ }
+\DoxyCodeLine{00030\ PetscErrorCode\ UeqnRK4(\mbox{\hyperlink{structueqn__}{ueqn\_}}\ *ueqn);}
+\DoxyCodeLine{00031\ }
+\DoxyCodeLine{00033\ PetscErrorCode\ UeqnABCN(\mbox{\hyperlink{structueqn__}{ueqn\_}}\ *ueqn);}
+\DoxyCodeLine{00034\ }
+\DoxyCodeLine{00036\ PetscErrorCode\ UeqnRK3CN\_SO(\mbox{\hyperlink{structueqn__}{ueqn\_}}\ *ueqn);}
+\DoxyCodeLine{00037\ PetscErrorCode\ UeqnRK3CN\_W(\mbox{\hyperlink{structueqn__}{ueqn\_}}\ *ueqn);}
+\DoxyCodeLine{00038\ }
+\DoxyCodeLine{00040\ PetscErrorCode\ IMEXMatVec(Mat\ A,\ Vec\ v,\ Vec\ Av);}
+\DoxyCodeLine{00041\ }
+\DoxyCodeLine{00042\ \textcolor{preprocessor}{\#endif}}
+
+\end{DoxyCode}

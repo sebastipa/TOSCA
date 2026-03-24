@@ -1,0 +1,106 @@
+\doxysection{/zfs60/nobackup/stipa/software/\+TOSCA/src/overset.c File Reference}
+\hypertarget{overset_8c}{}\label{overset_8c}\index{/zfs60/nobackup/stipa/software/TOSCA/src/overset.c@{/zfs60/nobackup/stipa/software/TOSCA/src/overset.c}}
+
+
+overset function definitions  
+
+
+{\ttfamily \#include "{}include/base.\+h"{}}\newline
+{\ttfamily \#include "{}include/domain.\+h"{}}\newline
+{\ttfamily \#include "{}include/ibm.\+h"{}}\newline
+{\ttfamily \#include "{}include/io.\+h"{}}\newline
+{\ttfamily \#include "{}include/inline.\+h"{}}\newline
+{\ttfamily \#include "{}include/initial\+Field.\+h"{}}\newline
+{\ttfamily \#include "{}include/overset.\+h"{}}\newline
+{\ttfamily \#include "{}include/ibm\+Input.\+h"{}}\newline
+\doxysubsubsection*{Classes}
+\begin{DoxyCompactItemize}
+\item 
+struct \mbox{\hyperlink{structOctreeNode}{Octree\+Node}}
+\end{DoxyCompactItemize}
+\doxysubsubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{overset_8c_a59b4c17c5a0795d1afc280887ea95c37}\label{overset_8c_a59b4c17c5a0795d1afc280887ea95c37} 
+Petsc\+Error\+Code {\bfseries Initialize\+Overset} (\mbox{\hyperlink{structdomain__}{domain\+\_\+}} \texorpdfstring{$\ast$}{*}domain)
+\begin{DoxyCompactList}\small\item\em Initialize overset coupling. \end{DoxyCompactList}\item 
+\Hypertarget{overset_8c_a32d689e1f0668f5c4c5bd0115e0a6f31}\label{overset_8c_a32d689e1f0668f5c4c5bd0115e0a6f31} 
+Petsc\+Error\+Code {\bfseries Update\+Overset\+Interpolation} (\mbox{\hyperlink{structdomain__}{domain\+\_\+}} \texorpdfstring{$\ast$}{*}domain)
+\item 
+\Hypertarget{overset_8c_a896b6aed7729515b7b1bf30d69084fa9}\label{overset_8c_a896b6aed7729515b7b1bf30d69084fa9} 
+Petsc\+Error\+Code {\bfseries Update\+Domain\+Interpolation} (Petsc\+Int d, \mbox{\hyperlink{structdomain__}{domain\+\_\+}} \texorpdfstring{$\ast$}{*}domain, Petsc\+Int level)
+\begin{DoxyCompactList}\small\item\em Update overset interpolation for all domains. \end{DoxyCompactList}\item 
+\Hypertarget{overset_8c_af46389ddc15b07b951d48d246e345aa6}\label{overset_8c_af46389ddc15b07b951d48d246e345aa6} 
+Petsc\+Error\+Code {\bfseries find\+Acceptor\+Cells} (Petsc\+Int d, \mbox{\hyperlink{structdomain__}{domain\+\_\+}} \texorpdfstring{$\ast$}{*}domain, Petsc\+Int level, const std\+::vector$<$ \mbox{\hyperlink{structHoleObject}{Hole\+Object}} $>$ \&hole\+Objects)
+\item 
+\Hypertarget{overset_8c_a69a523be76e61d953cbc15a2181888c0}\label{overset_8c_a69a523be76e61d953cbc15a2181888c0} 
+Petsc\+Error\+Code {\bfseries find\+Closest\+Domain\+Donors} (Petsc\+Int d, \mbox{\hyperlink{structdomain__}{domain\+\_\+}} \texorpdfstring{$\ast$}{*}domain, Petsc\+Int level, const std\+::vector$<$ \mbox{\hyperlink{structHoleObject}{Hole\+Object}} $>$ \&hole\+Objects)
+\item 
+\Hypertarget{overset_8c_aebf0b242184b353930c2f86dfdc8b998}\label{overset_8c_aebf0b242184b353930c2f86dfdc8b998} 
+Petsc\+Error\+Code {\bfseries Find\+Hole\+Object} (const std\+::vector$<$ \mbox{\hyperlink{structHoleObject}{Hole\+Object}} $>$ \&hole\+Objects, Petsc\+Int parent\+Id, Petsc\+Int child\+Id, char \texorpdfstring{$\ast$}{*}\texorpdfstring{$\ast$}{*}hole\+Object\+Name)
+\item 
+\Hypertarget{overset_8c_ad9372d8c7c35bbafca2a773882a0a0eb}\label{overset_8c_ad9372d8c7c35bbafca2a773882a0a0eb} 
+Petsc\+Error\+Code {\bfseries read\+Hole\+Objects} (std\+::vector$<$ \mbox{\hyperlink{structHoleObject}{Hole\+Object}} $>$ \&hole\+Objects, Petsc\+Int num\+Hole\+Objects)
+\item 
+\Hypertarget{overset_8c_a7304386f708cd76a9588e163e5ac73f5}\label{overset_8c_a7304386f708cd76a9588e163e5ac73f5} 
+Petsc\+Error\+Code {\bfseries read\+Blanking\+IBMObject} (\mbox{\hyperlink{structoverset__}{overset\+\_\+}} \texorpdfstring{$\ast$}{*}os, \mbox{\hyperlink{structdomain__}{domain\+\_\+}} \texorpdfstring{$\ast$}{*}domain, char \texorpdfstring{$\ast$}{*}hole\+Object\+Name, const std\+::vector$<$ \mbox{\hyperlink{structHoleObject}{Hole\+Object}} $>$ \&hole\+Objects)
+\item 
+\Hypertarget{overset_8c_ac8f5fbccfd222a25fd6f41f0d21dfab6}\label{overset_8c_ac8f5fbccfd222a25fd6f41f0d21dfab6} 
+Petsc\+Error\+Code {\bfseries read\+Overset\+Properties} (\mbox{\hyperlink{structoverset__}{overset\+\_\+}} \texorpdfstring{$\ast$}{*}os)
+\item 
+\Hypertarget{overset_8c_a2a57da2468267f9c61efb85c98762265}\label{overset_8c_a2a57da2468267f9c61efb85c98762265} 
+Petsc\+Error\+Code {\bfseries interpolate\+ACell\+Trilinear\+P2C} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} \texorpdfstring{$\ast$}{*}meshD, \mbox{\hyperlink{structmesh__}{mesh\+\_\+}} \texorpdfstring{$\ast$}{*}meshA)
+\item 
+\Hypertarget{overset_8c_a5293a373371117da646faa5ed501817b}\label{overset_8c_a5293a373371117da646faa5ed501817b} 
+Petsc\+Error\+Code {\bfseries interpolate\+ACell\+Trilinear\+C2P} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} \texorpdfstring{$\ast$}{*}meshD, \mbox{\hyperlink{structmesh__}{mesh\+\_\+}} \texorpdfstring{$\ast$}{*}meshA, Petsc\+Int donor\+Id)
+\item 
+\Hypertarget{overset_8c_a12d46fa9606f31e7d329ba88b49fb112}\label{overset_8c_a12d46fa9606f31e7d329ba88b49fb112} 
+Petsc\+Error\+Code {\bfseries set\+Background\+BC} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} \texorpdfstring{$\ast$}{*}meshA)
+\item 
+\Hypertarget{overset_8c_ad89e6ca6c7ecda76d3e57e733ea14f15}\label{overset_8c_ad89e6ca6c7ecda76d3e57e733ea14f15} 
+Petsc\+Error\+Code {\bfseries create\+Acceptor\+Cell\+Overset} (\mbox{\hyperlink{structoverset__}{overset\+\_\+}} \texorpdfstring{$\ast$}{*}os)
+\item 
+\Hypertarget{overset_8c_a87ad301d84e41579cb5f3b165e3ee408}\label{overset_8c_a87ad301d84e41579cb5f3b165e3ee408} 
+Petsc\+Error\+Code {\bfseries create\+Acceptor\+Cell\+Background} (\mbox{\hyperlink{structoverset__}{overset\+\_\+}} \texorpdfstring{$\ast$}{*}os, Petsc\+Int donor\+Mesh\+Id)
+\begin{DoxyCompactList}\small\item\em Create the list of background acceptor cells. \end{DoxyCompactList}\item 
+\Hypertarget{overset_8c_a786c39dfccaf3d68cc76f2e918ac4586}\label{overset_8c_a786c39dfccaf3d68cc76f2e918ac4586} 
+void {\bfseries build\+Octree} (\mbox{\hyperlink{structOctreeNode}{Octree\+Node}} \texorpdfstring{$\ast$}{*}\mbox{\hyperlink{structnode}{node}}, \mbox{\hyperlink{structCmpnts}{Cmpnts}} \texorpdfstring{$\ast$}{*}\texorpdfstring{$\ast$}{*}\texorpdfstring{$\ast$}{*}donor\+Cells, Petsc\+Int lxs, Petsc\+Int lxe, Petsc\+Int lys, Petsc\+Int lye, Petsc\+Int lzs, Petsc\+Int lze, Petsc\+Int max\+Depth, Petsc\+Int max\+Cells\+Per\+Node)
+\item 
+\Hypertarget{overset_8c_a49bd074474645af7d608958a4c997f18}\label{overset_8c_a49bd074474645af7d608958a4c997f18} 
+\mbox{\hyperlink{structDcell}{Dcell}} {\bfseries search\+Octree} (\mbox{\hyperlink{structOctreeNode}{Octree\+Node}} \texorpdfstring{$\ast$}{*}\mbox{\hyperlink{structnode}{node}}, Petsc\+Real proc\+Contrib, const \mbox{\hyperlink{structCmpnts}{Cmpnts}} \&acceptor\+Coord, \mbox{\hyperlink{structCmpnts}{Cmpnts}} \texorpdfstring{$\ast$}{*}\texorpdfstring{$\ast$}{*}\texorpdfstring{$\ast$}{*}centroids, Petsc\+Real \&min\+Dist, Petsc\+Int lxs, Petsc\+Int lxe, Petsc\+Int lys, Petsc\+Int lye, Petsc\+Int lzs, Petsc\+Int lze)
+\item 
+\Hypertarget{overset_8c_ac7982df687c534d490a83965a049c665}\label{overset_8c_ac7982df687c534d490a83965a049c665} 
+Petsc\+Error\+Code {\bfseries find\+Closest\+Donor\+C2\+P\+\_\+\+Bins} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} \texorpdfstring{$\ast$}{*}mesh\+Donor, \mbox{\hyperlink{structmesh__}{mesh\+\_\+}} \texorpdfstring{$\ast$}{*}mesh\+Acceptor, Petsc\+Int donor\+Id)
+\item 
+\Hypertarget{overset_8c_a5f8824ce2df0ac8370e1c50ea96e7c8e}\label{overset_8c_a5f8824ce2df0ac8370e1c50ea96e7c8e} 
+Petsc\+Error\+Code {\bfseries find\+Closest\+Donor\+C2P} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} \texorpdfstring{$\ast$}{*}mesh\+Donor, \mbox{\hyperlink{structmesh__}{mesh\+\_\+}} \texorpdfstring{$\ast$}{*}mesh\+Acceptor, Petsc\+Int donor\+Id)
+\item 
+\Hypertarget{overset_8c_ad2dbd68c01afaf10276357cacaf7d0dc}\label{overset_8c_ad2dbd68c01afaf10276357cacaf7d0dc} 
+Petsc\+Error\+Code {\bfseries find\+Closest\+Donor\+P2C} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} \texorpdfstring{$\ast$}{*}mesh\+Donor, \mbox{\hyperlink{structmesh__}{mesh\+\_\+}} \texorpdfstring{$\ast$}{*}mesh\+Acceptor)
+\item 
+\Hypertarget{overset_8c_a109ffebd39e3c2f005e9f74daa7f20b8}\label{overset_8c_a109ffebd39e3c2f005e9f74daa7f20b8} 
+Petsc\+Error\+Code {\bfseries find\+Closest\+Donor\+P2\+C\+\_\+\+Bins} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} \texorpdfstring{$\ast$}{*}mesh\+Donor, \mbox{\hyperlink{structmesh__}{mesh\+\_\+}} \texorpdfstring{$\ast$}{*}mesh\+Acceptor)
+\item 
+\Hypertarget{overset_8c_ae8352cbca8eaccd85398d9453de0a52a}\label{overset_8c_ae8352cbca8eaccd85398d9453de0a52a} 
+Petsc\+Error\+Code {\bfseries update\+Acceptor\+Coordinates} (\mbox{\hyperlink{structoverset__}{overset\+\_\+}} \texorpdfstring{$\ast$}{*}os)
+\item 
+\Hypertarget{overset_8c_a2e3bddd2f78e55b587a06c754b671216}\label{overset_8c_a2e3bddd2f78e55b587a06c754b671216} 
+Petsc\+Error\+Code {\bfseries overset\+Mesh\+Translation} (\mbox{\hyperlink{structoverset__}{overset\+\_\+}} \texorpdfstring{$\ast$}{*}os)
+\item 
+\Hypertarget{overset_8c_a321a57fccfd1b4efd2a9674dccd8b5e1}\label{overset_8c_a321a57fccfd1b4efd2a9674dccd8b5e1} 
+Petsc\+Error\+Code {\bfseries overset\+Ibm\+Search} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} \texorpdfstring{$\ast$}{*}ibm)
+\item 
+\Hypertarget{overset_8c_a1aa00e9e55307d92d339f2a96a914966}\label{overset_8c_a1aa00e9e55307d92d339f2a96a914966} 
+Petsc\+Error\+Code {\bfseries compute\+Overset\+IBMElement\+Normal} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} \texorpdfstring{$\ast$}{*}ibm)
+\item 
+\Hypertarget{overset_8c_a9d59b4f910e870ccb73caabeecf71047}\label{overset_8c_a9d59b4f910e870ccb73caabeecf71047} 
+void {\bfseries define\+Struct\+\_\+\+Acell} (MPI\+\_\+\+Datatype \texorpdfstring{$\ast$}{*}tstype)
+\item 
+\Hypertarget{overset_8c_a2a4858dad8c212571dfe23fcff7e2860}\label{overset_8c_a2a4858dad8c212571dfe23fcff7e2860} 
+void {\bfseries sum\+\_\+struct\+\_\+\+Acell} (void \texorpdfstring{$\ast$}{*}in, void \texorpdfstring{$\ast$}{*}inout, int \texorpdfstring{$\ast$}{*}len, MPI\+\_\+\+Datatype \texorpdfstring{$\ast$}{*}type)
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+overset function definitions 
+

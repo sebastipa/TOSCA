@@ -1,0 +1,49 @@
+\doxysection{/zfs60/nobackup/stipa/software/\+TOSCA/src/solvers/ueqn\+\_\+solvers.c File Reference}
+\hypertarget{ueqn__solvers_8c}{}\label{ueqn__solvers_8c}\index{/zfs60/nobackup/stipa/software/TOSCA/src/solvers/ueqn\_solvers.c@{/zfs60/nobackup/stipa/software/TOSCA/src/solvers/ueqn\_solvers.c}}
+
+
+Momentum-\/equation solver function implementations.  
+
+
+{\ttfamily \#include "{}ueqn\+\_\+solvers.\+h"{}}\newline
+\doxysubsubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{ueqn__solvers_8c_af89b4fbfabdcdc2bb4f9a2b71ba6971f}\label{ueqn__solvers_8c_af89b4fbfabdcdc2bb4f9a2b71ba6971f} 
+Petsc\+Error\+Code {\bfseries FormU} (\mbox{\hyperlink{structueqn__}{ueqn\+\_\+}} \texorpdfstring{$\ast$}{*}ueqn, Vec \&Rhs, Petsc\+Real scale, Petsc\+Int form\+Mode)
+\item 
+\Hypertarget{ueqn__solvers_8c_ae85231c823efcbe883b19c42e6bdbcf2}\label{ueqn__solvers_8c_ae85231c823efcbe883b19c42e6bdbcf2} 
+Petsc\+Error\+Code {\bfseries Ueqn\+SNES} (\mbox{\hyperlink{structueqn__}{ueqn\+\_\+}} \texorpdfstring{$\ast$}{*}ueqn)
+\item 
+\Hypertarget{ueqn__solvers_8c_a4b352c130adc50807d228b4658834814}\label{ueqn__solvers_8c_a4b352c130adc50807d228b4658834814} 
+Petsc\+Error\+Code {\bfseries SNESFunc\+Eval} (SNES snes, Vec Ucont, Vec Rhs, void \texorpdfstring{$\ast$}{*}ptr)
+\item 
+\Hypertarget{ueqn__solvers_8c_a4a1b8f1a549d635e8d5d76c9c15c023c}\label{ueqn__solvers_8c_a4a1b8f1a549d635e8d5d76c9c15c023c} 
+Petsc\+Error\+Code {\bfseries Explicit\+RhsU} (\mbox{\hyperlink{structueqn__}{ueqn\+\_\+}} \texorpdfstring{$\ast$}{*}ueqn, Petsc\+Int form\+Mode)
+\item 
+\Hypertarget{ueqn__solvers_8c_abdbfe276fc33d8100fb4a1a4e2b258ce}\label{ueqn__solvers_8c_abdbfe276fc33d8100fb4a1a4e2b258ce} 
+Petsc\+Error\+Code {\bfseries Ueqn\+FE} (\mbox{\hyperlink{structueqn__}{ueqn\+\_\+}} \texorpdfstring{$\ast$}{*}ueqn)
+\item 
+\Hypertarget{ueqn__solvers_8c_a750a7223b20d3ce2486e699c785abc50}\label{ueqn__solvers_8c_a750a7223b20d3ce2486e699c785abc50} 
+Petsc\+Error\+Code {\bfseries Ueqn\+RK4} (\mbox{\hyperlink{structueqn__}{ueqn\+\_\+}} \texorpdfstring{$\ast$}{*}ueqn)
+\item 
+\Hypertarget{ueqn__solvers_8c_a7e61316275102b310efaa4b6a9faffec}\label{ueqn__solvers_8c_a7e61316275102b310efaa4b6a9faffec} 
+Petsc\+Error\+Code {\bfseries Ueqn\+RK3\+CN\+\_\+W} (\mbox{\hyperlink{structueqn__}{ueqn\+\_\+}} \texorpdfstring{$\ast$}{*}ueqn)
+\item 
+\Hypertarget{ueqn__solvers_8c_ae8bfa6c92d19077ec5ddc9ff8a63bc5c}\label{ueqn__solvers_8c_ae8bfa6c92d19077ec5ddc9ff8a63bc5c} 
+Petsc\+Error\+Code {\bfseries Ueqn\+RK3\+CN\+\_\+\+SO} (\mbox{\hyperlink{structueqn__}{ueqn\+\_\+}} \texorpdfstring{$\ast$}{*}ueqn)
+\item 
+\Hypertarget{ueqn__solvers_8c_a75da52e4356533ac07555feb0a0e8604}\label{ueqn__solvers_8c_a75da52e4356533ac07555feb0a0e8604} 
+Petsc\+Error\+Code {\bfseries Ueqn\+ABCN} (\mbox{\hyperlink{structueqn__}{ueqn\+\_\+}} \texorpdfstring{$\ast$}{*}ueqn)
+\item 
+\Hypertarget{ueqn__solvers_8c_a034469ba58624372cfb82ca4cdc8479c}\label{ueqn__solvers_8c_a034469ba58624372cfb82ca4cdc8479c} 
+Petsc\+Error\+Code {\bfseries IMEXMat\+Vec} (Mat A, Vec v, Vec Av)
+\item 
+\Hypertarget{ueqn__solvers_8c_ab61ab0299a59a502bf462ecd245f32a1}\label{ueqn__solvers_8c_ab61ab0299a59a502bf462ecd245f32a1} 
+Petsc\+Error\+Code {\bfseries IMEXMat\+Get\+Diagonal} (Mat A, Vec diag)
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Momentum-\/equation solver function implementations. 
+

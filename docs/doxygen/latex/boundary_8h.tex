@@ -1,0 +1,79 @@
+\doxysection{/zfs60/nobackup/stipa/software/\+TOSCA/src/include/boundary.h File Reference}
+\hypertarget{boundary_8h}{}\label{boundary_8h}\index{/zfs60/nobackup/stipa/software/TOSCA/src/include/boundary.h@{/zfs60/nobackup/stipa/software/TOSCA/src/include/boundary.h}}
+
+
+Boundary conditions header file.  
+
+
+\doxysubsubsection*{Classes}
+\begin{DoxyCompactItemize}
+\item 
+struct \mbox{\hyperlink{structscalarBC}{scalar\+BC}}
+\begin{DoxyCompactList}\small\item\em Structure dafining the type of boundary conditions for a scalar. \end{DoxyCompactList}\item 
+struct \mbox{\hyperlink{structvectorBC}{vector\+BC}}
+\begin{DoxyCompactList}\small\item\em Structure dafining the type of boundary conditions for a vector. \end{DoxyCompactList}\item 
+struct \mbox{\hyperlink{structinflowData}{inflow\+Data}}
+\begin{DoxyCompactList}\small\item\em Struct defining inflow information. \end{DoxyCompactList}\item 
+struct \mbox{\hyperlink{structinletFunctionTypes}{inlet\+Function\+Types}}
+\begin{DoxyCompactList}\small\item\em Struct storing the inlet function for a patch. \end{DoxyCompactList}\item 
+struct \mbox{\hyperlink{structinletFunctions}{inlet\+Functions}}
+\begin{DoxyCompactList}\small\item\em Struct storing inlet functions data. \end{DoxyCompactList}\end{DoxyCompactItemize}
+\doxysubsubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{boundary_8h_ac9d8770d9dfd6158236fdeca5a86cb89}\label{boundary_8h_ac9d8770d9dfd6158236fdeca5a86cb89} 
+Petsc\+Error\+Code {\bfseries read\+Scalar\+BC} (const word \&location, const word \&field, \mbox{\hyperlink{structscalarBC}{scalar\+BC}} \texorpdfstring{$\ast$}{*}bc)
+\begin{DoxyCompactList}\small\item\em Reads boundary conditions for a scalar field. \end{DoxyCompactList}\item 
+\Hypertarget{boundary_8h_addc260155b46403911c3d2e3dbe083f5}\label{boundary_8h_addc260155b46403911c3d2e3dbe083f5} 
+Petsc\+Error\+Code {\bfseries read\+Vector\+BC} (const word \&location, const word \&field, \mbox{\hyperlink{structvectorBC}{vector\+BC}} \texorpdfstring{$\ast$}{*}bc)
+\begin{DoxyCompactList}\small\item\em Reads bundary conditions for a vector field. \end{DoxyCompactList}\item 
+\Hypertarget{boundary_8h_a8107b5649f1c0595bae2a2c1212aae9c}\label{boundary_8h_a8107b5649f1c0595bae2a2c1212aae9c} 
+Petsc\+Error\+Code {\bfseries Set\+Boundary\+Conditions} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} \texorpdfstring{$\ast$}{*}mesh)
+\begin{DoxyCompactList}\small\item\em Set boundary conditions. \end{DoxyCompactList}\item 
+\Hypertarget{boundary_8h_a3321b3464dc5ade5ad53475361ccb4e9}\label{boundary_8h_a3321b3464dc5ade5ad53475361ccb4e9} 
+Petsc\+Error\+Code {\bfseries check\+BCs\+And\+Set\+Patch\+Types} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} \texorpdfstring{$\ast$}{*}mesh)
+\begin{DoxyCompactList}\small\item\em Checks available boundary conditions. \end{DoxyCompactList}\item 
+\Hypertarget{boundary_8h_aecfd83090107acdddf1ba9b05b8c7c9f}\label{boundary_8h_aecfd83090107acdddf1ba9b05b8c7c9f} 
+Petsc\+Error\+Code {\bfseries Set\+Periodic\+Connectivity} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} \texorpdfstring{$\ast$}{*}mesh, word \&mesh\+File\+Name)
+\begin{DoxyCompactList}\small\item\em Set periodicconnectivity type. \end{DoxyCompactList}\item 
+\Hypertarget{boundary_8h_a3c7962a5d7cd59a698ac24d917c1cf68}\label{boundary_8h_a3c7962a5d7cd59a698ac24d917c1cf68} 
+Petsc\+Error\+Code {\bfseries Set\+Wall\+Models} (\mbox{\hyperlink{structueqn__}{ueqn\+\_\+}} \texorpdfstring{$\ast$}{*}ueqn)
+\begin{DoxyCompactList}\small\item\em Set wall models. \end{DoxyCompactList}\item 
+\Hypertarget{boundary_8h_a04756dcef05f0bd88507031b9367c08b}\label{boundary_8h_a04756dcef05f0bd88507031b9367c08b} 
+Petsc\+Error\+Code {\bfseries Update\+Contravariant\+BCs} (\mbox{\hyperlink{structueqn__}{ueqn\+\_\+}} \texorpdfstring{$\ast$}{*}ueqn)
+\begin{DoxyCompactList}\small\item\em Update contravariant fluxes boundary conditions. \end{DoxyCompactList}\item 
+\Hypertarget{boundary_8h_a08e83c67a1dfad413241aad90351174a}\label{boundary_8h_a08e83c67a1dfad413241aad90351174a} 
+Petsc\+Error\+Code {\bfseries Update\+Cartesian\+BCs} (\mbox{\hyperlink{structueqn__}{ueqn\+\_\+}} \texorpdfstring{$\ast$}{*}ueqn)
+\begin{DoxyCompactList}\small\item\em Update cartesian boundary conditions. \end{DoxyCompactList}\item 
+\Hypertarget{boundary_8h_a3f86ba8875fff062b0a81ae4e75424da}\label{boundary_8h_a3f86ba8875fff062b0a81ae4e75424da} 
+Petsc\+Error\+Code {\bfseries Update\+Temperature\+BCs} (\mbox{\hyperlink{structteqn__}{teqn\+\_\+}} \texorpdfstring{$\ast$}{*}teqn)
+\begin{DoxyCompactList}\small\item\em Update temperature boundary conditions. \end{DoxyCompactList}\item 
+\Hypertarget{boundary_8h_ad8624bc8f52d7c958751cd1837c72cb0}\label{boundary_8h_ad8624bc8f52d7c958751cd1837c72cb0} 
+Petsc\+Error\+Code {\bfseries Update\+Nut\+BCs} (\mbox{\hyperlink{structles__}{les\+\_\+}} \texorpdfstring{$\ast$}{*}les)
+\begin{DoxyCompactList}\small\item\em Update effective viscosity boundary conditions. \end{DoxyCompactList}\item 
+\Hypertarget{boundary_8h_a2753bdaeefd2dae311021fd996108b9a}\label{boundary_8h_a2753bdaeefd2dae311021fd996108b9a} 
+Petsc\+Error\+Code {\bfseries Updatekt\+BCs} (\mbox{\hyperlink{structles__}{les\+\_\+}} \texorpdfstring{$\ast$}{*}les)
+\begin{DoxyCompactList}\small\item\em Update effective diffusivity boundary conditions. \end{DoxyCompactList}\item 
+\Hypertarget{boundary_8h_a8c1a969787025ec2a34b8641a56821a3}\label{boundary_8h_a8c1a969787025ec2a34b8641a56821a3} 
+Petsc\+Error\+Code {\bfseries Update\+Pressure\+BCs} (\mbox{\hyperlink{structpeqn__}{peqn\+\_\+}} \texorpdfstring{$\ast$}{*}peqn)
+\begin{DoxyCompactList}\small\item\em Update pressure boundary conditions. \end{DoxyCompactList}\item 
+\Hypertarget{boundary_8h_a7add0a6158c8b2a59b1d41ad26177835}\label{boundary_8h_a7add0a6158c8b2a59b1d41ad26177835} 
+Petsc\+Error\+Code {\bfseries Update\+Phi\+BCs} (\mbox{\hyperlink{structpeqn__}{peqn\+\_\+}} \texorpdfstring{$\ast$}{*}peqn)
+\begin{DoxyCompactList}\small\item\em Update pressure correction boundary conditions. \end{DoxyCompactList}\item 
+\Hypertarget{boundary_8h_a717e2848f01d3ee4284e352513b8ca87}\label{boundary_8h_a717e2848f01d3ee4284e352513b8ca87} 
+Petsc\+Error\+Code {\bfseries Update\+Immersed\+BCs} (\mbox{\hyperlink{structibm__}{ibm\+\_\+}} \texorpdfstring{$\ast$}{*}ibm)
+\begin{DoxyCompactList}\small\item\em Update ibm boundary conditions. \end{DoxyCompactList}\item 
+\Hypertarget{boundary_8h_a102b49b0821cde01e5936884c38471cf}\label{boundary_8h_a102b49b0821cde01e5936884c38471cf} 
+Petsc\+Error\+Code {\bfseries Update\+Wall\+ModelsU} (\mbox{\hyperlink{structueqn__}{ueqn\+\_\+}} \texorpdfstring{$\ast$}{*}ueqn)
+\begin{DoxyCompactList}\small\item\em Update wall model for specified wall shear stress. \end{DoxyCompactList}\item 
+\Hypertarget{boundary_8h_a5527b4f8d7021a2e6d6b8ea765f92de9}\label{boundary_8h_a5527b4f8d7021a2e6d6b8ea765f92de9} 
+Petsc\+Error\+Code {\bfseries Update\+Wall\+ModelsT} (\mbox{\hyperlink{structteqn__}{teqn\+\_\+}} \texorpdfstring{$\ast$}{*}teqn)
+\begin{DoxyCompactList}\small\item\em Update wall model for specified wall heat flux. \end{DoxyCompactList}\item 
+\Hypertarget{boundary_8h_adba9f50e2d28559081b729428e0a100d}\label{boundary_8h_adba9f50e2d28559081b729428e0a100d} 
+Petsc\+Error\+Code {\bfseries read\+Surface\+Temp\+Data} (\mbox{\hyperlink{structShumann}{Shumann}} \texorpdfstring{$\ast$}{*}wm)
+\begin{DoxyCompactList}\small\item\em read surface temperature and obhukhov length data \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Boundary conditions header file. 
+

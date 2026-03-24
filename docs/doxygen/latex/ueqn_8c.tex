@@ -1,0 +1,43 @@
+\doxysection{/zfs60/nobackup/stipa/software/\+TOSCA/src/ueqn.c File Reference}
+\hypertarget{ueqn_8c}{}\label{ueqn_8c}\index{/zfs60/nobackup/stipa/software/TOSCA/src/ueqn.c@{/zfs60/nobackup/stipa/software/TOSCA/src/ueqn.c}}
+
+
+Contains U equation function definitions.  
+
+
+{\ttfamily \#include "{}include/base.\+h"{}}\newline
+{\ttfamily \#include "{}include/domain.\+h"{}}\newline
+{\ttfamily \#include "{}include/io.\+h"{}}\newline
+{\ttfamily \#include "{}include/inline.\+h"{}}\newline
+{\ttfamily \#include "{}include/inflow.\+h"{}}\newline
+{\ttfamily \#include "{}sources/ueqn\+\_\+sources.\+h"{}}\newline
+{\ttfamily \#include "{}solvers/ueqn\+\_\+solvers.\+h"{}}\newline
+\doxysubsubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{ueqn_8c_a5115d05ef97d815165ddc11efe936481}\label{ueqn_8c_a5115d05ef97d815165ddc11efe936481} 
+Petsc\+Error\+Code {\bfseries SNESMonitorU} (SNES snes, Petsc\+Int iter, Petsc\+Real rnorm, void \texorpdfstring{$\ast$}{*}comm)
+\item 
+\Hypertarget{ueqn_8c_a3dbeae2630a94e8222fab61518236341}\label{ueqn_8c_a3dbeae2630a94e8222fab61518236341} 
+Petsc\+Error\+Code {\bfseries Initialize\+UEqn} (\mbox{\hyperlink{structueqn__}{ueqn\+\_\+}} \texorpdfstring{$\ast$}{*}ueqn)
+\begin{DoxyCompactList}\small\item\em Initializes Ueqn environment. \end{DoxyCompactList}\item 
+\Hypertarget{ueqn_8c_a099aeb5f236533b79b5f3ba4dba897db}\label{ueqn_8c_a099aeb5f236533b79b5f3ba4dba897db} 
+Petsc\+Error\+Code {\bfseries Solve\+UEqn} (\mbox{\hyperlink{structueqn__}{ueqn\+\_\+}} \texorpdfstring{$\ast$}{*}ueqn)
+\begin{DoxyCompactList}\small\item\em Solve the momentum equation. \end{DoxyCompactList}\item 
+\Hypertarget{ueqn_8c_ac37a275604f7c56084bd40a8ad5fc710}\label{ueqn_8c_ac37a275604f7c56084bd40a8ad5fc710} 
+Petsc\+Error\+Code {\bfseries Update\+Flux\+Limiter} (\mbox{\hyperlink{structueqn__}{ueqn\+\_\+}} \texorpdfstring{$\ast$}{*}ueqn)
+\begin{DoxyCompactList}\small\item\em Updates flux limiter. \end{DoxyCompactList}\item 
+\Hypertarget{ueqn_8c_a7154a615d9bb63a6610e9cdefc796289}\label{ueqn_8c_a7154a615d9bb63a6610e9cdefc796289} 
+Petsc\+Error\+Code {\bfseries contravariant\+To\+Cartesian} (\mbox{\hyperlink{structueqn__}{ueqn\+\_\+}} \texorpdfstring{$\ast$}{*}ueqn)
+\begin{DoxyCompactList}\small\item\em Transform velocity from contravariant to cartesian. \end{DoxyCompactList}\item 
+\Hypertarget{ueqn_8c_a1c7112929b5c30416f8ff876f34584cd}\label{ueqn_8c_a1c7112929b5c30416f8ff876f34584cd} 
+Petsc\+Error\+Code {\bfseries contravariant\+To\+Cartesian\+Generic} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} \texorpdfstring{$\ast$}{*}mesh, Vec \&l\+Cont, Vec \&l\+Cat)
+\begin{DoxyCompactList}\small\item\em Transform generic local vector from contravariant to cartesian. \end{DoxyCompactList}\item 
+\Hypertarget{ueqn_8c_a166cf0accc859f606dd89efc8a506a27}\label{ueqn_8c_a166cf0accc859f606dd89efc8a506a27} 
+Petsc\+Error\+Code {\bfseries adjust\+Fluxes\+Local} (\mbox{\hyperlink{structueqn__}{ueqn\+\_\+}} \texorpdfstring{$\ast$}{*}ueqn)
+\begin{DoxyCompactList}\small\item\em Adjust fluxes to obey mass conservation (on a per-\/cell basis) \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Contains U equation function definitions. 
+

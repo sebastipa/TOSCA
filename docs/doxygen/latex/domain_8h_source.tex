@@ -1,0 +1,64 @@
+\doxysection{domain.\+h}
+\hypertarget{domain_8h_source}{}\label{domain_8h_source}\index{/zfs60/nobackup/stipa/software/TOSCA/src/include/domain.h@{/zfs60/nobackup/stipa/software/TOSCA/src/include/domain.h}}
+\mbox{\hyperlink{domain_8h}{Go to the documentation of this file.}}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ }
+\DoxyCodeLine{00003\ }
+\DoxyCodeLine{00004\ \textcolor{preprocessor}{\#ifndef\ \_DOMAIN\_H\_}}
+\DoxyCodeLine{00005\ \textcolor{preprocessor}{\#define\ \_DOMAIN\_H\_}}
+\DoxyCodeLine{00006\ }
+\DoxyCodeLine{00007\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{objects_8h}{objects.h}}"{}}}
+\DoxyCodeLine{00008\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{clock_8h}{clock.h}}"{}}}
+\DoxyCodeLine{00009\ \textcolor{preprocessor}{\#include\ "{}access.h"{}}}
+\DoxyCodeLine{00010\ \textcolor{preprocessor}{\#include\ "{}flags.h"{}}}
+\DoxyCodeLine{00011\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{mesh_8h}{mesh.h}}"{}}}
+\DoxyCodeLine{00012\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{overset_8h}{overset.h}}"{}}}
+\DoxyCodeLine{00013\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{acquisition_8h}{acquisition.h}}"{}}}
+\DoxyCodeLine{00014\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{ibm_8h}{ibm.h}}"{}}}
+\DoxyCodeLine{00015\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{ueqn_8h}{ueqn.h}}"{}}}
+\DoxyCodeLine{00016\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{peqn_8h}{peqn.h}}"{}}}
+\DoxyCodeLine{00017\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{teqn_8h}{teqn.h}}"{}}}
+\DoxyCodeLine{00018\ \textcolor{preprocessor}{\#include\ "{}les.h"{}}}
+\DoxyCodeLine{00019\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{lesScalar_8h}{lesScalar.h}}"{}}}
+\DoxyCodeLine{00020\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{precursor_8h}{precursor.h}}"{}}}
+\DoxyCodeLine{00021\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{turbines_8h}{turbines.h}}"{}}}
+\DoxyCodeLine{00022\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{abl_8h}{abl.h}}"{}}}
+\DoxyCodeLine{00023\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{ueqn__sources_8h}{../sources/ueqn\_sources.h}}"{}}}
+\DoxyCodeLine{00024\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{teqn__sources_8h}{../sources/teqn\_sources.h}}"{}}}
+\DoxyCodeLine{00025\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{ueqn__solvers_8h}{../solvers/ueqn\_solvers.h}}"{}}}
+\DoxyCodeLine{00026\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{teqn__solvers_8h}{../solvers/teqn\_solvers.h}}"{}}}
+\DoxyCodeLine{00027\ }
+\DoxyCodeLine{00029\ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structdomain__}{domain\_}}}
+\DoxyCodeLine{00030\ \{}
+\DoxyCodeLine{00031\ \ \ \ \ \mbox{\hyperlink{structsimInfo__}{simInfo\_}}\ \ \ \ \ \ info;}
+\DoxyCodeLine{00032\ \ \ \ \ \mbox{\hyperlink{structconstants__}{constants\_}}\ \ \ \ constants;}
+\DoxyCodeLine{00033\ }
+\DoxyCodeLine{00034\ \ \ \ \ PetscInt\ \ \ \ \ \ domainID;}
+\DoxyCodeLine{00035\ \ \ \ \ \mbox{\hyperlink{structclock__}{clock\_}}\ \ \ \ \ \ \ \ *\mbox{\hyperlink{structdomain___a349b3ead6d03bfb0a0a717f3bd1598dc}{clock}};\ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00036\ }
+\DoxyCodeLine{00037\ \ \ \ \ \mbox{\hyperlink{structmesh__}{mesh\_}}\ \ \ \ \ \ \ \ \ *\mbox{\hyperlink{structdomain___a79f72bff941f3c94c89da0b2777083cd}{mesh}};\ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00038\ }
+\DoxyCodeLine{00039\ \ \ \ \ \mbox{\hyperlink{structio__}{io\_}}\ \ \ \ \ \ \ \ \ \ \ *\mbox{\hyperlink{structdomain___a8d4cb3ec9ddea9d00f780d86706dcff0}{io}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00040\ }
+\DoxyCodeLine{00041\ \ \ \ \ \mbox{\hyperlink{structueqn__}{ueqn\_}}\ \ \ \ \ \ \ \ \ *\mbox{\hyperlink{structdomain___a1c92925cbe2bacb65d8ee9bc8f3b722e}{ueqn}};\ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00042\ \ \ \ \ \mbox{\hyperlink{structpeqn__}{peqn\_}}\ \ \ \ \ \ \ \ \ *\mbox{\hyperlink{structdomain___a8e85d4190a080798df2a831c3efede35}{peqn}};\ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00043\ \ \ \ \ \mbox{\hyperlink{structteqn__}{teqn\_}}\ \ \ \ \ \ \ \ \ *\mbox{\hyperlink{structdomain___a671c6a6998c870b561ee5bebec931393}{teqn}};\ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00044\ \ \ \ \ \mbox{\hyperlink{structles__}{les\_}}\ \ \ \ \ \ \ \ \ \ *\mbox{\hyperlink{structdomain___afbdc71dfc0182af49681651d14d3ee42}{les}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00045\ }
+\DoxyCodeLine{00046\ \ \ \ \ \mbox{\hyperlink{structoverset__}{overset\_}}\ \ \ \ \ \ *\mbox{\hyperlink{structdomain___abeede95fa077c0f1efa2d70d5e885ff2}{os}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00047\ }
+\DoxyCodeLine{00048\ \ \ \ \ farm\_\ \ \ \ \ \ \ \ \ *\mbox{\hyperlink{structdomain___a055fc943b07be3ba4f63e99ed58d1c2f}{farm}};\ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00049\ }
+\DoxyCodeLine{00050\ \ \ \ \ \mbox{\hyperlink{structibm__}{ibm\_}}\ \ \ \ \ \ \ \ \ \ *\mbox{\hyperlink{structdomain___af185575c16a32fe4fef3744f5ec83624}{ibm}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00051\ }
+\DoxyCodeLine{00052\ \ \ \ \ \mbox{\hyperlink{structabl__}{abl\_}}\ \ \ \ \ \ \ \ \ \ *\mbox{\hyperlink{structdomain___a8f3c7897a370c2d38d9cd3e1da244973}{abl}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00053\ }
+\DoxyCodeLine{00054\ \ \ \ \ \mbox{\hyperlink{structacquisition__}{acquisition\_}}\ \ *\mbox{\hyperlink{structdomain___a0aee26a44aecf1c97bc82f7e053e4efa}{acquisition}};\ \ \ \ \ \ }
+\DoxyCodeLine{00055\ }
+\DoxyCodeLine{00056\ \ \ \ \ \mbox{\hyperlink{structflags__}{flags\_}}\ \ \ \ \ \ \ \ \mbox{\hyperlink{structdomain___abcab0b17ea188cebd977496a873b307f}{flags}};\ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00057\ \ \ \ \ \mbox{\hyperlink{structaccess__}{access\_}}\ \ \ \ \ \ \ \mbox{\hyperlink{structdomain___a06961af354d69ac2c8c88ac5718bba6d}{access}};\ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00058\ \};}
+\DoxyCodeLine{00059\ }
+\DoxyCodeLine{00060\ \textcolor{preprocessor}{\#endif}}
+
+\end{DoxyCode}

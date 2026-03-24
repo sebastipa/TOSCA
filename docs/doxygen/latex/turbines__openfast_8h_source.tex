@@ -1,0 +1,56 @@
+\doxysection{turbines\+\_\+openfast.\+h}
+\hypertarget{turbines__openfast_8h_source}{}\label{turbines__openfast_8h_source}\index{/zfs60/nobackup/stipa/software/TOSCA/src/turbines/turbines\_openfast.h@{/zfs60/nobackup/stipa/software/TOSCA/src/turbines/turbines\_openfast.h}}
+\mbox{\hyperlink{turbines__openfast_8h}{Go to the documentation of this file.}}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{base_8h}{../include/base.h}}"{}}}
+\DoxyCodeLine{00002\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{domain_8h}{../include/domain.h}}"{}}}
+\DoxyCodeLine{00003\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{inline_8h}{../include/inline.h}}"{}}}
+\DoxyCodeLine{00004\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{turbines_8h}{../include/turbines.h}}"{}}\ \ }
+\DoxyCodeLine{00005\ }
+\DoxyCodeLine{00007\ }
+\DoxyCodeLine{00008\ \textcolor{preprocessor}{\#ifndef\ TRB\_OF\_H}}
+\DoxyCodeLine{00009\ \textcolor{preprocessor}{\#define\ TRB\_OF\_H}}
+\DoxyCodeLine{00010\ }
+\DoxyCodeLine{00011\ \textcolor{preprocessor}{\#if\ USE\_OPENFAST}}
+\DoxyCodeLine{00012\ }
+\DoxyCodeLine{00013\ \textcolor{preprocessor}{\#include\ "{}OpenFAST.H"{}}}
+\DoxyCodeLine{00014\ }
+\DoxyCodeLine{00016\ PetscErrorCode\ initOpenFAST(farm\_\ *farm);}
+\DoxyCodeLine{00017\ }
+\DoxyCodeLine{00019\ PetscErrorCode\ stepZeroOpenFAST(farm\_\ *farm);}
+\DoxyCodeLine{00020\ }
+\DoxyCodeLine{00022\ PetscErrorCode\ stepOpenFAST(farm\_\ *farm);}
+\DoxyCodeLine{00023\ }
+\DoxyCodeLine{00025\ PetscErrorCode\ computeWindVectorsRotorOpenFAST(farm\_\ *farm);}
+\DoxyCodeLine{00026\ }
+\DoxyCodeLine{00028\ PetscErrorCode\ computeWindVectorsTowerOpenFAST(farm\_\ *farm);}
+\DoxyCodeLine{00029\ }
+\DoxyCodeLine{00031\ PetscErrorCode\ computeBladeForceOpenFAST(farm\_\ *farm);}
+\DoxyCodeLine{00032\ }
+\DoxyCodeLine{00034\ PetscErrorCode\ computeTowerForceOpenFAST(farm\_\ *farm);}
+\DoxyCodeLine{00035\ }
+\DoxyCodeLine{00037\ PetscErrorCode\ findControlledPointsRotorOpenFAST(farm\_\ *farm);}
+\DoxyCodeLine{00038\ }
+\DoxyCodeLine{00040\ PetscErrorCode\ findControlledPointsTowerOpenFAST(farm\_\ *farm);}
+\DoxyCodeLine{00041\ }
+\DoxyCodeLine{00043\ PetscErrorCode\ getDataFromOpenFAST(farm\_\ *farm);}
+\DoxyCodeLine{00044\ }
+\DoxyCodeLine{00046\ PetscErrorCode\ getGlobParamsOpenFAST(windTurbine\ *wt,\ \textcolor{keyword}{const}\ word\ actuatorModel);}
+\DoxyCodeLine{00047\ }
+\DoxyCodeLine{00049\ PetscErrorCode\ getVelPtsBladeOpenFAST(windTurbine\ *wt);}
+\DoxyCodeLine{00050\ }
+\DoxyCodeLine{00052\ PetscErrorCode\ getForcePtsBladeOpenFAST(windTurbine\ *wt);}
+\DoxyCodeLine{00053\ }
+\DoxyCodeLine{00055\ PetscErrorCode\ getVelPtsTwrOpenFAST(windTurbine\ *wt);}
+\DoxyCodeLine{00056\ }
+\DoxyCodeLine{00058\ PetscErrorCode\ getForcePtsTwrOpenFAST(windTurbine\ *wt);}
+\DoxyCodeLine{00059\ }
+\DoxyCodeLine{00061\ PetscErrorCode\ mapOFDisplToActPts(farm\_\ *farm);}
+\DoxyCodeLine{00062\ }
+\DoxyCodeLine{00064\ PetscErrorCode\ mapOFForcesToActPts(farm\_\ *farm);}
+\DoxyCodeLine{00065\ }
+\DoxyCodeLine{00066\ \textcolor{preprocessor}{\#endif}}
+\DoxyCodeLine{00067\ }
+\DoxyCodeLine{00068\ \textcolor{preprocessor}{\#endif}}
+
+\end{DoxyCode}

@@ -1,0 +1,100 @@
+\doxysection{mesh.\+h}
+\hypertarget{mesh_8h_source}{}\label{mesh_8h_source}\index{/zfs60/nobackup/stipa/software/TOSCA/src/include/mesh.h@{/zfs60/nobackup/stipa/software/TOSCA/src/include/mesh.h}}
+\mbox{\hyperlink{mesh_8h}{Go to the documentation of this file.}}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ }
+\DoxyCodeLine{00003\ }
+\DoxyCodeLine{00004\ \textcolor{preprocessor}{\#ifndef\ \_MESH\_H\_}}
+\DoxyCodeLine{00005\ \textcolor{preprocessor}{\#define\ \_MESH\_H\_}}
+\DoxyCodeLine{00006\ }
+\DoxyCodeLine{00007\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{wallmodel_8h}{wallmodel.h}}"{}}}
+\DoxyCodeLine{00008\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{boundary_8h}{boundary.h}}"{}}}
+\DoxyCodeLine{00009\ }
+\DoxyCodeLine{00011\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{struct}}
+\DoxyCodeLine{00012\ \{}
+\DoxyCodeLine{00013\ \ \ \ \ PetscReal\ \ \ \ \ \ xmin,\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ domain\ bounding\ coordinates\ in\ meters}}
+\DoxyCodeLine{00014\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ xmax,}
+\DoxyCodeLine{00015\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ymin,}
+\DoxyCodeLine{00016\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ymax,}
+\DoxyCodeLine{00017\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ zmin,}
+\DoxyCodeLine{00018\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ zmax;}
+\DoxyCodeLine{00019\ \ \ \ \ PetscReal\ \ \ \ \ \ Lx,\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ domain\ length\ in\ meters\ in\ x,y,z\ directions}}
+\DoxyCodeLine{00020\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ Ly,}
+\DoxyCodeLine{00021\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ Lz;}
+\DoxyCodeLine{00022\ \}\ \mbox{\hyperlink{structboundingBox}{boundingBox}};}
+\DoxyCodeLine{00023\ }
+\DoxyCodeLine{00025\ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structmesh__}{mesh\_}}}
+\DoxyCodeLine{00026\ \{}
+\DoxyCodeLine{00027\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structmesh___a1539bfc8d819cf118f8be9233d7e84a7}{meshName}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00028\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structmesh___a2ae7b6cb6115271d34d5e595f0989b90}{meshFileType}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00029\ }
+\DoxyCodeLine{00030\ \ \ \ \ \mbox{\hyperlink{structboundingBox}{boundingBox}}\ \ \ \ \mbox{\hyperlink{structmesh___af541527550b4c685b283e208c4e90ca9}{bounds}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00031\ \ \ \ \ PetscReal\ \ \ \ \ \ \mbox{\hyperlink{structmesh___a900a90fc493e0efb6c643b2e6bd38744}{grndLevel}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00032\ \ \ \ \ \ \ }
+\DoxyCodeLine{00033\ \ \ \ \ PetscInt\ \ \ \ \ \ \ IM,\ JM,\ \mbox{\hyperlink{structmesh___acf540c2904b2c1cb5c6dd27585d3522b}{KM}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00034\ }
+\DoxyCodeLine{00035\ \ \ \ \ \textcolor{comment}{//\ distributed\ arrays}}
+\DoxyCodeLine{00036\ \ \ \ \ DM\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structmesh___a259e98399a57e71a8e082e013943dc60}{da}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00037\ \ \ \ \ DM\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structmesh___af9e5239da6b5567b743756a5405d019d}{fda}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00038\ \ \ \ \ DM\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structmesh___a2ac6bb5fd2752cb1c84d9bcabdd293b3}{sda}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00039\ \ \ \ \ DM\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structmesh___abdd8583d360bff8c705b8ff258cfaefc}{tda}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00040\ \ \ \ \ DMDALocalInfo\ \ \mbox{\hyperlink{structmesh___a72b6b3606cac065bb5fb0aba74b38648}{info}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00041\ }
+\DoxyCodeLine{00042\ \ \ \ \ \textcolor{comment}{//\ metrics}}
+\DoxyCodeLine{00043\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \ Cent,\ \mbox{\hyperlink{structmesh___a21a5bb601f5ffefc25cc693f7d9c1289}{lCent}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00044\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \ lCsi,\ lEta,\ lZet;}
+\DoxyCodeLine{00045\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structmesh___a31ec25c566a8c1fd5273ade57acfd5ce}{lAj}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00046\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \ lICsi,\ lIEta,\ lIZet;}
+\DoxyCodeLine{00047\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structmesh___a500c6de4e78f20fc080d8022c69bffa7}{lIAj}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00048\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \ lJCsi,\ lJEta,\ lJZet;}
+\DoxyCodeLine{00049\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structmesh___aa2df1f894c70a7e421ee8ae9a135df78}{lJAj}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00050\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \ lKCsi,\ lKEta,\ lKZet;}
+\DoxyCodeLine{00051\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structmesh___a2ccbb45007045b7350a4fd88c02fcb03}{lKAj}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00052\ }
+\DoxyCodeLine{00053\ \ \ \ \ \textcolor{comment}{//\ IBM\ markup}}
+\DoxyCodeLine{00054\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \ Nvert,\ \mbox{\hyperlink{structmesh___a4f177e7c8730b09155dc7df61c1a350c}{Nvert\_o}};\ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00055\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \ lNvert,\ lNvert\_o;}
+\DoxyCodeLine{00056\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \ meshTag,\ lmeshTag;}
+\DoxyCodeLine{00057\ \ \ \ \ \textcolor{comment}{//\ periodic\ connectivity}}
+\DoxyCodeLine{00058\ \ \ \ \ PetscInt\ \ \ \ \ \ \ i\_periodic,\ ii\_periodic;}
+\DoxyCodeLine{00059\ \ \ \ \ PetscInt\ \ \ \ \ \ \ j\_periodic,\ jj\_periodic;}
+\DoxyCodeLine{00060\ \ \ \ \ PetscInt\ \ \ \ \ \ \ k\_periodic,\ kk\_periodic;}
+\DoxyCodeLine{00061\ }
+\DoxyCodeLine{00062\ \ \ \ \ \textcolor{comment}{//\ boundary\ conditions}}
+\DoxyCodeLine{00063\ \ \ \ \ \mbox{\hyperlink{structscalarBC}{scalarBC}}\ \ \ \ \ \ \ boundaryNut;}
+\DoxyCodeLine{00064\ \ \ \ \ \mbox{\hyperlink{structscalarBC}{scalarBC}}\ \ \ \ \ \ \ boundaryT;}
+\DoxyCodeLine{00065\ \ \ \ \ \mbox{\hyperlink{structvectorBC}{vectorBC}}\ \ \ \ \ \ \ boundaryU;}
+\DoxyCodeLine{00066\ }
+\DoxyCodeLine{00067\ \ \ \ \ \textcolor{comment}{//\ special\ inflow\ boundary\ conditions}}
+\DoxyCodeLine{00068\ \ \ \ \ \mbox{\hyperlink{structinletFunctions}{inletFunctions}}\ inletF;}
+\DoxyCodeLine{00069\ }
+\DoxyCodeLine{00070\ \ \ \ \ \textcolor{comment}{//\ limiters\ and\ numerical\ fields}}
+\DoxyCodeLine{00071\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \ fluxLimiter;}
+\DoxyCodeLine{00072\ }
+\DoxyCodeLine{00073\ \ \ \ \ \textcolor{comment}{//\ this\ mesh\ communicator}}
+\DoxyCodeLine{00074\ \ \ \ \ MPI\_Comm\ \ \ \ \ \ \ MESH\_COMM;}
+\DoxyCodeLine{00075\ }
+\DoxyCodeLine{00076\ \ \ \ \ \textcolor{comment}{//\ access\ database}}
+\DoxyCodeLine{00077\ \ \ \ \ \mbox{\hyperlink{structaccess__}{access\_}}\ \ \ \ \ \ \ \ *access;}
+\DoxyCodeLine{00078\ }
+\DoxyCodeLine{00079\ \};}
+\DoxyCodeLine{00080\ }
+\DoxyCodeLine{00081\ \textcolor{preprocessor}{\#endif}}
+\DoxyCodeLine{00082\ }
+\DoxyCodeLine{00083\ \textcolor{comment}{//\ =============================================================================}}
+\DoxyCodeLine{00084\ \textcolor{comment}{//\ FUNCTIONS}}
+\DoxyCodeLine{00085\ \textcolor{comment}{//\ =============================================================================}}
+\DoxyCodeLine{00086\ }
+\DoxyCodeLine{00088\ PetscErrorCode\ \mbox{\hyperlink{mesh_8h_a68f967253178f3a500fdf905f93d6e17}{InitializeMesh}}(\mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh);}
+\DoxyCodeLine{00089\ }
+\DoxyCodeLine{00091\ PetscErrorCode\ \mbox{\hyperlink{mesh_8h_a204921bb082c6d2b90822b90cefb5e78}{SetDistributedArrays}}(\mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh);}
+\DoxyCodeLine{00092\ }
+\DoxyCodeLine{00094\ PetscErrorCode\ \mbox{\hyperlink{mesh_8h_ac162deedb22611ecfd37ed856e76a81f}{SetMeshMetrics}}(\mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh);}
+\DoxyCodeLine{00095\ }
+\DoxyCodeLine{00097\ PetscErrorCode\ \mbox{\hyperlink{mesh_8h_a6f779a01b006adc21b19d9f83b736eb5}{SetBoundingBox}}(\mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh);}
+\DoxyCodeLine{00098\ }
+\DoxyCodeLine{00100\ PetscErrorCode\ \mbox{\hyperlink{mesh_8h_aa53c26599ca626caa6dc7866b6df656c}{ghostnodesCellcenter}}(\mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh);}
+\DoxyCodeLine{00101\ }
+\DoxyCodeLine{00103\ PetscErrorCode\ \mbox{\hyperlink{mesh_8h_aa26a55b145b5a6e6cd9e91895a7591f8}{DeformMeshBasedOnBLDisp}}(\mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh);}
+
+\end{DoxyCode}

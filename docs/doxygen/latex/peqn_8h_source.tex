@@ -1,0 +1,129 @@
+\doxysection{peqn.\+h}
+\hypertarget{peqn_8h_source}{}\label{peqn_8h_source}\index{/zfs60/nobackup/stipa/software/TOSCA/src/include/peqn.h@{/zfs60/nobackup/stipa/software/TOSCA/src/include/peqn.h}}
+\mbox{\hyperlink{peqn_8h}{Go to the documentation of this file.}}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ }
+\DoxyCodeLine{00003\ }
+\DoxyCodeLine{00004\ \textcolor{preprocessor}{\#ifndef\ \_PEQN\_H\_}}
+\DoxyCodeLine{00005\ \textcolor{preprocessor}{\#define\ \_PEQN\_H\_}}
+\DoxyCodeLine{00006\ }
+\DoxyCodeLine{00008\ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structpeqn__}{peqn\_}}}
+\DoxyCodeLine{00009\ \{}
+\DoxyCodeLine{00010\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structpeqn___a464e3871213f7bbd7c6397229ddd4b72}{phi}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00011\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ Phi,\ \mbox{\hyperlink{structpeqn___a3041e494b4877608c16e42858130e588}{lPhi}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00012\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ P,\ \mbox{\hyperlink{structpeqn___ae03567ba774ad5648c97ba71d8e5e39a}{lP}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00013\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ lLid,\ \mbox{\hyperlink{structpeqn___a436bdf22d65e240fbeb6c8132d8496fe}{lGid}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00014\ \ \ \ \ }
+\DoxyCodeLine{00015\ \ \ \ \ HYPRE\_Int\ \ \ \ \ \mbox{\hyperlink{structpeqn___abe37423a45dd3b55533fa5535fabf3cf}{thisRankSize}},\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00016\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structpeqn___a71ed9b6869aaab82858c19f58aa98fd8}{thisRankStart}},\ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00017\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structpeqn___a4377b381ee9e36c4d95d8370c13c85fb}{thisRankEnd}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00018\ \ \ \ \ HYPRE\_Int\ \ \ \ \ \mbox{\hyperlink{structpeqn___a9b5031c8bbf3dad751ed7b0ea184b1d5}{totalSize}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00019\ \ \ \ \ PetscReal\ \ \ \ \ initialPoissonRes,}
+\DoxyCodeLine{00020\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structpeqn___a0f8e48e07bea85c145ce481786e0a164}{finalPoissonRes}};\ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00021\ \ \ \ \ HYPRE\_Int\ \ \ \ \ \mbox{\hyperlink{structpeqn___ac04ddc4e5b2ab8242202152be103c09e}{poissonIterations}};\ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00022\ }
+\DoxyCodeLine{00023\ \ \ \ \ PetscInt\ \ \ \ \ \ \mbox{\hyperlink{structpeqn___a5cb00c57c0efa9f1453bc379482b4034}{hypreSolverType}};\ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00024\ \ \ \ \ PetscInt\ \ \ \ \ \ \mbox{\hyperlink{structpeqn___a8662b1a3d930bfb4e9e6e15a31c29103}{poissonIt}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00025\ \ \ \ \ PetscReal\ \ \ \ \ \mbox{\hyperlink{structpeqn___a0d18e3c14740cd099b098037099ec8c7}{poissonTol}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00026\ }
+\DoxyCodeLine{00027\ \ \ \ \ \textcolor{comment}{//\ solver\ parameters}}
+\DoxyCodeLine{00028\ \ \ \ \ PetscInt\ \ \ \ \ \ \mbox{\hyperlink{structpeqn___aeddffe6c08ced60368000883509a4fd7}{amgAgg}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00029\ \ \ \ \ PetscInt\ \ \ \ \ \ amgCoarsenType;}
+\DoxyCodeLine{00030\ \ \ \ \ PetscReal\ \ \ \ \ \mbox{\hyperlink{structpeqn___ae4976c76128ace97e66e27b08e9d00c4}{amgThresh}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00031\ }
+\DoxyCodeLine{00032\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structpeqn___a61cbba57805d35bd4c8f24b3250c68b2}{solverType}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00033\ }
+\DoxyCodeLine{00034\ \ \ \ \ \textcolor{comment}{//\ hypre\ solver}}
+\DoxyCodeLine{00035\ \ \ \ \ HYPRE\_Solver\ \ \ \ \ \ \ \mbox{\hyperlink{structpeqn___aebb38c0ddc4039f9d48fe9465003659a}{hypreSlvr}};\ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00036\ \ \ \ \ HYPRE\_Solver\ \ \ \ \ \ \ \mbox{\hyperlink{structpeqn___a360d4f174d7301372853ce06df01cf10}{hyprePC}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00037\ \ \ \ \ HYPRE\_IJMatrix\ \ \ \ \ \mbox{\hyperlink{structpeqn___af9c73b7c6d5eff1fd3ef3ea2250608b5}{hypreA}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00038\ \ \ \ \ HYPRE\_ParCSRMatrix\ \mbox{\hyperlink{structpeqn___ad1f20406c27a0b2adfe0766e37c725ee}{hypreParA}};\ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00039\ \ \ \ \ HYPRE\_IJVector\ \ \ \ \ hypreP,\ \mbox{\hyperlink{structpeqn___a55410b97ee3ed160a2eead648efd680b}{hypreRhs}};\ \ \ \ \ \ }
+\DoxyCodeLine{00040\ \ \ \ \ HYPRE\_ParVector\ \ \ \ hypreParP,\ \mbox{\hyperlink{structpeqn___a024231cde6b2227e5ffee8555bc2f949}{hypreParRhs}};}
+\DoxyCodeLine{00041\ }
+\DoxyCodeLine{00042\ \ \ \ \ \textcolor{comment}{//\ PETSC\ solver}}
+\DoxyCodeLine{00043\ \ \ \ \ Mat\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structpeqn___ad5f704a3d486ca74bd285804621a0362}{petscA}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00044\ \ \ \ \ KSP\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structpeqn___acc224d3ee73cec58f0ed33d925a53198}{ksp}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00045\ \ \ \ \ PC\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structpeqn___a958161c2c97937e35710ceaf2fd16e09}{petscPC}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00046\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structpeqn___a41ae31eb0c0814c24b80b37b808ef5d4}{petscRhs}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00047\ \ \ \ \ MatNullSpace\ \ \ \ \ \ \ \mbox{\hyperlink{structpeqn___a659dc19cc4062d3d67d6f50232d6910e}{petscNs}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00048\ }
+\DoxyCodeLine{00049\ \ \ \ \ \textcolor{comment}{//\ access}}
+\DoxyCodeLine{00050\ \ \ \ \ \mbox{\hyperlink{structaccess__}{access\_}}\ \ \ \ \ \ \ \ \ \ \ \ *\mbox{\hyperlink{structpeqn___ac7013e14356e7d0d43cb48fe2847b772}{access}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00051\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structpeqn___a9c7bca57940545d59cbe4e0ef40b9acf}{initFieldType}};\ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00052\ }
+\DoxyCodeLine{00053\ \};}
+\DoxyCodeLine{00054\ }
+\DoxyCodeLine{00055\ \textcolor{preprocessor}{\#endif}}
+\DoxyCodeLine{00056\ }
+\DoxyCodeLine{00058\ PetscErrorCode\ \mbox{\hyperlink{peqn_8h_a8ee26f27490cd2ba1ba573baeee692ba}{InitializePEqn}}(\mbox{\hyperlink{structpeqn__}{peqn\_}}\ *peqn);}
+\DoxyCodeLine{00059\ }
+\DoxyCodeLine{00061\ PetscErrorCode\ \mbox{\hyperlink{peqn_8h_af2c443594a2304edf96ff8e4e7db4c66}{CreateHypreSolver}}(\mbox{\hyperlink{structpeqn__}{peqn\_}}\ *peqn);}
+\DoxyCodeLine{00062\ }
+\DoxyCodeLine{00064\ PetscErrorCode\ \mbox{\hyperlink{peqn_8h_a3b7b44d6eb7ed52d6759ce0e88e32753}{CreatePETScSolver}}(\mbox{\hyperlink{structpeqn__}{peqn\_}}\ *peqn);}
+\DoxyCodeLine{00065\ }
+\DoxyCodeLine{00067\ PetscErrorCode\ \mbox{\hyperlink{peqn_8h_ad9fa6dfb07b806bdc343704f04083eff}{CreateHypreMatrix}}(\mbox{\hyperlink{structpeqn__}{peqn\_}}\ *peqn);}
+\DoxyCodeLine{00068\ }
+\DoxyCodeLine{00070\ PetscErrorCode\ \mbox{\hyperlink{peqn_8h_a9b80e75909222e5cbf70669ee5855ac2}{CreatePETScMatrix}}(\mbox{\hyperlink{structpeqn__}{peqn\_}}\ *peqn);}
+\DoxyCodeLine{00071\ }
+\DoxyCodeLine{00073\ PetscErrorCode\ \mbox{\hyperlink{peqn_8h_adda9d62eee9605356dc72fef0a33edb8}{CreateHypreVector}}(\mbox{\hyperlink{structpeqn__}{peqn\_}}\ *peqn);}
+\DoxyCodeLine{00074\ }
+\DoxyCodeLine{00076\ PetscErrorCode\ \mbox{\hyperlink{peqn_8h_adf12103284db07a2ec2b7cbaa5801665}{CreatePETScVector}}(\mbox{\hyperlink{structpeqn__}{peqn\_}}\ *peqn);}
+\DoxyCodeLine{00077\ }
+\DoxyCodeLine{00079\ PetscErrorCode\ \mbox{\hyperlink{peqn_8h_a7b109d01b7be010b26e0c9a50b6c16da}{DestroyHypreSolver}}(\mbox{\hyperlink{structpeqn__}{peqn\_}}\ *peqn);}
+\DoxyCodeLine{00080\ }
+\DoxyCodeLine{00082\ PetscErrorCode\ \mbox{\hyperlink{peqn_8h_a32fce59bf9f488f323e994d3137472df}{DestroyPETScSolver}}(\mbox{\hyperlink{structpeqn__}{peqn\_}}\ *peqn);}
+\DoxyCodeLine{00083\ }
+\DoxyCodeLine{00085\ PetscErrorCode\ \mbox{\hyperlink{peqn_8h_aea4bbdf561dfb67d150e7c1b69dd38a5}{DestroyHypreMatrix}}(\mbox{\hyperlink{structpeqn__}{peqn\_}}\ *peqn);}
+\DoxyCodeLine{00086\ }
+\DoxyCodeLine{00088\ PetscErrorCode\ \mbox{\hyperlink{peqn_8h_ad1b0d4c628f840fed6b01cff1b049415}{DestroyHypreVector}}(\mbox{\hyperlink{structpeqn__}{peqn\_}}\ *peqn);}
+\DoxyCodeLine{00089\ }
+\DoxyCodeLine{00091\ PetscErrorCode\ \mbox{\hyperlink{peqn_8h_a696ae83da96a02ecd4cd7b0322ec5b07}{DestroyPETScVector}}(\mbox{\hyperlink{structpeqn__}{peqn\_}}\ *peqn);}
+\DoxyCodeLine{00092\ }
+\DoxyCodeLine{00094\ PetscErrorCode\ \mbox{\hyperlink{peqn_8h_ad083be97b70c8defdb8741cb277b2bf7}{Petsc2HypreVector}}(Vec\ \&A,\ HYPRE\_IJVector\ \&B,\ HYPRE\_Int\ startID);}
+\DoxyCodeLine{00095\ }
+\DoxyCodeLine{00097\ PetscErrorCode\ \mbox{\hyperlink{peqn_8h_a11c3504237006df917b0e61e159f5807}{Hypre2PetscVector}}(HYPRE\_IJVector\ \&B,\ Vec\ \&A,\ HYPRE\_Int\ startID);}
+\DoxyCodeLine{00098\ }
+\DoxyCodeLine{00100\ PetscErrorCode\ \mbox{\hyperlink{peqn_8h_a9846cb49857f2528a8146f6e6ccd0e9b}{phiToPhi}}(\mbox{\hyperlink{structpeqn__}{peqn\_}}\ *peqn);}
+\DoxyCodeLine{00101\ }
+\DoxyCodeLine{00103\ PetscReal\ \ \ \ \ \ \mbox{\hyperlink{peqn_8h_ad70bea1744fa4be27bffab83f74e350b}{L2NormHypre}}(\mbox{\hyperlink{structpeqn__}{peqn\_}}\ *peqn,\ HYPRE\_IJMatrix\ \&A,\ HYPRE\_IJVector\ \&X,\ HYPRE\_IJVector\ \&B);}
+\DoxyCodeLine{00104\ }
+\DoxyCodeLine{00106\ PetscReal\ \ \ \ \ \ \mbox{\hyperlink{peqn_8h_ad87194cd8a026e6581fd4ab72f0e931a}{L2NormPETSc}}(\mbox{\hyperlink{structpeqn__}{peqn\_}}\ *peqn,\ Mat\ \&A,\ Vec\ \&X,\ Vec\ \&B);}
+\DoxyCodeLine{00107\ }
+\DoxyCodeLine{00109\ PetscErrorCode\ \mbox{\hyperlink{peqn_8h_ab7768de2161a2bbe0ffbcbe4782694eb}{GradP}}(\mbox{\hyperlink{structpeqn__}{peqn\_}}\ *peqn);}
+\DoxyCodeLine{00110\ }
+\DoxyCodeLine{00112\ PetscErrorCode\ \mbox{\hyperlink{peqn_8h_a8aece6d7bf3b6cb46cb597de58fc88e1}{GradP4thOrder}}(\mbox{\hyperlink{structpeqn__}{peqn\_}}\ *peqn);}
+\DoxyCodeLine{00113\ }
+\DoxyCodeLine{00115\ PetscErrorCode\ \mbox{\hyperlink{peqn_8h_a9231ed77659514a09ab5f246e8b35af7}{SetPoissonConnectivity}}(\mbox{\hyperlink{structpeqn__}{peqn\_}}\ *peqn);}
+\DoxyCodeLine{00116\ }
+\DoxyCodeLine{00118\ PetscErrorCode\ \mbox{\hyperlink{peqn_8h_a9daf3d053c5f54a60930d2c3fb41c4e9}{SetCoeffMatrix}}(\mbox{\hyperlink{structpeqn__}{peqn\_}}\ *peqn);}
+\DoxyCodeLine{00119\ }
+\DoxyCodeLine{00121\ PetscErrorCode\ \mbox{\hyperlink{peqn_8h_af35cf556e36d7002ea71ccc59c6119c7}{ZeroCoeffMatrix}}(\mbox{\hyperlink{structpeqn__}{peqn\_}}\ *peqn);}
+\DoxyCodeLine{00122\ }
+\DoxyCodeLine{00124\ PetscErrorCode\ \mbox{\hyperlink{peqn_8h_a47ceea848fc387454697a64956cc467a}{SetRHS}}(\mbox{\hyperlink{structpeqn__}{peqn\_}}\ *peqn);}
+\DoxyCodeLine{00125\ }
+\DoxyCodeLine{00127\ PetscErrorCode\ \mbox{\hyperlink{peqn_8h_afb43101b11e04a4a9a2ef81e057d521f}{SubtractAverageHypre}}(\mbox{\hyperlink{structpeqn__}{peqn\_}}\ *peqn,\ HYPRE\_IJVector\ \&B);}
+\DoxyCodeLine{00128\ }
+\DoxyCodeLine{00130\ PetscErrorCode\ \mbox{\hyperlink{peqn_8h_a9d5a40e9824682720a1696eb9cc1a9d2}{SubtractAveragePETSc}}(\mbox{\hyperlink{structpeqn__}{peqn\_}}\ *peqn,\ Vec\ \&B);}
+\DoxyCodeLine{00131\ }
+\DoxyCodeLine{00133\ PetscErrorCode\ \mbox{\hyperlink{peqn_8h_a28d43afc0244d005d1c81d5a297408b0}{AdjustIBMFlux}}(\mbox{\hyperlink{structpeqn__}{peqn\_}}\ *peqn);}
+\DoxyCodeLine{00134\ }
+\DoxyCodeLine{00136\ PetscErrorCode\ \mbox{\hyperlink{peqn_8h_ad3c83c05b82fba196345bd68cb408341}{UpdatePressure}}(\mbox{\hyperlink{structpeqn__}{peqn\_}}\ *peqn);}
+\DoxyCodeLine{00137\ }
+\DoxyCodeLine{00138\ PetscErrorCode\ updateIBMPhi(\mbox{\hyperlink{structibm__}{ibm\_}}\ *ibm);}
+\DoxyCodeLine{00139\ }
+\DoxyCodeLine{00141\ PetscErrorCode\ \mbox{\hyperlink{peqn_8h_a7a65ba9c5e62bcfc9be56370f4bcbc0c}{ProjectVelocity}}(\mbox{\hyperlink{structpeqn__}{peqn\_}}\ *peqn);}
+\DoxyCodeLine{00142\ }
+\DoxyCodeLine{00144\ PetscErrorCode\ \mbox{\hyperlink{peqn_8h_a653e735ef518ba7324fad4c577eddb37}{SolvePEqn}}(\mbox{\hyperlink{structpeqn__}{peqn\_}}\ *peqn);}
+\DoxyCodeLine{00145\ }
+\DoxyCodeLine{00147\ PetscErrorCode\ \mbox{\hyperlink{peqn_8h_af5bf345a51d99fa844f6f4104491eb1e}{SetPressureReference}}(\mbox{\hyperlink{structpeqn__}{peqn\_}}\ *peqn);}
+\DoxyCodeLine{00148\ }
+\DoxyCodeLine{00150\ PetscErrorCode\ \mbox{\hyperlink{peqn_8h_a9d397554e586163d7f6df8d76d1efe5e}{ContinuityErrors}}(\mbox{\hyperlink{structpeqn__}{peqn\_}}\ *peqn);}
+\DoxyCodeLine{00151\ }
+\DoxyCodeLine{00153\ PetscErrorCode\ \mbox{\hyperlink{peqn_8h_a6d6e47782ac1420eec4354c28f140f8b}{ContinuityErrorsOptimized}}(\mbox{\hyperlink{structpeqn__}{peqn\_}}\ *peqn);}
+\DoxyCodeLine{00154\ }
+\DoxyCodeLine{00156\ PetscErrorCode\ \mbox{\hyperlink{peqn_8h_a922ff40ebdb5c5775c2a05a4edb11a2a}{InitGravityWaveInducedPressure}}(\mbox{\hyperlink{structpeqn__}{peqn\_}}\ *peqn);}
+\DoxyCodeLine{00157\ }
+\DoxyCodeLine{00159\ \mbox{\hyperlink{structcellIds}{cellIds}}\ \mbox{\hyperlink{peqn_8h_ac45612683608b3102a801b9117098d34}{GetIdFromStencil}}(\textcolor{keywordtype}{int}\ stencil,\ \textcolor{keywordtype}{int}\ k,\ \textcolor{keywordtype}{int}\ j,\ \textcolor{keywordtype}{int}\ i);}
+
+\end{DoxyCode}

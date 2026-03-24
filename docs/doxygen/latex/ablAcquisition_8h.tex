@@ -1,0 +1,21 @@
+\doxysection{/zfs60/nobackup/stipa/software/\+TOSCA/src/include/acquisition/abl\+Acquisition.h File Reference}
+\hypertarget{ablAcquisition_8h}{}\label{ablAcquisition_8h}\index{/zfs60/nobackup/stipa/software/TOSCA/src/include/acquisition/ablAcquisition.h@{/zfs60/nobackup/stipa/software/TOSCA/src/include/acquisition/ablAcquisition.h}}
+
+
+Three layer model validation test. Depth averaged fields are gathered on a gridded point mesh for subsequent post processing, namely velocity, pressure and wind farm body force. The mesh must be cartesian and the vertical direction is assumed to be the j-\/direction. The same hypothesis holds for the ABL data acquisition, which performes spatial averages as a function of time on the planes parallel to the wall defined by each cell\textquotesingle{}s center.  
+
+
+\doxysubsubsection*{Classes}
+\begin{DoxyCompactItemize}
+\item 
+struct \mbox{\hyperlink{structlevel3LM}{level3\+LM}}
+\begin{DoxyCompactList}\small\item\em Struct defining a gridded point mesh level for three layer model (used for its validation) \end{DoxyCompactList}\item 
+struct \mbox{\hyperlink{structdata3LM}{data3\+LM}}
+\begin{DoxyCompactList}\small\item\em Struct defining a gridded point mesh for three layer model data (used for its validation) \end{DoxyCompactList}\item 
+struct \mbox{\hyperlink{structdataABL}{data\+ABL}}
+\begin{DoxyCompactList}\small\item\em Struct defining ABL simulation acquisition data. \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Three layer model validation test. Depth averaged fields are gathered on a gridded point mesh for subsequent post processing, namely velocity, pressure and wind farm body force. The mesh must be cartesian and the vertical direction is assumed to be the j-\/direction. The same hypothesis holds for the ABL data acquisition, which performes spatial averages as a function of time on the planes parallel to the wall defined by each cell\textquotesingle{}s center. 
+

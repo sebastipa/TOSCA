@@ -1,0 +1,80 @@
+\doxysection{teqn.\+h}
+\hypertarget{teqn_8h_source}{}\label{teqn_8h_source}\index{/zfs60/nobackup/stipa/software/TOSCA/src/include/teqn.h@{/zfs60/nobackup/stipa/software/TOSCA/src/include/teqn.h}}
+\mbox{\hyperlink{teqn_8h}{Go to the documentation of this file.}}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ }
+\DoxyCodeLine{00003\ }
+\DoxyCodeLine{00004\ \textcolor{preprocessor}{\#ifndef\ \_TEQN\_H\_}}
+\DoxyCodeLine{00005\ \textcolor{preprocessor}{\#define\ \_TEQN\_H\_}}
+\DoxyCodeLine{00006\ }
+\DoxyCodeLine{00008\ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structteqn__}{teqn\_}}}
+\DoxyCodeLine{00009\ \{}
+\DoxyCodeLine{00010\ \ \ \ \ \textcolor{comment}{//\ solver\ name\ }}
+\DoxyCodeLine{00011\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structteqn___ad793d4d640b21af365170d17e500ad4b}{solverType}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00012\ \ \ \ \ }
+\DoxyCodeLine{00013\ \ \ \ \ \textcolor{comment}{//\ temperature\ variables}}
+\DoxyCodeLine{00014\ \ \ \ \ SNES\ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structteqn___a2865fe0e750ba802a6c12f60be2dda16}{snesT}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00015\ \ \ \ \ Mat\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structteqn___a03b1113ce97d47de49c716ca3dc6d9a8}{JT}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00016\ \ \ \ \ Mat\ \ \ \ \ \ \ \ \ \ \ AT,\ CT;}
+\DoxyCodeLine{00017\ \ \ \ \ KSP\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structteqn___a583644edf19caad4402dd19a6e1a7b9e}{ksp}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00018\ \ \ \ \ PC\ \ \ \ \ \ \ \ \ \ \ \ pc;}
+\DoxyCodeLine{00019\ \ \ \ \ KSP\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structteqn___a2cf27ac552b726751bebd88b8705b0d0}{kspIMEX}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00020\ \ \ \ \ Mat\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structteqn___a658bba5d87a3ac41b4a9c29dce20e8e0}{JvIMEX}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00021\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structteqn___ab715f0a26eb9ca086ae7de9e3a638e18}{kspType}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00022\ \ \ \ \ PetscInt\ \ \ \ \ \ \mbox{\hyperlink{structteqn___ae0f04bd0c9c43f58ad1b349e0e77d0f1}{gmresRestart}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00023\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structteqn___a6b04a0448ae6c477683c5dd1e1dddc87}{Rhs}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00024\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structteqn___ae8a81262d158fb30350a5d17a08ba0a8}{bT}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00025\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structteqn___af0e09814747f6a7daf78e3121aed4ffd}{RhsConv}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00026\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structteqn___a89bc5de1acf69edcbcb2ecc44cab959f}{RhsConv\_o}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00027\ }
+\DoxyCodeLine{00028\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structteqn___a08719992a8b9e7b5fe04c0c8c2876f24}{TmprtTmp}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00029\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ Tmprt,\ lTmprt,}
+\DoxyCodeLine{00030\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ Tmprt\_o,\ lTmprt\_o;}
+\DoxyCodeLine{00031\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structteqn___a5b9361a163d0d9b4c7b1961f3db40468}{Tmprt\_oo}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00032\ }
+\DoxyCodeLine{00033\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ lDivT,\ lViscT,\ \mbox{\hyperlink{structteqn___a6b967959292b1b84a4787df47abec87a}{lViscIBMT}};\ \ \ }
+\DoxyCodeLine{00034\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structteqn___a97958d42832a6fae314d6554cd2256d8}{sourceT}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00035\ }
+\DoxyCodeLine{00036\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structteqn___a0fac851cfcd60dbd65dc349067dc1fbd}{lRhoK}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00037\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structteqn___a7ca5c93a84524d73a2dd3b97c575b01e}{ghGradRhok}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00038\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structteqn___ad55ae307b8f26f0ad7d5013644589cf8}{ghGradRhok\_o}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00039\ }
+\DoxyCodeLine{00040\ \ \ \ \ PetscReal\ \ \ \ \ \mbox{\hyperlink{structteqn___a753aecc71dfd88a1c882b548adef5b1f}{absExitTol}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00041\ \ \ \ \ PetscReal\ \ \ \ \ \mbox{\hyperlink{structteqn___a58f4daea64a4af85adb457275300ad7f}{relExitTol}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00042\ }
+\DoxyCodeLine{00043\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structteqn___aaa59e54999e6a82c3be430be46827521}{ddtScheme}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00044\ }
+\DoxyCodeLine{00045\ \ \ \ \ PetscReal\ \ \ \ \ \mbox{\hyperlink{structteqn___afeee15c5561da5eca76fc46775edb5a0}{hyperVisc4i}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00046\ \ \ \ \ PetscReal\ \ \ \ \ \mbox{\hyperlink{structteqn___a048e15ba81c2fe31a05a193c355a3b85}{hyperVisc4j}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00047\ \ \ \ \ PetscReal\ \ \ \ \ \mbox{\hyperlink{structteqn___a68680cfcc74ba75de8a143d1a5606858}{hyperVisc4k}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00048\ }
+\DoxyCodeLine{00049\ \ \ \ \ \textcolor{comment}{//\ wall\ model\ patch}}
+\DoxyCodeLine{00050\ \ \ \ \ \mbox{\hyperlink{structwallModel}{wallModel}}\ \ \ \ \ *\mbox{\hyperlink{structteqn___a54bb29a3c79fff129985e4ec40b5e7bd}{iLWM}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00051\ \ \ \ \ \mbox{\hyperlink{structwallModel}{wallModel}}\ \ \ \ \ *\mbox{\hyperlink{structteqn___a250a5c3086987e57dd0465adf283b6fc}{iRWM}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00052\ \ \ \ \ \mbox{\hyperlink{structwallModel}{wallModel}}\ \ \ \ \ *\mbox{\hyperlink{structteqn___abd50b696b61ef432378b52a61d3400da}{jLWM}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00053\ \ \ \ \ \mbox{\hyperlink{structwallModel}{wallModel}}\ \ \ \ \ *\mbox{\hyperlink{structteqn___a6258db96c7be61a905b6db6c07705c25}{jRWM}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00054\ }
+\DoxyCodeLine{00055\ \ \ \ \ \textcolor{comment}{//\ t\ equation\ flags}}
+\DoxyCodeLine{00056\ \ \ \ \ PetscInt\ \ \ \ \ \ \mbox{\hyperlink{structteqn___ae9c973020f5d893ee693463cb9225f26}{pTildeFormulation}};\ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00057\ }
+\DoxyCodeLine{00058\ \ \ \ \ \textcolor{comment}{//\ initial\ field}}
+\DoxyCodeLine{00059\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ initFieldType;}
+\DoxyCodeLine{00060\ }
+\DoxyCodeLine{00061\ \ \ \ \ \textcolor{comment}{//\ access}}
+\DoxyCodeLine{00062\ \ \ \ \ \mbox{\hyperlink{structaccess__}{access\_}}\ \ \ \ \ \ \ *\mbox{\hyperlink{structteqn___a929a7048f5cef226f108b0db513685c0}{access}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00063\ }
+\DoxyCodeLine{00064\ \};}
+\DoxyCodeLine{00065\ }
+\DoxyCodeLine{00066\ \textcolor{preprocessor}{\#endif}}
+\DoxyCodeLine{00067\ }
+\DoxyCodeLine{00069\ PetscErrorCode\ \mbox{\hyperlink{teqn_8h_ac5c60b468ea82539afc98853f47d0b01}{InitializeTEqn}}(\mbox{\hyperlink{structteqn__}{teqn\_}}\ *teqn);}
+\DoxyCodeLine{00070\ }
+\DoxyCodeLine{00072\ PetscErrorCode\ \mbox{\hyperlink{teqn_8h_a7739b85e467cfde1fd5607597fe2c6db}{SolveTEqn}}(\mbox{\hyperlink{structteqn__}{teqn\_}}\ *teqn);}
+\DoxyCodeLine{00073\ }
+\DoxyCodeLine{00075\ PetscErrorCode\ \mbox{\hyperlink{teqn_8h_aeabc45c90afc8e23687e0d961058bc2c}{ghGradRhoK}}(\mbox{\hyperlink{structteqn__}{teqn\_}}\ *teqn);}
+\DoxyCodeLine{00076\ }
+\DoxyCodeLine{00078\ PetscErrorCode\ \mbox{\hyperlink{teqn_8h_aee7755c61b96230824c9f77b7dc2a0bb}{TmprtPredictor}}(\mbox{\hyperlink{structteqn__}{teqn\_}}\ *teqn);}
+\DoxyCodeLine{00079\ }
+\DoxyCodeLine{00081\ PetscErrorCode\ \mbox{\hyperlink{teqn_8h_ae41f7792ffdde4fb3035329c68e51536}{TmprtRestoreFromOld}}(\mbox{\hyperlink{structteqn__}{teqn\_}}\ *teqn);}
+
+\end{DoxyCode}

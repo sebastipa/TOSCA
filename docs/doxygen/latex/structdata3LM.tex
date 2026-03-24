@@ -1,0 +1,82 @@
+\doxysection{data3\+LM Struct Reference}
+\hypertarget{structdata3LM}{}\label{structdata3LM}\index{data3LM@{data3LM}}
+
+
+Struct defining a gridded point mesh for three layer model data (used for its validation)  
+
+
+
+
+{\ttfamily \#include $<$abl\+Acquisition.\+h$>$}
+
+\doxysubsubsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{structdata3LM_a1e3d760b6f7f5cd64435a9f6147948c6}\label{structdata3LM_a1e3d760b6f7f5cd64435a9f6147948c6} 
+word {\bfseries check\+Point\+Time\+Name}
+\begin{DoxyCompactList}\small\item\em name of the time where checkpoint is contained \end{DoxyCompactList}\item 
+\Hypertarget{structdata3LM_ade2fa477042f005508cf8139c56d0256}\label{structdata3LM_ade2fa477042f005508cf8139c56d0256} 
+Petsc\+Int {\bfseries nstw}
+\begin{DoxyCompactList}\small\item\em number of points in streamwise direction \end{DoxyCompactList}\item 
+\Hypertarget{structdata3LM_a32a63a5912eb9db9c3dd45b2e6ac1416}\label{structdata3LM_a32a63a5912eb9db9c3dd45b2e6ac1416} 
+Petsc\+Int {\bfseries nspw}
+\begin{DoxyCompactList}\small\item\em number of points in the spanwise direction \end{DoxyCompactList}\item 
+\Hypertarget{structdata3LM_a39a22801e79f695f8de87ea60239dff1}\label{structdata3LM_a39a22801e79f695f8de87ea60239dff1} 
+\mbox{\hyperlink{structCmpnts}{Cmpnts}} {\bfseries up\+Dir}
+\begin{DoxyCompactList}\small\item\em vertical direction unit vector \end{DoxyCompactList}\item 
+\Hypertarget{structdata3LM_a367008126b5fd0077c74d93a5c9cfd08}\label{structdata3LM_a367008126b5fd0077c74d93a5c9cfd08} 
+\mbox{\hyperlink{structCmpnts}{Cmpnts}} {\bfseries stream\+Dir}
+\begin{DoxyCompactList}\small\item\em streamwise direction unit vector \end{DoxyCompactList}\item 
+\Hypertarget{structdata3LM_a6014eeee4043899527cc89597ae0c597}\label{structdata3LM_a6014eeee4043899527cc89597ae0c597} 
+\mbox{\hyperlink{structCmpnts}{Cmpnts}} {\bfseries span\+Dir}
+\begin{DoxyCompactList}\small\item\em spanwise direction unit vector \end{DoxyCompactList}\item 
+\Hypertarget{structdata3LM_ab127c5d3d0ff6c2aebf10131b0174b1d}\label{structdata3LM_ab127c5d3d0ff6c2aebf10131b0174b1d} 
+\mbox{\hyperlink{structCmpnts}{Cmpnts}} \texorpdfstring{$\ast$}{*}\texorpdfstring{$\ast$}{*} {\bfseries points}
+\begin{DoxyCompactList}\small\item\em array of \mbox{[}nstw, nspw\mbox{]} where point coordinates are stored \end{DoxyCompactList}\item 
+\Hypertarget{structdata3LM_a11687d9cf99b55e98bd2b82e2413d961}\label{structdata3LM_a11687d9cf99b55e98bd2b82e2413d961} 
+\mbox{\hyperlink{structcellIds}{cell\+Ids}} \texorpdfstring{$\ast$}{*}\texorpdfstring{$\ast$}{*} {\bfseries closest\+Cells}
+\begin{DoxyCompactList}\small\item\em array of \mbox{[}nstw, nspw\mbox{]} where i and k ids of the averaging line are stored (j is meaningless) \end{DoxyCompactList}\item 
+\Hypertarget{structdata3LM_a93a90ff8a202e8a59eddea8a26cc42c9}\label{structdata3LM_a93a90ff8a202e8a59eddea8a26cc42c9} 
+Petsc\+Real {\bfseries avg\+Start\+Time}
+\begin{DoxyCompactList}\small\item\em start time of acquisition system \end{DoxyCompactList}\item 
+\Hypertarget{structdata3LM_a39f1fc1954805cb2ed3201c84322aa74}\label{structdata3LM_a39f1fc1954805cb2ed3201c84322aa74} 
+Petsc\+Real {\bfseries avg\+Prd}
+\begin{DoxyCompactList}\small\item\em acquisition time interval (overrides simulation time step if smaller) \end{DoxyCompactList}\item 
+\Hypertarget{structdata3LM_a9319b497e3f2a3138a14a24ee728a82c}\label{structdata3LM_a9319b497e3f2a3138a14a24ee728a82c} 
+Petsc\+Int {\bfseries avg\+Weight}
+\begin{DoxyCompactList}\small\item\em number of averages taken up to this time step (snapshot weighting) \end{DoxyCompactList}\item 
+\Hypertarget{structdata3LM_ae2f7d1d0f6d7e035a4fef38b0e641f96}\label{structdata3LM_ae2f7d1d0f6d7e035a4fef38b0e641f96} 
+\mbox{\hyperlink{structlevel3LM}{level3\+LM}} \texorpdfstring{$\ast$}{*}\texorpdfstring{$\ast$}{*} {\bfseries levels}
+\begin{DoxyCompactList}\small\item\em array of pointers to the three levels of the 3LM model \end{DoxyCompactList}\item 
+\Hypertarget{structdata3LM_ad25fa044a2deeb5bba1fcf090ea73784}\label{structdata3LM_ad25fa044a2deeb5bba1fcf090ea73784} 
+Petsc\+Real \texorpdfstring{$\ast$}{*}\texorpdfstring{$\ast$}{*} {\bfseries eta\+TBL}
+\begin{DoxyCompactList}\small\item\em total boundary layer displacement \end{DoxyCompactList}\item 
+\Hypertarget{structdata3LM_a97489f8255385307766f639247081738}\label{structdata3LM_a97489f8255385307766f639247081738} 
+Petsc\+Real \texorpdfstring{$\ast$}{*}\texorpdfstring{$\ast$}{*} {\bfseries eta\+LBL}
+\begin{DoxyCompactList}\small\item\em total boundary layer displacement \end{DoxyCompactList}\item 
+\Hypertarget{structdata3LM_af2577e68bed44b9afc6a7a72e29b1484}\label{structdata3LM_af2577e68bed44b9afc6a7a72e29b1484} 
+Petsc\+Real \texorpdfstring{$\ast$}{*}\texorpdfstring{$\ast$}{*} {\bfseries eta\+IBL}
+\item 
+\Hypertarget{structdata3LM_a51a750766d3885174e5a0ec6a9842a6d}\label{structdata3LM_a51a750766d3885174e5a0ec6a9842a6d} 
+Petsc\+Real \texorpdfstring{$\ast$}{*}\texorpdfstring{$\ast$}{*} {\bfseries bkgU}
+\item 
+\Hypertarget{structdata3LM_ab3785765f891b011e60424a93fe9289e}\label{structdata3LM_ab3785765f891b011e60424a93fe9289e} 
+Petsc\+Real {\bfseries x\+Sample}
+\item 
+\Hypertarget{structdata3LM_aea382fc57ab39c5cbec8de3fcebdd234}\label{structdata3LM_aea382fc57ab39c5cbec8de3fcebdd234} 
+Petsc\+Int {\bfseries k\+Sample}
+\item 
+\Hypertarget{structdata3LM_a5cfd2b31c4c493b107ee697eb9c0bd82}\label{structdata3LM_a5cfd2b31c4c493b107ee697eb9c0bd82} 
+Vec {\bfseries avgU}
+\begin{DoxyCompactList}\small\item\em average velocity needed to compute Tau \end{DoxyCompactList}\item 
+\Hypertarget{structdata3LM_a0f35f05d082247976affac2e00336871}\label{structdata3LM_a0f35f05d082247976affac2e00336871} 
+Vec {\bfseries avgd\+Tdz}
+\begin{DoxyCompactList}\small\item\em defined as the average in time of sqrt(uw\texorpdfstring{$^\wedge$}{\string^}2 + vw\texorpdfstring{$^\wedge$}{\string^}2), lowercase are fluctuations \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Struct defining a gridded point mesh for three layer model data (used for its validation) 
+
+The documentation for this struct was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+/zfs60/nobackup/stipa/software/\+TOSCA/src/include/acquisition/\mbox{\hyperlink{ablAcquisition_8h}{abl\+Acquisition.\+h}}\end{DoxyCompactItemize}

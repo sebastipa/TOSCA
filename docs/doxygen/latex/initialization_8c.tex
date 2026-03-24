@@ -1,0 +1,70 @@
+\doxysection{/zfs60/nobackup/stipa/software/\+TOSCA/src/initialization.c File Reference}
+\hypertarget{initialization_8c}{}\label{initialization_8c}\index{/zfs60/nobackup/stipa/software/TOSCA/src/initialization.c@{/zfs60/nobackup/stipa/software/TOSCA/src/initialization.c}}
+
+
+Contains inflow boundary condition function definitions.  
+
+
+{\ttfamily \#include "{}include/base.\+h"{}}\newline
+{\ttfamily \#include "{}include/domain.\+h"{}}\newline
+{\ttfamily \#include "{}include/io.\+h"{}}\newline
+{\ttfamily \#include "{}include/inline.\+h"{}}\newline
+{\ttfamily \#include "{}include/boundary.\+h"{}}\newline
+{\ttfamily \#include "{}include/inflow.\+h"{}}\newline
+{\ttfamily \#include "{}include/abl.\+h"{}}\newline
+{\ttfamily \#include "{}include/turbines.\+h"{}}\newline
+{\ttfamily \#include "{}include/initialization.\+h"{}}\newline
+\doxysubsubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{initialization_8c_a45c02b57386aa8a7fad57e19312a5f1c}\label{initialization_8c_a45c02b57386aa8a7fad57e19312a5f1c} 
+Petsc\+Error\+Code {\bfseries Print\+Ok\+Wind\+Logo} ()
+\begin{DoxyCompactList}\small\item\em Print Ok\+Wind logo. \end{DoxyCompactList}\item 
+\Hypertarget{initialization_8c_ac8c70f1391373b653364164d492e5900}\label{initialization_8c_ac8c70f1391373b653364164d492e5900} 
+Petsc\+Error\+Code {\bfseries Print\+Number\+Of\+Procs} ()
+\begin{DoxyCompactList}\small\item\em Print number of processors. \end{DoxyCompactList}\item 
+Petsc\+Error\+Code \mbox{\hyperlink{initialization_8c_aaa6b507000df0106653daedfbf461f63}{simulation\+Initialize}} (\mbox{\hyperlink{structdomain__}{domain\+\_\+}} \texorpdfstring{$\ast$}{*}\texorpdfstring{$\ast$}{*}domain\+Addr, \mbox{\hyperlink{structclock__}{clock\+\_\+}} \texorpdfstring{$\ast$}{*}clock, \mbox{\hyperlink{structsimInfo__}{sim\+Info\+\_\+}} \texorpdfstring{$\ast$}{*}info, \mbox{\hyperlink{structflags__}{flags\+\_\+}} \texorpdfstring{$\ast$}{*}flags)
+\begin{DoxyCompactList}\small\item\em Initialize the simulation parameters. \end{DoxyCompactList}\item 
+\Hypertarget{initialization_8c_aaaa30fe0016ff2262f15e20528d65fab}\label{initialization_8c_aaaa30fe0016ff2262f15e20528d65fab} 
+Petsc\+Error\+Code {\bfseries Set\+Simulation\+Flags} (\mbox{\hyperlink{structflags__}{flags\+\_\+}} \texorpdfstring{$\ast$}{*}flags)
+\begin{DoxyCompactList}\small\item\em Set simulation flags. \end{DoxyCompactList}\item 
+\Hypertarget{initialization_8c_abd4982bdbc9502b986d5c8a60d12f8f6}\label{initialization_8c_abd4982bdbc9502b986d5c8a60d12f8f6} 
+Petsc\+Error\+Code {\bfseries Set\+Simulation\+Info} (\mbox{\hyperlink{structsimInfo__}{sim\+Info\+\_\+}} \texorpdfstring{$\ast$}{*}info)
+\begin{DoxyCompactList}\small\item\em Set simulation global info. \end{DoxyCompactList}\item 
+\Hypertarget{initialization_8c_a9147679bf260f621ef50f6368cd3ca55}\label{initialization_8c_a9147679bf260f621ef50f6368cd3ca55} 
+Petsc\+Error\+Code {\bfseries Set\+Domains\+And\+Allocate} (\mbox{\hyperlink{structdomain__}{domain\+\_\+}} \texorpdfstring{$\ast$}{*}\texorpdfstring{$\ast$}{*}domain\+Addr, \mbox{\hyperlink{structflags__}{flags\+\_\+}} \texorpdfstring{$\ast$}{*}flags, \mbox{\hyperlink{structsimInfo__}{sim\+Info\+\_\+}} \texorpdfstring{$\ast$}{*}info)
+\begin{DoxyCompactList}\small\item\em Set number of domains (reads from Overset\+Input.\+dat file if overset is active) \end{DoxyCompactList}\item 
+\Hypertarget{initialization_8c_a8ec1db517a7d8e7ba682dbba8fea16dc}\label{initialization_8c_a8ec1db517a7d8e7ba682dbba8fea16dc} 
+Petsc\+Error\+Code {\bfseries Read\+Time\+Controls} (\mbox{\hyperlink{structclock__}{clock\+\_\+}} \texorpdfstring{$\ast$}{*}clock)
+\begin{DoxyCompactList}\small\item\em Read time controls. \end{DoxyCompactList}\item 
+\Hypertarget{initialization_8c_ab0a74b985a96a426190993d9d5fffe90}\label{initialization_8c_ab0a74b985a96a426190993d9d5fffe90} 
+Petsc\+Error\+Code {\bfseries Set\+Start\+Time} (\mbox{\hyperlink{structclock__}{clock\+\_\+}} \texorpdfstring{$\ast$}{*}clock, \mbox{\hyperlink{structdomain__}{domain\+\_\+}} \texorpdfstring{$\ast$}{*}domain, \mbox{\hyperlink{structsimInfo__}{sim\+Info\+\_\+}} \texorpdfstring{$\ast$}{*}info)
+\begin{DoxyCompactList}\small\item\em Get start\+From parameter and set initial time (check multiple domains cosistency) \end{DoxyCompactList}\item 
+\Hypertarget{initialization_8c_ade2bd2d54457b648353c16c58ef4fa78}\label{initialization_8c_ade2bd2d54457b648353c16c58ef4fa78} 
+Petsc\+Error\+Code {\bfseries Read\+Physical\+Constants} (\mbox{\hyperlink{structdomain__}{domain\+\_\+}} \texorpdfstring{$\ast$}{*}domain)
+\begin{DoxyCompactList}\small\item\em Read physical constants. \end{DoxyCompactList}\item 
+\Hypertarget{initialization_8c_a436bfefb533fdf0952250458b89f2dc7}\label{initialization_8c_a436bfefb533fdf0952250458b89f2dc7} 
+Petsc\+Error\+Code {\bfseries Set\+Domain\+Memory} (\mbox{\hyperlink{structdomain__}{domain\+\_\+}} \texorpdfstring{$\ast$}{*}domain)
+\begin{DoxyCompactList}\small\item\em Allocate memory for domain pointers. \end{DoxyCompactList}\item 
+\Hypertarget{initialization_8c_a21c99e9bf03f8736a59f7ef8868f142a}\label{initialization_8c_a21c99e9bf03f8736a59f7ef8868f142a} 
+Petsc\+Error\+Code {\bfseries Set\+Access\+Pointers} (\mbox{\hyperlink{structdomain__}{domain\+\_\+}} \texorpdfstring{$\ast$}{*}domain)
+\begin{DoxyCompactList}\small\item\em Set access database pointers. \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Contains inflow boundary condition function definitions. 
+
+Contains simulation initialization function definitions.
+
+\doxysubsection{Function Documentation}
+\Hypertarget{initialization_8c_aaa6b507000df0106653daedfbf461f63}\index{initialization.c@{initialization.c}!simulationInitialize@{simulationInitialize}}
+\index{simulationInitialize@{simulationInitialize}!initialization.c@{initialization.c}}
+\doxysubsubsection{\texorpdfstring{simulationInitialize()}{simulationInitialize()}}
+{\footnotesize\ttfamily \label{initialization_8c_aaa6b507000df0106653daedfbf461f63} 
+Petsc\+Error\+Code simulation\+Initialize (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{structdomain__}{domain\+\_\+}} \texorpdfstring{$\ast$}{*}\texorpdfstring{$\ast$}{*}}]{domain\+Addr}{, }\item[{\mbox{\hyperlink{structclock__}{clock\+\_\+}} \texorpdfstring{$\ast$}{*}}]{clock}{, }\item[{\mbox{\hyperlink{structsimInfo__}{sim\+Info\+\_\+}} \texorpdfstring{$\ast$}{*}}]{info}{, }\item[{\mbox{\hyperlink{structflags__}{flags\+\_\+}} \texorpdfstring{$\ast$}{*}}]{flags}{}\end{DoxyParamCaption})}
+
+
+
+Initialize the simulation parameters. 
+
+set the initial internal fields 

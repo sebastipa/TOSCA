@@ -1,0 +1,70 @@
+\doxysection{/zfs60/nobackup/stipa/software/\+TOSCA/src/les.c File Reference}
+\hypertarget{les_8c}{}\label{les_8c}\index{/zfs60/nobackup/stipa/software/TOSCA/src/les.c@{/zfs60/nobackup/stipa/software/TOSCA/src/les.c}}
+
+
+Contains LES model function definitions.  
+
+
+{\ttfamily \#include "{}include/base.\+h"{}}\newline
+{\ttfamily \#include "{}include/domain.\+h"{}}\newline
+{\ttfamily \#include "{}include/io.\+h"{}}\newline
+{\ttfamily \#include "{}include/inline.\+h"{}}\newline
+\doxysubsubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{les_8c_a7d8d2256b27e86881382283286e0dd10}\label{les_8c_a7d8d2256b27e86881382283286e0dd10} 
+Petsc\+Error\+Code {\bfseries Initialize\+LES} (\mbox{\hyperlink{structles__}{les\+\_\+}} \texorpdfstring{$\ast$}{*}les)
+\begin{DoxyCompactList}\small\item\em Initializes LES environment. \end{DoxyCompactList}\item 
+Petsc\+Error\+Code \mbox{\hyperlink{les_8c_a1f55153a70198bd6249c073123f68826}{Update\+Cs}} (\mbox{\hyperlink{structles__}{les\+\_\+}} \texorpdfstring{$\ast$}{*}les)
+\begin{DoxyCompactList}\small\item\em Update Cs Smagorinky coefficient. \end{DoxyCompactList}\item 
+\Hypertarget{les_8c_a62462508ef5908d87643827b362af7fc}\label{les_8c_a62462508ef5908d87643827b362af7fc} 
+Petsc\+Error\+Code {\bfseries Update\+Nut} (\mbox{\hyperlink{structles__}{les\+\_\+}} \texorpdfstring{$\ast$}{*}les)
+\begin{DoxyCompactList}\small\item\em Update effective viscosity. \end{DoxyCompactList}\item 
+\Hypertarget{les_8c_a3b775fa5d62545ed06edebd04e131a43}\label{les_8c_a3b775fa5d62545ed06edebd04e131a43} 
+Petsc\+Error\+Code {\bfseries Compute\+Turbulence\+Statistics} (\mbox{\hyperlink{structles__}{les\+\_\+}} \texorpdfstring{$\ast$}{*}les)
+\begin{DoxyCompactList}\small\item\em Compute turbulent statistics based on the les-\/\texorpdfstring{$>$}{>}turb\+Stat flag. \end{DoxyCompactList}\item 
+\Hypertarget{les_8c_a73b17df973d4e75a0238e917f35653f0}\label{les_8c_a73b17df973d4e75a0238e917f35653f0} 
+Petsc\+Error\+Code {\bfseries update\+LESStructural\+Model\+Cartesian\+Form} (\mbox{\hyperlink{structles__}{les\+\_\+}} \texorpdfstring{$\ast$}{*}les)
+\item 
+\Hypertarget{les_8c_a9605edcebb61e32f332f905a19ba9c11}\label{les_8c_a9605edcebb61e32f332f905a19ba9c11} 
+Petsc\+Error\+Code {\bfseries update\+LESStructural\+Model\+Contravariant\+Form} (\mbox{\hyperlink{structles__}{les\+\_\+}} \texorpdfstring{$\ast$}{*}les)
+\end{DoxyCompactItemize}
+\doxysubsubsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{les_8c_a81b13a560921183a3edfc07bf623c72f}\label{les_8c_a81b13a560921183a3edfc07bf623c72f} 
+const Petsc\+Real {\bfseries wall\+\_\+cs} = 0.\+001
+\item 
+\Hypertarget{les_8c_a480aed22ed65c3ab46131f61b15fab86}\label{les_8c_a480aed22ed65c3ab46131f61b15fab86} 
+const Petsc\+Real {\bfseries std\+\_\+cs} = 0.\+0289
+\item 
+\Hypertarget{les_8c_a77b3a084c0feab5ad0700f28f1d14faf}\label{les_8c_a77b3a084c0feab5ad0700f28f1d14faf} 
+const Petsc\+Real {\bfseries amd\+\_\+cs} = 0.\+1
+\item 
+\Hypertarget{les_8c_ae2d6b3d004db59e61119d65d0205d06a}\label{les_8c_ae2d6b3d004db59e61119d65d0205d06a} 
+const Petsc\+Real {\bfseries vreman\+\_\+cs} = 0.\+07225
+\item 
+\Hypertarget{les_8c_ab3d6db07ea3819a2e4a67f06fc2a7b48}\label{les_8c_ab3d6db07ea3819a2e4a67f06fc2a7b48} 
+const Petsc\+Real {\bfseries sa\+\_\+cs} = 0.\+325
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Contains LES model function definitions. 
+
+
+
+\doxysubsection{Function Documentation}
+\Hypertarget{les_8c_a1f55153a70198bd6249c073123f68826}\index{les.c@{les.c}!UpdateCs@{UpdateCs}}
+\index{UpdateCs@{UpdateCs}!les.c@{les.c}}
+\doxysubsubsection{\texorpdfstring{UpdateCs()}{UpdateCs()}}
+{\footnotesize\ttfamily \label{les_8c_a1f55153a70198bd6249c073123f68826} 
+Petsc\+Error\+Code Update\+Cs (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{structles__}{les\+\_\+}} \texorpdfstring{$\ast$}{*}}]{les}{}\end{DoxyParamCaption})}
+
+
+
+Update Cs Smagorinky coefficient. 
+
+is\+On\+Corner\+Cell\+Centers(I, J, K, mesh-\/\texorpdfstring{$>$}{>}info) \texorpdfstring{$<$}{<}-\/ use also ghost? Not for now
+
+is\+On\+Corner\+Cell\+Centers(I, J, K, mesh-\/\texorpdfstring{$>$}{>}info) \texorpdfstring{$<$}{<}-\/ use also ghost? Not for now

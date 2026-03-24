@@ -1,0 +1,48 @@
+\doxysection{/zfs60/nobackup/stipa/software/\+TOSCA/src/include/inflow.h File Reference}
+\hypertarget{inflow_8h}{}\label{inflow_8h}\index{/zfs60/nobackup/stipa/software/TOSCA/src/include/inflow.h@{/zfs60/nobackup/stipa/software/TOSCA/src/include/inflow.h}}
+
+
+Contains inflow boundary condition headers.  
+
+
+\doxysubsubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{inflow_8h_ad893429a3f221b07240528b6d7bd23ee}\label{inflow_8h_ad893429a3f221b07240528b6d7bd23ee} 
+Petsc\+Error\+Code {\bfseries Set\+Inflow\+Functions} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} \texorpdfstring{$\ast$}{*}mesh)
+\begin{DoxyCompactList}\small\item\em Initialize the inlet functions for inflow. \end{DoxyCompactList}\item 
+\Hypertarget{inflow_8h_a12cc0340001c48dcaf7e4d55a6defa07}\label{inflow_8h_a12cc0340001c48dcaf7e4d55a6defa07} 
+Petsc\+Error\+Code {\bfseries print\+Inflow\+Mapping\+Action} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} \texorpdfstring{$\ast$}{*}mesh, \mbox{\hyperlink{structinletFunctionTypes}{inlet\+Function\+Types}} \texorpdfstring{$\ast$}{*}if\+Ptr)
+\begin{DoxyCompactList}\small\item\em print information regarding the inflow boundary mapping \end{DoxyCompactList}\item 
+\Hypertarget{inflow_8h_a1d5ffb2cde2bb35b5886889d196942c3}\label{inflow_8h_a1d5ffb2cde2bb35b5886889d196942c3} 
+Petsc\+Error\+Code {\bfseries mapped\+Inflow\+Initialize} (\mbox{\hyperlink{structinletFunctionTypes}{inlet\+Function\+Types}} \texorpdfstring{$\ast$}{*}if\+Ptr)
+\begin{DoxyCompactList}\small\item\em allocate and set the inflow section fields \end{DoxyCompactList}\item 
+\Hypertarget{inflow_8h_ac1f881b7afde1e36bbe6e097a50ee77e}\label{inflow_8h_ac1f881b7afde1e36bbe6e097a50ee77e} 
+Petsc\+Error\+Code {\bfseries Set\+Inflow\+Weights} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} \texorpdfstring{$\ast$}{*}mesh, \mbox{\hyperlink{structinletFunctionTypes}{inlet\+Function\+Types}} \texorpdfstring{$\ast$}{*}if\+Ptr)
+\begin{DoxyCompactList}\small\item\em Calculate interpolation weights for the mapped interpolated inflow boundary condition. \end{DoxyCompactList}\item 
+\Hypertarget{inflow_8h_a41c63e5fe6a3298c46018563b5c0db52}\label{inflow_8h_a41c63e5fe6a3298c46018563b5c0db52} 
+Petsc\+Error\+Code {\bfseries read\+InflowU} (\mbox{\hyperlink{structinletFunctionTypes}{inlet\+Function\+Types}} \texorpdfstring{$\ast$}{*}if\+Ptr, \mbox{\hyperlink{structclock__}{clock\+\_\+}} \texorpdfstring{$\ast$}{*}clock)
+\begin{DoxyCompactList}\small\item\em Reads inflow velocity from database and stores in inlet\+Function data. \end{DoxyCompactList}\item 
+\Hypertarget{inflow_8h_a0837d0a34b62bee1c93402bd95934f89}\label{inflow_8h_a0837d0a34b62bee1c93402bd95934f89} 
+Petsc\+Error\+Code {\bfseries read\+InflowT} (\mbox{\hyperlink{structinletFunctionTypes}{inlet\+Function\+Types}} \texorpdfstring{$\ast$}{*}if\+Ptr, \mbox{\hyperlink{structclock__}{clock\+\_\+}} \texorpdfstring{$\ast$}{*}clock)
+\begin{DoxyCompactList}\small\item\em Reads inflow tempereature from database and stores in inlet\+Function data. \end{DoxyCompactList}\item 
+\Hypertarget{inflow_8h_a076de702bea8a8e60398175f2ce34173}\label{inflow_8h_a076de702bea8a8e60398175f2ce34173} 
+Petsc\+Error\+Code {\bfseries read\+Inflow\+Nut} (\mbox{\hyperlink{structinletFunctionTypes}{inlet\+Function\+Types}} \texorpdfstring{$\ast$}{*}if\+Ptr, \mbox{\hyperlink{structclock__}{clock\+\_\+}} \texorpdfstring{$\ast$}{*}clock)
+\begin{DoxyCompactList}\small\item\em Reads inflow sgs viscosity from database and stores in inlet\+Function data. \end{DoxyCompactList}\item 
+\Hypertarget{inflow_8h_a007e8192037b615f8e581f67da7b530f}\label{inflow_8h_a007e8192037b615f8e581f67da7b530f} 
+Petsc\+Error\+Code {\bfseries set\+Shifted\+InflowU} (\mbox{\hyperlink{structinletFunctionTypes}{inlet\+Function\+Types}} \texorpdfstring{$\ast$}{*}if\+Ptr, \mbox{\hyperlink{structueqn__}{ueqn\+\_\+}} \texorpdfstring{$\ast$}{*}ueqn)
+\begin{DoxyCompactList}\small\item\em Sets the un-\/shifted boundary field to be used with shifted periodic BC (inflow function type 7) \end{DoxyCompactList}\item 
+\Hypertarget{inflow_8h_a545594be0446a928f32f65782c79b06b}\label{inflow_8h_a545594be0446a928f32f65782c79b06b} 
+Petsc\+Error\+Code {\bfseries set\+Shifted\+InflowT} (\mbox{\hyperlink{structinletFunctionTypes}{inlet\+Function\+Types}} \texorpdfstring{$\ast$}{*}if\+Ptr, \mbox{\hyperlink{structteqn__}{teqn\+\_\+}} \texorpdfstring{$\ast$}{*}teqn)
+\begin{DoxyCompactList}\small\item\em Sets the un-\/shifted boundary field to be used with shifted periodic BC (inflow function type 7) \end{DoxyCompactList}\item 
+\Hypertarget{inflow_8h_abc80e4d30dd39c909337ff52036d2484}\label{inflow_8h_abc80e4d30dd39c909337ff52036d2484} 
+Petsc\+Error\+Code {\bfseries set\+Shifted\+Inflow\+Nut} (\mbox{\hyperlink{structinletFunctionTypes}{inlet\+Function\+Types}} \texorpdfstring{$\ast$}{*}if\+Ptr, \mbox{\hyperlink{structles__}{les\+\_\+}} \texorpdfstring{$\ast$}{*}les)
+\begin{DoxyCompactList}\small\item\em Sets the un-\/shifted boundary field to be used with shifted periodic BC (inflow function type 7) \end{DoxyCompactList}\item 
+\Hypertarget{inflow_8h_a1fcd77e40f69b0301e3842bdebd37882}\label{inflow_8h_a1fcd77e40f69b0301e3842bdebd37882} 
+\mbox{\hyperlink{structCmpnts}{Cmpnts}} {\bfseries Nieuwstadt\+Inflow\+Evaluate} (\mbox{\hyperlink{structinletFunctionTypes}{inlet\+Function\+Types}} \texorpdfstring{$\ast$}{*}if\+Ptr, Petsc\+Real h)
+\begin{DoxyCompactList}\small\item\em Nieuwstadt model for velocity inflow type 5. \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Contains inflow boundary condition headers. 
+

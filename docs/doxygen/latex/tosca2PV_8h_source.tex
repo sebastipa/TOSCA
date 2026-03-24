@@ -1,0 +1,414 @@
+\doxysection{tosca2\+PV.\+h}
+\hypertarget{tosca2PV_8h_source}{}\label{tosca2PV_8h_source}\index{/zfs60/nobackup/stipa/software/TOSCA/src/include/tosca2PV.h@{/zfs60/nobackup/stipa/software/TOSCA/src/include/tosca2PV.h}}
+\mbox{\hyperlink{tosca2PV_8h}{Go to the documentation of this file.}}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ }
+\DoxyCodeLine{00003\ }
+\DoxyCodeLine{00004\ \textcolor{preprocessor}{\#ifndef\ \_TOSCA2PV\_H\_}}
+\DoxyCodeLine{00005\ \textcolor{preprocessor}{\#define\ \_TOSCA2PV\_H\_}}
+\DoxyCodeLine{00006\ }
+\DoxyCodeLine{00008\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{struct}}
+\DoxyCodeLine{00009\ \{}
+\DoxyCodeLine{00010\ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ postProcessFields;}
+\DoxyCodeLine{00011\ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ writeRaster;}
+\DoxyCodeLine{00012\ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ samplingSections;}
+\DoxyCodeLine{00013\ }
+\DoxyCodeLine{00014\ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ postProcessPrecursor;}
+\DoxyCodeLine{00015\ \ \ \mbox{\hyperlink{structprecursor__}{precursor\_}}\ \ \ \ \ \ \ \ \ \ \ \ \ *precursor;}
+\DoxyCodeLine{00016\ \}\ \mbox{\hyperlink{structpostProcess}{postProcess}};}
+\DoxyCodeLine{00017\ }
+\DoxyCodeLine{00018\ \textcolor{preprocessor}{\#endif}}
+\DoxyCodeLine{00019\ }
+\DoxyCodeLine{00020\ \textcolor{comment}{//\ Top\ level\ functions}}
+\DoxyCodeLine{00021\ \textcolor{comment}{//\ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{00022\ }
+\DoxyCodeLine{00024\ PetscErrorCode\ \mbox{\hyperlink{tosca2PV_8h_a7d4fffa483aa77f01e0801fc03a3926b}{binary3DToXMF}}(\mbox{\hyperlink{structdomain__}{domain\_}}\ *domain,\ \mbox{\hyperlink{structpostProcess}{postProcess}}\ *pp);}
+\DoxyCodeLine{00025\ }
+\DoxyCodeLine{00027\ PetscErrorCode\ \mbox{\hyperlink{tosca2PV_8h_a6e02b859a67eadb40e3abd2fd321970e}{binaryISectionsToXMF}}(\mbox{\hyperlink{structdomain__}{domain\_}}\ *domain);}
+\DoxyCodeLine{00028\ }
+\DoxyCodeLine{00030\ PetscErrorCode\ \mbox{\hyperlink{tosca2PV_8h_a2e0222dc5b87f4215b3923723e2d1dfd}{fieldISectionsToXMF}}(\mbox{\hyperlink{structdomain__}{domain\_}}\ *domain);}
+\DoxyCodeLine{00031\ }
+\DoxyCodeLine{00033\ PetscErrorCode\ \mbox{\hyperlink{tosca2PV_8h_a80eecd3f965697291685a181b27de51b}{binaryISectionsPerturbToXMF}}(\mbox{\hyperlink{structdomain__}{domain\_}}\ *domain);}
+\DoxyCodeLine{00034\ }
+\DoxyCodeLine{00036\ PetscErrorCode\ \mbox{\hyperlink{tosca2PV_8h_a04fb0fc96d700778fa03508b1c2131e1}{binaryJSectionsToXMF}}(\mbox{\hyperlink{structdomain__}{domain\_}}\ *domain,\ \mbox{\hyperlink{structpostProcess}{postProcess}}\ *pp);}
+\DoxyCodeLine{00037\ }
+\DoxyCodeLine{00039\ PetscErrorCode\ \mbox{\hyperlink{tosca2PV_8h_aee42060847f06cd5a2de0d674eed4271}{fieldJSectionsToXMF}}(\mbox{\hyperlink{structdomain__}{domain\_}}\ *domain);}
+\DoxyCodeLine{00040\ }
+\DoxyCodeLine{00042\ PetscErrorCode\ \mbox{\hyperlink{tosca2PV_8h_afec105d2e942f68b16b94d35b2b00c65}{binaryJSectionsPerturbToXMF}}(\mbox{\hyperlink{structdomain__}{domain\_}}\ *domain,\ \mbox{\hyperlink{structpostProcess}{postProcess}}\ *pp);}
+\DoxyCodeLine{00043\ }
+\DoxyCodeLine{00045\ PetscErrorCode\ \mbox{\hyperlink{tosca2PV_8h_afb92a672c6ae48167328264e5fc58513}{binaryKSectionsToXMF}}(\mbox{\hyperlink{structdomain__}{domain\_}}\ *domain);}
+\DoxyCodeLine{00046\ }
+\DoxyCodeLine{00047\ PetscErrorCode\ binaryUserSectionsToXMF(\mbox{\hyperlink{structdomain__}{domain\_}}\ *domain);}
+\DoxyCodeLine{00048\ }
+\DoxyCodeLine{00050\ PetscErrorCode\ \mbox{\hyperlink{tosca2PV_8h_ace21302a5d4c9519b8092b17a0f6dde8}{fieldKSectionsToXMF}}(\mbox{\hyperlink{structdomain__}{domain\_}}\ *domain);}
+\DoxyCodeLine{00051\ }
+\DoxyCodeLine{00053\ PetscErrorCode\ \mbox{\hyperlink{tosca2PV_8h_a16e01aa745febb77ed3cc2f857413cc3}{fieldUserDefinedPlaneToXMF}}(\mbox{\hyperlink{structdomain__}{domain\_}}\ *domain);}
+\DoxyCodeLine{00054\ }
+\DoxyCodeLine{00056\ PetscErrorCode\ \mbox{\hyperlink{tosca2PV_8h_ad0467c36ac00424302f3247b4bb11c73}{binaryKSectionsPerturbToXMF}}(\mbox{\hyperlink{structdomain__}{domain\_}}\ *domain);}
+\DoxyCodeLine{00057\ }
+\DoxyCodeLine{00059\ PetscErrorCode\ \mbox{\hyperlink{tosca2PV_8h_a3cd12604566455c08110a4ee0d921f4d}{postProcessInitialize}}(\mbox{\hyperlink{structdomain__}{domain\_}}\ **domainAddr,\ \mbox{\hyperlink{structclock__}{clock\_}}\ *clock,\ \mbox{\hyperlink{structsimInfo__}{simInfo\_}}\ *info,\ \mbox{\hyperlink{structflags__}{flags\_}}\ *flags);}
+\DoxyCodeLine{00060\ }
+\DoxyCodeLine{00062\ PetscErrorCode\ \mbox{\hyperlink{tosca2PV_8h_a3c839b08d485f5c414a64a2c6c0740d1}{postProcessInitializePrecursor}}(\mbox{\hyperlink{structpostProcess}{postProcess}}\ *pp,\ \mbox{\hyperlink{structclock__}{clock\_}}\ *clock);}
+\DoxyCodeLine{00063\ }
+\DoxyCodeLine{00064\ \textcolor{comment}{//\ Operation\ functions}}
+\DoxyCodeLine{00065\ \textcolor{comment}{//\ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{00066\ PetscErrorCode\ writeFieldsToXMF(\mbox{\hyperlink{structdomain__}{domain\_}}\ *domain,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}*\ filexmf,\ PetscReal\ time);}
+\DoxyCodeLine{00067\ }
+\DoxyCodeLine{00069\ PetscErrorCode\ \mbox{\hyperlink{tosca2PV_8h_a069d3fd93a59e1de5d2118c5c3d1c67c}{postProcessWriteProbes}}(\mbox{\hyperlink{structdomain__}{domain\_}}\ *domain);}
+\DoxyCodeLine{00070\ }
+\DoxyCodeLine{00072\ PetscErrorCode\ \mbox{\hyperlink{tosca2PV_8h_aa8386d069befb8e442596f0829dd54d9}{getTimeList}}(\textcolor{keyword}{const}\ \textcolor{keywordtype}{char}*\ dataLoc,\ std::vector<PetscReal>\ \&timeSeries,\ PetscInt\ \&ntimes);}
+\DoxyCodeLine{00073\ }
+\DoxyCodeLine{00075\ PetscErrorCode\ \mbox{\hyperlink{tosca2PV_8h_a657d069563203df63b5de689401420a5}{sectionsReadAndAllocate}}(\mbox{\hyperlink{structdomain__}{domain\_}}\ *domain);}
+\DoxyCodeLine{00076\ }
+\DoxyCodeLine{00078\ PetscErrorCode\ \mbox{\hyperlink{tosca2PV_8h_a6dc81adf5b62e22755ed557ab89a3660}{kSectionLoadSymmTensorFromField}}(Vec\ \&V,\ \mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh,\ \mbox{\hyperlink{structsections}{sections}}\ *sec,\ PetscInt\ kplane,\ \textcolor{keyword}{const}\ word\ \&fieldName,\ PetscReal\ time);}
+\DoxyCodeLine{00079\ PetscErrorCode\ kSectionLoadVectorFromField(Vec\ \&V,\ \mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh,\ \mbox{\hyperlink{structsections}{sections}}\ *sec,\ PetscInt\ kplane,\ \textcolor{keyword}{const}\ word\ \&fieldName,\ PetscReal\ time);}
+\DoxyCodeLine{00080\ PetscErrorCode\ kSectionLoadScalarFromField(Vec\ \&V,\ \mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh,\ \mbox{\hyperlink{structsections}{sections}}\ *sec,\ PetscInt\ kplane,\ \textcolor{keyword}{const}\ word\ \&fieldName,\ PetscReal\ time);}
+\DoxyCodeLine{00081\ PetscErrorCode\ userSectionLoadVectorFromField(Vec\ \&V,\ \mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh,\ \mbox{\hyperlink{structuSections}{uSections}}\ *uSection,\ \textcolor{keyword}{const}\ word\ \&fieldName,\ PetscReal\ time);}
+\DoxyCodeLine{00082\ PetscErrorCode\ userSectionLoadScalarFromField(Vec\ \&V,\ \mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh,\ \mbox{\hyperlink{structuSections}{uSections}}\ *uSection,\ \textcolor{keyword}{const}\ word\ \&fieldName,\ PetscReal\ time);}
+\DoxyCodeLine{00083\ }
+\DoxyCodeLine{00084\ }
+\DoxyCodeLine{00086\ PetscErrorCode\ \mbox{\hyperlink{tosca2PV_8h_ac58cd31840d6c3f294697987885ab9fb}{kSectionLoadVector}}(\mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh,\ \mbox{\hyperlink{structsections}{sections}}\ *sec,\ PetscInt\ kplane,\ \textcolor{keyword}{const}\ word\ \&fieldName,\ PetscReal\ time);}
+\DoxyCodeLine{00087\ PetscErrorCode\ kSectionLoadScalar(\mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh,\ \mbox{\hyperlink{structsections}{sections}}\ *sec,\ PetscInt\ kplane,\ \textcolor{keyword}{const}\ word\ \&fieldName,\ PetscReal\ time);}
+\DoxyCodeLine{00088\ PetscErrorCode\ userSectionLoadVector(\mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh,\ \mbox{\hyperlink{structuSections}{uSections}}\ *uSection,\ \textcolor{keyword}{const}\ word\ \&fieldName,\ PetscReal\ time);}
+\DoxyCodeLine{00089\ PetscErrorCode\ userSectionLoadScalar(\mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh,\ \mbox{\hyperlink{structuSections}{uSections}}\ *uSection,\ \textcolor{keyword}{const}\ word\ \&fieldName,\ PetscReal\ time);}
+\DoxyCodeLine{00090\ }
+\DoxyCodeLine{00092\ PetscErrorCode\ \mbox{\hyperlink{tosca2PV_8h_a11cb92035d3b427d3a19e8a3834a9942}{iSectionLoadSymmTensorFromField}}(Vec\ \&V,\ \mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh,\ \mbox{\hyperlink{structsections}{sections}}\ *sec,\ PetscInt\ kplane,\ \textcolor{keyword}{const}\ word\ \&fieldName,\ PetscReal\ time);}
+\DoxyCodeLine{00093\ PetscErrorCode\ iSectionLoadVectorFromField(Vec\ \&V,\ \mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh,\ \mbox{\hyperlink{structsections}{sections}}\ *sec,\ PetscInt\ iplane,\ \textcolor{keyword}{const}\ word\ \&fieldName,\ PetscReal\ time);}
+\DoxyCodeLine{00094\ PetscErrorCode\ iSectionLoadScalarFromField(Vec\ \&V,\ \mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh,\ \mbox{\hyperlink{structsections}{sections}}\ *sec,\ PetscInt\ iplane,\ \textcolor{keyword}{const}\ word\ \&fieldName,\ PetscReal\ time);}
+\DoxyCodeLine{00095\ }
+\DoxyCodeLine{00097\ PetscErrorCode\ \mbox{\hyperlink{tosca2PV_8h_a089966e78a918380801330906ac79686}{iSectionLoadVector}}(\mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh,\ \mbox{\hyperlink{structsections}{sections}}\ *sec,\ PetscInt\ iplane,\ \textcolor{keyword}{const}\ word\ \&fieldName,\ PetscReal\ time);}
+\DoxyCodeLine{00098\ PetscErrorCode\ iSectionLoadScalar(\mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh,\ \mbox{\hyperlink{structsections}{sections}}\ *sec,\ PetscInt\ iplane,\ \textcolor{keyword}{const}\ word\ \&fieldName,\ PetscReal\ time);}
+\DoxyCodeLine{00099\ }
+\DoxyCodeLine{00101\ PetscErrorCode\ \mbox{\hyperlink{tosca2PV_8h_a4effcf727a3552249961450578567499}{jSectionLoadSymmTensorFromField}}(Vec\ \&V,\ \mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh,\ \mbox{\hyperlink{structsections}{sections}}\ *sec,\ PetscInt\ kplane,\ \textcolor{keyword}{const}\ word\ \&fieldName,\ PetscReal\ time);}
+\DoxyCodeLine{00102\ PetscErrorCode\ jSectionLoadVectorFromField(Vec\ \&V,\ \mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh,\ \mbox{\hyperlink{structsections}{sections}}\ *sec,\ PetscInt\ jplane,\ \textcolor{keyword}{const}\ word\ \&fieldName,\ PetscReal\ time);}
+\DoxyCodeLine{00103\ PetscErrorCode\ jSectionLoadScalarFromField(Vec\ \&V,\ \mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh,\ \mbox{\hyperlink{structsections}{sections}}\ *sec,\ PetscInt\ jplane,\ \textcolor{keyword}{const}\ word\ \&fieldName,\ PetscReal\ time);}
+\DoxyCodeLine{00104\ }
+\DoxyCodeLine{00106\ PetscErrorCode\ \mbox{\hyperlink{tosca2PV_8h_a9f5b13c8317e48f8e619355681657511}{jSectionLoadVector}}(\mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh,\ \mbox{\hyperlink{structsections}{sections}}\ *sec,\ PetscInt\ jplane,\ \textcolor{keyword}{const}\ word\ \&fieldName,\ PetscReal\ time);}
+\DoxyCodeLine{00107\ PetscErrorCode\ jSectionLoadScalar(\mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh,\ \mbox{\hyperlink{structsections}{sections}}\ *sec,\ PetscInt\ jplane,\ \textcolor{keyword}{const}\ word\ \&fieldName,\ PetscReal\ time);}
+\DoxyCodeLine{00108\ }
+\DoxyCodeLine{00109\ }
+\DoxyCodeLine{00110\ \textcolor{comment}{//\ The\ following\ functions\ append\ text\ the\ the\ XMF\ file}}
+\DoxyCodeLine{00111\ \textcolor{comment}{//\ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{00112\ }
+\DoxyCodeLine{00114\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{tosca2PV_8h_a8f7be609d40ed3e3905dec5af92913ff}{xmfWriteFileStartTimeSection}}}
+\DoxyCodeLine{00115\ (}
+\DoxyCodeLine{00116\ \ \ \ \ FILE\ *Xmf,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *FileXmf,}
+\DoxyCodeLine{00117\ \ \ \ \ PetscInt\ Size\_x,\ PetscInt\ Size\_y,\ PetscInt\ Size\_z,}
+\DoxyCodeLine{00118\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *Topology,}
+\DoxyCodeLine{00119\ \ \ \ \ PetscReal\ Time}
+\DoxyCodeLine{00120\ );}
+\DoxyCodeLine{00121\ }
+\DoxyCodeLine{00123\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{tosca2PV_8h_a55ff9d2d32668330f1d085fcf6db3831}{xmfWriteFileEndTimeSection}}}
+\DoxyCodeLine{00124\ (}
+\DoxyCodeLine{00125\ \ \ \ \ FILE\ *Xmf,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *FileXmf}
+\DoxyCodeLine{00126\ );}
+\DoxyCodeLine{00127\ }
+\DoxyCodeLine{00129\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{tosca2PV_8h_ac9ecf40d55294e126a9a26b42d641cc6}{xmfWriteFileGeometry}}}
+\DoxyCodeLine{00130\ (}
+\DoxyCodeLine{00131\ \ \ \ \ FILE\ *Xmf,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *FileXmf,}
+\DoxyCodeLine{00132\ \ \ \ \ PetscInt\ Size\_x,\ PetscInt\ Size\_y,\ PetscInt\ Size\_z,}
+\DoxyCodeLine{00133\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *PathSave}
+\DoxyCodeLine{00134\ );}
+\DoxyCodeLine{00135\ }
+\DoxyCodeLine{00137\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{tosca2PV_8h_a91949cd39cf3723f970bc1c4020f0d51}{xmfWriteFileSymmTensor}}}
+\DoxyCodeLine{00138\ (}
+\DoxyCodeLine{00139\ \ \ \ \ FILE\ *xmf,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *filexmf,}
+\DoxyCodeLine{00140\ \ \ \ \ PetscInt\ size\_x,\ PetscInt\ size\_y,\ PetscInt\ size\_z,}
+\DoxyCodeLine{00141\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *PathSave,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *symmTensorName,}
+\DoxyCodeLine{00142\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *\ XX,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *\ YY,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *ZZ,}
+\DoxyCodeLine{00143\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *\ XY,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *\ XZ,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *YZ,}
+\DoxyCodeLine{00144\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *center\ =\ \textcolor{stringliteral}{"{}Cell"{}}}
+\DoxyCodeLine{00145\ );}
+\DoxyCodeLine{00146\ }
+\DoxyCodeLine{00148\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{tosca2PV_8h_a9bce497760970f8b4f566e9291ee03ac}{xmfWriteFileTensor}}}
+\DoxyCodeLine{00149\ (}
+\DoxyCodeLine{00150\ \ \ \ \ FILE\ *xmf,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *filexmf,}
+\DoxyCodeLine{00151\ \ \ \ \ PetscInt\ size\_x,\ PetscInt\ size\_y,\ PetscInt\ size\_z,}
+\DoxyCodeLine{00152\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *PathSave,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *TensorName,}
+\DoxyCodeLine{00153\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *\ XX,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *\ XY,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *XZ,}
+\DoxyCodeLine{00154\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *\ YX,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *\ YY,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *YZ,}
+\DoxyCodeLine{00155\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *\ ZX,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *\ ZY,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *ZZ,}
+\DoxyCodeLine{00156\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *center\ =\ \textcolor{stringliteral}{"{}Cell"{}}}
+\DoxyCodeLine{00157\ );}
+\DoxyCodeLine{00158\ }
+\DoxyCodeLine{00160\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{tosca2PV_8h_a1486e6de41f4c701fb14c9becdd3eb16}{xmfWriteFileVector}}}
+\DoxyCodeLine{00161\ (}
+\DoxyCodeLine{00162\ \ \ \ \ FILE\ *xmf,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *filexmf,}
+\DoxyCodeLine{00163\ \ \ \ \ PetscInt\ size\_x,\ PetscInt\ size\_y,\ PetscInt\ size\_z,}
+\DoxyCodeLine{00164\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *PathSave,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *Vecname,}
+\DoxyCodeLine{00165\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *\ V1,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *\ V2,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *V3,}
+\DoxyCodeLine{00166\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *center\ =\ \textcolor{stringliteral}{"{}Cell"{}}}
+\DoxyCodeLine{00167\ );}
+\DoxyCodeLine{00168\ }
+\DoxyCodeLine{00170\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{tosca2PV_8h_a45e5dc5f9d72ed447eb29d18f062845d}{xmfWriteFileScalar}}}
+\DoxyCodeLine{00171\ (}
+\DoxyCodeLine{00172\ \ \ \ \ FILE\ *Xmf,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *Filexmf,}
+\DoxyCodeLine{00173\ \ \ \ \ PetscInt\ Size\_x,\ PetscInt\ Size\_y,\ PetscInt\ Size\_z,}
+\DoxyCodeLine{00174\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *PathSave,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *ScalName,}
+\DoxyCodeLine{00175\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *Scal,}
+\DoxyCodeLine{00176\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *Center\ =\ \textcolor{stringliteral}{"{}Cell"{}}}
+\DoxyCodeLine{00177\ );}
+\DoxyCodeLine{00178\ }
+\DoxyCodeLine{00179\ \textcolor{comment}{//\ The\ following\ functions\ deal\ with\ the\ 1D-\/data\ HDF5\ file\ creation}}
+\DoxyCodeLine{00180\ \textcolor{comment}{//\ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{00181\ }
+\DoxyCodeLine{00183\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{tosca2PV_8h_a951fc85fe5634f2215fc9a60065d0a45}{hdfWriteDataset}}}
+\DoxyCodeLine{00184\ (}
+\DoxyCodeLine{00185\ \ \ \ \ hid\_t\ *file\_id,}
+\DoxyCodeLine{00186\ \ \ \ \ hid\_t\ *dataspace\_id,}
+\DoxyCodeLine{00187\ \ \ \ \ \textcolor{keywordtype}{char}\ \textcolor{keyword}{const}\ *var,}
+\DoxyCodeLine{00188\ \ \ \ \ \textcolor{keywordtype}{float}\ *x}
+\DoxyCodeLine{00189\ );}
+\DoxyCodeLine{00190\ }
+\DoxyCodeLine{00191\ \textcolor{comment}{//\ Interface\ functions\ for\ writing\ a\ single\ field\ (3D\ or\ 2D)}}
+\DoxyCodeLine{00192\ \textcolor{comment}{//\ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{00193\ }
+\DoxyCodeLine{00195\ PetscErrorCode\ \mbox{\hyperlink{tosca2PV_8h_a3fb3beb3955b3931dbfecab70ef744a6}{writeScalarToXMF}}}
+\DoxyCodeLine{00196\ (}
+\DoxyCodeLine{00197\ \ \ \ \ \mbox{\hyperlink{structdomain__}{domain\_}}\ \ \ \ *domain,}
+\DoxyCodeLine{00198\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *filexmf,}
+\DoxyCodeLine{00199\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *hdfilen,}
+\DoxyCodeLine{00200\ \ \ \ \ hid\_t\ \ \ \ \ \ \ \ *file\_id,}
+\DoxyCodeLine{00201\ \ \ \ \ hid\_t\ \ \ \ \ \ *dataspace\_id,}
+\DoxyCodeLine{00202\ \ \ \ \ PetscReal\ \ \ \ \ time,}
+\DoxyCodeLine{00203\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *fieldName,}
+\DoxyCodeLine{00204\ \ \ \ \ Vec\ \ \ \ \ \ \ \ V}
+\DoxyCodeLine{00205\ );}
+\DoxyCodeLine{00206\ }
+\DoxyCodeLine{00208\ PetscErrorCode\ \mbox{\hyperlink{tosca2PV_8h_afea5b23aeed5db9ff0cbf6fb8f071619}{writeVectorToXMF}}}
+\DoxyCodeLine{00209\ (}
+\DoxyCodeLine{00210\ \ \ \ \ \mbox{\hyperlink{structdomain__}{domain\_}}\ \ \ \ *domain,}
+\DoxyCodeLine{00211\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *filexmf,}
+\DoxyCodeLine{00212\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *hdfilen,}
+\DoxyCodeLine{00213\ \ \ \ \ hid\_t\ \ \ \ \ \ *file\_id,}
+\DoxyCodeLine{00214\ \ \ \ \ hid\_t\ \ \ \ \ \ *dataspace\_id,}
+\DoxyCodeLine{00215\ \ \ \ \ PetscReal\ \ \ \ \ time,}
+\DoxyCodeLine{00216\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *fieldName,}
+\DoxyCodeLine{00217\ \ \ \ \ Vec\ \ \ \ \ \ \ \ V}
+\DoxyCodeLine{00218\ );}
+\DoxyCodeLine{00219\ }
+\DoxyCodeLine{00221\ PetscErrorCode\ \mbox{\hyperlink{tosca2PV_8h_a57337e6801c34dd0f96640b35cb58244}{writeSymmTensorToXMF}}}
+\DoxyCodeLine{00222\ (}
+\DoxyCodeLine{00223\ \ \ \ \ \mbox{\hyperlink{structdomain__}{domain\_}}\ \ \ \ *domain,}
+\DoxyCodeLine{00224\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *filexmf,}
+\DoxyCodeLine{00225\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *hdfilen,}
+\DoxyCodeLine{00226\ \ \ \ \ hid\_t\ \ \ \ \ \ *file\_id,}
+\DoxyCodeLine{00227\ \ \ \ \ hid\_t\ \ \ \ \ \ *dataspace\_id,}
+\DoxyCodeLine{00228\ \ \ \ \ PetscReal\ \ \ \ \ time,}
+\DoxyCodeLine{00229\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *fieldName,}
+\DoxyCodeLine{00230\ \ \ \ \ Vec\ \ \ \ \ \ \ \ V}
+\DoxyCodeLine{00231\ );}
+\DoxyCodeLine{00232\ }
+\DoxyCodeLine{00234\ PetscErrorCode\ \mbox{\hyperlink{tosca2PV_8h_a3f056078beb2272a4bc23412b16bc2d8}{writeTensorToXMF}}}
+\DoxyCodeLine{00235\ (}
+\DoxyCodeLine{00236\ \ \ \ \ \mbox{\hyperlink{structdomain__}{domain\_}}\ \ \ \ *domain,}
+\DoxyCodeLine{00237\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *filexmf,}
+\DoxyCodeLine{00238\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *hdfilen,}
+\DoxyCodeLine{00239\ \ \ \ \ hid\_t\ \ \ \ \ \ *file\_id,}
+\DoxyCodeLine{00240\ \ \ \ \ hid\_t\ \ \ \ \ \ *dataspace\_id,}
+\DoxyCodeLine{00241\ \ \ \ \ PetscReal\ \ \ \ \ time,}
+\DoxyCodeLine{00242\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *fieldName,}
+\DoxyCodeLine{00243\ \ \ \ \ Vec\ \ \ \ \ \ \ \ V}
+\DoxyCodeLine{00244\ );}
+\DoxyCodeLine{00245\ }
+\DoxyCodeLine{00247\ PetscErrorCode\ \mbox{\hyperlink{tosca2PV_8h_a1c869f725bf74b1664305636e9a8d780}{writeISectionScalarToXMF}}}
+\DoxyCodeLine{00248\ (}
+\DoxyCodeLine{00249\ \ \ \ \ \mbox{\hyperlink{structmesh__}{mesh\_}}\ \ \ \ *mesh,}
+\DoxyCodeLine{00250\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *filexmf,}
+\DoxyCodeLine{00251\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *hdfilen,}
+\DoxyCodeLine{00252\ \ \ \ \ hid\_t\ \ \ \ \ \ *file\_id,}
+\DoxyCodeLine{00253\ \ \ \ \ hid\_t\ \ \ \ \ \ *dataspace\_id,}
+\DoxyCodeLine{00254\ \ \ \ \ PetscReal\ \ \ \ \ time,}
+\DoxyCodeLine{00255\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *fieldName,}
+\DoxyCodeLine{00256\ \ \ \ \ PetscReal\ \ \ \ \ **field}
+\DoxyCodeLine{00257\ );}
+\DoxyCodeLine{00258\ }
+\DoxyCodeLine{00260\ PetscErrorCode\ \mbox{\hyperlink{tosca2PV_8h_a0c90c2972bc9138d6f4bca761b84c26f}{writeJSectionScalarToXMF}}}
+\DoxyCodeLine{00261\ (}
+\DoxyCodeLine{00262\ \ \ \ \ \mbox{\hyperlink{structmesh__}{mesh\_}}\ \ \ \ *mesh,}
+\DoxyCodeLine{00263\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *filexmf,}
+\DoxyCodeLine{00264\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *hdfilen,}
+\DoxyCodeLine{00265\ \ \ \ \ hid\_t\ \ \ \ \ \ *file\_id,}
+\DoxyCodeLine{00266\ \ \ \ \ hid\_t\ \ \ \ \ \ *dataspace\_id,}
+\DoxyCodeLine{00267\ \ \ \ \ PetscReal\ \ \ \ \ time,}
+\DoxyCodeLine{00268\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *fieldName,}
+\DoxyCodeLine{00269\ \ \ \ \ PetscReal\ \ \ \ \ **field}
+\DoxyCodeLine{00270\ );}
+\DoxyCodeLine{00271\ }
+\DoxyCodeLine{00273\ PetscErrorCode\ \mbox{\hyperlink{tosca2PV_8h_aefd563f09522e642bb0755c206e70feb}{writeKSectionScalarToXMF}}}
+\DoxyCodeLine{00274\ (}
+\DoxyCodeLine{00275\ \ \ \ \ \mbox{\hyperlink{structmesh__}{mesh\_}}\ \ \ \ *mesh,}
+\DoxyCodeLine{00276\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *filexmf,}
+\DoxyCodeLine{00277\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *hdfilen,}
+\DoxyCodeLine{00278\ \ \ \ \ hid\_t\ \ \ \ \ \ *file\_id,}
+\DoxyCodeLine{00279\ \ \ \ \ hid\_t\ \ \ \ \ \ *dataspace\_id,}
+\DoxyCodeLine{00280\ \ \ \ \ PetscReal\ \ \ \ \ time,}
+\DoxyCodeLine{00281\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *fieldName,}
+\DoxyCodeLine{00282\ \ \ \ \ PetscReal\ \ \ \ \ **field}
+\DoxyCodeLine{00283\ );}
+\DoxyCodeLine{00284\ }
+\DoxyCodeLine{00286\ PetscErrorCode\ \mbox{\hyperlink{tosca2PV_8h_ad07a5d16d5f196b163746878a5f8c0f3}{writeUserSectionScalarToXMF}}}
+\DoxyCodeLine{00287\ (}
+\DoxyCodeLine{00288\ \ \ \ \ \mbox{\hyperlink{structmesh__}{mesh\_}}\ \ \ \ *mesh,\ \ \ \ \ \ \ \ \textcolor{comment}{//\ user\ context}}
+\DoxyCodeLine{00289\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *filexmf,\ \ \ \ \ \textcolor{comment}{//\ name\ of\ the\ XMF\ file\ to\ append}}
+\DoxyCodeLine{00290\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *hdfilen,\ \ \ \ \ \textcolor{comment}{//\ name\ of\ the\ HDF\ file\ to\ refer}}
+\DoxyCodeLine{00291\ \ \ \ \ hid\_t\ \ \ \ \ \ *file\_id,\ \ \ \ \ \textcolor{comment}{//\ id\ of\ the\ HDF\ file\ to\ refer}}
+\DoxyCodeLine{00292\ \ \ \ \ hid\_t\ \ \ \ \ \ *dataspace\_id,\textcolor{comment}{//\ id\ of\ the\ HDF\ dataspace\ to\ refer}}
+\DoxyCodeLine{00293\ \ \ \ \ PetscReal\ \ \ \ \ time,\ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ time}}
+\DoxyCodeLine{00294\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *fieldName,\ \ \ \textcolor{comment}{//\ field\ name\ as\ it\ appears\ in\ ParaView}}
+\DoxyCodeLine{00295\ \ \ \ \ \mbox{\hyperlink{structuSections}{uSections}}\ \ *uSection\ \ \ \ \textcolor{comment}{//\ pointer\ to\ the\ user\ defined\ section}}
+\DoxyCodeLine{00296\ );}
+\DoxyCodeLine{00297\ }
+\DoxyCodeLine{00299\ PetscErrorCode\ \mbox{\hyperlink{tosca2PV_8h_a38aa4ceb728f1b2a1b85690ee1410e80}{writeISectionVectorToXMF}}}
+\DoxyCodeLine{00300\ (}
+\DoxyCodeLine{00301\ \ \ \ \ \mbox{\hyperlink{structmesh__}{mesh\_}}\ \ \ \ *mesh,}
+\DoxyCodeLine{00302\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *filexmf,}
+\DoxyCodeLine{00303\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *hdfilen,}
+\DoxyCodeLine{00304\ \ \ \ \ hid\_t\ \ \ \ \ \ *file\_id,}
+\DoxyCodeLine{00305\ \ \ \ \ hid\_t\ \ \ \ \ \ *dataspace\_id,}
+\DoxyCodeLine{00306\ \ \ \ \ PetscReal\ \ \ \ \ time,}
+\DoxyCodeLine{00307\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *fieldName,}
+\DoxyCodeLine{00308\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ **field}
+\DoxyCodeLine{00309\ );}
+\DoxyCodeLine{00310\ }
+\DoxyCodeLine{00312\ PetscErrorCode\ \mbox{\hyperlink{tosca2PV_8h_ae808ceba39af54c5ba7a1a24e7e11ced}{writeJSectionVectorToXMF}}}
+\DoxyCodeLine{00313\ (}
+\DoxyCodeLine{00314\ \ \ \ \ \mbox{\hyperlink{structmesh__}{mesh\_}}\ \ \ \ *mesh,}
+\DoxyCodeLine{00315\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *filexmf,}
+\DoxyCodeLine{00316\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *hdfilen,}
+\DoxyCodeLine{00317\ \ \ \ \ hid\_t\ \ \ \ \ \ *file\_id,}
+\DoxyCodeLine{00318\ \ \ \ \ hid\_t\ \ \ \ \ \ *dataspace\_id,}
+\DoxyCodeLine{00319\ \ \ \ \ PetscReal\ \ \ \ \ time,}
+\DoxyCodeLine{00320\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *fieldName,}
+\DoxyCodeLine{00321\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ **field}
+\DoxyCodeLine{00322\ );}
+\DoxyCodeLine{00323\ }
+\DoxyCodeLine{00325\ PetscErrorCode\ \mbox{\hyperlink{tosca2PV_8h_a808865f4485f8650ca725250b6a9527a}{writeKSectionVectorToXMF}}}
+\DoxyCodeLine{00326\ (}
+\DoxyCodeLine{00327\ \ \ \ \ \mbox{\hyperlink{structmesh__}{mesh\_}}\ \ \ \ *mesh,}
+\DoxyCodeLine{00328\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *filexmf,}
+\DoxyCodeLine{00329\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *hdfilen,}
+\DoxyCodeLine{00330\ \ \ \ \ hid\_t\ \ \ \ \ \ *file\_id,}
+\DoxyCodeLine{00331\ \ \ \ \ hid\_t\ \ \ \ \ \ *dataspace\_id,}
+\DoxyCodeLine{00332\ \ \ \ \ PetscReal\ \ \ \ \ time,}
+\DoxyCodeLine{00333\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *fieldName,}
+\DoxyCodeLine{00334\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ **field}
+\DoxyCodeLine{00335\ );}
+\DoxyCodeLine{00336\ }
+\DoxyCodeLine{00338\ PetscErrorCode\ \mbox{\hyperlink{tosca2PV_8h_ad296c06cb13115cb37363f4aa1ff9bda}{writeUserSectionVectorToXMF}}}
+\DoxyCodeLine{00339\ (}
+\DoxyCodeLine{00340\ \ \ \ \ \mbox{\hyperlink{structmesh__}{mesh\_}}\ \ \ \ *mesh,}
+\DoxyCodeLine{00341\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *filexmf,}
+\DoxyCodeLine{00342\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *hdfilen,}
+\DoxyCodeLine{00343\ \ \ \ \ hid\_t\ \ \ \ \ \ *file\_id,}
+\DoxyCodeLine{00344\ \ \ \ \ hid\_t\ \ \ \ \ \ *dataspace\_id,}
+\DoxyCodeLine{00345\ \ \ \ \ PetscReal\ \ \ \ \ time,}
+\DoxyCodeLine{00346\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *fieldName,}
+\DoxyCodeLine{00347\ \ \ \ \ \mbox{\hyperlink{structuSections}{uSections}}\ \ *uSection}
+\DoxyCodeLine{00348\ );}
+\DoxyCodeLine{00349\ }
+\DoxyCodeLine{00351\ PetscErrorCode\ \mbox{\hyperlink{tosca2PV_8h_ad5e61148befa814d3867f7148e49f748}{writeISectionSymmTensorToXMF}}}
+\DoxyCodeLine{00352\ (}
+\DoxyCodeLine{00353\ \ \ \ \ \mbox{\hyperlink{structmesh__}{mesh\_}}\ \ \ \ *mesh,}
+\DoxyCodeLine{00354\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *filexmf,}
+\DoxyCodeLine{00355\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *hdfilen,}
+\DoxyCodeLine{00356\ \ \ \ \ hid\_t\ \ \ \ \ \ *file\_id,}
+\DoxyCodeLine{00357\ \ \ \ \ hid\_t\ \ \ \ \ \ *dataspace\_id,}
+\DoxyCodeLine{00358\ \ \ \ \ PetscReal\ \ \ \ \ time,}
+\DoxyCodeLine{00359\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *fieldName,}
+\DoxyCodeLine{00360\ \ \ \ \ \mbox{\hyperlink{structsymmTensor}{symmTensor}}\ \ \ \ \ **field}
+\DoxyCodeLine{00361\ );}
+\DoxyCodeLine{00362\ }
+\DoxyCodeLine{00364\ PetscErrorCode\ \mbox{\hyperlink{tosca2PV_8h_a79753721fe092cbdc7325e428d0de010}{writeJSectionSymmTensorToXMF}}}
+\DoxyCodeLine{00365\ (}
+\DoxyCodeLine{00366\ \ \ \ \ \mbox{\hyperlink{structmesh__}{mesh\_}}\ \ \ \ *mesh,}
+\DoxyCodeLine{00367\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *filexmf,}
+\DoxyCodeLine{00368\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *hdfilen,}
+\DoxyCodeLine{00369\ \ \ \ \ hid\_t\ \ \ \ \ \ *file\_id,}
+\DoxyCodeLine{00370\ \ \ \ \ hid\_t\ \ \ \ \ \ *dataspace\_id,}
+\DoxyCodeLine{00371\ \ \ \ \ PetscReal\ \ \ \ \ time,}
+\DoxyCodeLine{00372\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *fieldName,}
+\DoxyCodeLine{00373\ \ \ \ \ \mbox{\hyperlink{structsymmTensor}{symmTensor}}\ \ \ \ \ **field}
+\DoxyCodeLine{00374\ );}
+\DoxyCodeLine{00375\ }
+\DoxyCodeLine{00377\ PetscErrorCode\ \mbox{\hyperlink{tosca2PV_8h_a8952cc9d8e4db89a3fd90feec90d0575}{writeKSectionSymmTensorToXMF}}}
+\DoxyCodeLine{00378\ (}
+\DoxyCodeLine{00379\ \ \ \ \ \mbox{\hyperlink{structmesh__}{mesh\_}}\ \ \ \ *mesh,}
+\DoxyCodeLine{00380\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *filexmf,}
+\DoxyCodeLine{00381\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *hdfilen,}
+\DoxyCodeLine{00382\ \ \ \ \ hid\_t\ \ \ \ \ \ *file\_id,}
+\DoxyCodeLine{00383\ \ \ \ \ hid\_t\ \ \ \ \ \ *dataspace\_id,}
+\DoxyCodeLine{00384\ \ \ \ \ PetscReal\ \ \ \ \ time,}
+\DoxyCodeLine{00385\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *fieldName,}
+\DoxyCodeLine{00386\ \ \ \ \ \mbox{\hyperlink{structsymmTensor}{symmTensor}}\ \ \ \ \ **field}
+\DoxyCodeLine{00387\ );}
+\DoxyCodeLine{00388\ }
+\DoxyCodeLine{00389\ \textcolor{comment}{//\ Interface\ functions\ for\ writing\ the\ mesh\ (3D\ or\ 2D)}}
+\DoxyCodeLine{00390\ \textcolor{comment}{//\ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{00391\ }
+\DoxyCodeLine{00393\ PetscErrorCode\ \mbox{\hyperlink{tosca2PV_8h_afc2a6db3522ca294d1f0cd8f7cec40a2}{writePointsToXMF}}}
+\DoxyCodeLine{00394\ (}
+\DoxyCodeLine{00395\ \ \ \ \ \mbox{\hyperlink{structmesh__}{mesh\_}}\ \ \ \ \ \ *mesh,}
+\DoxyCodeLine{00396\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *filexmf,}
+\DoxyCodeLine{00397\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *hdfilen,}
+\DoxyCodeLine{00398\ \ \ \ \ hid\_t\ \ \ \ \ \ \ \ *file\_id,}
+\DoxyCodeLine{00399\ \ \ \ \ hid\_t\ \ \ \ \ \ *dataspace\_id,}
+\DoxyCodeLine{00400\ \ \ \ \ PetscReal\ \ \ \ \ time}
+\DoxyCodeLine{00401\ );}
+\DoxyCodeLine{00402\ }
+\DoxyCodeLine{00404\ PetscErrorCode\ \mbox{\hyperlink{tosca2PV_8h_aec2072219d6aa4d5f503067ad7cb39c9}{writeISectionPointsToXMF}}}
+\DoxyCodeLine{00405\ (}
+\DoxyCodeLine{00406\ \ \ \ \ \mbox{\hyperlink{structmesh__}{mesh\_}}\ \ \ \ \ \ *mesh,}
+\DoxyCodeLine{00407\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *filexmf,}
+\DoxyCodeLine{00408\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *hdfilen,}
+\DoxyCodeLine{00409\ \ \ \ \ hid\_t\ \ \ \ \ \ \ \ *file\_id,}
+\DoxyCodeLine{00410\ \ \ \ \ hid\_t\ \ \ \ \ \ *dataspace\_id,}
+\DoxyCodeLine{00411\ \ \ \ \ PetscReal\ \ \ \ \ time,}
+\DoxyCodeLine{00412\ \ \ \ \ PetscInt\ \ \ iIndex}
+\DoxyCodeLine{00413\ );}
+\DoxyCodeLine{00414\ }
+\DoxyCodeLine{00416\ PetscErrorCode\ \mbox{\hyperlink{tosca2PV_8h_a9db0c8941a4a1c2fb8f646ba9299f8a5}{writeJSectionPointsToXMF}}}
+\DoxyCodeLine{00417\ (}
+\DoxyCodeLine{00418\ \ \ \ \ \mbox{\hyperlink{structmesh__}{mesh\_}}\ \ \ \ \ \ *mesh,}
+\DoxyCodeLine{00419\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *filexmf,}
+\DoxyCodeLine{00420\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *hdfilen,}
+\DoxyCodeLine{00421\ \ \ \ \ hid\_t\ \ \ \ \ \ \ \ *file\_id,}
+\DoxyCodeLine{00422\ \ \ \ \ hid\_t\ \ \ \ \ \ *dataspace\_id,}
+\DoxyCodeLine{00423\ \ \ \ \ PetscReal\ \ \ \ \ time,}
+\DoxyCodeLine{00424\ \ \ \ \ PetscInt\ \ \ jIndex}
+\DoxyCodeLine{00425\ );}
+\DoxyCodeLine{00426\ }
+\DoxyCodeLine{00428\ PetscErrorCode\ \mbox{\hyperlink{tosca2PV_8h_a48c2cbed98948fb0198ccbd800d99bf9}{writeKSectionPointsToXMF}}}
+\DoxyCodeLine{00429\ (}
+\DoxyCodeLine{00430\ \ \ \ \ \mbox{\hyperlink{structmesh__}{mesh\_}}\ \ \ \ \ \ *mesh,}
+\DoxyCodeLine{00431\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *filexmf,}
+\DoxyCodeLine{00432\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *hdfilen,}
+\DoxyCodeLine{00433\ \ \ \ \ hid\_t\ \ \ \ \ \ \ \ *file\_id,}
+\DoxyCodeLine{00434\ \ \ \ \ hid\_t\ \ \ \ \ \ *dataspace\_id,}
+\DoxyCodeLine{00435\ \ \ \ \ PetscReal\ \ \ \ \ time,}
+\DoxyCodeLine{00436\ \ \ \ \ PetscInt\ \ \ kIndex}
+\DoxyCodeLine{00437\ );}
+\DoxyCodeLine{00438\ }
+\DoxyCodeLine{00440\ PetscErrorCode\ \mbox{\hyperlink{tosca2PV_8h_adfacd9b9092d2bb3a21dfc2af686386e}{writeUserSectionPointsToXMF}}}
+\DoxyCodeLine{00441\ (}
+\DoxyCodeLine{00442\ \ \ \ \ \mbox{\hyperlink{structmesh__}{mesh\_}}\ \ \ \ \ \ *mesh,\ \ \ \ \ \ \ \ \textcolor{comment}{//\ user\ context}}
+\DoxyCodeLine{00443\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *filexmf,\ \ \ \ \ \textcolor{comment}{//\ name\ of\ the\ XMF\ file\ to\ append}}
+\DoxyCodeLine{00444\ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *hdfilen,\ \ \ \ \ \textcolor{comment}{//\ name\ of\ the\ HDF\ file\ to\ refer}}
+\DoxyCodeLine{00445\ \ \ \ \ hid\_t\ \ \ \ \ \ \ \ *file\_id,\ \ \ \ \ \textcolor{comment}{//\ id\ of\ the\ HDF\ file\ to\ refer}}
+\DoxyCodeLine{00446\ \ \ \ \ hid\_t\ \ \ \ \ \ *dataspace\_id,\textcolor{comment}{//\ id\ of\ the\ HDF\ dataspace\ to\ refer}}
+\DoxyCodeLine{00447\ \ \ \ \ PetscReal\ \ \ \ \ time,\ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ time}}
+\DoxyCodeLine{00448\ \ \ \ \ \mbox{\hyperlink{structuSections}{uSections}}\ \ *uSection\ \ \ \ \textcolor{comment}{//\ pointer\ to\ the\ user\ defined\ section}}
+\DoxyCodeLine{00449\ );}
+\DoxyCodeLine{00450\ }
+\DoxyCodeLine{00451\ \textcolor{keywordtype}{void}\ setToZero(\textcolor{keywordtype}{float}\ *vec,\ PetscInt\ n);}
+\DoxyCodeLine{00452\ }
+\DoxyCodeLine{00453\ \textcolor{comment}{//\ Other\ file\ formats}}
+\DoxyCodeLine{00454\ \textcolor{comment}{//\ -\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/-\/}}
+\DoxyCodeLine{00455\ }
+\DoxyCodeLine{00456\ PetscErrorCode\ writeJSectionToRaster}
+\DoxyCodeLine{00457\ (}
+\DoxyCodeLine{00458\ \ \ \ \ \mbox{\hyperlink{structmesh__}{mesh\_}}\ \ \ \ *mesh,\ \ \ \ \ \ \ \ \textcolor{comment}{//\ user\ context}}
+\DoxyCodeLine{00459\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ jIndex\ \ \ \ \ \ \ \ \textcolor{comment}{//\ index\ of\ the\ j-\/section}}
+\DoxyCodeLine{00460\ );}
+
+\end{DoxyCode}

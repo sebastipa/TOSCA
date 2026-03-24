@@ -1,0 +1,226 @@
+\doxysection{ueqn\+\_\+ Struct Reference}
+\hypertarget{structueqn__}{}\label{structueqn__}\index{ueqn\_@{ueqn\_}}
+
+
+structure storing momentum equation  
+
+
+
+
+{\ttfamily \#include $<$ueqn.\+h$>$}
+
+\doxysubsubsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{structueqn___a39e577288efbd0f261c21ea71487087b}\label{structueqn___a39e577288efbd0f261c21ea71487087b} 
+word {\bfseries solver\+Type}
+\begin{DoxyCompactList}\small\item\em solver type (kept for logging) \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___ad9e3039e582124f57de4c6ebd0127b89}\label{structueqn___ad9e3039e582124f57de4c6ebd0127b89} 
+SNES {\bfseries snesU}
+\begin{DoxyCompactList}\small\item\em non linear matrix free context for momentum equation \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___a39c976f753986e0ec5d06efad7c0d2c1}\label{structueqn___a39c976f753986e0ec5d06efad7c0d2c1} 
+Mat {\bfseries JU}
+\begin{DoxyCompactList}\small\item\em non linear matrix free preconditioner \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___a9731bf94e8deacbb6f792cea8a28fe9e}\label{structueqn___a9731bf94e8deacbb6f792cea8a28fe9e} 
+Mat {\bfseries A}
+\item 
+\Hypertarget{structueqn___a501cb1805c79203570e819ffdc7c9032}\label{structueqn___a501cb1805c79203570e819ffdc7c9032} 
+Mat {\bfseries C}
+\item 
+\Hypertarget{structueqn___a27245fefcc3ddde79d2576b38d43e624}\label{structueqn___a27245fefcc3ddde79d2576b38d43e624} 
+KSP {\bfseries ksp}
+\begin{DoxyCompactList}\small\item\em linear krylov-\/subspace context (crank\+Nicholson SNES inner KSP) \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___a38939d2ac869b741783fd95c1b00ed86}\label{structueqn___a38939d2ac869b741783fd95c1b00ed86} 
+PC {\bfseries pc}
+\item 
+\Hypertarget{structueqn___a74a709dc1d3e05c6cbc42d070f61ea58}\label{structueqn___a74a709dc1d3e05c6cbc42d070f61ea58} 
+KSP {\bfseries ksp\+IMEX}
+\begin{DoxyCompactList}\small\item\em standalone direct KSP for IMEX scheme (no SNES wrapper) \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___a551312779962dd65e2b8b8ab585d3b46}\label{structueqn___a551312779962dd65e2b8b8ab585d3b46} 
+Mat {\bfseries Jv\+IMEX}
+\begin{DoxyCompactList}\small\item\em Mat\+Shell for IMEX operator A\texorpdfstring{$\ast$}{*}v = v -\/ dt\texorpdfstring{$\ast$}{*}scale\texorpdfstring{$\ast$}{*}\+Visc(v) \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___aa7516340bd1f7c08ee265990ef4678e0}\label{structueqn___aa7516340bd1f7c08ee265990ef4678e0} 
+Petsc\+Int {\bfseries snes\+Max\+Iter}
+\begin{DoxyCompactList}\small\item\em max SNES outer iterations (-\/snes\+Max\+ItersU in control.\+dat) \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___a27aa7f812f765d21bee13627e5122fc9}\label{structueqn___a27aa7f812f765d21bee13627e5122fc9} 
+word {\bfseries ksp\+Type}
+\begin{DoxyCompactList}\small\item\em KSP solver type\+: Bi\+CGStab or GMRES (-\/ksp\+TypeU in control.\+dat) \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___a82d4f542d7f4d80cf0a500cb6d4e40d0}\label{structueqn___a82d4f542d7f4d80cf0a500cb6d4e40d0} 
+Petsc\+Int {\bfseries gmres\+Restart}
+\begin{DoxyCompactList}\small\item\em GMRES restart parameter (-\/ksp\+GMRESRestartU in control.\+dat, default 30) \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___a6de5c398ab29d0c7a11a0992cb16254e}\label{structueqn___a6de5c398ab29d0c7a11a0992cb16254e} 
+Vec {\bfseries Utmp}
+\begin{DoxyCompactList}\small\item\em temporary solution passed to the SNES/\+KSP evaluation function \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___aeb84640a69f15e7e98b5b75862886852}\label{structueqn___aeb84640a69f15e7e98b5b75862886852} 
+Vec {\bfseries Rhs}
+\begin{DoxyCompactList}\small\item\em rhs of the momentum equation (stores transport and viscous fluxes), low level use in FormU \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___ad38c997fac48a840201af76c139d7c6a}\label{structueqn___ad38c997fac48a840201af76c139d7c6a} 
+Vec {\bfseries Rhs\+\_\+o}
+\begin{DoxyCompactList}\small\item\em rhs of the momentum equation at previous time step (used by many time schemes) \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___ae998fbcd47c80d2607fb65125340196e}\label{structueqn___ae998fbcd47c80d2607fb65125340196e} 
+Vec {\bfseries l\+Fp}
+\begin{DoxyCompactList}\small\item\em rhs of the momentum equation prior to dotting with curv. coords basis (becomes Rhs) \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___a8a0897ecd5e7013aaf4e5605c4a8a029}\label{structueqn___a8a0897ecd5e7013aaf4e5605c4a8a029} 
+Vec {\bfseries l\+Div1}
+\item 
+\Hypertarget{structueqn___a73834c982b4247c1220fcd8cb6f131b9}\label{structueqn___a73834c982b4247c1220fcd8cb6f131b9} 
+Vec {\bfseries l\+Div2}
+\item 
+\Hypertarget{structueqn___abb87333bb9f33feff976ba27618996aa}\label{structueqn___abb87333bb9f33feff976ba27618996aa} 
+Vec {\bfseries l\+Div3}
+\begin{DoxyCompactList}\small\item\em Components of the convective term in momentum equation. \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___a4e29e8809fc19e589f77c08861d5904f}\label{structueqn___a4e29e8809fc19e589f77c08861d5904f} 
+Vec {\bfseries l\+Visc1}
+\item 
+\Hypertarget{structueqn___a2cd9eb6fbcc211ca573c26bf1bf53fe6}\label{structueqn___a2cd9eb6fbcc211ca573c26bf1bf53fe6} 
+Vec {\bfseries l\+Visc2}
+\item 
+\Hypertarget{structueqn___a83fa0548340f5c04cf2ca91611044860}\label{structueqn___a83fa0548340f5c04cf2ca91611044860} 
+Vec {\bfseries l\+Visc3}
+\begin{DoxyCompactList}\small\item\em Components of the viscous term in the momentum equation. \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___a0b56a97e1da2aad55115bad96aa369c5}\label{structueqn___a0b56a97e1da2aad55115bad96aa369c5} 
+Vec {\bfseries l\+Visc\+IBM1}
+\item 
+\Hypertarget{structueqn___a19a1f2a08e31775a7aff5488267a3049}\label{structueqn___a19a1f2a08e31775a7aff5488267a3049} 
+Vec {\bfseries l\+Visc\+IBM2}
+\item 
+\Hypertarget{structueqn___ac375ad5af914c8f54a919c1bf86db144}\label{structueqn___ac375ad5af914c8f54a919c1bf86db144} 
+Vec {\bfseries l\+Visc\+IBM3}
+\begin{DoxyCompactList}\small\item\em Components of the viscous term in the momentum equation for IBM faces. \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___a1e1984a06b1515f79749ac46bb7b2093}\label{structueqn___a1e1984a06b1515f79749ac46bb7b2093} 
+Vec {\bfseries dP}
+\begin{DoxyCompactList}\small\item\em pressure term of the momentum equation \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___ae6db00420f58260dbdccd4a6273a6791}\label{structueqn___ae6db00420f58260dbdccd4a6273a6791} 
+Vec {\bfseries d\+PAGW}
+\begin{DoxyCompactList}\small\item\em pressure term of the momentum equation as calculated from provided atmopsheric gravity waves pressure \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___abc0f6815f55d1558fd149f6f61cbea1c}\label{structueqn___abc0f6815f55d1558fd149f6f61cbea1c} 
+Vec {\bfseries b\+Theta}
+\begin{DoxyCompactList}\small\item\em buoyancy field at current time (used for AB2 buoyancy term extrapolation) \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___a4f8b86016eef42b50eae05975310c325}\label{structueqn___a4f8b86016eef42b50eae05975310c325} 
+Vec {\bfseries b\+Theta\+\_\+o}
+\begin{DoxyCompactList}\small\item\em buoyancy field at previous time (used for AB2 buoyancy term extrapolation) \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___a2f05080697021c78948bad3307a7539d}\label{structueqn___a2f05080697021c78948bad3307a7539d} 
+Vec {\bfseries sourceU}
+\begin{DoxyCompactList}\small\item\em source term to drive Uref at Zref with periodic BCs \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___a34587cd2ebdb68d17fc8507650bb65ec}\label{structueqn___a34587cd2ebdb68d17fc8507650bb65ec} 
+Vec {\bfseries g\+Cont}
+\begin{DoxyCompactList}\small\item\em gravity vector in cuvilinear coordinates \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___af9abe6188c40b9f05810fcc7642783cc}\label{structueqn___af9abe6188c40b9f05810fcc7642783cc} 
+Vec {\bfseries Ucont}
+\item 
+\Hypertarget{structueqn___afc3c966140ba2dabcd01945e42370d12}\label{structueqn___afc3c966140ba2dabcd01945e42370d12} 
+Vec {\bfseries l\+Ucont}
+\begin{DoxyCompactList}\small\item\em contravariant fluxes (contravariant velocity / J) \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___a41d606214fe9444c49953e98a03b7f46}\label{structueqn___a41d606214fe9444c49953e98a03b7f46} 
+Vec {\bfseries Ucat}
+\item 
+\Hypertarget{structueqn___a1f92ebc1c4685b3d95dc9b88568ea93c}\label{structueqn___a1f92ebc1c4685b3d95dc9b88568ea93c} 
+Vec {\bfseries l\+Ucat}
+\begin{DoxyCompactList}\small\item\em cartesian velocity \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___ac070c7ac6f5e230028abe4e1b85286fb}\label{structueqn___ac070c7ac6f5e230028abe4e1b85286fb} 
+Vec {\bfseries Ucont\+\_\+o}
+\begin{DoxyCompactList}\small\item\em contravariant fluxes at the previous time step (old solution, contains BCs) \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___a978a6d6870cc71378dd4f4d986b03952}\label{structueqn___a978a6d6870cc71378dd4f4d986b03952} 
+Vec {\bfseries bU}
+\begin{DoxyCompactList}\small\item\em precomputed constant-\/\+RHS contributions for CN, RHS of the linear system for IMEX schemes \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___af68d8b749c5538bba40d066c5fab28e8}\label{structueqn___af68d8b749c5538bba40d066c5fab28e8} 
+Vec {\bfseries Rhs\+Visc}
+\begin{DoxyCompactList}\small\item\em viscous-\/part of the RHS at current step (used in IMEX schemes) \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___a751d1dba9f502c8b640760e613f065b8}\label{structueqn___a751d1dba9f502c8b640760e613f065b8} 
+Vec {\bfseries Rhs\+Conv}
+\begin{DoxyCompactList}\small\item\em convective-\/only RHS at current step (used by ABCN IMEX scheme to build AB2 explicit part) \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___a98fbe95dc311d24871cf397a3822c894}\label{structueqn___a98fbe95dc311d24871cf397a3822c894} 
+Vec {\bfseries Rhs\+Conv\+\_\+o}
+\begin{DoxyCompactList}\small\item\em convective-\/only RHS at previous step (used by ABCN IMEX scheme to build AB2 explicit part) \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___ae305e2d4d4d77b101db319966c15898a}\label{structueqn___ae305e2d4d4d77b101db319966c15898a} 
+Vec {\bfseries l\+Ustar}
+\item 
+\Hypertarget{structueqn___aefa8a991529c765d52e8b2db6948e659}\label{structueqn___aefa8a991529c765d52e8b2db6948e659} 
+\mbox{\hyperlink{structCmpnts}{Cmpnts}} {\bfseries mean\+GradP}
+\item 
+\Hypertarget{structueqn___a1cc25bb8fbc1ec61b63791e640dc022f}\label{structueqn___a1cc25bb8fbc1ec61b63791e640dc022f} 
+\mbox{\hyperlink{structCmpnts}{Cmpnts}} {\bfseries u\+Bulk}
+\item 
+\Hypertarget{structueqn___a09461d1fb622435c391c194a588a8524}\label{structueqn___a09461d1fb622435c391c194a588a8524} 
+word {\bfseries ddt\+Scheme}
+\begin{DoxyCompactList}\small\item\em time derivative scheme \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___ae5a9c69d711c297210894399be41302e}\label{structueqn___ae5a9c69d711c297210894399be41302e} 
+word {\bfseries div\+Scheme}
+\begin{DoxyCompactList}\small\item\em divergence scheme \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___a21c64b80e2a3735836521957e9069256}\label{structueqn___a21c64b80e2a3735836521957e9069256} 
+word {\bfseries visc\+Scheme}
+\item 
+\Hypertarget{structueqn___af1d99dc7b5908ca1aaf8818838309e18}\label{structueqn___af1d99dc7b5908ca1aaf8818838309e18} 
+Petsc\+Real {\bfseries rel\+Exit\+Tol}
+\begin{DoxyCompactList}\small\item\em relative exit tolerance for SNES/\+KSP solvers \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___af8b26b7f588c8c93b0d245e7c33d32ad}\label{structueqn___af8b26b7f588c8c93b0d245e7c33d32ad} 
+Petsc\+Real {\bfseries abs\+Exit\+Tol}
+\begin{DoxyCompactList}\small\item\em absolute exit tolerance for SNES/\+KSP solvers \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___a6e733cb2b018ec18f8427fa31486b13c}\label{structueqn___a6e733cb2b018ec18f8427fa31486b13c} 
+Petsc\+Int {\bfseries inviscid}
+\begin{DoxyCompactList}\small\item\em inviscid run \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___aff0e32f5d7c7d941fdece9d1bd700d73}\label{structueqn___aff0e32f5d7c7d941fdece9d1bd700d73} 
+Petsc\+Int {\bfseries buoyancy}
+\begin{DoxyCompactList}\small\item\em buoyancy term \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___a1d5ad892181cd4cc652a1fbca8286b08}\label{structueqn___a1d5ad892181cd4cc652a1fbca8286b08} 
+Petsc\+Int {\bfseries coriolis}
+\begin{DoxyCompactList}\small\item\em coriolis term \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___aafce28e1ccffe8f536e203b7851c09e4}\label{structueqn___aafce28e1ccffe8f536e203b7851c09e4} 
+Petsc\+Int {\bfseries fringe}
+\begin{DoxyCompactList}\small\item\em fringe region term \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___a4a57099f237ce122a378726570aaef01}\label{structueqn___a4a57099f237ce122a378726570aaef01} 
+Petsc\+Int {\bfseries central\+Div}
+\begin{DoxyCompactList}\small\item\em linear divergence scheme \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___a125a461c50a8600074ec5ba7e9974c1d}\label{structueqn___a125a461c50a8600074ec5ba7e9974c1d} 
+Petsc\+Int {\bfseries central4\+Div}
+\begin{DoxyCompactList}\small\item\em 4th order central scheme \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___a0808c06b1db37b6f1926e097c75fb291}\label{structueqn___a0808c06b1db37b6f1926e097c75fb291} 
+Petsc\+Int {\bfseries central\+Upwind\+Div}
+\begin{DoxyCompactList}\small\item\em blending between linear and upwind scheme \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___a423bb2c2a471bdcf523d449b357e4050}\label{structueqn___a423bb2c2a471bdcf523d449b357e4050} 
+Petsc\+Int {\bfseries central\+Upwind\+WDiv}
+\begin{DoxyCompactList}\small\item\em blending between linear and upwind scheme for non-\/uniform mesh \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___af045933d0393c4a79284797786a13021}\label{structueqn___af045933d0393c4a79284797786a13021} 
+Petsc\+Int {\bfseries quick\+Div}
+\begin{DoxyCompactList}\small\item\em 3rd order QUICK scheme \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___a2a315309acafae9f9684c34972bb3efe}\label{structueqn___a2a315309acafae9f9684c34972bb3efe} 
+Petsc\+Int {\bfseries weno3\+Div}
+\begin{DoxyCompactList}\small\item\em 3rd order WENO scheme \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___ac77aebb620fab30db99ef9fb973bdf75}\label{structueqn___ac77aebb620fab30db99ef9fb973bdf75} 
+Petsc\+Real {\bfseries hyper\+Visc}
+\begin{DoxyCompactList}\small\item\em hyperviscocity parameter to add artificial diffusion -\/ (b = 0 is blend between 3rd order upwind and 4th order, b = 1 is central 4th order, b = 0.\+8 is hybrid 3-\/4 scheme) \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___a02e18baa96d57e5775c362704d1c07d7}\label{structueqn___a02e18baa96d57e5775c362704d1c07d7} 
+Petsc\+Real {\bfseries hyper\+Visc4i}
+\begin{DoxyCompactList}\small\item\em biharmonic hyperviscosity along csi direction \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___ab4de04753802d7351540634f4d6ae034}\label{structueqn___ab4de04753802d7351540634f4d6ae034} 
+Petsc\+Real {\bfseries hyper\+Visc4j}
+\begin{DoxyCompactList}\small\item\em biharmonic hyperviscosity along eta direction \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___a455ae970725a1300cb1918935ae7d832}\label{structueqn___a455ae970725a1300cb1918935ae7d832} 
+Petsc\+Real {\bfseries hyper\+Visc4k}
+\begin{DoxyCompactList}\small\item\em biharmonic hyperviscosity along zeta direction \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___afbd7b732059faa33d50ed6785d37efcc}\label{structueqn___afbd7b732059faa33d50ed6785d37efcc} 
+\mbox{\hyperlink{structwallModel}{wall\+Model}} \texorpdfstring{$\ast$}{*} {\bfseries i\+LWM}
+\begin{DoxyCompactList}\small\item\em wall model on the i-\/left patch \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___ab51cf22f8e48a482ee71ad7d5bcea6fa}\label{structueqn___ab51cf22f8e48a482ee71ad7d5bcea6fa} 
+\mbox{\hyperlink{structwallModel}{wall\+Model}} \texorpdfstring{$\ast$}{*} {\bfseries i\+RWM}
+\begin{DoxyCompactList}\small\item\em wall model on the i-\/right patch \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___a0425170d32dd1f15c63b79e92420c002}\label{structueqn___a0425170d32dd1f15c63b79e92420c002} 
+\mbox{\hyperlink{structwallModel}{wall\+Model}} \texorpdfstring{$\ast$}{*} {\bfseries j\+LWM}
+\begin{DoxyCompactList}\small\item\em wall model on the j-\/left patch \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___a6d2b1c580856f817cc7646279a1ba848}\label{structueqn___a6d2b1c580856f817cc7646279a1ba848} 
+\mbox{\hyperlink{structwallModel}{wall\+Model}} \texorpdfstring{$\ast$}{*} {\bfseries j\+RWM}
+\begin{DoxyCompactList}\small\item\em wall model on the j-\/right patch \end{DoxyCompactList}\item 
+\Hypertarget{structueqn___aaba3a86c7d5bca04dcc37de308b373bd}\label{structueqn___aaba3a86c7d5bca04dcc37de308b373bd} 
+word {\bfseries init\+Field\+Type}
+\item 
+\Hypertarget{structueqn___a3c8124834a68df485d09aef4da287035}\label{structueqn___a3c8124834a68df485d09aef4da287035} 
+\mbox{\hyperlink{structaccess__}{access\+\_\+}} \texorpdfstring{$\ast$}{*} {\bfseries access}
+\begin{DoxyCompactList}\small\item\em access database \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+structure storing momentum equation 
+
+The documentation for this struct was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+/zfs60/nobackup/stipa/software/\+TOSCA/src/include/\mbox{\hyperlink{ueqn_8h}{ueqn.\+h}}\end{DoxyCompactItemize}

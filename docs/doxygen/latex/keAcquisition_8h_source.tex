@@ -1,0 +1,94 @@
+\doxysection{ke\+Acquisition.\+h}
+\hypertarget{keAcquisition_8h_source}{}\label{keAcquisition_8h_source}\index{/zfs60/nobackup/stipa/software/TOSCA/src/include/acquisition/keAcquisition.h@{/zfs60/nobackup/stipa/software/TOSCA/src/include/acquisition/keAcquisition.h}}
+\mbox{\hyperlink{keAcquisition_8h}{Go to the documentation of this file.}}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ }
+\DoxyCodeLine{00003\ }
+\DoxyCodeLine{00004\ \textcolor{preprocessor}{\#ifndef\ \_KEACQUISITION\_H}}
+\DoxyCodeLine{00005\ \textcolor{preprocessor}{\#define\ \_KEACQUISITION\_H}}
+\DoxyCodeLine{00006\ }
+\DoxyCodeLine{00008\ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structkeBox}{keBox}}}
+\DoxyCodeLine{00009\ \{}
+\DoxyCodeLine{00010\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ *name;}
+\DoxyCodeLine{00011\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ center;}
+\DoxyCodeLine{00012\ \ \ \ \ PetscReal\ \ \ \ \ sizeX;}
+\DoxyCodeLine{00013\ \ \ \ \ PetscReal\ \ \ \ \ sizeY;}
+\DoxyCodeLine{00014\ \ \ \ \ PetscReal\ \ \ \ \ sizeZ;}
+\DoxyCodeLine{00015\ }
+\DoxyCodeLine{00016\ \ \ \ \ PetscInt\ \ \ \ \ \ minKFace,\ maxKFace,}
+\DoxyCodeLine{00017\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ minJFace,\ maxJFace,}
+\DoxyCodeLine{00018\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ minIFace,\ maxIFace;}
+\DoxyCodeLine{00019\ }
+\DoxyCodeLine{00020\ \ \ \ \ PetscReal\ \ \ \ \ avgDumK,\ avgDupK,\ avgDpmK,\ avgDppK,}
+\DoxyCodeLine{00021\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ avgDumJ,\ avgDupJ,\ avgDpmJ,\ avgDppJ,}
+\DoxyCodeLine{00022\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ avgDumI,\ avgDupI,\ avgDpmI,\ avgDppI,}
+\DoxyCodeLine{00023\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ avgFK,\ avgFJ,\ avgFI,\ avgEps,\ avgPf,}
+\DoxyCodeLine{00024\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ avgPtheta,\ avgPinf,\ avgErr,}
+\DoxyCodeLine{00025\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ avgPturb,\ avgPsgs;}
+\DoxyCodeLine{00026\ }
+\DoxyCodeLine{00027\ \ \ \ \ \textcolor{comment}{//\ communication\ color}}
+\DoxyCodeLine{00028\ \ \ \ \ PetscInt\ \ \ \ \ \ \mbox{\hyperlink{structkeBox_af22dc1b81d5932396095b1d2a796770a}{thisBoxControlled}};\ \ \ }
+\DoxyCodeLine{00029\ \ \ \ \ MPI\_Comm\ \ \ \ \ \ \mbox{\hyperlink{structkeBox_adffb25c3b4f2a592f6f6b582ac6d539f}{KEBOX\_COMM}};\ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00030\ \ \ \ \ PetscMPIInt\ \ \ \mbox{\hyperlink{structkeBox_a8196dfc20f4654204a79809bf49f3970}{writerRank}};\ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00031\ \ \ \ \ PetscMPIInt\ \ \ \mbox{\hyperlink{structkeBox_a61abef3830c684d8c548209cfcca8c92}{nProcsBox}};\ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00032\ }
+\DoxyCodeLine{00033\ \};}
+\DoxyCodeLine{00034\ }
+\DoxyCodeLine{00036\ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structkeFields}{keFields}}}
+\DoxyCodeLine{00037\ \{}
+\DoxyCodeLine{00038\ \ \ \ \ \textcolor{comment}{//\ time\ controls}}
+\DoxyCodeLine{00039\ \ \ \ \ PetscReal\ \ \ \ \ avgStartTime;}
+\DoxyCodeLine{00040\ \ \ \ \ PetscReal\ \ \ \ \ avgPrd;}
+\DoxyCodeLine{00041\ }
+\DoxyCodeLine{00042\ \ \ \ \ \textcolor{comment}{//\ flags}}
+\DoxyCodeLine{00043\ \ \ \ \ PetscInt\ \ \ \ \ \ \mbox{\hyperlink{structkeFields_accfde41d5743f5a5284ddbe883fabb54}{cartesian}};\ \ \ \ \ \ \ }
+\DoxyCodeLine{00044\ \ \ \ \ PetscInt\ \ \ \ \ \ debug;}
+\DoxyCodeLine{00045\ }
+\DoxyCodeLine{00046\ \ \ \ \ PetscInt\ \ \ \ \ \ \mbox{\hyperlink{structkeFields_a8403cd2b27ed5a7ec0053f24c8c52b24}{nBox}};\ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00047\ \ \ \ \ \mbox{\hyperlink{structkeBox}{keBox}}\ \ \ \ \ \ \ \ \ **\mbox{\hyperlink{structkeFields_ae6d10b5310dee8e0dc70cf7bd042080c}{box}};\ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00048\ }
+\DoxyCodeLine{00049\ \ \ \ \ \textcolor{comment}{//\ fields}}
+\DoxyCodeLine{00050\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structkeFields_a977ec1b4a6c6039620f6b1a103cbc91c}{Error}};\ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00051\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ D;}
+\DoxyCodeLine{00052\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ F;}
+\DoxyCodeLine{00053\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structkeFields_a7fd1d3eeba7235c9c48abe96e6cc92bd}{Pinf}};\ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00054\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structkeFields_a80bac7bfeebf1c3f02f7edf9ef96afb3}{Pf}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00055\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structkeFields_a4a42ba7a19956534ddc3d0b1d611515f}{Ptheta}};\ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00056\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structkeFields_a2256adff9f82addc39913135e09e9991}{Eps}};\ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00057\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structkeFields_ae21f3352bfe468269287de8babf9e3b6}{lEm}};\ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00058\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structkeFields_ac7d1967717da290becadd9c2ee2afda4}{lDum}};\ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00059\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structkeFields_a9448ca938e92909762476bb6dea053b2}{lDup}};\ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00060\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structkeFields_a9452ecde29809fbfa6e836a8d5570cd2}{lF}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00061\ }
+\DoxyCodeLine{00062\ \ \ \ \ \textcolor{comment}{//\ fields\ which\ are\ not\ in\ the\ MKE\ but\ are\ useful\ for\ turbulence\ (only\ available\ for\ cartesian)}}
+\DoxyCodeLine{00063\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structkeFields_ad5ac7822ac70227f33f6a0f7890d483f}{lPturb}};\ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00064\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structkeFields_aa86900250d2b41c40864c61475daa6f0}{lPsgs}};\ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00065\ }
+\DoxyCodeLine{00066\ \ \ \ \ \textcolor{comment}{//\ working\ fields}}
+\DoxyCodeLine{00067\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structkeFields_a1a85ab4c95647db888dc9569838a5a0f}{lVmTauSGS}};\ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00068\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structkeFields_a7f0c3caac0a99b651f559f26249b0ea4}{lDpm}};\ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00069\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structkeFields_a099a186b04ef267e3d6c0571a6a05a3a}{lDpp}};\ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00070\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structkeFields_a5d3e86c43609132e4e89c54abfb9a043}{lUm}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00071\ }
+\DoxyCodeLine{00072\ \ \ \ \ \textcolor{comment}{//\ working\ fields\ at\ cell\ faces}}
+\DoxyCodeLine{00073\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ lVmVpVp;\ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00074\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ lVpVpVp;\ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00075\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ lVDm;\ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00076\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ lVmPmG;\ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00077\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ lVpPpG;\ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00078\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ lDdVm;\ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00079\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ lVmCsi;\ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00080\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ lVmEta;\ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00081\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ lVmZet;\ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00082\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ lVm;\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00083\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ lPm;\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00084\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ lVpVpEta;\ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00085\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ lVpVpCsi;\ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00086\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ lVpVpZet;\ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00087\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ lVpVp;\ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00088\ }
+\DoxyCodeLine{00089\ \};}
+\DoxyCodeLine{00090\ }
+\DoxyCodeLine{00091\ \textcolor{preprocessor}{\#endif}}
+
+\end{DoxyCode}

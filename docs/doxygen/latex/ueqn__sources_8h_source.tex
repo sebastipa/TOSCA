@@ -1,0 +1,38 @@
+\doxysection{ueqn\+\_\+sources.\+h}
+\hypertarget{ueqn__sources_8h_source}{}\label{ueqn__sources_8h_source}\index{/zfs60/nobackup/stipa/software/TOSCA/src/sources/ueqn\_sources.h@{/zfs60/nobackup/stipa/software/TOSCA/src/sources/ueqn\_sources.h}}
+\mbox{\hyperlink{ueqn__sources_8h}{Go to the documentation of this file.}}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{base_8h}{../include/base.h}}"{}}}
+\DoxyCodeLine{00002\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{domain_8h}{../include/domain.h}}"{}}}
+\DoxyCodeLine{00003\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{io_8h}{../include/io.h}}"{}}}
+\DoxyCodeLine{00004\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{inline_8h}{../include/inline.h}}"{}}}
+\DoxyCodeLine{00005\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{inflow_8h}{../include/inflow.h}}"{}}}
+\DoxyCodeLine{00006\ }
+\DoxyCodeLine{00009\ }
+\DoxyCodeLine{00010\ \textcolor{preprocessor}{\#ifndef\ UEQN\_SOURCES\_H}}
+\DoxyCodeLine{00011\ \textcolor{preprocessor}{\#define\ UEQN\_SOURCES\_H}}
+\DoxyCodeLine{00012\ }
+\DoxyCodeLine{00014\ PetscErrorCode\ CorrectSourceTerms(\mbox{\hyperlink{structueqn__}{ueqn\_}}\ *ueqn,\ PetscInt\ print);}
+\DoxyCodeLine{00015\ }
+\DoxyCodeLine{00017\ PetscErrorCode\ mapYDamping(\mbox{\hyperlink{structueqn__}{ueqn\_}}\ *ueqn);}
+\DoxyCodeLine{00018\ }
+\DoxyCodeLine{00020\ PetscErrorCode\ correctDampingSources(\mbox{\hyperlink{structueqn__}{ueqn\_}}\ *ueqn);}
+\DoxyCodeLine{00021\ }
+\DoxyCodeLine{00023\ PetscErrorCode\ Buoyancy(\mbox{\hyperlink{structueqn__}{ueqn\_}}\ *ueqn,\ PetscReal\ scale);}
+\DoxyCodeLine{00024\ }
+\DoxyCodeLine{00026\ PetscErrorCode\ sourceU(\mbox{\hyperlink{structueqn__}{ueqn\_}}\ *ueqn,\ Vec\ \&Rhs,\ PetscReal\ scale);}
+\DoxyCodeLine{00027\ }
+\DoxyCodeLine{00029\ PetscErrorCode\ dampingSourceU(\mbox{\hyperlink{structueqn__}{ueqn\_}}\ *ueqn,\ Vec\ \&Rhs,\ PetscReal\ scale);}
+\DoxyCodeLine{00030\ }
+\DoxyCodeLine{00032\ PetscErrorCode\ Coriolis(\mbox{\hyperlink{structueqn__}{ueqn\_}}\ *ueqn,\ Vec\ \&Rhs,\ PetscReal\ scale);}
+\DoxyCodeLine{00033\ }
+\DoxyCodeLine{00035\ PetscErrorCode\ CanopyForce(\mbox{\hyperlink{structueqn__}{ueqn\_}}\ *ueqn,\ Vec\ \&Rhs,\ PetscReal\ scale);}
+\DoxyCodeLine{00036\ }
+\DoxyCodeLine{00038\ PetscErrorCode\ meanGradPForcing(\mbox{\hyperlink{structueqn__}{ueqn\_}}\ *ueqn,\ Vec\ \&Rhs,\ PetscReal\ scale);}
+\DoxyCodeLine{00039\ }
+\DoxyCodeLine{00041\ PetscErrorCode\ hyperViscosityU(\mbox{\hyperlink{structueqn__}{ueqn\_}}\ *ueqn,\ Vec\ \&Rhs,\ PetscReal\ scale);}
+\DoxyCodeLine{00042\ }
+\DoxyCodeLine{00043\ }
+\DoxyCodeLine{00044\ \textcolor{preprocessor}{\#endif}}
+
+\end{DoxyCode}

@@ -1,0 +1,145 @@
+\doxysection{teqn\+\_\+ Struct Reference}
+\hypertarget{structteqn__}{}\label{structteqn__}\index{teqn\_@{teqn\_}}
+
+
+struct storing temperature equation  
+
+
+
+
+{\ttfamily \#include $<$teqn.\+h$>$}
+
+\doxysubsubsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{structteqn___ad793d4d640b21af365170d17e500ad4b}\label{structteqn___ad793d4d640b21af365170d17e500ad4b} 
+word {\bfseries solver\+Type}
+\begin{DoxyCompactList}\small\item\em solver type (kept for logging) \end{DoxyCompactList}\item 
+\Hypertarget{structteqn___a2865fe0e750ba802a6c12f60be2dda16}\label{structteqn___a2865fe0e750ba802a6c12f60be2dda16} 
+SNES {\bfseries snesT}
+\begin{DoxyCompactList}\small\item\em non linear matrix free context \end{DoxyCompactList}\item 
+\Hypertarget{structteqn___a03b1113ce97d47de49c716ca3dc6d9a8}\label{structteqn___a03b1113ce97d47de49c716ca3dc6d9a8} 
+Mat {\bfseries JT}
+\begin{DoxyCompactList}\small\item\em non linear matrix free preconditioner \end{DoxyCompactList}\item 
+\Hypertarget{structteqn___a4b5146dbb313c3d78988900160e1080c}\label{structteqn___a4b5146dbb313c3d78988900160e1080c} 
+Mat {\bfseries AT}
+\item 
+\Hypertarget{structteqn___aa32fee7373c09a394b671a7a22e0347a}\label{structteqn___aa32fee7373c09a394b671a7a22e0347a} 
+Mat {\bfseries CT}
+\item 
+\Hypertarget{structteqn___a583644edf19caad4402dd19a6e1a7b9e}\label{structteqn___a583644edf19caad4402dd19a6e1a7b9e} 
+KSP {\bfseries ksp}
+\begin{DoxyCompactList}\small\item\em linear krylov-\/subspace context (backward\+Euler/\+BDF2 SNES inner KSP) \end{DoxyCompactList}\item 
+\Hypertarget{structteqn___a06266f906507b4270abbce2879119e0a}\label{structteqn___a06266f906507b4270abbce2879119e0a} 
+PC {\bfseries pc}
+\item 
+\Hypertarget{structteqn___a2cf27ac552b726751bebd88b8705b0d0}\label{structteqn___a2cf27ac552b726751bebd88b8705b0d0} 
+KSP {\bfseries ksp\+IMEX}
+\begin{DoxyCompactList}\small\item\em standalone direct KSP for IMEX schemes \end{DoxyCompactList}\item 
+\Hypertarget{structteqn___a658bba5d87a3ac41b4a9c29dce20e8e0}\label{structteqn___a658bba5d87a3ac41b4a9c29dce20e8e0} 
+Mat {\bfseries Jv\+IMEX}
+\begin{DoxyCompactList}\small\item\em Mat\+Shell for IMEX operator A\texorpdfstring{$\ast$}{*}v. \end{DoxyCompactList}\item 
+\Hypertarget{structteqn___ab715f0a26eb9ca086ae7de9e3a638e18}\label{structteqn___ab715f0a26eb9ca086ae7de9e3a638e18} 
+word {\bfseries ksp\+Type}
+\begin{DoxyCompactList}\small\item\em KSP solver type for SNES/\+IMEX. \end{DoxyCompactList}\item 
+\Hypertarget{structteqn___ae0f04bd0c9c43f58ad1b349e0e77d0f1}\label{structteqn___ae0f04bd0c9c43f58ad1b349e0e77d0f1} 
+Petsc\+Int {\bfseries gmres\+Restart}
+\begin{DoxyCompactList}\small\item\em GMRES restart parameter for SNES/\+IMEX. \end{DoxyCompactList}\item 
+\Hypertarget{structteqn___a6b04a0448ae6c477683c5dd1e1dddc87}\label{structteqn___a6b04a0448ae6c477683c5dd1e1dddc87} 
+Vec {\bfseries Rhs}
+\begin{DoxyCompactList}\small\item\em rhs of the temperature equation \end{DoxyCompactList}\item 
+\Hypertarget{structteqn___ae8a81262d158fb30350a5d17a08ba0a8}\label{structteqn___ae8a81262d158fb30350a5d17a08ba0a8} 
+Vec {\bfseries bT}
+\begin{DoxyCompactList}\small\item\em rhs of the linear system in IMEX schemes \end{DoxyCompactList}\item 
+\Hypertarget{structteqn___af0e09814747f6a7daf78e3121aed4ffd}\label{structteqn___af0e09814747f6a7daf78e3121aed4ffd} 
+Vec {\bfseries Rhs\+Conv}
+\begin{DoxyCompactList}\small\item\em convective RHS at current time (for AB2 blending in ABBE) \end{DoxyCompactList}\item 
+\Hypertarget{structteqn___a89bc5de1acf69edcbcb2ecc44cab959f}\label{structteqn___a89bc5de1acf69edcbcb2ecc44cab959f} 
+Vec {\bfseries Rhs\+Conv\+\_\+o}
+\begin{DoxyCompactList}\small\item\em convective RHS at previous time (for AB2 blending in ABBE) \end{DoxyCompactList}\item 
+\Hypertarget{structteqn___a08719992a8b9e7b5fe04c0c8c2876f24}\label{structteqn___a08719992a8b9e7b5fe04c0c8c2876f24} 
+Vec {\bfseries Tmprt\+Tmp}
+\begin{DoxyCompactList}\small\item\em temporary solution \end{DoxyCompactList}\item 
+\Hypertarget{structteqn___a169c06741fb832f8cf2ca5401627ed30}\label{structteqn___a169c06741fb832f8cf2ca5401627ed30} 
+Vec {\bfseries Tmprt}
+\item 
+\Hypertarget{structteqn___a412ac3c1aca017d717391bd4a3524294}\label{structteqn___a412ac3c1aca017d717391bd4a3524294} 
+Vec {\bfseries l\+Tmprt}
+\item 
+\Hypertarget{structteqn___af472eda084b9b63b38115cf7fc3d6f16}\label{structteqn___af472eda084b9b63b38115cf7fc3d6f16} 
+Vec {\bfseries Tmprt\+\_\+o}
+\item 
+\Hypertarget{structteqn___a10b69441953e3eac0f76e7ad6fcefd99}\label{structteqn___a10b69441953e3eac0f76e7ad6fcefd99} 
+Vec {\bfseries l\+Tmprt\+\_\+o}
+\item 
+\Hypertarget{structteqn___a5b9361a163d0d9b4c7b1961f3db40468}\label{structteqn___a5b9361a163d0d9b4c7b1961f3db40468} 
+Vec {\bfseries Tmprt\+\_\+oo}
+\begin{DoxyCompactList}\small\item\em previous solution for BDF2 \end{DoxyCompactList}\item 
+\Hypertarget{structteqn___afdb390b9319f9d2e6fe042b6e7feba26}\label{structteqn___afdb390b9319f9d2e6fe042b6e7feba26} 
+Vec {\bfseries l\+DivT}
+\item 
+\Hypertarget{structteqn___aa92ade1ea0f970ac0a5a15823885e10d}\label{structteqn___aa92ade1ea0f970ac0a5a15823885e10d} 
+Vec {\bfseries l\+ViscT}
+\item 
+\Hypertarget{structteqn___a6b967959292b1b84a4787df47abec87a}\label{structteqn___a6b967959292b1b84a4787df47abec87a} 
+Vec {\bfseries l\+Visc\+IBMT}
+\begin{DoxyCompactList}\small\item\em viscous and divergence temperature equation fluxes \end{DoxyCompactList}\item 
+\Hypertarget{structteqn___a97958d42832a6fae314d6554cd2256d8}\label{structteqn___a97958d42832a6fae314d6554cd2256d8} 
+Vec {\bfseries sourceT}
+\begin{DoxyCompactList}\small\item\em temperature sources \end{DoxyCompactList}\item 
+\Hypertarget{structteqn___a0fac851cfcd60dbd65dc349067dc1fbd}\label{structteqn___a0fac851cfcd60dbd65dc349067dc1fbd} 
+Vec {\bfseries l\+RhoK}
+\begin{DoxyCompactList}\small\item\em rhok / rho0 field \end{DoxyCompactList}\item 
+\Hypertarget{structteqn___a7ca5c93a84524d73a2dd3b97c575b01e}\label{structteqn___a7ca5c93a84524d73a2dd3b97c575b01e} 
+Vec {\bfseries gh\+Grad\+Rhok}
+\begin{DoxyCompactList}\small\item\em buoyancy term for momentum equation (current step) \end{DoxyCompactList}\item 
+\Hypertarget{structteqn___ad55ae307b8f26f0ad7d5013644589cf8}\label{structteqn___ad55ae307b8f26f0ad7d5013644589cf8} 
+Vec {\bfseries gh\+Grad\+Rhok\+\_\+o}
+\begin{DoxyCompactList}\small\item\em buoyancy term for momentum equation (previous step, for AB2) \end{DoxyCompactList}\item 
+\Hypertarget{structteqn___a753aecc71dfd88a1c882b548adef5b1f}\label{structteqn___a753aecc71dfd88a1c882b548adef5b1f} 
+Petsc\+Real {\bfseries abs\+Exit\+Tol}
+\begin{DoxyCompactList}\small\item\em absolute exit tolerance \end{DoxyCompactList}\item 
+\Hypertarget{structteqn___a58f4daea64a4af85adb457275300ad7f}\label{structteqn___a58f4daea64a4af85adb457275300ad7f} 
+Petsc\+Real {\bfseries rel\+Exit\+Tol}
+\begin{DoxyCompactList}\small\item\em relative exit tolerance \end{DoxyCompactList}\item 
+\Hypertarget{structteqn___aaa59e54999e6a82c3be430be46827521}\label{structteqn___aaa59e54999e6a82c3be430be46827521} 
+word {\bfseries ddt\+Scheme}
+\begin{DoxyCompactList}\small\item\em time derivative scheme \end{DoxyCompactList}\item 
+\Hypertarget{structteqn___afeee15c5561da5eca76fc46775edb5a0}\label{structteqn___afeee15c5561da5eca76fc46775edb5a0} 
+Petsc\+Real {\bfseries hyper\+Visc4i}
+\begin{DoxyCompactList}\small\item\em IMEX biharmonic hyperviscosity along i (ξ) index direction (-\/imex\+Hyper\+Visc4\+U\+\_\+i, default 0) \end{DoxyCompactList}\item 
+\Hypertarget{structteqn___a048e15ba81c2fe31a05a193c355a3b85}\label{structteqn___a048e15ba81c2fe31a05a193c355a3b85} 
+Petsc\+Real {\bfseries hyper\+Visc4j}
+\begin{DoxyCompactList}\small\item\em IMEX biharmonic hyperviscosity along j (η) index direction (-\/imex\+Hyper\+Visc4\+U\+\_\+j, default 0) \end{DoxyCompactList}\item 
+\Hypertarget{structteqn___a68680cfcc74ba75de8a143d1a5606858}\label{structteqn___a68680cfcc74ba75de8a143d1a5606858} 
+Petsc\+Real {\bfseries hyper\+Visc4k}
+\begin{DoxyCompactList}\small\item\em IMEX biharmonic hyperviscosity along k (ζ) index direction, typically vertical (-\/imex\+Hyper\+Visc4\+U\+\_\+k, default 0) \end{DoxyCompactList}\item 
+\Hypertarget{structteqn___a54bb29a3c79fff129985e4ec40b5e7bd}\label{structteqn___a54bb29a3c79fff129985e4ec40b5e7bd} 
+\mbox{\hyperlink{structwallModel}{wall\+Model}} \texorpdfstring{$\ast$}{*} {\bfseries i\+LWM}
+\begin{DoxyCompactList}\small\item\em wall model on the i-\/left patch \end{DoxyCompactList}\item 
+\Hypertarget{structteqn___a250a5c3086987e57dd0465adf283b6fc}\label{structteqn___a250a5c3086987e57dd0465adf283b6fc} 
+\mbox{\hyperlink{structwallModel}{wall\+Model}} \texorpdfstring{$\ast$}{*} {\bfseries i\+RWM}
+\begin{DoxyCompactList}\small\item\em wall model on the i-\/right patch \end{DoxyCompactList}\item 
+\Hypertarget{structteqn___abd50b696b61ef432378b52a61d3400da}\label{structteqn___abd50b696b61ef432378b52a61d3400da} 
+\mbox{\hyperlink{structwallModel}{wall\+Model}} \texorpdfstring{$\ast$}{*} {\bfseries j\+LWM}
+\begin{DoxyCompactList}\small\item\em wall model on the j-\/left patch \end{DoxyCompactList}\item 
+\Hypertarget{structteqn___a6258db96c7be61a905b6db6c07705c25}\label{structteqn___a6258db96c7be61a905b6db6c07705c25} 
+\mbox{\hyperlink{structwallModel}{wall\+Model}} \texorpdfstring{$\ast$}{*} {\bfseries j\+RWM}
+\begin{DoxyCompactList}\small\item\em wall model on the j-\/right patch \end{DoxyCompactList}\item 
+\Hypertarget{structteqn___ae9c973020f5d893ee693463cb9225f26}\label{structteqn___ae9c973020f5d893ee693463cb9225f26} 
+Petsc\+Int {\bfseries p\+Tilde\+Formulation}
+\begin{DoxyCompactList}\small\item\em buoyancy term is expressed as gradient in momentum \end{DoxyCompactList}\item 
+\Hypertarget{structteqn___afd937742eebf6b4b548cf05a869d8135}\label{structteqn___afd937742eebf6b4b548cf05a869d8135} 
+word {\bfseries init\+Field\+Type}
+\item 
+\Hypertarget{structteqn___a929a7048f5cef226f108b0db513685c0}\label{structteqn___a929a7048f5cef226f108b0db513685c0} 
+\mbox{\hyperlink{structaccess__}{access\+\_\+}} \texorpdfstring{$\ast$}{*} {\bfseries access}
+\begin{DoxyCompactList}\small\item\em access database \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+struct storing temperature equation 
+
+The documentation for this struct was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+/zfs60/nobackup/stipa/software/\+TOSCA/src/include/\mbox{\hyperlink{teqn_8h}{teqn.\+h}}\end{DoxyCompactItemize}

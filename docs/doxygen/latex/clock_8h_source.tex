@@ -1,0 +1,37 @@
+\doxysection{clock.\+h}
+\hypertarget{clock_8h_source}{}\label{clock_8h_source}\index{/zfs60/nobackup/stipa/software/TOSCA/src/include/clock.h@{/zfs60/nobackup/stipa/software/TOSCA/src/include/clock.h}}
+\mbox{\hyperlink{clock_8h}{Go to the documentation of this file.}}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ }
+\DoxyCodeLine{00003\ }
+\DoxyCodeLine{00004\ \textcolor{preprocessor}{\#ifndef\ \_CLOCK\_H\_}}
+\DoxyCodeLine{00005\ \textcolor{preprocessor}{\#define\ \_CLOCK\_H\_}}
+\DoxyCodeLine{00006\ }
+\DoxyCodeLine{00007\ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structclock__}{clock\_}}}
+\DoxyCodeLine{00008\ \{}
+\DoxyCodeLine{00009\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \mbox{\hyperlink{structclock___a3422d46b301c3748a32d1aee26b89fd3}{time}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00010\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \mbox{\hyperlink{structclock___ad28af656d7bf4ffb491d212238cd60eb}{startTime}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00011\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \mbox{\hyperlink{structclock___a0838d9fa388f09c2ac89f5ce8b32378e}{endTime}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00012\ }
+\DoxyCodeLine{00013\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structclock___a3ccc43612034e0fe46e20cdf0990da5f}{startFrom}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00014\ }
+\DoxyCodeLine{00015\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \mbox{\hyperlink{structclock___a7aee5cbbfc97f4211c90c636c59655fe}{dt}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00016\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \mbox{\hyperlink{structclock___abec4fa1cf3e8734230dfb7c511527dc0}{startDt}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00017\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \mbox{\hyperlink{structclock___a80e555867fef8c04a6583b15ff9bf0aa}{dtOld}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00018\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \mbox{\hyperlink{structclock___a3d4d2a9b7aa3d57b70c44f1f123f708b}{cfl}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00019\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \mbox{\hyperlink{structclock___ae59efd875224974e32b935c7e00f019a}{dxMin}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00020\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \mbox{\hyperlink{structclock___a32bf9bb579445646990716a4cb0b575c}{acquisitionDt}};\ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00021\ }
+\DoxyCodeLine{00022\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structclock___af83016cb4bb0a771fd86fd208efeb1e2}{it}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00023\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structclock___aadea0693f00eecbfef743dbb26990e19}{itStart}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00024\ }
+\DoxyCodeLine{00025\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structclock___a975104304175529b7f67b87bca4748ed}{timePrecision}};\ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00026\ \};}
+\DoxyCodeLine{00027\ }
+\DoxyCodeLine{00028\ \textcolor{preprocessor}{\#endif}}
+\DoxyCodeLine{00029\ }
+\DoxyCodeLine{00030\ PetscErrorCode\ adjustTimeStep(\mbox{\hyperlink{structdomain__}{domain\_}}\ *domain);}
+\DoxyCodeLine{00031\ }
+\DoxyCodeLine{00032\ PetscErrorCode\ timeStepInfo(\mbox{\hyperlink{structdomain__}{domain\_}}\ *domain,\ \mbox{\hyperlink{structclock__}{clock\_}}\ *clock,\ PetscReal\ \&dxByU\_min,\ PetscReal\ \&maxU,\ \mbox{\hyperlink{structcellIds}{cellIds}}\ \&maxUCell);}
+
+\end{DoxyCode}
