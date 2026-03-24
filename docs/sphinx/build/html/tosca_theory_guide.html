@@ -92,22 +92,8 @@
              
   <section id="theory-guide">
 <span id="theory-section"></span><h1>Theory Guide<a class="headerlink" href="#theory-guide" title="Link to this heading"></a></h1>
-<p>TOSCA is a finite-volume code, formulated in generalized curvilinear coordinates, allowing it to take as input also non-Cartesian structured meshes.
-The present section is organized as follows. The governing equations in Cartesian coordinates are reported in Sec. <a class="reference internal" href="04_theory_guide/governing_equations.html#gov-equations-section"><span class="std std-ref">Governing Equations</span></a>, TOSCA’s
-numerical method — including the generalized curvilinear coordinate framework, the fractional-step projection method, velocity–temperature
-buoyancy coupling — are described in Sec. <a class="reference internal" href="04_theory_guide/numerics.html#numerics-section"><span class="std std-ref">Numerical Method</span></a>. The available time-integration schemes for both the momentum and temperature equations are
-detailed in Sec. <a class="reference internal" href="04_theory_guide/time_integration.html#time-integration-section"><span class="std std-ref">Time Integration Schemes</span></a>, while advection schemes for the divergence term are summarized in Sec. <a class="reference internal" href="04_theory_guide/advection_schemes.html#advection-schemes-section"><span class="std std-ref">Advection Schemes</span></a>.
-The sub-grid scale turbulence models in curvilinear coordinates available in TOSCA are detailed in Sec. <a class="reference internal" href="04_theory_guide/turbulence_models.html#sgs-model-section"><span class="std std-ref">Sub-grid Scale Models</span></a>. Velocity and temperature controllers
-either used to avoid inertial oscillations produced by the Coriolis force in the free atmosphere when the initial condition is not consistent with the geostrophic wind,
-to fix a given velocity at a reference height or to couple the TOSCA model with mesoscale model outputs (micro-scale to meso-scale coupling) are described in
-Sec. <a class="reference internal" href="04_theory_guide/flow_controllers.html#controllers-section"><span class="std std-ref">Flow Controllers and Mesoscale Coupling</span></a>. Sec. <a class="reference internal" href="04_theory_guide/precursor.html#precursor-section"><span class="std std-ref">Precursor, Fringe Regions &amp; Damping Layers</span></a> details TOSCA’s hybrid off-line/concurrent precursor methodology, which saves
-computational resources when performing the turbulence initialization in the precursor phase. The sharp-interface immersed boundary method (IBM), which
-enables the simulation of flows over complex terrain, objects and moving bodies, is described in Sec. <a class="reference internal" href="04_theory_guide/ibm.html#ibm-theory-section"><span class="std std-ref">Immersed Boundary Method</span></a>. Actuator models used to
-represent wind turbines in the domain are described in Sec. <a class="reference internal" href="04_theory_guide/turbine_models.html#turbine-models-section"><span class="std std-ref">Turbine Models</span></a>. Finally, an overview of TOSCA’s parallel efficiency is given in
-Sec. <a class="reference internal" href="04_theory_guide/parallel_efficiency.html#parallel-eff-section"><span class="std std-ref">Parallel Efficiency</span></a>, where the time per iteration is analyzed with increasing number of nodes and mesh elements on the Niagara
-high-performance computer at the SciNet HPC Consortium in Canada. Notably, TOSCA has been used to run finite wind farm simulations on the entire
-Niagara cluster (2024 nodes, 40 cores per node) and on all Cascade nodes of the University of British Columbia Sockeye cluster, at the  Advanced
-Research and Computing Lab, demonstrating its capability to handle massively-parallel computations.</p>
+<p>TOSCA is a finite-volume, incompressible code, formulated in generalized curvilinear coordinates. The present section describes the theory behind TOSCA, please
+refer to the following index to access the different subsections.</p>
 <div class="toctree-wrapper compound">
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="04_theory_guide/governing_equations.html">Governing Equations</a></li>
@@ -122,6 +108,20 @@ Research and Computing Lab, demonstrating its capability to handle massively-par
 <li class="toctree-l1"><a class="reference internal" href="04_theory_guide/turbine_models.html">Turbine Models</a></li>
 </ul>
 </div>
+<p>In particular, the governing equations in Cartesian coordinates are reported in Sec. <a class="reference internal" href="04_theory_guide/governing_equations.html#gov-equations-section"><span class="std std-ref">Governing Equations</span></a>, TOSCA’s
+numerical method — including the generalized curvilinear coordinate framework, the fractional-step projection method and velocity–temperature coupling — are
+described in Sec. <a class="reference internal" href="04_theory_guide/numerics.html#numerics-section"><span class="std std-ref">Numerical Method</span></a>. The available time-integration schemes for both the momentum and temperature equations are
+detailed in Sec. <a class="reference internal" href="04_theory_guide/time_integration.html#time-integration-section"><span class="std std-ref">Time Integration Schemes</span></a>, while advection schemes for the divergence term are summarized in Sec. <a class="reference internal" href="04_theory_guide/advection_schemes.html#advection-schemes-section"><span class="std std-ref">Advection Schemes</span></a>.
+All sub-grid scale turbulence models in curvilinear coordinates available in TOSCA are detailed in Sec. <a class="reference internal" href="04_theory_guide/turbulence_models.html#sgs-model-section"><span class="std std-ref">Sub-grid Scale Models</span></a>. Velocity and temperature controllers
+either used to fix a given velocity at a reference height or to couple the TOSCA model with mesoscale model outputs through data assimilation are described in
+Sec. <a class="reference internal" href="04_theory_guide/flow_controllers.html#controllers-section"><span class="std std-ref">Flow Controllers and Mesoscale Coupling</span></a>. Sec. <a class="reference internal" href="04_theory_guide/precursor.html#precursor-section"><span class="std std-ref">Precursor, Fringe Regions &amp; Damping Layers</span></a> details TOSCA’s hybrid off-line/concurrent precursor methodology, which saves
+computational resources when performing the turbulence initialization of boundary layer flows. The sharp-interface immersed boundary method (IBM), which
+enables the simulation of flows over complex terrain, objects and moving bodies, is described in Sec. <a class="reference internal" href="04_theory_guide/ibm.html#ibm-theory-section"><span class="std std-ref">Immersed Boundary Method</span></a>. Actuator models used to
+represent wind turbines in the domain are described in Sec. <a class="reference internal" href="04_theory_guide/turbine_models.html#turbine-models-section"><span class="std std-ref">Turbine Models</span></a>. Finally, an overview of TOSCA’s parallel efficiency is given in
+Sec. <a class="reference internal" href="04_theory_guide/parallel_efficiency.html#parallel-eff-section"><span class="std std-ref">Parallel Efficiency</span></a>, where the time per iteration is analyzed with increasing number of nodes and mesh elements on the Niagara
+high-performance computer at the SciNet HPC Consortium in Canada.</p>
+<p>Notably, TOSCA has been used to run large wind farm simulations on the entire Niagara cluster (2024 nodes, 40 cores per node) and on all Cascade nodes of the
+University of British Columbia Sockeye cluster, at the  Advanced Research and Computing Lab, demonstrating its capability to handle massively-parallel computations.</p>
 </section>
 
 

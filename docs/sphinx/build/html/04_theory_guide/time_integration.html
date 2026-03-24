@@ -64,8 +64,8 @@
 <li class="toctree-l2"><a class="reference internal" href="turbulence_models.html">Sub-grid Scale Models</a></li>
 <li class="toctree-l2"><a class="reference internal" href="flow_controllers.html">Flow Controllers and Mesoscale Coupling</a></li>
 <li class="toctree-l2"><a class="reference internal" href="precursor.html">Precursor, Fringe Regions &amp; Damping Layers</a></li>
-<li class="toctree-l2"><a class="reference internal" href="turbine_models.html">Turbine Models</a></li>
 <li class="toctree-l2"><a class="reference internal" href="ibm.html">Immersed Boundary Method</a></li>
+<li class="toctree-l2"><a class="reference internal" href="turbine_models.html">Turbine Models</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../tosca_versions.html">Versions</a></li>
@@ -101,7 +101,7 @@
 <p>TOSCA features six time-stepping schemes for the momentum equation and four schemes for the temperature equation. These are selectable in the <code class="docutils literal notranslate"><span class="pre">control.dat</span></code>
 file via the keywords <code class="docutils literal notranslate"><span class="pre">-dUdtScheme</span></code> and <code class="docutils literal notranslate"><span class="pre">-dTdtScheme</span></code>, respectively. In the following sections, the mathematical formulation of each scheme is
 presented, along with recommendations for their use in different types of simulations. Guidelines regarding their combination and usage for
-production runs are also provided.</p>
+production runs are also provided at the end of this section.</p>
 <section id="momentum-equation">
 <h2>Momentum Equation<a class="headerlink" href="#momentum-equation" title="Link to this heading"></a></h2>
 <p>Let <span class="math notranslate nohighlight">\(\mathcal{H}^q_U(V^q, u_k) = N^q_U + L^q_U + S^q_U\)</span> denote the full right-hand side of the momentum equation, where <span class="math notranslate nohighlight">\(N^q_U\)</span>, <span class="math notranslate nohighlight">\(L^q_U\)</span> and <span class="math notranslate nohighlight">\(S^q_U\)</span>

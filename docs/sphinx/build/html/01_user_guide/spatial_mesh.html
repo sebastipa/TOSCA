@@ -43,8 +43,8 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
-<ul class="current">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../tosca_getting_started.html">Getting Started</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tosca_installation.html">Installation</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="../tosca_user_guide.html">User Guide</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="input_files.html">Input Files</a></li>
@@ -125,7 +125,8 @@ x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span 
 <span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">50</span>
 </pre></div>
 </div>
-<p>As can be noticed, the mesh file is extremely light, even for large meshes, as only the discretization along the three cartesian axes is provided. The coordinates of the remaining mesh cells are inferred iternally within TOSCA, starting from the axes discretization.</p>
+<p>As can be noticed, the mesh file is extremely light, even for large meshes, as only the discretization along the three cartesian axes is provided. The
+coordinates of the remaining mesh cells are inferred internally within TOSCA, starting from the discretization along the Cartesian axes.</p>
 <p>The <code class="docutils literal notranslate"><span class="pre">.grid</span></code> format is a curvilinear mesh format (available for example in the meshing software <cite>Pointwise</cite>), where the cartesian coordinates of each mesh point are provided. This becomes useful when the mesh is deformed, and a unique relationship between the cartesian and curvilinear sets of coordinates does not exist anymore. This is a much heavier mesh format, which can be generalized as follows</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>Nj<span class="w"> </span>Nk<span class="w"> </span>Ni
 x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span><span class="m">1</span>,i<span class="o">=</span><span class="m">1</span><span class="o">)</span><span class="w"> </span>.....<span class="w"> </span>x<span class="o">(</span><span class="nv">k</span><span class="o">=</span><span class="m">1</span>,j<span class="o">=</span>Nj,i<span class="o">=</span><span class="m">1</span><span class="o">)</span>

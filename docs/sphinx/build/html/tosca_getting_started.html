@@ -45,7 +45,10 @@
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <ul class="current">
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Getting Started</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Getting Started</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#note-on-the-use-of-curvilinear-coordinates">Note on the use of curvilinear coordinates</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="tosca_installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tosca_user_guide.html">User Guide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tosca_examples.html">Example Cases</a></li>
@@ -80,46 +83,12 @@
              
   <section id="getting-started">
 <span id="getting-started-section"></span><h1>Getting Started<a class="headerlink" href="#getting-started" title="Link to this heading"></a></h1>
-<p>TOSCA is designed to run on massive supercomputers with thousands of cores, thanks to
+<p>TOSCA solves the incompressible Navier–Stokes equations for a flow with (optional) Coriolis forces, (optionally) augmented by the Boussinesq approximation for buoyancy.
+The buoyancy term is evaluated through the modified density <span class="math notranslate nohighlight">\(\rho_k\)</span>, derived from a transport equation for the potential temperature.</p>
+<p>The code is designed to run on massive supercomputers with thousands of cores, thanks to
 its excellent parallel strong scaling efficiency. Nevertheless, some small test cases, which
 should run on most personal computers, are provided to allow users to familiarize with the
 code and its capabilities.</p>
-<p>One should keep in mind that TOSCA uses <strong>generalized curvilinear coordinates</strong>, so that all
-kinds of structured meshes can be handled (cartesian and deformed). From a mathematical
-point of view, this allows us to use a <em>cartesian-like</em> discretization approach in the curvilinear
-space. Loosely speaking, curvilinear directions can be defined depending on how mesh cells
-are indexed in the loops, i.e. through i,j,k indexing. It is clear from the figure below that,
-unless the mesh is cartesian, it is impossible to refer to boundary patches in terms of their caresian
-coordinates. As a consequence, frequently in this document we will speak in terms of curvilinear
-directions (k,j,i, or <span class="math notranslate nohighlight">\(\xi\)</span>, <span class="math notranslate nohighlight">\(\eta\)</span>, <span class="math notranslate nohighlight">\(\zeta\)</span>) rather than cartesian coordinates.</p>
-<p>When ABL capabilities are activated in TOSCA, a cartesian (optionally stretched) mesh must be used,
-where z is the vertical direction, y is the spanwise direction and x is the streamwise direction. When
-this is the case, the following convention is adopted for relating curvilinear to cartesian
-directions: k (or <span class="math notranslate nohighlight">\(\zeta\)</span>) direction corresponds to x, j (or <span class="math notranslate nohighlight">\(\eta\)</span>) direction
-corresponds to z and i (or <span class="math notranslate nohighlight">\(\xi\)</span>) direction corresponds to y. This must be kept
-in mind when applying boundary conditions, as boundaries are referred to as <em>iLeft</em>, <em>iRight</em>,
-<em>jLeft</em>, <em>jRight</em>, <em>kLeft</em> and <em>kRight</em>, as shown in the figure below.</p>
-<a class="reference internal image-reference" href="_images/tosca-grids.jpg"><img alt="_images/tosca-grids.jpg" src="_images/tosca-grids.jpg" style="width: 100%;" />
-</a>
-<br><p>This is explained in more detail in Sec. <a class="reference internal" href="01_user_guide/spatial_mesh.html#spatial-mesh-section"><span class="std std-ref">Spatial Mesh</span></a>. For the sake of
-brevity, here it sufficies to know that any mesh provided to TOSCA, either cartesian (
-through the <em>.xyz</em> format) or curvilinear (through the <em>.grid</em> format), is always internally
-defined in curvilinear space and so should be the boundary conditions.</p>
-<p>TOSCA automatically handles this transformation if a <em>.xyz</em> file format is used, and
-only the k,j,i = x,z,y convention has to be kept in mind in order to know which boundary is
-the wall and so on. Conversely, when the mesh is deformed, a unique relationship between the two set of
-coordinates doesn’t exist anymore, and curvilinear coordinates are assigned depending on
-how the mesh file has been created. In particular TOSCA always uses nested loops with k,j,i
-ordering to index mesh cells. As a consequence, to yield the situation displayed on the right
-of the above figure, the <em>.grid</em> file should store all points with j=1 first, then j=2 and so on. To further
-clarify this concept, consider the case where a cartesian mesh is provided trough the <em>.grid</em>
-format. To retain TOSCA’s convention in this case, the file should be created indexing the
-points with a nested loop with x,z,y ordering. In this case, as the file is read from TOSCA,
-coordinates are stored in the k,j,i directions.</p>
-<p>An <strong>example cartesian mesh</strong> is provided in Sec. <a class="reference internal" href="01_user_guide/spatial_mesh.html#spatial-mesh-section"><span class="std std-ref">Spatial Mesh</span></a>, both in the <em>.grid</em> and <em>.xyz</em> formats.
-Notably, the user only needs to know which boundary is which, consequently
-being able to apply boundary condition the way he intends to. Not respecting the convention doesn’t have an
-impact on the code behavior if ABL is de-activated (<code class="docutils literal notranslate"><span class="pre">-abl</span></code> flag set to 0 or omitted in the <em>control.dat</em> file).</p>
 <p>After <strong>installing</strong> the code as described in Sec. <a class="reference internal" href="tosca_installation.html#installation-section"><span class="std std-ref">Installation</span></a>, the user is advised to run one of the
 provided <strong>example cases</strong> available in the <em>tests</em> directory. Some of them are described in Sec. <a class="reference internal" href="tosca_examples.html#examples-section"><span class="std std-ref">Example Cases</span></a>,
 and we advise to run them in the order they are described to get familiar with TOSCA’s workflow.</p>
@@ -130,10 +99,45 @@ along with a description of all possible entries. TOSCA’s data <strong>acquisi
 <a class="reference internal" href="01_user_guide/acquisition.html#acquisition-section"><span class="std std-ref">Data Acquisition System</span></a>, where the user can find all the information needed to extract different outputs from TOSCA simulations.
 A description of TOSCA’s <strong>overset mesh</strong> capabilities is provided in Sec. <a class="reference internal" href="01_user_guide/overset.html#overset-section"><span class="std std-ref">2-Way Nesting (Overset Mesh)</span></a>, and some examples are given in
 the <em>tests</em> directory.</p>
-<p>The <strong>theory</strong> behind TOSCA’s numerical methods is described in Sec. <a class="reference internal" href="tosca_theory_guide.html#theory-section"><span class="std std-ref">Theory Guide</span></a>, while a general overview
-of all <strong>applications</strong> where TOSCA can be used is provided in Sec. <a class="reference internal" href="tosca_applications.html#applications-section"><span class="std std-ref">TOSCA Applications</span></a> (these sections are still under development).</p>
+<p>The <strong>theory</strong> behind TOSCA is described in Sec. <a class="reference internal" href="tosca_theory_guide.html#theory-section"><span class="std std-ref">Theory Guide</span></a>. Finally, a general overview
+of all <strong>applications</strong> where TOSCA can be used is provided in Sec. <a class="reference internal" href="tosca_applications.html#applications-section"><span class="std std-ref">TOSCA Applications</span></a> (this sections is still under development).</p>
 <p><strong>General information</strong> on how to get support, report bugs and contribute to the TOSCA code development is provided in the
 <a class="reference external" href="./index.html">Main Page</a> of this documentation.</p>
+<p>If you don’t find what you are looking for in this documentation, please don’t hesitate to open an issue on the <a class="reference external" href="https://github.com/sebastipa/TOSCA">TOSCA GitHub repository</a>.</p>
+<section id="note-on-the-use-of-curvilinear-coordinates">
+<h2>Note on the use of curvilinear coordinates<a class="headerlink" href="#note-on-the-use-of-curvilinear-coordinates" title="Link to this heading"></a></h2>
+<p>One should keep in mind that TOSCA uses <strong>generalized curvilinear coordinates</strong>, so that all
+kinds of structured meshes can be handled (cartesian and deformed). From a mathematical
+point of view, this allows us to use a <em>cartesian-like</em> discretization approach in the curvilinear
+space. Loosely speaking, curvilinear directions may (and in TOSCA they do) correspond to mesh cells
+indices i,j,k.</p>
+<p>Looking at the figure below it is clear that, unless the mesh is cartesian, it is impossible to refer to any
+boundary patch in terms of x left, x right, y left … etc. Conversely, boundaries can always be identified without
+confusion as i left, i right, j left, j right, k left and k right.
+As a consequence, frequently this document refers to curvilinear directions (i,j,k, or <span class="math notranslate nohighlight">\(\xi\)</span>, <span class="math notranslate nohighlight">\(\eta\)</span>, <span class="math notranslate nohighlight">\(\zeta\)</span>) rather than cartesian coordinates.</p>
+<p>When ABL capabilities are activated in TOSCA, only a cartesian (optionally stretched) mesh must be used,
+where z is the vertical direction, y is the spanwise direction and x is the streamwise direction. When
+this is the case (or when a Cartesian mesh is used in general), <strong>the following convention is adopted for relating curvilinear to cartesian
+directions:</strong> k (or <span class="math notranslate nohighlight">\(\zeta\)</span>) direction corresponds to x, j (or <span class="math notranslate nohighlight">\(\eta\)</span>) direction
+corresponds to z and i (or <span class="math notranslate nohighlight">\(\xi\)</span>) direction corresponds to y. This is explained in more detail
+in Sec. <a class="reference internal" href="01_user_guide/spatial_mesh.html#spatial-mesh-section"><span class="std std-ref">Spatial Mesh</span></a> and must be kept in mind when applying boundary conditions,
+as boundaries are always unabiguously identified to in TOSCA as <em>iLeft</em>, <em>iRight</em>,
+<em>jLeft</em>, <em>jRight</em>, <em>kLeft</em> and <em>kRight</em>, as shown in the figure below.</p>
+<a class="reference internal image-reference" href="_images/tosca-grids.jpg"><img alt="_images/tosca-grids.jpg" src="_images/tosca-grids.jpg" style="width: 100%;" />
+</a>
+<br><p>For the end user, it sufficies to know that any mesh provided to TOSCA, either cartesian (through the <em>.xyz</em> format)
+or curvilinear (through the <em>.grid</em> format), is always internally
+defined in curvilinear space and so should be the boundary conditions. The transformation between the two spaces
+is then automatically and internally handled by the code.</p>
+<p>When a cartesian mesh is provided through the <em>.xyz</em> format, the user must keep in mind the
+convention described above to know which boundary is which, but no further action is needed.</p>
+<p>Conversely, when the mesh is deformed, a unique relationship between the two set of
+coordinates doesn’t exist anymore, and curvilinear coordinates are assigned depending on
+how the mesh file has been created. An <strong>example cartesian mesh</strong> is provided in Sec. <a class="reference internal" href="01_user_guide/spatial_mesh.html#spatial-mesh-section"><span class="std std-ref">Spatial Mesh</span></a>, both in the <em>.grid</em> and <em>.xyz</em> formats, to
+clarify this concept. Notably, the user only needs to know which boundary is which, consequently
+being able to apply boundary condition the way he intends to. Not respecting the convention doesn’t have an
+impact on the code behavior if ABL is de-activated (<code class="docutils literal notranslate"><span class="pre">-abl</span></code> flag set to 0 or omitted in the <em>control.dat</em> file).</p>
+</section>
 </section>
 
 
