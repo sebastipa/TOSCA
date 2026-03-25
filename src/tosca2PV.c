@@ -4882,12 +4882,12 @@ PetscErrorCode iSectionLoadSymmTensorFromField(Vec &V, mesh_ *mesh, sections *se
         }
         for (j=0; j<my; j++)
         {
-            sec->symmTensorSec[0][i].xx = sec->symmTensorSec[1][i].xx;
-            sec->symmTensorSec[0][i].yy = sec->symmTensorSec[1][i].yy;
-            sec->symmTensorSec[0][i].zz = sec->symmTensorSec[1][i].zz;
-            sec->symmTensorSec[0][i].xy = sec->symmTensorSec[1][i].xy;
-            sec->symmTensorSec[0][i].xz = sec->symmTensorSec[1][i].xz;
-            sec->symmTensorSec[0][i].yz = sec->symmTensorSec[1][i].yz;
+            sec->symmTensorSec[0][j].xx = sec->symmTensorSec[1][j].xx;
+            sec->symmTensorSec[0][j].yy = sec->symmTensorSec[1][j].yy;
+            sec->symmTensorSec[0][j].zz = sec->symmTensorSec[1][j].zz;
+            sec->symmTensorSec[0][j].xy = sec->symmTensorSec[1][j].xy;
+            sec->symmTensorSec[0][j].xz = sec->symmTensorSec[1][j].xz;
+            sec->symmTensorSec[0][j].yz = sec->symmTensorSec[1][j].yz;
 
             sec->symmTensorSec[mz-1][j].xx = sec->symmTensorSec[mz-2][j].xx;
             sec->symmTensorSec[mz-1][j].yy = sec->symmTensorSec[mz-2][j].yy;
