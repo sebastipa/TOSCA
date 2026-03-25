@@ -1040,6 +1040,8 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
     DMDAVecRestoreArray(fda, ueqn->lUcat,  &ucat);
     DMDAVecRestoreArray(fda, Rhs,  &rhs);
 
+    resetNonResolvedCellFaces(mesh, ueqn->Utmp);
+
     return(0);
 }
 
@@ -1207,11 +1209,17 @@ PetscErrorCode SNESFuncEval(SNES snes, Vec Ucont, Vec Rhs, void *ptr)
         dampingSourceU(ueqn, Rhs, 1.0);  
     }
 
-    // implicit mean pressure gradient forcing term
-    if(ueqn->access->flags->isMeangradPForcingActive)
+    // bulk-gradient pressure forcing
+    if(ueqn->access->flags->isBulkGradPForcingActive)
     {
-        meanGradPForcing(ueqn, Rhs, 1.0);
+        bulkGradPForcing(ueqn, Rhs, 1.0);
     } 
+
+    // mean pressure gradient forcing
+    if(ueqn->access->flags->isMeanGradPForcingActive)
+    {
+        meanGradPForcing(ueqn, ueqn->Rhs, 1.0);
+    }
 
     // multiply for dt
     VecScale(Rhs, clock->dt);
@@ -1337,8 +1345,14 @@ PetscErrorCode ExplicitRhsU(ueqn_ *ueqn, PetscInt formMode)
         dampingSourceU(ueqn, ueqn->Rhs, 1.0);
     }
 
-    // mean-gradient pressure forcing
-    if(ueqn->access->flags->isMeangradPForcingActive)
+    // bulk-gradient pressure forcing
+    if(ueqn->access->flags->isBulkGradPForcingActive)
+    {
+        bulkGradPForcing(ueqn, ueqn->Rhs, 1.0);
+    }
+
+    // mean pressure gradient forcing
+    if(ueqn->access->flags->isMeanGradPForcingActive)
     {
         meanGradPForcing(ueqn, ueqn->Rhs, 1.0);
     }
@@ -1451,6 +1465,8 @@ PetscErrorCode UeqnRK4(ueqn_ *ueqn)
     return(0);
 }
 
+//***************************************************************************************************************//
+
 PetscErrorCode UeqnRK3CN_W(ueqn_ *ueqn)
 {
     mesh_  *mesh  = ueqn->access->mesh;
@@ -1521,11 +1537,12 @@ PetscErrorCode UeqnRK3CN_W(ueqn_ *ueqn)
 
     // compute elapsed time
     PetscTime(&te);
-    PetscPrintf(mesh->MESH_COMM, "Final Residual = %e, iterations = %ld, , Elapsed Time = %f\n", norm, iter, te-ts);
+    PetscPrintf(mesh->MESH_COMM, "Final Residual = %e, Iterations = %ld, Elapsed Time = %f\n", norm, iter, te-ts);
     
     return(0);
 }
 
+//***************************************************************************************************************//
 
 PetscErrorCode UeqnRK3CN_SO(ueqn_ *ueqn)
 {
@@ -1552,8 +1569,6 @@ PetscErrorCode UeqnRK3CN_SO(ueqn_ *ueqn)
         ExplicitRhsU(ueqn, 1);  // also syncs cartesian to contravariant velocity 
 
         // compute viscous and other explicit using Ucont from previous stage (U^n at stage 1)
-        // for increased stability ueqn->RhsVisc may be made constant and always based on U^n 
-        // instead of being updated at each stage based on the current stage solution guess.
         VecSet(ueqn->RhsVisc, 0.0); 
         FormU(ueqn, ueqn->RhsVisc, 1.0, 2);
 
@@ -1600,7 +1615,7 @@ PetscErrorCode UeqnRK3CN_SO(ueqn_ *ueqn)
 
     // compute elapsed time
     PetscTime(&te);
-    PetscPrintf(mesh->MESH_COMM, "Final Residual = %e, iterations = %ld, , Elapsed Time = %f\n", norm, iter, te-ts);
+    PetscPrintf(mesh->MESH_COMM, "Final Residual = %e, Iterations = %ld, Elapsed Time = %f\n", norm, iter, te-ts);
 	
 	return(0);
 }
@@ -1649,11 +1664,13 @@ PetscErrorCode UeqnABCN(ueqn_ *ueqn)
     VecAXPY(ueqn->bU, 1.0, ueqn->Ucont_o);
 
     // form initial guess as explicit Euler estimate
-    VecCopy(ueqn->bU, ueqn->Utmp);
+    VecSet(ueqn->Utmp, 0.0); 
     if(clock->it > clock->itStart)
         VecAXPY(ueqn->Utmp, 0.5*clock->dt, ueqn->RhsVisc);
     else 
         VecAXPY(ueqn->Utmp, clock->dt, ueqn->RhsVisc);
+    VecAXPY(ueqn->Utmp, 1.0, ueqn->bU);
+
 
     // solve linear system
     KSPSolve(ueqn->kspIMEX, ueqn->bU, ueqn->Utmp);

@@ -43,7 +43,8 @@ PetscErrorCode SetSolutionFlagsPrecursor(domain_ *domain)
     flags->isPvCatalystActive            = 0;
     flags->isGravityWaveModelingActive   = 0;
     flags->isNonInertialFrameActive      = 0;
-    flags->isMeangradPForcingActive      = 0;
+    flags->isBulkGradPForcingActive      = 0;
+    flags->isMeanGradPForcingActive      = 0;
 
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-les",            &(flags->isLesActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-potentialT",     &(flags->isTeqnActive), PETSC_NULL);

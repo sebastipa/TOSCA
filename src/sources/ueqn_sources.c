@@ -3734,6 +3734,97 @@ PetscErrorCode meanGradPForcing(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     PetscInt       zs   = info.zs, ze = info.zs + info.zm;
     PetscInt       mx   = info.mx, my = info.my, mz = info.mz;
     
+    Cmpnts        ***rhs;
+    Cmpnts        ***icsi, ***jeta, ***kzet;
+    PetscReal     ***nvert, ***meshTag, cellVol;
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k, l;
+    
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    DMDAVecGetArray(fda, mesh->lICsi,  &icsi);
+    DMDAVecGetArray(fda, mesh->lJEta,  &jeta);
+    DMDAVecGetArray(fda, mesh->lKZet,  &kzet);
+
+    DMDAVecGetArray(fda, Rhs,            &rhs);
+    DMDAVecGetArray(da,  mesh->lNvert,   &nvert);
+    DMDAVecGetArray(da,  mesh->lmeshTag, &meshTag);
+
+    Cmpnts meanGradP = ueqn->meanGradP;
+
+    for (k = lzs; k < lze; k++)
+    {
+        for (j = lys; j < lye; j++)
+        {
+            for (i = lxs; i < lxe; i++)
+            {
+                if(isFluidIFace(k, j, i, i+1, nvert) && isCalculatedIFace(k, j, i, i+1, meshTag))
+                {
+                    rhs[k][j][i].x 
+                    +=
+                    scale *
+                    (
+                        meanGradP.x * icsi[k][j][i].x +
+                        meanGradP.y * icsi[k][j][i].y +
+                        meanGradP.z * icsi[k][j][i].z
+                    );
+                }
+
+                if(isFluidJFace(k, j, i, j+1, nvert) && isCalculatedJFace(k, j, i, j+1, meshTag))
+                {
+
+                    rhs[k][j][i].y
+                    +=
+                    scale *
+                    (
+                        meanGradP.x * jeta[k][j][i].x +
+                        meanGradP.y * jeta[k][j][i].y +
+                        meanGradP.z * jeta[k][j][i].z
+                    );
+                }
+
+                if(isFluidKFace(k, j, i, k+1, nvert) && isCalculatedKFace(k, j, i, k+1, meshTag))
+                {
+
+                    rhs[k][j][i].z
+                    +=
+                    scale *
+                    (
+                        meanGradP.x * kzet[k][j][i].x +
+                        meanGradP.y * kzet[k][j][i].y +
+                        meanGradP.z * kzet[k][j][i].z
+                    );
+                }
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(fda, mesh->lICsi,  &icsi);
+    DMDAVecRestoreArray(fda, mesh->lJEta,  &jeta);
+    DMDAVecRestoreArray(fda, mesh->lKZet,  &kzet);
+
+    DMDAVecRestoreArray(fda, Rhs,            &rhs);
+    DMDAVecRestoreArray(da,  mesh->lNvert,   &nvert);
+    DMDAVecRestoreArray(da,  mesh->lmeshTag, &meshTag);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode bulkGradPForcing(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
+{
+    mesh_         *mesh = ueqn->access->mesh;
+    DM             da   = mesh->da, fda = mesh->fda;
+    DMDALocalInfo  info = mesh->info;
+    PetscInt       xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt       ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt       zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt       mx   = info.mx, my = info.my, mz = info.mz;
+    
     Cmpnts        ***rhs, ***ucat;
     Cmpnts        ***icsi, ***jeta, ***kzet;
     PetscReal     ***aj, ***nvert, ***meshTag, cellVol;
@@ -3788,14 +3879,7 @@ PetscErrorCode meanGradPForcing(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
     Cmpnts meanU = nSetFromComponents(meanUx, meanUy, meanUz);
     Cmpnts diffU = nSub(ueqn->uBulk, meanU);
-    
-    mSum(ueqn->meanGradP,diffU);
-     
-    //PetscPrintf(PETSC_COMM_WORLD,"Umean:  %.5lf  %.5lf %.5lf \n",meanU.x, meanU.y, meanU.z);
-    //PetscPrintf(PETSC_COMM_WORLD,"UBulk:  %.5lf  %.5lf %.5lf \n",ueqn->uBulk.x, ueqn->uBulk.y, ueqn->uBulk.z);
-    //PetscPrintf(PETSC_COMM_WORLD,"diffU:  %.5lf  %.5lf %.5lf \n",diffU.x, diffU.y, diffU.z);
-    // PetscPrintf(PETSC_COMM_WORLD,"meanGradP: %.5lf %.5lf %.5lf   \n",ueqn->meanGradP.x,ueqn->meanGradP.y,ueqn->meanGradP.z);
-    
+        
     for (k = lzs; k < lze; k++)
     {
         for (j = lys; j < lye; j++)

@@ -52,11 +52,6 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
 	VecDuplicate(mesh->lCent, &(ueqn->sourceU));  VecSet(ueqn->sourceU, 0.0);
 
     VecDuplicate(mesh->lAj, &(ueqn->lUstar));     VecSet(ueqn->lUstar,  0.0);
-    
-    if(ueqn->access->flags->isMeangradPForcingActive)
-    {
-        ueqn->meanGradP = nSetZero();
-    }
 
     if(ueqn->access->flags->isTeqnActive)
     {
@@ -348,6 +343,50 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
         if(ueqn->hyperVisc4i > 0.0) { PetscPrintf(mesh->MESH_COMM, " > hyperViscU_i = %f\n", ueqn->hyperVisc4i); }
         if(ueqn->hyperVisc4j > 0.0) { PetscPrintf(mesh->MESH_COMM, " > hyperViscU_j = %f\n", ueqn->hyperVisc4j); }
         if(ueqn->hyperVisc4k > 0.0) { PetscPrintf(mesh->MESH_COMM, " > hyperViscU_k = %f\n", ueqn->hyperVisc4k); }
+    }
+
+    // bulk velocity controller 
+    if(ueqn->access->flags->isBulkGradPForcingActive)
+    {
+        ueqn->uBulk = nSetZero();
+        PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-u_bulk", &(ueqn->meanGradP.x), PETSC_NULL);
+        PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-v_bulk", &(ueqn->meanGradP.y), PETSC_NULL);
+        PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-w_bulk", &(ueqn->meanGradP.z), PETSC_NULL);
+
+        // at least one component of the bulk velocity controller must be nonzero if the controller is active
+        if(ueqn->uBulk.x == 0.0 && ueqn->uBulk.y == 0.0 && ueqn->uBulk.z == 0.0)
+        {
+            char error[512];
+            sprintf(error, "at least one component of the bulk velocity controller for U equation must be nonzero if the controller is active\n");
+            fatalErrorInFunction("InitializeUEqn", error);
+        }
+
+        PetscPrintf(mesh->MESH_COMM, "bulk velocity controller for U equation:\n");
+        if(ueqn->uBulk.x != 0.0) { PetscPrintf(mesh->MESH_COMM, " > u_bulk = %f\n", ueqn->uBulk.x); }
+        if(ueqn->uBulk.y != 0.0) { PetscPrintf(mesh->MESH_COMM, " > v_bulk = %f\n", ueqn->uBulk.y); }
+        if(ueqn->uBulk.z != 0.0) { PetscPrintf(mesh->MESH_COMM, " > w_bulk = %f\n", ueqn->uBulk.z); }
+    }
+
+    // mean constant pressure gradient 
+    if(ueqn->access->flags->isMeanGradPForcingActive)
+    {
+        ueqn->meanGradP = nSetZero();
+        PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-dpdx_mean", &(ueqn->meanGradP.x), PETSC_NULL);
+        PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-dpdy_mean", &(ueqn->meanGradP.y), PETSC_NULL);
+        PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-dpdz_mean", &(ueqn->meanGradP.z), PETSC_NULL);
+
+        // at least one component of the mean pressure gradient must be nonzero if the controller is active
+        if(ueqn->meanGradP.x == 0.0 && ueqn->meanGradP.y == 0.0 && ueqn->meanGradP.z == 0.0)
+        {
+            char error[512];
+            sprintf(error, "at least one component of the mean pressure gradient forcing for U equation must be nonzero if the forcing is active\n");
+            fatalErrorInFunction("InitializeUEqn", error);
+        }   
+
+        PetscPrintf(mesh->MESH_COMM, "mean pressure gradient forcing for U equation:\n");
+        if(ueqn->meanGradP.x != 0.0) { PetscPrintf(mesh->MESH_COMM, " > dpdx_mean = %f\n", ueqn->meanGradP.x); }
+        if(ueqn->meanGradP.y != 0.0) { PetscPrintf(mesh->MESH_COMM, " > dpdy_mean = %f\n", ueqn->meanGradP.y); }
+        if(ueqn->meanGradP.z != 0.0) { PetscPrintf(mesh->MESH_COMM, " > dpdz_mean = %f\n", ueqn->meanGradP.z); }
     }
 
     return(0);
