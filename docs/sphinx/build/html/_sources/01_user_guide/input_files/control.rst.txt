@@ -154,32 +154,30 @@ Solution Flags
    ---------------------- -----------------------------------------------------------------------------------------------------
    ``-inviscid``          If set to 1, allows disabling viscous terms. Default value is 0.
    ---------------------- -----------------------------------------------------------------------------------------------------
-   ``-computeContinuity`` Computes the divergence field within the entire domain and writes it to checkpoint files. 
-   ---------------------- -----------------------------------------------------------------------------------------------------
    ``-pvCatalyst``        Enables `ParaView-Catalyst` off-screen rendering capabilities. Useful to create nice videos of very 
                           large simulations. More details are given in Sec. :ref:`paraview-catalyst-section`.
    ---------------------- -----------------------------------------------------------------------------------------------------
-   ``-meanGradPForce``    If set to 1, activates the bulk velocity controller, which adds a uniform body force to the momentum
+   ``-bulkGradPForce``    If set to 1, activates the bulk velocity controller, which adds a uniform body force to the momentum
                           equations every time step to drive the volume-averaged velocity toward a prescribed target bulk
                           velocity. Unlike the pressure PI controller (which acts on the planar average at a single reference
-                          height), this controller acts on the full three-dimensional domain average and is therefore suited
-                          for closed or fully periodic domains (e.g. doubly- or triply-periodic boxes) where no inflow/outflow
-                          boundaries are present.
+                          height), this controller acts on the full three-dimensional domain average. The targer velocity 
+                          must be prescribed with three additional entries, namely
 
-                          The target bulk velocity vector ``uBulk`` must be set inside the active initialisation
-                          sub-dictionary of the initial conditions file (``initialConditions``). For example, if
-                          ``initializationType`` is ``ABLFlow``, the entry reads:
+                            - ``-u_bulk``: x-component of the target bulk velocity
+                            - ``-v_bulk``: y-component of the target bulk velocity
+                            - ``-w_bulk``: z-component of the target bulk velocity
 
-                          .. code-block:: none
+                          At least one of these three entries must be different from 0, otherwise an error is thrown.
+   ---------------------- -----------------------------------------------------------------------------------------------------
+   ``-meanGradPForce``    If set to 1, activates a constant pressure gradient force (in :math:`ms^-2`) in the 
+                          momentum equation. This is useful to drive the flow when the pressure gradient is known, which 
+                          can be set with the additional entries
 
-                              ABLFlow
-                              {
-                                  uBulk    (10.0 0.0 0.0);
-                                  ...
-                              }
+                            - ``-dpdx_mean``: x-component of the target bulk velocity
+                            - ``-dpdy_mean``: y-component of the target bulk velocity
+                            - ``-dpdz_mean``: z-component of the target bulk velocity
 
-                          The same ``uBulk`` keyword applies to all other initialisation types (``uniform``,
-                          ``spreadInflow``, ``TGVFlow``, ``ABLFlowZilitinkevich``, ``readField``). 
+                          At least one of these three entries must be different from 0, otherwise an error is thrown.
    ====================== =====================================================================================================
 
 Solution Controls 
@@ -211,13 +209,13 @@ Solution Controls
                              ``-hyperVisc`` parameter, default value is 1 - no diffusion, diffusion value of 0.75-0.8
                              is recommended, if set to 0, this scheme becomes a third order quick scheme).)
    ------------------------- ----------------------------------------------------------------------------------------------------
-   ``-relTolU``              Requires ``-dUdtScheme`` set to ``backwardEuler``, discarded otherwise. Allows to set the relative 
-                             exit tolerance for the Newton method used to solve implicit discretized momentum equation, default 
-                             value 1e-30.
+   ``-relTolU``              Requires ``-dUdtScheme`` set to ``CN``, ``ABCN``, ``RK3SOCN``  or ``RK3WCN``, discarded otherwise. 
+                             Allows to set the relative exit tolerance for the chosen momentum solver (SNES/KSP), default value 
+                             is 1e-30 (the solver exists on ``-absTolU`` by default, as it is satisfied first).
    ------------------------- ----------------------------------------------------------------------------------------------------
-   ``-absTolU``              Requires ``-dUdtScheme`` set to ``backwardEuler``, discarded otherwise. Allows to set the absolute 
-                             exit tolerance for the Newton method used to solve implicit discretized momentum equation, 
-                             default value 1e-5.
+   ``-absTolU``              Requires ``-dUdtScheme`` set to ``CN``, ``ABCN``, ``RK3SOCN``  or ``RK3WCN``, discarded otherwise. 
+                             Allows to set the absolute exit tolerance for the momentum solver (SNES/KSP), default value 
+                             is 1e-5.
    ------------------------- ----------------------------------------------------------------------------------------------------
    ``-poissonSolver``        Allows to specify the library used to solve the pressure equation, it can be set to ``HYPRE`` or 
                              ``PETSc``. While ``HYPRE`` is suggested for most cases, ``PETSc`` mey work better for dynamic 
@@ -243,15 +241,17 @@ Solution Controls
    ``-pTildeBuoyancy``       If set to 1, buoyancy force is recast into a buoyancy gradient and pressure is defined accordingly. 
                              Default value is 0 (not used).
    ------------------------- ----------------------------------------------------------------------------------------------------
-   ``-dTdtScheme``           Can be set to ``backwardEuler`` (implicit first-order) or ``rungeKutta4`` (explicit fourth-order). 
-                             For ABL simulations, ``backwardEuler`` is suggested. Crank-Nicholson has been removed from TOSCA
-                             due to poor velocity-temperature coupling. 
+   ``-dTdtScheme``           Can be set to ``BE`` (implicit first-order), ``BDF2`` (implicit second-order), ``RK4`` (explicit 
+                             fourth-order) or ``ABBE`` (implicit-explicit second-order). For ABL simulations, ``BDF2`` or ``BE`` 
+                             are suggested. 
    ------------------------- ----------------------------------------------------------------------------------------------------
-   ``-relTolT``              Requires ``-dTdtScheme`` set to ``backwardEuler``. Allows to set the relative exit tolerance for 
-                             the Newton method used to solve implicit discretized temperature equation, default value 1e-30.
+   ``-relTolT``              Requires ``-dTdtScheme`` set to ``BE``, ``BDF2`` or ``ABBE``, discarded otherwise. 
+                             Allows to set the relative exit tolerance for the chosen temperature solver (SNES/KSP), default  
+                             value is 1e-30 (the solver exists on ``-absTolU`` by default, as it is satisfied first).
    ------------------------- ----------------------------------------------------------------------------------------------------
-   ``-absTolT``              Requires ``-dTdtScheme`` set to ``backwardEuler``. Allows to set the absolute exit tolerance for 
-                             the Newton method used to solve implicit discretized temperature equation, default value 1e-5.
+   ``-absTolT``              Requires ``-dTdtScheme`` set to ``BE``, ``BDF2`` or ``ABBE``, discarded otherwise. 
+                             Allows to set the relative exit tolerance for the chosen temperature solver (SNES/KSP), default  
+                             value is 1e-5.
    ------------------------- ----------------------------------------------------------------------------------------------------
    ``-max_cs``               Maximum value for the LES model :math:`C_s` coefficient, default value is set to 0.5. 
    ------------------------- ----------------------------------------------------------------------------------------------------
@@ -340,6 +340,8 @@ Acquisition Controls
                                   model (requires ``-canopy`` set to 1). 
    ------------------------------ ------------------------------------------------------------------------------------------------------------------------
    ``-computeBuoyancy``           Writes 3D field of buoyancy term in the momentum equation at checkpoint times.
+   ------------------------------ ------------------------------------------------------------------------------------------------------------------------
+   ``-computeContinuity``         Computes the divergence field within the entire domain and writes it to checkpoint files. 
    ============================== ========================================================================================================================
 
 Post Processing Controls 
