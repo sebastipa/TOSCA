@@ -205,10 +205,6 @@ PetscErrorCode SetInitialFieldU(ueqn_ *ueqn)
             }
         }
 
-        if(ueqn->access->flags->isMeangradPForcingActive)
-        {
-            readSubDictVector(filename.c_str(), "readField", "uBulk", &(ueqn->uBulk));
-        }
         // all fields read together later
     }
     else if (ueqn->initFieldType == "uniform")
@@ -218,11 +214,6 @@ PetscErrorCode SetInitialFieldU(ueqn_ *ueqn)
 
         readSubDictVector(filename.c_str(), "uniform", "value",         &(uRef));
         readSubDictInt   (filename.c_str(), "uniform", "perturbations", &(addPerturbations));
-
-        if(ueqn->access->flags->isMeangradPForcingActive)
-        {
-            readSubDictVector(filename.c_str(), "uniform", "uBulk", &(ueqn->uBulk));
-        }
 
         PetscPrintf(mesh->MESH_COMM, "Setting initial field for U: %s\n\n", ueqn->initFieldType.c_str());
         SetUniformFieldU(ueqn, uRef, addPerturbations);
@@ -234,11 +225,6 @@ PetscErrorCode SetInitialFieldU(ueqn_ *ueqn)
             char error[512];
             sprintf(error, "activate ABL flag before setting the ABLFlow initial field\n");
             fatalErrorInFunction("SetInitialFieldU", error);
-        }
-
-        if(ueqn->access->flags->isMeangradPForcingActive)
-        {
-            readSubDictVector(filename.c_str(), "ABLFlow", "uBulk", &(ueqn->uBulk));
         }
 
         PetscPrintf(mesh->MESH_COMM, "Setting initial field for U: %s\n\n", ueqn->initFieldType.c_str());
@@ -260,11 +246,6 @@ PetscErrorCode SetInitialFieldU(ueqn_ *ueqn)
             fatalErrorInFunction("SetInitialFieldU", error);
         }
 
-        if(ueqn->access->flags->isMeangradPForcingActive)
-        {
-            readSubDictVector(filename.c_str(), "ABLFlowZilitinkevich", "uBulk", &(ueqn->uBulk));
-        }
-
         PetscPrintf(mesh->MESH_COMM, "Setting initial field for U: %s\n\n", ueqn->initFieldType.c_str());
         SetABLInitialFlowUZilitinkevich(ueqn);
     }
@@ -275,22 +256,12 @@ PetscErrorCode SetInitialFieldU(ueqn_ *ueqn)
         readSubDictDouble (filename.c_str(), "TGVFlow", "u0", &u0);
         readSubDictDouble (filename.c_str(), "TGVFlow", "freq",      &freq);
 
-        if(ueqn->access->flags->isMeangradPForcingActive)
-        {
-            readSubDictVector(filename.c_str(), "TGVFlow", "uBulk", &(ueqn->uBulk));
-        }
-
         PetscPrintf(mesh->MESH_COMM, "Setting initial field for U: %s\n\n", ueqn->initFieldType.c_str());
         SetTaylorGreenFieldU(ueqn, u0, freq);
     }
     else if (ueqn->initFieldType == "spreadInflow")
     {
         PetscPrintf(mesh->MESH_COMM, "Setting initial field for U: %s\n\n", ueqn->initFieldType.c_str());
-        
-        if(ueqn->access->flags->isMeangradPForcingActive)
-        {
-            readSubDictVector(filename.c_str(), "spreadInflow", "uBulk", &(ueqn->uBulk));
-        }
 
         SpreadInletFlowU(ueqn);
     }

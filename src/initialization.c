@@ -227,7 +227,8 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     flags->isPvCatalystActive            = 0;
     flags->isGravityWaveModelingActive   = 0;
     flags->isNonInertialFrameActive      = 0;
-    flags->isMeangradPForcingActive      = 0;
+    flags->isBulkGradPForcingActive      = 0;
+    flags->isMeanGradPForcingActive      = 0;
 
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-overset",          &(flags->isOversetActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-les",              &(flags->isLesActive), PETSC_NULL);
@@ -247,7 +248,8 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-advectionDampingY",&(flags->isAdvectionDampingYActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-nonInertial",      &(flags->isNonInertialFrameActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-agwModeling",      &(flags->isGravityWaveModelingActive), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-meanGradPForce",   &(flags->isMeangradPForcingActive ), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-bulkGradPForce",   &(flags->isBulkGradPForcingActive ), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-meanGradPForce",   &(flags->isMeanGradPForcingActive ), PETSC_NULL);
 
     // do some checks
     if(flags->isZDampingActive || flags->isXDampingActive || flags->isYDampingActive || flags->isKLeftRayleighDampingActive || flags->isKRightRayleighDampingActive || flags->isAdvectionDampingXActive)

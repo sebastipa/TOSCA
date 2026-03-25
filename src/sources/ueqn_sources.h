@@ -34,7 +34,10 @@ PetscErrorCode Coriolis(ueqn_ *ueqn, Vec &Rhs, PetscReal scale);
 //! \brief Apply canopy drag force
 PetscErrorCode CanopyForce(ueqn_ *ueqn, Vec &Rhs, PetscReal scale);
 
-//! \brief Apply mean gradient pressure forcing
+//! \brief Apply forcing based on bulk velocity difference 
+PetscErrorCode bulkGradPForcing(ueqn_ *ueqn, Vec &Rhs, PetscReal scale);
+
+//! \brief Apply forcing based on prescribed mean pressure gradient
 PetscErrorCode meanGradPForcing(ueqn_ *ueqn, Vec &Rhs, PetscReal scale);
 
 //! \brief Apply hyper-viscosity to momentum equation

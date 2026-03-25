@@ -1578,7 +1578,7 @@ inline void resetNonResolvedCellCentersScalar(mesh_ *mesh,  Vec &V)
 
 //***************************************************************************************************************//
 
-//! \brief Resets the value at the non-solved centers to zero 
+//! \brief Scales the value at the non-solved centers by a factor
 inline void scaleNonResolvedCellCentersScalar(mesh_ *mesh,  Vec &V, PetscReal scale)
 {
     DMDALocalInfo    info = mesh->info;
