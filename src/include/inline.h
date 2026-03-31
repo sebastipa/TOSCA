@@ -1702,7 +1702,7 @@ inline void resetNonResolvedCellFaces(mesh_ *mesh, Vec &V)
                 // iLeft face
                 if(i==0)
                 {
-                // zero gradient or flow exiting
+                    // zero gradient or flow exiting
                     if(mesh->boundaryU.iLeft=="zeroGradient" || ucont_o[k][j][i].x < 0)
                     {
                         // here the value is solved 
