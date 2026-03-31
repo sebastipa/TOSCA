@@ -415,6 +415,9 @@ PetscErrorCode SolveUEqn(ueqn_ *ueqn)
     // reset periodic fluxes to be consistent if the flow is periodic
     resetFacePeriodicFluxesVector(ueqn->access->mesh, ueqn->Ucont, ueqn->lUcont, "globalToLocal");
 
+    // needed for IMEX schemes to update Ucat before IBM and OS interpolation
+    contravariantToCartesian(ueqn);
+
     // apply IBM boundary condition to reset fluxes at IBM interface
     if(ueqn->access->flags->isIBMActive)
     {
@@ -426,6 +429,9 @@ PetscErrorCode SolveUEqn(ueqn_ *ueqn)
     {
         setBackgroundBC(ueqn->access->mesh);
     }
+
+    // reset cartesian periodic fluxes to be consistent if the flow is periodic
+    resetCellPeriodicFluxes(mesh, ueqn->Ucat, ueqn->lUcat, "vector", "globalToLocal");
 
     // adjust inflow/outflow fluxes to ensure mass conservation
     adjustFluxesLocal(ueqn);
@@ -564,7 +570,7 @@ PetscErrorCode contravariantToCartesian(ueqn_ *ueqn)
         {
             for (i=lxs; i<lxe; i++)
             {
-                if ( isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
+                if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
                 {
                     mat[0][0] = (csi[k][j][i].x);
                     mat[0][1] = (csi[k][j][i].y);

@@ -980,16 +980,19 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
                 v1 = csi[k][j][i  ].x * fp[k][j][i  ].x + csi[k][j][i  ].y * fp[k][j][i  ].y + csi[k][j][i  ].z * fp[k][j][i  ].z;
                 v2 = csi[k][j][i+1].x * fp[k][j][i+1].x + csi[k][j][i+1].y * fp[k][j][i+1].y + csi[k][j][i+1].z * fp[k][j][i+1].z;
 
+                //if(isFluidIFace(k, j, i, i+1, nvert) && isCalculatedIFace(k, j, i, i+1, meshTag))
                 rhs[k][j][i].x += scale * iaj[k][j][i] * central(v1, v2);
 
                 v1 = eta[k][j  ][i].x * fp[k][j  ][i].x + eta[k][j  ][i].y * fp[k][j  ][i].y + eta[k][j  ][i].z * fp[k][j  ][i].z;
                 v2 = eta[k][j+1][i].x * fp[k][j+1][i].x + eta[k][j+1][i].y * fp[k][j+1][i].y + eta[k][j+1][i].z * fp[k][j+1][i].z;
 
+                //if(isFluidJFace(k, j, i, j+1, nvert) && isCalculatedJFace(k, j, i, j+1, meshTag))
                 rhs[k][j][i].y += scale * jaj[k][j][i] * central(v1, v2);
 
                 v1 = zet[k  ][j][i].x * fp[k  ][j][i].x + zet[k  ][j][i].y * fp[k  ][j][i].y + zet[k  ][j][i].z * fp[k  ][j][i].z;
                 v2 = zet[k+1][j][i].x * fp[k+1][j][i].x + zet[k+1][j][i].y * fp[k+1][j][i].y + zet[k+1][j][i].z * fp[k+1][j][i].z;
 
+                //if(isFluidKFace(k, j, i, k+1, nvert) && isCalculatedKFace(k, j, i, k+1, meshTag))
                 rhs[k][j][i].z += scale * kaj[k][j][i] * central(v1, v2);
             }
         }
@@ -1039,8 +1042,6 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
     DMDAVecRestoreArray(fda, ueqn->lUcont, &ucont);
     DMDAVecRestoreArray(fda, ueqn->lUcat,  &ucat);
     DMDAVecRestoreArray(fda, Rhs,  &rhs);
-
-    resetNonResolvedCellFaces(mesh, ueqn->Utmp);
 
     return(0);
 }
@@ -1250,15 +1251,16 @@ PetscErrorCode ExplicitRhsU(ueqn_ *ueqn, PetscInt formMode)
     // transform to cartesian
     contravariantToCartesian(ueqn);
 
-    // if(ueqn->access->flags->isIBMActive)
-    // {
-    //     UpdateImmersedBCs(ueqn->access->ibm);
-    // }
-
+    // re-interpolate overset faces 
     if(ueqn->access->flags->isOversetActive)
     {
         setBackgroundBC(mesh);;
     }
+
+    // if(ueqn->access->flags->isIBMActive)
+    // {
+    //     UpdateImmersedBCs(ueqn->access->ibm);
+    // }
 
     // reset cartesian periodic fluxes to be consistent if the flow is periodic
     resetCellPeriodicFluxes(mesh, ueqn->Ucat, ueqn->lUcat, "vector", "globalToLocal");
@@ -1496,23 +1498,24 @@ PetscErrorCode UeqnRK3CN_W(ueqn_ *ueqn)
         // compute viscous and other explicit using Ucont from previous stage (U^n at stage 1)
         VecSet(ueqn->RhsVisc, 0.0); 
         FormU(ueqn, ueqn->RhsVisc, 1.0, 2);
+        resetNonResolvedCellFaces(mesh, ueqn->RhsVisc);
 
-        // contribution from previous stage solution (U^n at stage 1, alpha = 1 for all stages)
+        // contribution from previous stage solution (U^n at stage 1, alpha = 1 for all stages) - contains BCs
         VecCopy(ueqn->Ucont, ueqn->bU); 
 
         // contribution from beta * dt * advection (and other explicit terms)
         VecAXPY(ueqn->bU, dt * beta[i], ueqn->Rhs); // explicit part 
 
-        // contribution from DELTA * dt * advection_old (and other explicit terms)
+        // contribution from delta * dt * advection_old (and other explicit terms)
         VecAXPY(ueqn->bU, -1.0 * dt * delta[i], ueqn->Rhs_o); // explicit part 
         
         // conntribution from gamma * dt * viscosity
-        VecAXPY(ueqn->bU, dt * gamma[i], ueqn->RhsVisc); 
+        VecAXPY(ueqn->bU, dt * gamma[i], ueqn->RhsVisc); // explicit part
 
 		// initial guess for KSP solve: explicit Euler 
         VecCopy(ueqn->bU, ueqn->Utmp);  
-        VecAXPY(ueqn->Utmp, dt * gamma[i], ueqn->RhsVisc); 
-
+        VecAXPY(ueqn->Utmp, dt * gamma[i], ueqn->RhsVisc); // implicit part (guess)
+        
         // change dt 
         clock->dt = dt * gamma[i];
 
@@ -1520,7 +1523,7 @@ PetscErrorCode UeqnRK3CN_W(ueqn_ *ueqn)
         KSPSolve(ueqn->kspIMEX, ueqn->bU, ueqn->Utmp);
 
         // reset dt 
-        clock->dt = dt;
+        clock->dt = dt;  
 
         // store the solution 
         VecCopy(ueqn->Utmp, ueqn->Ucont);
@@ -1528,7 +1531,7 @@ PetscErrorCode UeqnRK3CN_W(ueqn_ *ueqn)
         DMGlobalToLocalEnd(mesh->fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
 
         // save explicit convective terms (and others) for next stage
-        VecCopy(ueqn->Rhs, ueqn->Rhs_o);
+        VecCopy(ueqn->Rhs, ueqn->Rhs_o);     
 	}
 
     PetscReal norm;  PetscInt iter;
@@ -1565,12 +1568,13 @@ PetscErrorCode UeqnRK3CN_SO(ueqn_ *ueqn)
         
         PetscPrintf(mesh->MESH_COMM, "%ld, ", i+1);
 
-        // compute advection and other explicit using Ucont from previous stage U^n at stage 1)
-        ExplicitRhsU(ueqn, 1);  // also syncs cartesian to contravariant velocity 
+        // compute advection and other explicit using Ucont from previous stage (U^n at stage 1)
+        ExplicitRhsU(ueqn, 1);   
 
         // compute viscous and other explicit using Ucont from previous stage (U^n at stage 1)
         VecSet(ueqn->RhsVisc, 0.0); 
         FormU(ueqn, ueqn->RhsVisc, 1.0, 2);
+        resetNonResolvedCellFaces(mesh, ueqn->RhsVisc);
 
         // contribution from alpha * U^n
         VecCopy(ueqn->Ucont_o, ueqn->bU); 
@@ -1636,6 +1640,8 @@ PetscErrorCode UeqnABCN(ueqn_ *ueqn)
     // set convective and viscous RHS at U^n then build the right and side
     VecSet(ueqn->RhsVisc, 0.0); FormU(ueqn, ueqn->RhsVisc, 1.0, 2);
     VecSet(ueqn->RhsConv, 0.0); FormU(ueqn, ueqn->RhsConv, 1.0, 1);
+    resetNonResolvedCellFaces(mesh, ueqn->RhsVisc);
+    resetNonResolvedCellFaces(mesh, ueqn->RhsConv);
     
     // form explicit rhs 
     VecCopy(ueqn->Rhs, ueqn->bU);
@@ -1670,7 +1676,6 @@ PetscErrorCode UeqnABCN(ueqn_ *ueqn)
     else 
         VecAXPY(ueqn->Utmp, clock->dt, ueqn->RhsVisc);
     VecAXPY(ueqn->Utmp, 1.0, ueqn->bU);
-
 
     // solve linear system
     KSPSolve(ueqn->kspIMEX, ueqn->bU, ueqn->Utmp);
@@ -1724,19 +1729,20 @@ PetscErrorCode IMEXMatVec(Mat A, Vec v, Vec Av)
     // scatter new contravariant velocity values
     DMGlobalToLocalBegin(mesh->fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
     DMGlobalToLocalEnd  (mesh->fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
-    
+
     // reset no penetration fluxes to zero (override numerical errors)
     resetNoPenetrationFluxes(ueqn);
 
     // reset contravariant periodic fluxes to be consistent if the flow is periodic
     resetFacePeriodicFluxesVector(mesh, ueqn->Ucont, ueqn->lUcont, "globalToLocal");
+
     
     // transform to cartesian
     contravariantToCartesian(ueqn);
 
     // if(ueqn->access->flags->isIBMActive)
     // {
-    //     UpdateImmersedBCs(ueqn->access->ibm);
+    //     UpdateImmersedBCs(ueqn->access->ibm);  
     // }
 
     if(ueqn->access->flags->isOversetActive)
@@ -1747,17 +1753,12 @@ PetscErrorCode IMEXMatVec(Mat A, Vec v, Vec Av)
     // reset cartesian periodic fluxes to be consistent if the flow is periodic
     resetCellPeriodicFluxes(mesh, ueqn->Ucat, ueqn->lUcat, "vector", "globalToLocal");
 
-    // visc-only: Rhs = scale*Visc(v)
-    FormU(ueqn, Av, -1.0*scale, 2);
-
-    // Rhs = dt*scale*Visc(v)
-    VecScale(Av, dt);   
-
-    resetNonResolvedCellFaces(mesh, Av);
-
     // Av = v - dt*scale*Visc(v)
+    VecSet(Av, 0.0); 
+    FormU(ueqn, Av, -1.0*scale*dt, 2); 
+    resetNonResolvedCellFaces(mesh, Av);
     VecAXPY(Av, 1.0, v);
-
+    
     return(0);
 }
 
