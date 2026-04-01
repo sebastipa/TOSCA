@@ -431,7 +431,7 @@ PetscErrorCode SolveUEqn(ueqn_ *ueqn)
     }
 
     // reset cartesian periodic fluxes to be consistent if the flow is periodic
-    resetCellPeriodicFluxes(mesh, ueqn->Ucat, ueqn->lUcat, "vector", "globalToLocal");
+    resetCellPeriodicFluxes(ueqn->access->mesh, ueqn->Ucat, ueqn->lUcat, "vector", "globalToLocal");
 
     // adjust inflow/outflow fluxes to ensure mass conservation
     adjustFluxesLocal(ueqn);
