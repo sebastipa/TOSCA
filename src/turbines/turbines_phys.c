@@ -592,9 +592,11 @@ PetscErrorCode controlNacYaw(farm_ *farm)
                             // rotate common parameters
                             mRot(wt->twrDir, wt->rtrDir,    angle);
                             mRot(wt->twrDir, wt->rtrAxis,   angle);
+			    mSub(wt->rotCenter, wt->twrTop);
                             mRot(wt->twrDir, wt->rotCenter, angle);
-
-                            // actuator disk model
+                            mSum(wt->rotCenter, wt->twrTop);
+                            
+			    // actuator disk model
                             if((*farm->turbineModels[t]) == "ADM")
                             {
                                 // number of points in the AD mesh
