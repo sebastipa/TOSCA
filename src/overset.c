@@ -107,34 +107,18 @@ PetscErrorCode InitializeOverset(domain_ *domain)
         }
     }
 
-    // Re-run a clean interpolation cycle here, with all domains fully initialized,
-    // to set consistent overset boundary conditions before the first time step.
+    // Re-run a clean interpolation cycle with all domains fully initialized
     PetscPrintf(PETSC_COMM_WORLD, "\nOverset: initializing interface cells after field initialization...\n");
     UpdateOversetInterpolation(domain);
 
-    // Re-save old-field vectors so that Ucont_o and Tmprt_o reflect the
-    // corrected interface state.  Also fill the physical-domain boundary
-    // ghost rows of every local field vector, because UpdateDomainInterpolation
-    // only calls UpdateCartesianBCs / UpdateContravariantBCs (velocity) and
-    // leaves the pressure and temperature ghost rows at their initialised state.
-    // Notes:
-    //   - UpdateCartesianBCs / UpdateContravariantBCs are already called for
-    //     every domain inside UpdateDomainInterpolation, so Ucont is consistent.
-    //   - UpdatePressureBCs / UpdateTemperatureBCs are NOT called inside
-    //     UpdateDomainInterpolation.  We call them here so that the
-    //     domain-boundary ghost rows of lP and lTmprt are correct before
-    //     SolveUEqn uses GradP on the first time step, and before Tmprt_o is
-    //     snapshotted.
+    // Save old-field vectors so that Ucont_o and Tmprt_o reflect the corrected interface state after interpolation  
     PetscInt nDomainsFinal = domain[0].info.nDomains;
     for (PetscInt d = 0; d < nDomainsFinal; d++)
     {
         VecCopy(domain[d].ueqn->Ucont, domain[d].ueqn->Ucont_o);
 
-        UpdatePressureBCs(domain[d].peqn);
-
         if (domain[d].flags.isTeqnActive)
         {
-            UpdateTemperatureBCs(domain[d].teqn);
             VecCopy(domain[d].teqn->Tmprt, domain[d].teqn->Tmprt_o);
         }
     }
@@ -203,7 +187,7 @@ PetscErrorCode UpdateDomainInterpolation(PetscInt d, domain_ *domain, PetscInt l
     overset_ *os    = domain[d].os;
     mesh_    *mesh  = domain[d].mesh;
 
-    // Branch 1: Update interpolation from parent meshes to this domain
+    // 1: update interpolation from parent meshes to this domain: updates interpolated domain boundaries
     for (PetscInt pi = 0; pi < os->parentMeshId.size(); pi++)
     {
         if (os->parentMeshId[pi] != -1)
@@ -231,11 +215,17 @@ PetscErrorCode UpdateDomainInterpolation(PetscInt d, domain_ *domain, PetscInt l
         }
     }
 
-    // Update boundary conditions
+    // 2: update boundary conditions: updates remaining domain boundaries
     UpdateCartesianBCs(domain[d].ueqn);
     UpdateContravariantBCs(domain[d].ueqn);
+    UpdatePressureBCs(domain[d].peqn);
 
-    // Branch 2: Update interpolation from child meshes to this domain
+    if (domain[d].flags.isTeqnActive)
+    {
+        UpdateTemperatureBCs(domain[d].teqn);
+    }
+
+    // 3: update interpolation from child meshes to this domain: updates hole boundaries
     for (PetscInt ci = 0; ci < os->childMeshId.size(); ci++)
     {
         if (os->childMeshId[ci] != -1)
@@ -255,6 +245,7 @@ PetscErrorCode UpdateDomainInterpolation(PetscInt d, domain_ *domain, PetscInt l
             UpdateDomainInterpolation(childId, domain, level + 1);
         }
     }
+
     return 0;
 }
 
