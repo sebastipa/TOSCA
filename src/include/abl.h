@@ -201,6 +201,8 @@ struct abl_
     PetscInt     numtV;
     PetscInt     numtT;
 
+    PetscInt     mesoVelocityDataSet;         //!< guard so readMesoScaleVelocityData is called only once
+
     PetscInt     **velInterpIdx;
     PetscReal    **velInterpWts;
 
