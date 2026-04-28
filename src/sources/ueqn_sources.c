@@ -3368,8 +3368,8 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     xj    = cent[k][j+1][i].x;
                     xk    = cent[k+1][j][i].x;
 
-                    PetscReal hs = mesh->bounds.xmin,
-                              he = mesh->bounds.xmin+abl->kLeftPatchDist;
+                    PetscReal hs = abl->kLeftDampingStart,
+                              he = abl->kLeftDampingEnd;
 
                     // compute Cosine viscosity at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
                     nud_x   = viscCosDescending(abl->kLeftDampingAlpha, hs, he, x);
@@ -3433,8 +3433,8 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     xj    = cent[k][j+1][i].x;
                     xk    = cent[k+1][j][i].x;
 
-                    PetscReal hs = mesh->bounds.xmax-abl->kRightPatchDist,
-                              he = mesh->bounds.xmax;
+                    PetscReal hs = abl->kRightDampingStart,
+                              he = abl->kRightDampingEnd;
 
                     // compute Cosine viscosity at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
                     nud_x   = viscCosAscending(abl->kRightDampingAlpha, hs, he, x);

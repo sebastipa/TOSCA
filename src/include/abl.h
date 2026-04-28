@@ -93,7 +93,8 @@ struct abl_
     PetscInt     zDampingXYType;                 //!< type 1 (default) averages at inlet, type (2) requires concurrent precursor and xDamping and uses planar averages
 
     // kLeft damping layer
-    PetscReal    kLeftPatchDist;                 //!< width of the kLeft Rayleigh damping layer
+    PetscReal    kLeftDampingStart;              //!< start coordinate of the kLeft Rayleigh damping layer
+    PetscReal    kLeftDampingEnd;                //!< end coordinate of the kLeft Rayleigh damping layer
     PetscReal    kLeftDampingAlpha;              //!< kLeft Rayleigh damping coefficient
     Cmpnts       kLeftDampingUBar;               //!< kLeft bar velocity with respect to which the flow is damped (used when UBarSelectionType = 0)
     PetscInt     kLeftDampingUBarSelectionType;  //!< 0 = constant uBar vector, 1 = height-varying mesoscale profile
@@ -103,7 +104,8 @@ struct abl_
     PetscReal    kLeftDampingFilterWidth;        //!< width of transition region from no damping to damping
 
     // kRight damping layer
-    PetscReal    kRightPatchDist;                 //!< width of the kRight Rayleigh damping layer
+    PetscReal    kRightDampingStart;              //!< start coordinate of the kRight Rayleigh damping layer
+    PetscReal    kRightDampingEnd;                //!< end coordinate of the kRight Rayleigh damping layer
     PetscReal    kRightDampingAlpha;              //!< kRight Rayleigh damping coefficient
     Cmpnts       kRightDampingUBar;               //!< kRight bar velocity with respect to which the flow is damped (used when UBarSelectionType = 0)
     PetscInt     kRightDampingUBarSelectionType; //!< 0 = constant uBar vector, 1 = height-varying mesoscale profile

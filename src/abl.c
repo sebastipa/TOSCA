@@ -2097,7 +2097,8 @@ PetscErrorCode InitializeABL(abl_ *abl)
     {
         PetscPrintf(mesh->MESH_COMM, "   reading kLeft-damping properties\n");
 
-        readSubDictDouble("ABLProperties.dat", "kLeftDampingProperties", "kLeftPatchDist",      &(abl->kLeftPatchDist));
+        readSubDictDouble("ABLProperties.dat", "kLeftDampingProperties", "kLeftDampingStart",   &(abl->kLeftDampingStart));
+        readSubDictDouble("ABLProperties.dat", "kLeftDampingProperties", "kLeftDampingEnd",     &(abl->kLeftDampingEnd));
         readSubDictDouble("ABLProperties.dat", "kLeftDampingProperties", "kLeftDampingAlpha",   &(abl->kLeftDampingAlpha));
         readSubDictInt   ("ABLProperties.dat", "kLeftDampingProperties", "kLeftDampingUBarSelectionType", &(abl->kLeftDampingUBarSelectionType));
         readSubDictDouble("ABLProperties.dat", "kLeftDampingProperties", "kLeftFilterHeight",   &(abl->kLeftDampingFilterHeight));
@@ -2131,7 +2132,8 @@ PetscErrorCode InitializeABL(abl_ *abl)
     {
         PetscPrintf(mesh->MESH_COMM, "   reading kRigh-damping properties\n");
 
-        readSubDictDouble("ABLProperties.dat", "kRighDampingProperties", "kRightPatchDist",      &(abl->kRightPatchDist));
+        readSubDictDouble("ABLProperties.dat", "kRighDampingProperties", "kRightDampingStart",   &(abl->kRightDampingStart));
+        readSubDictDouble("ABLProperties.dat", "kRighDampingProperties", "kRightDampingEnd",     &(abl->kRightDampingEnd));        
         readSubDictDouble("ABLProperties.dat", "kRighDampingProperties", "kRightDampingAlpha",   &(abl->kRightDampingAlpha));
         readSubDictInt   ("ABLProperties.dat", "kRighDampingProperties", "kRightDampingUBarSelectionType", &(abl->kRightDampingUBarSelectionType));
         readSubDictDouble("ABLProperties.dat", "kRighDampingProperties", "kRightFilterHeight",   &(abl->kRightDampingFilterHeight));

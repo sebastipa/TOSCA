@@ -8338,8 +8338,8 @@ PetscErrorCode computeXDampingIO(acquisition_ *acquisition)
                     PetscReal x     = cent[k][j][i].x,
                               z     = cent[k][j][i].z - mesh->grndLevel;
 
-                    PetscReal hs = mesh->bounds.xmin,
-                              he = mesh->bounds.xmin+abl->kLeftPatchDist;
+                    PetscReal hs = abl->kLeftDampingStart,
+                              he = abl->kLeftDampingEnd;
 
                     // compute Cosine viscosity at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
                     PetscReal nud_kRayleigh   = viscCosDescending(abl->kLeftDampingAlpha, hs, he, x);
@@ -8383,8 +8383,8 @@ PetscErrorCode computeXDampingIO(acquisition_ *acquisition)
                     PetscReal x     = cent[k][j][i].x,
                               z     = cent[k][j][i].z - mesh->grndLevel;
 
-                    PetscReal hs = mesh->bounds.xmax-abl->kRightPatchDist,
-                              he = mesh->bounds.xmax;
+                    PetscReal hs = abl->kRightDampingStart,
+                              he = abl->kRightDampingEnd;
 
                     // compute Cosine viscosity at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
                     PetscReal nud_kRayleigh   = viscCosAscending(abl->kRightDampingAlpha, hs, he, x);
