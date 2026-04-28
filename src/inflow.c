@@ -277,7 +277,7 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
                 }
 
                 PetscInt  ti, nAvg;
-                PetscReal ntimes;
+                PetscInt  ntimes;
 
                 if(ifPtr->mapT)
                 {
@@ -288,10 +288,21 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
                     ntimes = ifPtr->inflowU.nInflowTimes;
                 }
 
+                // Distribute the ntimes database snapshots across ranks of mesh->MESH_COMM.
+                // Each rank opens only its own chunk of files in parallel, accumulates a
+                // partial sum locally, and then a single MPI_Allreduce combines the partials
+                // into the global uBarAvgTopX / tBarAvgTopX on every rank. 
+                PetscMPIInt avgRank, avgSize;
+                MPI_Comm_rank(mesh->MESH_COMM, &avgRank);
+                MPI_Comm_size(mesh->MESH_COMM, &avgSize);
+
+                const PetscInt tiStart = ((PetscInt)avgRank       * ntimes) / (PetscInt)avgSize;
+                const PetscInt tiEnd   = ((PetscInt)(avgRank + 1) * ntimes) / (PetscInt)avgSize;
+
                 word      fname_U, fname_T;
                 FILE      *fp_U, *fp_T;
 
-                for(ti=0; ti<ntimes; ti++)
+                for(ti=tiStart; ti<tiEnd; ti++)
                 {
                     fname_U = "inflowDatabase/U/" + getArbitraryTimeName(mesh->access->clock, ifPtr->inflowU.inflowTimes[ti]);
 
@@ -313,7 +324,7 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
 
                     fclose(fp_U);
 
-                    // now average the top 10 cells (exclude ghosts)
+                    // accumulate partial sum for the top 10 cells (exclude ghosts)
                     PetscInt jAvg = 0;
                     for(j=ifPtr->n1wg-11; j<ifPtr->n1wg-1; j++)
                     {
@@ -346,7 +357,7 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
 
                         fclose(fp_T);
 
-                        // now average the top 10 cells (exclude ghosts)
+                        // accumulate partial sum for the top 10 cells (exclude ghosts)
                         PetscInt jAvg = 0;
                         for(j=ifPtr->n1wg-11; j<ifPtr->n1wg-1; j++)
                         {
@@ -358,6 +369,15 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
                             jAvg++;
                         }
                     }
+                }
+
+                // Combine partial sums across all ranks. uBarAvgTopX is 10 Cmpnts = 30 PetscReals;
+                // tBarAvgTopX is 10 PetscReals. The whole reduction is 40 doubles total, one/two
+                // collective calls — negligible compared to the parallel I/O we just did.
+                MPI_Allreduce(MPI_IN_PLACE, (PetscReal*)&(ifPtr->uBarAvgTopX[0]), 30, MPIU_REAL, MPI_SUM, mesh->MESH_COMM);
+                if(mesh->access->flags->isTeqnActive)
+                {
+                    MPI_Allreduce(MPI_IN_PLACE, &(ifPtr->tBarAvgTopX[0]), 10, MPIU_REAL, MPI_SUM, mesh->MESH_COMM);
                 }
 
                 // number of data summed per level (ntimes times n levels in direction 2)
@@ -662,7 +682,7 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
                 }
 
                 PetscInt  ti, nAvg;
-                PetscReal ntimes;
+                PetscInt  ntimes;
 
                 if(ifPtr->mapT)
                 {
@@ -673,10 +693,21 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
                     ntimes = ifPtr->inflowU.nInflowTimes;
                 }
 
+                // Distribute the ntimes database snapshots across ranks of mesh->MESH_COMM.
+                // Each rank opens only its own chunk of files in parallel, accumulates a
+                // partial sum locally, and then a single MPI_Allreduce combines the partials
+                // into the global uBarAvgTopX / tBarAvgTopX on every rank.
+                PetscMPIInt avgRank, avgSize;
+                MPI_Comm_rank(mesh->MESH_COMM, &avgRank);
+                MPI_Comm_size(mesh->MESH_COMM, &avgSize);
+
+                const PetscInt tiStart = ((PetscInt)avgRank       * ntimes) / (PetscInt)avgSize;
+                const PetscInt tiEnd   = ((PetscInt)(avgRank + 1) * ntimes) / (PetscInt)avgSize;
+
                 word      fname_U, fname_T;
                 FILE      *fp_U, *fp_T;
 
-                for(ti=0; ti<ntimes; ti++)
+                for(ti=tiStart; ti<tiEnd; ti++)
                 {
                     fname_U = "inflowDatabase/U/" + getArbitraryTimeName(mesh->access->clock, ifPtr->inflowU.inflowTimes[ti]);
 
@@ -698,7 +729,7 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
 
                     fclose(fp_U);
 
-                    // now average the top 10 cells (exclude ghosts)
+                    // accumulate partial sum for the top 10 cells (exclude ghosts)
                     PetscInt jAvg = 0;
                     for(j=ifPtr->n1wg-11; j<ifPtr->n1wg-1; j++)
                     {
@@ -731,7 +762,7 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
 
                         fclose(fp_T);
 
-                        // now average the top 10 cells (exclude ghosts)
+                        // accumulate partial sum for the top 10 cells (exclude ghosts)
                         PetscInt jAvg = 0;
                         for(j=ifPtr->n1wg-11; j<ifPtr->n1wg-1; j++)
                         {
@@ -743,6 +774,13 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
                             jAvg++;
                         }
                     }
+                }
+
+                // Combine partial sums across all ranks of mesh->MESH_COMM
+                MPI_Allreduce(MPI_IN_PLACE, (PetscReal*)&(ifPtr->uBarAvgTopX[0]), 30, MPIU_REAL, MPI_SUM, mesh->MESH_COMM);
+                if(mesh->access->flags->isTeqnActive)
+                {
+                    MPI_Allreduce(MPI_IN_PLACE, &(ifPtr->tBarAvgTopX[0]), 10, MPIU_REAL, MPI_SUM, mesh->MESH_COMM);
                 }
 
                 // number of data summed per level (ntimes times n levels in direction 2)
@@ -1661,33 +1699,134 @@ PetscErrorCode SetInflowWeights(mesh_ *mesh, inletFunctionTypes *ifPtr)
         }
     }
 
-    // scatter to all processors 
-    // Note: this is out of the zs=0 condition because it also has to work for uBarSelectionType=2
-    //       when fringe is active. In that case interp data has to be known also by non-boundary procs 
-    //       since inflow slices are spread throughout the fringe region.  
-
-    for (j=1; j<my-1; j++)
+    // scatter to all processors
+    // Note: this is out of the zs=0 condition because it also has to work for uBarSelectionType=2 when fringe is active. 
+    //       In that case interp data has to be known also by non-boundary procs since inflow slices are spread throughout 
+    //       the fringe region.
+    
+    // Pack owner-rank contributions into flat contiguous buffers, do ONE MPI_Allreduce per buffer, then unpack. 
     {
-        for (i=1; i<mx-1; i++)
+        const PetscInt nCells = (my - 2) * (mx - 2);
+
+        // ----- linear path (always populated) -----
+        std::vector<PetscInt>  flatCellsLin (nCells * 12, 0);
+        std::vector<PetscReal> flatWeightsLin(nCells * 4,  0.0);
+
+        for (j = 1; j < my - 1; j++)
         {
-            MPI_Allreduce(&(closestCells_tmp[j][i][0]),  &(ifPtr->closestCells [j][i][0]), 12, MPIU_INT, MPI_SUM, mesh->MESH_COMM);
-            MPI_Allreduce(&(inflowWeights_tmp[j][i][0]), &(ifPtr->inflowWeights[j][i][0]), 4, MPIU_REAL, MPI_SUM,mesh->MESH_COMM);
-
-            std::vector<  cellIds> ().swap(closestCells_tmp[j][i]);
-            std::vector<PetscReal> ().swap(inflowWeights_tmp[j][i]);
-
-            if(ifPtr->interpMethod == "spline")
+            for (i = 1; i < mx - 1; i++)
             {
-                MPI_Allreduce(&(closestCells_tmp_1[j][i][0]),  &(ifPtr->closestCells_1 [j][i][0]), 18, MPIU_INT, MPI_SUM,mesh->MESH_COMM);
-                MPI_Allreduce(&(inflowWeights_tmp_1[j][i][0]), &(ifPtr->inflowWeights_1[j][i][0]), 6, MPIU_REAL, MPI_SUM,mesh->MESH_COMM);
-                MPI_Allreduce(&(closestCells_tmp_2[j][i][0]),  &(ifPtr->closestCells_2 [j][i][0]), 18, MPIU_INT, MPI_SUM,mesh->MESH_COMM);
-                MPI_Allreduce(&(inflowWeights_tmp_2[j][i][0]), &(ifPtr->inflowWeights_2[j][i][0]), 6, MPIU_REAL, MPI_SUM,mesh->MESH_COMM);
+                const PetscInt base = ((j - 1) * (mx - 2) + (i - 1));
+                PetscInt  *ci = &flatCellsLin [base * 12];
+                PetscReal *wi = &flatWeightsLin[base *  4];
 
-                std::vector<  cellIds> ().swap(closestCells_tmp_1[j][i]);
-                std::vector<PetscReal> ().swap(inflowWeights_tmp_1[j][i]);
-                std::vector<  cellIds> ().swap(closestCells_tmp_2[j][i]);
-                std::vector<PetscReal> ().swap(inflowWeights_tmp_2[j][i]);
+                for (PetscInt s = 0; s < 4; s++)
+                {
+                    ci[s*3 + 0] = closestCells_tmp [j][i][s].i;
+                    ci[s*3 + 1] = closestCells_tmp [j][i][s].j;
+                    ci[s*3 + 2] = closestCells_tmp [j][i][s].k;
+                    wi[s]       = inflowWeights_tmp[j][i][s];
+                }
             }
+        }
+
+        MPI_Allreduce(MPI_IN_PLACE, flatCellsLin.data(),   nCells * 12, MPIU_INT,  MPI_SUM, mesh->MESH_COMM);
+        MPI_Allreduce(MPI_IN_PLACE, flatWeightsLin.data(), nCells *  4, MPIU_REAL, MPI_SUM, mesh->MESH_COMM);
+
+        for (j = 1; j < my - 1; j++)
+        {
+            for (i = 1; i < mx - 1; i++)
+            {
+                const PetscInt base = ((j - 1) * (mx - 2) + (i - 1));
+                PetscInt  *ci = &flatCellsLin [base * 12];
+                PetscReal *wi = &flatWeightsLin[base *  4];
+
+                for (PetscInt s = 0; s < 4; s++)
+                {
+                    ifPtr->closestCells [j][i][s].i = ci[s*3 + 0];
+                    ifPtr->closestCells [j][i][s].j = ci[s*3 + 1];
+                    ifPtr->closestCells [j][i][s].k = ci[s*3 + 2];
+                    ifPtr->inflowWeights[j][i][s]   = wi[s];
+                }
+
+                std::vector<cellIds>  ().swap(closestCells_tmp [j][i]);
+                std::vector<PetscReal>().swap(inflowWeights_tmp[j][i]);
+            }
+        }
+
+        std::vector<PetscInt> ().swap(flatCellsLin);
+        std::vector<PetscReal>().swap(flatWeightsLin);
+
+        // spline interpMethod
+        if (ifPtr->interpMethod == "spline")
+        {
+            std::vector<PetscInt>  flatCells1 (nCells * 18, 0);
+            std::vector<PetscReal> flatWeights1(nCells *  6, 0.0);
+            std::vector<PetscInt>  flatCells2 (nCells * 18, 0);
+            std::vector<PetscReal> flatWeights2(nCells *  6, 0.0);
+
+            for (j = 1; j < my - 1; j++)
+            {
+                for (i = 1; i < mx - 1; i++)
+                {
+                    const PetscInt base = ((j - 1) * (mx - 2) + (i - 1));
+                    PetscInt  *c1 = &flatCells1  [base * 18];
+                    PetscInt  *c2 = &flatCells2  [base * 18];
+                    PetscReal *w1 = &flatWeights1[base *  6];
+                    PetscReal *w2 = &flatWeights2[base *  6];
+
+                    for (PetscInt s = 0; s < 6; s++)
+                    {
+                        c1[s*3 + 0] = closestCells_tmp_1 [j][i][s].i;
+                        c1[s*3 + 1] = closestCells_tmp_1 [j][i][s].j;
+                        c1[s*3 + 2] = closestCells_tmp_1 [j][i][s].k;
+                        c2[s*3 + 0] = closestCells_tmp_2 [j][i][s].i;
+                        c2[s*3 + 1] = closestCells_tmp_2 [j][i][s].j;
+                        c2[s*3 + 2] = closestCells_tmp_2 [j][i][s].k;
+                        w1[s]       = inflowWeights_tmp_1[j][i][s];
+                        w2[s]       = inflowWeights_tmp_2[j][i][s];
+                    }
+                }
+            }
+
+            MPI_Allreduce(MPI_IN_PLACE, flatCells1.data(),   nCells * 18, MPIU_INT,  MPI_SUM, mesh->MESH_COMM);
+            MPI_Allreduce(MPI_IN_PLACE, flatWeights1.data(), nCells *  6, MPIU_REAL, MPI_SUM, mesh->MESH_COMM);
+            MPI_Allreduce(MPI_IN_PLACE, flatCells2.data(),   nCells * 18, MPIU_INT,  MPI_SUM, mesh->MESH_COMM);
+            MPI_Allreduce(MPI_IN_PLACE, flatWeights2.data(), nCells *  6, MPIU_REAL, MPI_SUM, mesh->MESH_COMM);
+
+            for (j = 1; j < my - 1; j++)
+            {
+                for (i = 1; i < mx - 1; i++)
+                {
+                    const PetscInt base = ((j - 1) * (mx - 2) + (i - 1));
+                    PetscInt  *c1 = &flatCells1  [base * 18];
+                    PetscInt  *c2 = &flatCells2  [base * 18];
+                    PetscReal *w1 = &flatWeights1[base *  6];
+                    PetscReal *w2 = &flatWeights2[base *  6];
+
+                    for (PetscInt s = 0; s < 6; s++)
+                    {
+                        ifPtr->closestCells_1 [j][i][s].i = c1[s*3 + 0];
+                        ifPtr->closestCells_1 [j][i][s].j = c1[s*3 + 1];
+                        ifPtr->closestCells_1 [j][i][s].k = c1[s*3 + 2];
+                        ifPtr->closestCells_2 [j][i][s].i = c2[s*3 + 0];
+                        ifPtr->closestCells_2 [j][i][s].j = c2[s*3 + 1];
+                        ifPtr->closestCells_2 [j][i][s].k = c2[s*3 + 2];
+                        ifPtr->inflowWeights_1[j][i][s]   = w1[s];
+                        ifPtr->inflowWeights_2[j][i][s]   = w2[s];
+                    }
+
+                    std::vector<cellIds>  ().swap(closestCells_tmp_1 [j][i]);
+                    std::vector<PetscReal>().swap(inflowWeights_tmp_1[j][i]);
+                    std::vector<cellIds>  ().swap(closestCells_tmp_2 [j][i]);
+                    std::vector<PetscReal>().swap(inflowWeights_tmp_2[j][i]);
+                }
+            }
+
+            std::vector<PetscInt> ().swap(flatCells1);
+            std::vector<PetscReal>().swap(flatWeights1);
+            std::vector<PetscInt> ().swap(flatCells2);
+            std::vector<PetscReal>().swap(flatWeights2);
         }
     }
 
