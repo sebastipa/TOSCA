@@ -356,14 +356,14 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
     else 
     {
         //to exit when reaching end time 
-        if(clock->time + clock->dt > clock->endTime)
+        if(clock->time + clock->dtOld > clock->endTime)                  // makes sure that clock time is actually larger than end time and not equal
         {
             clock->time = clock->time + clock->dt;
         }
         else 
         {
             // this ensures there is no floating point addition error
-            clock->time = clock->startTime + (clock->it + 1) * clock->dt;
+            clock->time = clock->startTime + (clock->it) * clock->dtOld  + clock->dt;     /////keep old timestep for timecalculation
         }
     }
     
