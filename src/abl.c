@@ -66,8 +66,6 @@ PetscErrorCode InitializeABL(abl_ *abl)
 
     PetscPrintf(mesh->MESH_COMM, "Reading ABL properties...\n");
 
-    abl->mesoVelocityDataSet = 0;
-
     readDictDouble  ("ABLProperties.dat", "hRough",           &(abl->hRough));
     readDictVector2D("ABLProperties.dat", "uRef",             &(abl->uRef));
     readDictDouble  ("ABLProperties.dat", "hRef",             &(abl->hRef));
@@ -89,6 +87,7 @@ PetscErrorCode InitializeABL(abl_ *abl)
         readDictDouble("ABLProperties.dat", "fCoriolis", &(abl->fc));
     }
 
+    // calculate reference velocity magnitude
     PetscReal uRefMag = PetscSqrtReal(abl->uRef.x*abl->uRef.x + abl->uRef.y*abl->uRef.y);
 
     // find friction velocity based on neutral log law
@@ -162,6 +161,10 @@ PetscErrorCode InitializeABL(abl_ *abl)
         std::vector<PetscInt>  ().swap(gCells);
     }
 
+    // initialize mesoscale velocity data flag
+    abl->mesoVelocityDataSet = 0;
+
+    // controller properties 
     if(abl->controllerActive)
     {
         PetscPrintf(mesh->MESH_COMM, "   reading driving controller properties\n");
@@ -181,14 +184,16 @@ PetscErrorCode InitializeABL(abl_ *abl)
         if(abl->controllerAction == "write")
         {
 
-            if(abl->controllerType == "pressure" || abl->controllerType == "geostrophic")
+            if
+            (
+                abl->controllerType == "pressure"    || 
+                abl->controllerType == "geostrophic"
+            )
             {
                 // read PI controller properties
                 readSubDictDouble("ABLProperties.dat", "controllerProperties", "relaxPI",          &(abl->relax));
                 readSubDictDouble("ABLProperties.dat", "controllerProperties", "alphaPI",          &(abl->alpha));
                 readSubDictDouble("ABLProperties.dat", "controllerProperties", "timeWindowPI",     &(abl->timeWindow));
-
-                PetscPrintf(mesh->MESH_COMM, "   -> controller type: %s\n", abl->controllerType.c_str());
 
                 // calculating levels interpolation weights at reference height
                 {
@@ -307,7 +312,7 @@ PetscErrorCode InitializeABL(abl_ *abl)
                     }
                 }
 
-                // calculating geostrophic wind and interpolation weight at geostrophic wind
+                // calculating geostrophic wind and interpolation weight at geostrophic height
                 if(abl->controllerType == "geostrophic")
                 {
                     // read geostrophic speed
@@ -390,13 +395,18 @@ PetscErrorCode InitializeABL(abl_ *abl)
                     abl->uTau = geoWindMag * abl->vkConst / std::log(abl->hInv / abl->hRough);
                 }
             }
-            else if( (abl->controllerType=="directProfileAssimilation") || (abl->controllerType=="indirectProfileAssimilation") || (abl->controllerType=="waveletProfileAssimilation"))
+            else if
+            (
+                abl->controllerType=="directProfileAssimilation"   || 
+                abl->controllerType=="indirectProfileAssimilation" || 
+                abl->controllerType=="waveletProfileAssimilation"
+            )
             {
                 // read PI controller properties
-                readSubDictDouble("ABLProperties.dat", "controllerProperties", "relaxPI",          &(abl->relax));
-                readSubDictDouble("ABLProperties.dat", "controllerProperties", "alphaPI",          &(abl->alpha));
-                readSubDictDouble("ABLProperties.dat", "controllerProperties", "timeWindowPI",     &(abl->timeWindow));
-                readSubDictInt   ("ABLProperties.dat", "controllerProperties", "avgSources",       &(abl->averageSource));
+                readSubDictDouble("ABLProperties.dat", "controllerProperties", "relaxPI",                 &(abl->relax));
+                readSubDictDouble("ABLProperties.dat", "controllerProperties", "alphaPI",                 &(abl->alpha));
+                readSubDictDouble("ABLProperties.dat", "controllerProperties", "timeWindowPI",            &(abl->timeWindow));
+                readSubDictInt   ("ABLProperties.dat", "controllerProperties", "avgSources",              &(abl->averageSource));
                 readSubDictWord  ("ABLProperties.dat", "controllerProperties", "lowerLayerForcingType",   &(abl->flType));
 
                 /* ABL Height Calculation*/
@@ -489,7 +499,7 @@ PetscErrorCode InitializeABL(abl_ *abl)
                 }
                 else if(abl->flType == "mesoDataHeight")
                 {
-
+                    // nothing to do 
                 }
                 else
                 {
@@ -497,8 +507,6 @@ PetscErrorCode InitializeABL(abl_ *abl)
                     sprintf(error, "unknown lower layer mesoscale forcing type, available types are:\n        1 : constantHeight\n        2 : ablHeight\n        3 : mesoDataHeight\n");
                     fatalErrorInFunction("ABLInitialize",  error);  
                 }
-
-                PetscPrintf(mesh->MESH_COMM, "   controller type velocity: %s\n", abl->controllerType.c_str());
 
                 // allocate memory for the cumulated sources at all mesh heights
                 PetscMalloc(sizeof(Cmpnts) * nLevels, &(abl->cumulatedSourceHt));
@@ -570,29 +578,27 @@ PetscErrorCode InitializeABL(abl_ *abl)
                     readSubDictWord  ("ABLProperties.dat", "controllerProperties", "waveletConvolution", &(abl->waveConv));
                     readSubDictInt   ("ABLProperties.dat", "controllerProperties", "waveletBlend", &(abl->waveletBlend));
 
-                    PetscPrintf(PETSC_COMM_WORLD, "   wavelet profile assimilation using %s with wavelet filtering : %s and %ld levels of decomposition\n", abl->waveTMethod.c_str(), abl->waveName.c_str(), abl->waveLevel);
+                    PetscPrintf(mesh->MESH_COMM, "   wavelet profile assimilation using %s with wavelet filtering : %s and %ld levels of decomposition\n", abl->waveTMethod.c_str(), abl->waveName.c_str(), abl->waveLevel);
 
                 }
             }
             else if(abl->controllerType == "geostrophicProfileAssimilation")
             {
                 readSubDictWord  ("ABLProperties.dat", "controllerProperties", "lowerLayerForcingType",   &(abl->flType));
+                
                 if(abl->flType != "ablHeight")
                 {
                     char error[512];
-                    sprintf(error, "geostrophic profie assimilation requires the lower layer forcing type to be set to ablHeight based\n");
+                    sprintf(error, "geostrophic profie assimilation requires the lower layer forcing type to be set to ablHeight\n");
                     fatalErrorInFunction("ABLInitialize",  error);
                 }
 
-                PetscPrintf(mesh->MESH_COMM, "   controller type velocity: %s\n", abl->controllerType.c_str());
-
-                //allocate memory for ABL height calculation 
-                
+                // allocate memory for ABL height calculation 
                 PetscMalloc(sizeof(PetscReal) * nLevels,       &(abl->avgTotalStress));   
                 PetscMalloc(sizeof(PetscReal) * nLevels,       &(abl->avgHeatFlux));   
                 PetscMalloc(sizeof(Cmpnts) * nLevels,       &(abl->avgStress));   
 
-                //read the abl->avgStress - different if restarting the simulation - so read from file avgStress
+                // read the abl->avgStress - different if restarting the simulation - so read from file avgStress
                 std::stringstream stream;
                 stream << std::fixed << std::setprecision(mesh->access->clock->timePrecision) << mesh->access->clock->startTime;
                 word location = "./fields/" + mesh->meshName + "/" + stream.str();
@@ -700,7 +706,7 @@ PetscErrorCode InitializeABL(abl_ *abl)
                     abl->mesoVelocityDataSet = 1;
                 }
 
-                //find the interpolation points and weights for the velocity from the available heights
+                // find the interpolation points and weights for the velocity from the available heights
                 findVelocityInterpolationWeights(abl);
 
                 PetscMalloc(sizeof(Cmpnts) * (my-2), &(abl->srcPA));
@@ -1061,7 +1067,6 @@ PetscErrorCode InitializeABL(abl_ *abl)
 
     if(abl->controllerActiveT)
     {
-
         if(!(abl->access->flags->isTeqnActive))
         {
             char error[512];
