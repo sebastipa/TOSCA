@@ -66,6 +66,8 @@ PetscErrorCode InitializeABL(abl_ *abl)
 
     PetscPrintf(mesh->MESH_COMM, "Reading ABL properties...\n");
 
+    abl->mesoVelocityDataSet = 0;
+
     readDictDouble  ("ABLProperties.dat", "hRough",           &(abl->hRough));
     readDictVector2D("ABLProperties.dat", "uRef",             &(abl->uRef));
     readDictDouble  ("ABLProperties.dat", "hRef",             &(abl->hRef));
@@ -295,7 +297,11 @@ PetscErrorCode InitializeABL(abl_ *abl)
                         
                         if(abl->mesoScaleInputActive)
                         {
-                            readMesoScaleVelocityData(abl);
+                            if(!abl->mesoVelocityDataSet)
+                            {
+                                readMesoScaleVelocityData(abl);
+                                abl->mesoVelocityDataSet = 1;
+                            }
                             findVelocityInterpolationWeightsOnePt(abl);
                         }
                     }
@@ -502,7 +508,11 @@ PetscErrorCode InitializeABL(abl_ *abl)
                     abl->cumulatedSourceHt[i] = nSetZero();
                 }
 
-                readMesoScaleVelocityData(abl);
+                if(!abl->mesoVelocityDataSet)
+                {
+                    readMesoScaleVelocityData(abl);
+                    abl->mesoVelocityDataSet = 1;
+                }
 
                 if(abl->averageSource)
                 {
@@ -684,9 +694,13 @@ PetscErrorCode InitializeABL(abl_ *abl)
                     }
                 }
 
-                readMesoScaleVelocityData(abl);
+                if(!abl->mesoVelocityDataSet)
+                {
+                    readMesoScaleVelocityData(abl);
+                    abl->mesoVelocityDataSet = 1;
+                }
 
-                //find the interpolation points and weights for the velocity from the available heights 
+                //find the interpolation points and weights for the velocity from the available heights
                 findVelocityInterpolationWeights(abl);
 
                 PetscMalloc(sizeof(Cmpnts) * (my-2), &(abl->srcPA));
@@ -2080,9 +2094,31 @@ PetscErrorCode InitializeABL(abl_ *abl)
 
         readSubDictDouble("ABLProperties.dat", "kLeftDampingProperties", "kLeftPatchDist",      &(abl->kLeftPatchDist));
         readSubDictDouble("ABLProperties.dat", "kLeftDampingProperties", "kLeftDampingAlpha",   &(abl->kLeftDampingAlpha));
-        readSubDictVector("ABLProperties.dat", "kLeftDampingProperties", "kLeftDampingUBar",    &(abl->kLeftDampingUBar));
+        readSubDictInt   ("ABLProperties.dat", "kLeftDampingProperties", "kLeftDampingUBarSelectionType", &(abl->kLeftDampingUBarSelectionType));
         readSubDictDouble("ABLProperties.dat", "kLeftDampingProperties", "kLeftFilterHeight",   &(abl->kLeftDampingFilterHeight));
         readSubDictDouble("ABLProperties.dat", "kLeftDampingProperties", "kLeftFilterWidth",    &(abl->kLeftDampingFilterWidth));
+
+        abl->kLeftDampingUBarVec = NULL;
+
+        if(abl->kLeftDampingUBarSelectionType == 0)
+        {
+            readSubDictVector("ABLProperties.dat", "kLeftDampingProperties", "kLeftDampingUBar", &(abl->kLeftDampingUBar));
+        }
+        else if(abl->kLeftDampingUBarSelectionType == 1)
+        {
+            readSubDictWord  ("ABLProperties.dat", "kLeftDampingProperties", "kLeftDampingUBarTimeMode", &(abl->kLeftDampingUBarTimeMode));
+
+            PetscMalloc(my*sizeof(Cmpnts), &(abl->kLeftDampingUBarVec));
+            for(j=0; j<my; j++) { abl->kLeftDampingUBarVec[j] = nSetZero(); }
+
+            buildKRayleighUBarProfile(abl, "kLeft", abl->kLeftDampingUBarTimeMode, abl->kLeftDampingUBarVec);
+        }
+        else
+        {
+            char error[512];
+            sprintf(error, "unknown kLeftDampingUBarSelectionType %ld. Available: 0 (constant vector), 1 (mesoscale profile)\n", abl->kLeftDampingUBarSelectionType);
+            fatalErrorInFunction("ABLInitialize",  error);
+        }
     }
 
     // read kRight Rayleigh damping properties
@@ -2092,9 +2128,31 @@ PetscErrorCode InitializeABL(abl_ *abl)
 
         readSubDictDouble("ABLProperties.dat", "kRighDampingProperties", "kRightPatchDist",      &(abl->kRightPatchDist));
         readSubDictDouble("ABLProperties.dat", "kRighDampingProperties", "kRightDampingAlpha",   &(abl->kRightDampingAlpha));
-        readSubDictVector("ABLProperties.dat", "kRighDampingProperties", "kRightDampingUBar",    &(abl->kRightDampingUBar));
+        readSubDictInt   ("ABLProperties.dat", "kRighDampingProperties", "kRightDampingUBarSelectionType", &(abl->kRightDampingUBarSelectionType));
         readSubDictDouble("ABLProperties.dat", "kRighDampingProperties", "kRightFilterHeight",   &(abl->kRightDampingFilterHeight));
         readSubDictDouble("ABLProperties.dat", "kRighDampingProperties", "kRightFilterWidth",    &(abl->kRightDampingFilterWidth));
+
+        abl->kRightDampingUBarVec = NULL;
+
+        if(abl->kRightDampingUBarSelectionType == 0)
+        {
+            readSubDictVector("ABLProperties.dat", "kRighDampingProperties", "kRightDampingUBar", &(abl->kRightDampingUBar));
+        }
+        else if(abl->kRightDampingUBarSelectionType == 1)
+        {
+            readSubDictWord  ("ABLProperties.dat", "kRighDampingProperties", "kRightDampingUBarTimeMode", &(abl->kRightDampingUBarTimeMode));
+
+            PetscMalloc(my*sizeof(Cmpnts), &(abl->kRightDampingUBarVec));
+            for(j=0; j<my; j++) { abl->kRightDampingUBarVec[j] = nSetZero(); }
+
+            buildKRayleighUBarProfile(abl, "kRight", abl->kRightDampingUBarTimeMode, abl->kRightDampingUBarVec);
+        }
+        else
+        {
+            char error[512];
+            sprintf(error, "unknown kRightDampingUBarSelectionType %ld. Available: 0 (constant vector), 1 (mesoscale profile)\n", abl->kRightDampingUBarSelectionType);
+            fatalErrorInFunction("ABLInitialize",  error);
+        }
     }
 
     // read advection damping properties
@@ -2418,12 +2476,112 @@ PetscErrorCode readMesoScaleVelocityData(abl_ *abl)
                     PetscFree(tempArray[j]);
                 }
 
-                PetscFree(tempArray); 
+                PetscFree(tempArray);
             }
 
             indata.close();
         }
     }
+    return (0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode buildKRayleighUBarProfile(abl_ *abl, const char *side, const word &timeMode, Cmpnts *uBarVec)
+{
+    mesh_        *mesh = abl->access->mesh;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      my   = info.my;
+    PetscInt      nLevels = my - 2;
+
+    if(!abl->mesoVelocityDataSet)
+    {
+        readMesoScaleVelocityData(abl);
+        abl->mesoVelocityDataSet = 1;
+    }
+
+    std::vector<Cmpnts> uProf(abl->numhV);
+
+    if(timeMode == "initial")
+    {
+        for(PetscInt h=0; h<abl->numhV; h++)
+        {
+            uProf[h] = abl->uMeso[h][0];
+        }
+    }
+    else if(timeMode == "average")
+    {
+        for(PetscInt h=0; h<abl->numhV; h++)
+        {
+            uProf[h] = nSetZero();
+            for(PetscInt t=0; t<abl->numtV; t++)
+            {
+                mSum(uProf[h], abl->uMeso[h][t]);
+            }
+            mScale(1.0 / (PetscReal)abl->numtV, uProf[h]);
+        }
+    }
+    else if(timeMode == "timeVarying")
+    {
+        char error[512];
+        sprintf(error, "%sDampingUBarTimeMode = timeVarying is not yet implemented. Use \"initial\" or \"average\"\n", side);
+        fatalErrorInFunction("buildKRayleighUBarProfile",  error);
+    }
+    else
+    {
+        char error[512];
+        sprintf(error, "unknown %sDampingUBarTimeMode \"%s\". Available: \"initial\", \"average\", \"timeVarying\" (not yet implemented)\n", side, timeMode.c_str());
+        fatalErrorInFunction("buildKRayleighUBarProfile",  error);
+    }
+
+    PetscReal *hVel = abl->hV;
+    PetscInt   numhV = abl->numhV;
+
+    for(PetscInt l=0; l<nLevels; l++)
+    {
+        PetscReal currPt = abl->cellLevels[l];
+        Cmpnts    uInterp;
+
+        if(currPt <= hVel[0])
+        {
+            uInterp = uProf[0];
+        }
+        else if(currPt >= hVel[numhV-1])
+        {
+            uInterp = uProf[numhV-1];
+        }
+        else
+        {
+            PetscInt idx1 = 0, idx2 = numhV - 1;
+
+            for(PetscInt h=0; h<numhV; h++)
+            {
+                if(hVel[h] <= currPt && hVel[h] > hVel[idx1]) idx1 = h;
+                if(hVel[h] >= currPt && hVel[h] < hVel[idx2]) idx2 = h;
+            }
+
+            if(idx1 == idx2) idx2 = idx1 + 1;
+
+            PetscReal total = hVel[idx2] - hVel[idx1];
+            PetscReal wt1   = (hVel[idx2] - currPt) / total;
+            PetscReal wt2   = (currPt - hVel[idx1]) / total;
+
+            uInterp = nSum(nScale(wt1, uProf[idx1]), nScale(wt2, uProf[idx2]));
+        }
+
+        uBarVec[l+1] = uInterp;
+    }
+
+    if(my >= 2)
+    {
+        uBarVec[0]    = uBarVec[1];
+        uBarVec[my-1] = uBarVec[my-2];
+    }
+
+    PetscPrintf(mesh->MESH_COMM, "   -> built %s Rayleigh uBar(z) profile from mesoscale data (timeMode = %s)\n", side, timeMode.c_str());
+
+    std::vector<Cmpnts>().swap(uProf);
+
     return (0);
 }
 
