@@ -3377,15 +3377,19 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     nudj_x  = viscCosDescending(abl->kLeftDampingAlpha, hs, he, xj);
                     nudk_x  = viscCosDescending(abl->kLeftDampingAlpha, hs, he, xk);
 
+                    Cmpnts kLeftUBar   = (abl->kLeftDampingUBarSelectionType == 1) ? abl->kLeftDampingUBarVec[j]   : abl->kLeftDampingUBar;
+                    Cmpnts kLeftUBarJp = (abl->kLeftDampingUBarSelectionType == 1) ? abl->kLeftDampingUBarVec[j+1] : abl->kLeftDampingUBar;
+                    Cmpnts kLeftUBarF  = (abl->kLeftDampingUBarSelectionType == 1) ? nScale(0.5, nSum(kLeftUBar, kLeftUBarJp)) : abl->kLeftDampingUBar;
+
                     // i-fluxes
                     rhs[k][j][i].x
                     +=
                     scale * central(nud_x, nudi_x) * scaleHyperTangTop(central(z,zi), abl->kLeftDampingFilterHeight, abl->kLeftDampingFilterWidth) *
                     (
                         (
-                            (abl->kLeftDampingUBar.x - central(ucat[k][j][i].x, ucat[k][j][i+1].x)) * icsi[k][j][i].x +
-                            (abl->kLeftDampingUBar.y - central(ucat[k][j][i].y, ucat[k][j][i+1].y)) * icsi[k][j][i].y +
-                            (abl->kLeftDampingUBar.z - central(ucat[k][j][i].z, ucat[k][j][i+1].z)) * icsi[k][j][i].z
+                            (kLeftUBar.x - central(ucat[k][j][i].x, ucat[k][j][i+1].x)) * icsi[k][j][i].x +
+                            (kLeftUBar.y - central(ucat[k][j][i].y, ucat[k][j][i+1].y)) * icsi[k][j][i].y +
+                            (kLeftUBar.z - central(ucat[k][j][i].z, ucat[k][j][i+1].z)) * icsi[k][j][i].z
                         )
                     );
 
@@ -3395,9 +3399,9 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     scale * central(nud_x, nudj_x) * scaleHyperTangTop(central(z,zj), abl->kLeftDampingFilterHeight, abl->kLeftDampingFilterWidth) *
                     (
                         (
-                            (abl->kLeftDampingUBar.x - central(ucat[k][j][i].x, ucat[k][j+1][i].x)) * jeta[k][j][i].x +
-                            (abl->kLeftDampingUBar.y - central(ucat[k][j][i].y, ucat[k][j+1][i].y)) * jeta[k][j][i].y +
-                            (abl->kLeftDampingUBar.z - central(ucat[k][j][i].z, ucat[k][j+1][i].z)) * jeta[k][j][i].z
+                            (kLeftUBarF.x - central(ucat[k][j][i].x, ucat[k][j+1][i].x)) * jeta[k][j][i].x +
+                            (kLeftUBarF.y - central(ucat[k][j][i].y, ucat[k][j+1][i].y)) * jeta[k][j][i].y +
+                            (kLeftUBarF.z - central(ucat[k][j][i].z, ucat[k][j+1][i].z)) * jeta[k][j][i].z
                         )
                     );
 
@@ -3407,9 +3411,9 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     scale * central(nud_x, nudk_x) * scaleHyperTangTop(central(z,zk), abl->kLeftDampingFilterHeight, abl->kLeftDampingFilterWidth) *
                     (
                         (
-                            (abl->kLeftDampingUBar.x - central(ucat[k][j][i].x, ucat[k+1][j][i].x)) * kzet[k][j][i].x +
-                            (abl->kLeftDampingUBar.y - central(ucat[k][j][i].y, ucat[k+1][j][i].y)) * kzet[k][j][i].y +
-                            (abl->kLeftDampingUBar.z - central(ucat[k][j][i].z, ucat[k+1][j][i].z)) * kzet[k][j][i].z
+                            (kLeftUBar.x - central(ucat[k][j][i].x, ucat[k+1][j][i].x)) * kzet[k][j][i].x +
+                            (kLeftUBar.y - central(ucat[k][j][i].y, ucat[k+1][j][i].y)) * kzet[k][j][i].y +
+                            (kLeftUBar.z - central(ucat[k][j][i].z, ucat[k+1][j][i].z)) * kzet[k][j][i].z
                         )
                     );
                 }
@@ -3438,15 +3442,19 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     nudj_x  = viscCosAscending(abl->kRightDampingAlpha, hs, he, xj);
                     nudk_x  = viscCosAscending(abl->kRightDampingAlpha, hs, he, xk);
 
+                    Cmpnts kRightUBar   = (abl->kRightDampingUBarSelectionType == 1) ? abl->kRightDampingUBarVec[j]   : abl->kRightDampingUBar;
+                    Cmpnts kRightUBarJp = (abl->kRightDampingUBarSelectionType == 1) ? abl->kRightDampingUBarVec[j+1] : abl->kRightDampingUBar;
+                    Cmpnts kRightUBarF  = (abl->kRightDampingUBarSelectionType == 1) ? nScale(0.5, nSum(kRightUBar, kRightUBarJp)) : abl->kRightDampingUBar;
+
                     // i-fluxes
                     rhs[k][j][i].x
                     +=
                     scale * central(nud_x, nudi_x) * scaleHyperTangTop(central(z,zi), abl->kRightDampingFilterHeight, abl->kRightDampingFilterWidth) *
                     (
                         (
-                            (abl->kRightDampingUBar.x - central(ucat[k][j][i].x, ucat[k][j][i+1].x)) * icsi[k][j][i].x +
-                            (abl->kRightDampingUBar.y - central(ucat[k][j][i].y, ucat[k][j][i+1].y)) * icsi[k][j][i].y +
-                            (abl->kRightDampingUBar.z - central(ucat[k][j][i].z, ucat[k][j][i+1].z)) * icsi[k][j][i].z
+                            (kRightUBar.x - central(ucat[k][j][i].x, ucat[k][j][i+1].x)) * icsi[k][j][i].x +
+                            (kRightUBar.y - central(ucat[k][j][i].y, ucat[k][j][i+1].y)) * icsi[k][j][i].y +
+                            (kRightUBar.z - central(ucat[k][j][i].z, ucat[k][j][i+1].z)) * icsi[k][j][i].z
                         )
                     );
 
@@ -3456,21 +3464,21 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     scale * central(nud_x, nudj_x) * scaleHyperTangTop(central(z,zj), abl->kRightDampingFilterHeight, abl->kRightDampingFilterWidth) *
                     (
                         (
-                            (abl->kRightDampingUBar.x - central(ucat[k][j][i].x, ucat[k][j+1][i].x)) * jeta[k][j][i].x +
-                            (abl->kRightDampingUBar.y - central(ucat[k][j][i].y, ucat[k][j+1][i].y)) * jeta[k][j][i].y +
-                            (abl->kRightDampingUBar.z - central(ucat[k][j][i].z, ucat[k][j+1][i].z)) * jeta[k][j][i].z
+                            (kRightUBarF.x - central(ucat[k][j][i].x, ucat[k][j+1][i].x)) * jeta[k][j][i].x +
+                            (kRightUBarF.y - central(ucat[k][j][i].y, ucat[k][j+1][i].y)) * jeta[k][j][i].y +
+                            (kRightUBarF.z - central(ucat[k][j][i].z, ucat[k][j+1][i].z)) * jeta[k][j][i].z
                         )
                     );
 
                     // k-fluxes
                     rhs[k][j][i].z
                     +=
-                    scale * central(nud_x, nudk_x) * scaleHyperTangTop(central(z,zk), abl->kRightDampingFilterHeight, abl->kRightDampingFilterWidth) * 
+                    scale * central(nud_x, nudk_x) * scaleHyperTangTop(central(z,zk), abl->kRightDampingFilterHeight, abl->kRightDampingFilterWidth) *
                     (
                         (
-                            (abl->kRightDampingUBar.x - central(ucat[k][j][i].x, ucat[k+1][j][i].x)) * kzet[k][j][i].x +
-                            (abl->kRightDampingUBar.y - central(ucat[k][j][i].y, ucat[k+1][j][i].y)) * kzet[k][j][i].y +
-                            (abl->kRightDampingUBar.z - central(ucat[k][j][i].z, ucat[k+1][j][i].z)) * kzet[k][j][i].z
+                            (kRightUBar.x - central(ucat[k][j][i].x, ucat[k+1][j][i].x)) * kzet[k][j][i].x +
+                            (kRightUBar.y - central(ucat[k][j][i].y, ucat[k+1][j][i].y)) * kzet[k][j][i].y +
+                            (kRightUBar.z - central(ucat[k][j][i].z, ucat[k+1][j][i].z)) * kzet[k][j][i].z
                         )
                     );
                 }
