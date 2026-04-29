@@ -705,7 +705,9 @@ kLeftDampingProperties
    ============================= ================== =====================================================================================
    **entry**                     **entry type**     **description**
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``kLeftPatchDist``            scalar             width of the k Raileigh damping region, given as distance from the kLeft patch. 
+   ``kLeftDampingStart``         scalar             start coordinate of the k Raileigh damping region in meters 
+   ----------------------------- ------------------ -------------------------------------------------------------------------------------
+   ``kLeftDampingEnd``           scalar             end coordinate of the k Raileigh damping region in meters
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
    ``kLeftDampingAlpha``         scalar             damping coefficient :math:`\alpha`. Usually set to 0.3. 
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
@@ -738,7 +740,9 @@ kRightDampingProperties
    ============================= ================== =====================================================================================
    **entry**                     **entry type**     **description**
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
-   ``kRightPatchDist``           scalar             width of the k Raileigh damping region, given as distance from the kRight patch. 
+   ``kRightDampingStart``        scalar             start coordinate of the k Raileigh damping region in meters 
+   ----------------------------- ------------------ -------------------------------------------------------------------------------------
+   ``kRightDampingEnd``          scalar             end coordinate of the k Raileigh damping region in meters
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
    ``kRightDampingAlpha``        scalar             damping coefficient :math:`\alpha`. Usually set to 0.3.
    ----------------------------- ------------------ -------------------------------------------------------------------------------------
