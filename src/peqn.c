@@ -1934,6 +1934,10 @@ PetscErrorCode SetRHS(peqn_ *peqn)
                     val -= ucont[k-1][j][i].z;
 
                     val *=  1.0 / dt;
+
+                    // accumulate the sum and count for mean calculation
+                    lsum += val;
+                    lcount++;
                 }
 
                 if(peqn->solverType == "HYPRE")
@@ -1943,13 +1947,6 @@ PetscErrorCode SetRHS(peqn_ *peqn)
 
                     // set the RHS value
                     HYPRE_IJVectorSetValues(peqn->hypreRhs, 1, &idx, &val);
-
-                    // sum up this cell value
-                    if ((!isIBMCell(k, j, i, nvert)) && (!isOversetCell(k,j,i,meshTag)))
-                    {
-                        lsum += val;
-                        lcount++;
-                    }
                 }
                 else if(peqn->solverType == "PETSc")
                 {
@@ -1958,14 +1955,6 @@ PetscErrorCode SetRHS(peqn_ *peqn)
 
                     // set the RHS value
                     rhs[idx] = val;
-
-                    // sum up this cell value
-                    if ((!isIBMCell(k, j, i, nvert)) && (!isOversetCell(k,j,i,meshTag)))
-                    {
-                        lsum += val;
-                        lcount++;
-                    }
-
                 }
             }
         }
@@ -1982,34 +1971,32 @@ PetscErrorCode SetRHS(peqn_ *peqn)
         {
             for (i=lxs; i<lxe; i++)
             {
-                if(matID(i,j,k)>=0)
+                if (isIBMCell(k, j, i, nvert) || isOversetCell(k,j,i,meshTag))
                 {
-
-                    if ((!isIBMCell(k, j, i, nvert)) && (!isOversetCell(k,j,i,meshTag)))
+                    continue;
+                }
+                else
+                {
+                    if(peqn->solverType == "HYPRE")
                     {
-                        if(peqn->solverType == "HYPRE")
-                        {
-                            // get connectivity
-                            HYPRE_Int idx = matID(i,j,k);
+                        // get connectivity
+                        HYPRE_Int idx = matID(i,j,k);
 
-                            // subtract the mean to apply compatibility condition
-                            HYPRE_IJVectorAddToValues(peqn->hypreRhs, 1, &idx, &gsum);
-                        }
-                        else if(peqn->solverType == "PETSc")
-                        {
-                            // get connectivity
-                            PetscInt idx = (PetscInt)matID(i,j,k) - peqn->thisRankStart;
-
-                            // set the RHS value
-                            rhs[idx] += gsum;
-                        }
+                        // subtract the mean to apply compatibility condition
+                        HYPRE_IJVectorAddToValues(peqn->hypreRhs, 1, &idx, &gsum);
                     }
+                    else if(peqn->solverType == "PETSc")
+                    {
+                        // get connectivity
+                        PetscInt idx = (PetscInt)matID(i,j,k) - peqn->thisRankStart;
 
+                        // set the RHS value
+                        rhs[idx] += gsum;
+                    }
                 }
             }
         }
     }
-
 
     if(peqn->solverType == "HYPRE")
     {
@@ -2864,19 +2851,17 @@ PetscErrorCode UpdatePressure(peqn_ *peqn)
         {
             for (i=xs; i<xe; i++)
             {
-              if (isIBMCell(k, j, i, nvert) || isOversetCell(k, j, i, meshTag)) 
-              {
-                      continue;
-              }
-
-              if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
-              {
-                  // p updated only for fluid cells. For ibm fluid cells it is interpolated from the fluid cells in IBM interpolation function
-
-                  p[k][j][i] += lphi[k][j][i];
-                  lPsum += p[k][j][i];
-                  lnPoints++;
-              }
+                if (isIBMCell(k, j, i, nvert) || isOversetCell(k, j, i, meshTag)) 
+                {
+                    continue;
+                }
+                else
+                {
+                    // p updated only for fluid cells
+                    p[k][j][i] += lphi[k][j][i];
+                    lPsum += p[k][j][i];
+                    lnPoints++;
+                }
             }
         }
     }
@@ -2893,18 +2878,18 @@ PetscErrorCode UpdatePressure(peqn_ *peqn)
         {
             for (i=xs; i<xe; i++)
             {
-              if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
-              {
-                  p[k][j][i] -= gPsum;
-              }
-              else if(isIBMFluidCell(k, j, i, nvert))
-              {
-                 //do nothing. will be updated in ibm interpolation
-              }
-              else
-              {
-                   p[k][j][i] = 0.0;
-              }
+                if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
+                {
+                    p[k][j][i] -= gPsum;
+                }
+                else if(isIBMFluidCell(k, j, i, nvert) || isInterpolatedCell(k, j, i, meshTag))
+                {
+                    // do nothing. will be updated in ibm/overset interpolation
+                }
+                else
+                {
+                    p[k][j][i] = 0.0;
+                }
             }
         }
     }
@@ -3973,7 +3958,11 @@ PetscErrorCode SetPressureReference(peqn_ *peqn)
         {
             for (i=xs; i<xe; i++)
             {
-                if((!isIBMSolidCell(k, j, i, nvert)) && (!isZeroedCell(k, j, i, meshTag)))
+                if (isIBMCell(k, j, i, nvert) || isOversetCell(k, j, i, meshTag)) 
+                {
+                    continue;
+                }
+                else
                 {
                     p[k][j][i] -= gscale;
                 }

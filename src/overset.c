@@ -218,7 +218,6 @@ PetscErrorCode UpdateDomainInterpolation(PetscInt d, domain_ *domain, PetscInt l
     // 2: update boundary conditions: updates remaining domain boundaries
     UpdateCartesianBCs(domain[d].ueqn);
     UpdateContravariantBCs(domain[d].ueqn);
-    UpdatePressureBCs(domain[d].peqn);
 
     if (domain[d].flags.isTeqnActive)
     {
@@ -236,10 +235,6 @@ PetscErrorCode UpdateDomainInterpolation(PetscInt d, domain_ *domain, PetscInt l
             interpolateACellTrilinearC2P(childMesh, mesh, childId);
 
             MPI_Barrier(mesh->MESH_COMM);
-
-            // Update boundary conditions
-            UpdateCartesianBCs(domain[d].ueqn);
-            UpdateContravariantBCs(domain[d].ueqn);
 
             // Recursively update child domain
             UpdateDomainInterpolation(childId, domain, level + 1);

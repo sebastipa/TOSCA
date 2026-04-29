@@ -3071,37 +3071,37 @@ PetscErrorCode UpdatePressureBCs(peqn_ *peqn)
             {
                 PetscInt a=i, b=j, c=k, flag=0;
 
-                if(i==0 && mesh->boundaryU.iLeft != "oversetInterpolate")
+                if(i==0 && mesh->boundaryU.iLeft!="oversetInterpolate")
                 {
                     if(mesh->i_periodic)       a=mx-2, flag=1;
                     else if(mesh->ii_periodic) a=-2, flag=1;
                     else                       a=1, flag=1;
                 }
-                if(i==mx-1 && mesh->boundaryU.iRight != "oversetInterpolate")
+                if(i==mx-1 && mesh->boundaryU.iRight!="oversetInterpolate")
                 {
                     if(mesh->i_periodic)       a=1, flag=1;
                     else if(mesh->ii_periodic) a=mx+1, flag=1;
                     else                       a=mx-2, flag=1;
                 }
-                if(j==0 && mesh->boundaryU.jLeft != "oversetInterpolate")
+                if(j==0 && mesh->boundaryU.jLeft!="oversetInterpolate")
                 {
                     if(mesh->j_periodic)       b=my-2, flag=1;
                     else if(mesh->jj_periodic) b=-2, flag=1;
                     else                       b=1, flag=1;
                 }
-                if(j==my-1 && mesh->boundaryU.jRight != "oversetInterpolate")
+                if(j==my-1 && mesh->boundaryU.jRight!="oversetInterpolate")
                 {
                     if(mesh->j_periodic)       b=1, flag=1;
                     else if(mesh->jj_periodic) b=my+1, flag=1;
                     else                       b=my-2, flag=1;
                 }
-                if(k==0 && mesh->boundaryU.kLeft != "oversetInterpolate")
+                if(k==0 && mesh->boundaryU.kLeft!="oversetInterpolate")
                 {
                     if(mesh->k_periodic)       c=mz-2, flag=1;
                     else if(mesh->kk_periodic) c=-2, flag=1;
                     else                       c=1, flag=1;
                 }
-                if(k==mz-1 && mesh->boundaryU.kRight != "oversetInterpolate")
+                if(k==mz-1 && mesh->boundaryU.kRight!="oversetInterpolate")
                 {
                     if(mesh->k_periodic)       c=1, flag=1;
                     else if(mesh->kk_periodic) c=mz+1, flag=1;
