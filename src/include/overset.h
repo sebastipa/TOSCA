@@ -6,7 +6,8 @@
 
 #include <unordered_map>
 #include <map>
-// Structure to hold hole object data
+
+//! \brief Structure to hold hole object data
 typedef struct {
     word bodyName;
     PetscInt ownerMesh;
@@ -18,11 +19,11 @@ typedef struct {
 
 //! \brief Overset acceptor cell (used for both overset and base mesh acceptor cells)
 typedef struct {
-    PetscInt      indi, indj, indk;  //!< cell indices
+    PetscInt      indi, indj, indk;    //!< cell indices
     PetscReal     coorx, coory, coorz; //!< cell center coordinates
-    PetscMPIInt   rank;              //!< owning processor
-    PetscReal     cell_size;         //!< representative cell size
-    PetscInt      face;              //!< face indicator (used for BCs etc.)
+    PetscMPIInt   rank;                //!< owning processor
+    PetscReal     cell_size;           //!< representative cell size
+    PetscInt      face;                //!< face indicator (used for BCs etc.)
     PetscInt      donorId;
     PetscInt      parentCellId;
 } Acell;
@@ -44,9 +45,7 @@ typedef struct
     PetscInt      ibmAttached;   //!< if nonzero, use IBM–based motion instead
 } oversetMotion;
 
-//! \brief Main overset structure.  
-//! This structure holds the parameters, connectivity, and interpolation data for
-//! both the overset (child) mesh and the base (background) mesh update.
+//! \brief Main overset structure. Holds the parameters, connectivity, and interpolation data between parent and child domains.
 struct overset_ 
 {
     // Mesh connectivity information
@@ -75,7 +74,7 @@ struct overset_
     std::vector<Dcell>                      closestDonorDb;    //!< For trilinear interpolation: closest donor cell per acceptor at domain boundary
     std::vector<Dcell>                      closestDonorHc;    //!< For trilinear interpolation: closest donor cell per acceptor at hole cut boundary
 
-    //for other interpolation methods
+    // For other interpolation methods (currently deprecated)
     std::vector<std::vector<PetscReal>>     DWeights;        //!< MLS weights for overset interpolation 
     std::vector<std::vector<Dcell>>         dCell;           //!< List of donor cell 
 
@@ -90,7 +89,7 @@ struct overset_
     access_ *access;
 };
 
-//structs for 3D binning 
+//! \brief Struct for 3D binning of hole cut boundary elements for efficient donor search
 struct BinIndex {
     int ix, iy, iz;
     bool operator==(const BinIndex& other) const {
@@ -98,6 +97,7 @@ struct BinIndex {
     }
 };
 
+//! \brief Hash function for BinIndex to be used in unordered_map
 namespace std {
     template <>
     struct hash<BinIndex> {
@@ -109,79 +109,109 @@ namespace std {
 
 #endif
 
-
-// Initialization and update
+//! \brief Initializes overset environment and data structures
 PetscErrorCode InitializeOverset(domain_ *dm);
 
+//! \brief Set initial fields for all overset meshes iteratively
 PetscErrorCode SetInitialFieldsOverset(PetscInt d, domain_ *domain);
 
+//! \brief Update overset interpolation for a single time step
 PetscErrorCode UpdateOversetInterpolation(domain_ *domain);
 
+//! \brief Synchronize pressure gauge across all domains after overset interpolation
+PetscErrorCode SyncPressureAcrossDomains(domain_ *domain);
+
+//! \brief Update overset interpolation for given domains and their dependencies recursively
 PetscErrorCode UpdateDomainInterpolation(PetscInt d, domain_ *domain, PetscInt level);
 
+//! \brief Find donor cells from closest domain level
 PetscErrorCode findClosestDomainDonors(PetscInt d, domain_ *domain, PetscInt level, const std::vector<HoleObject> &holeObjects); 
 
-PetscErrorCode findAcceptorCells(PetscInt d, domain_ *domain, PetscInt level, 
-    const std::vector<HoleObject> &holeObjects);
+//! \brief Find acceptor cells from closest domain level for hole cut boundary
+PetscErrorCode findAcceptorCells(PetscInt d, domain_ *domain, PetscInt level, const std::vector<HoleObject> &holeObjects);
 
+//! \brief Read overset properties from input file
 PetscErrorCode readOversetProperties(overset_ *os);
 
+//! \brief Read overset blanking IBM object from input file
 PetscErrorCode readBlankingIBMObject(overset_ *os, domain_ *domain, char *holeObjectName, const std::vector<HoleObject> &holeObjects);
 
+//! \brief Read overset hole objects from input file
 PetscErrorCode readHoleObjects(std::vector<HoleObject> &holeObjects, PetscInt numHoleObjects);
 
-PetscErrorCode FindHoleObject(const std::vector<HoleObject> &holeObjects, 
-    PetscInt parentId, PetscInt childId, 
-    char **holeObjectName);
+//! \brief Find the hole object for a parent-child pair
+PetscErrorCode FindHoleObject(const std::vector<HoleObject> &holeObjects, PetscInt parentId, PetscInt childId, char **holeObjectName);
 
+//! \brief Update coordinates of acceptor cells based on overset motion
 PetscErrorCode updateAcceptorCoordinates(overset_ *os);
 
+//! \brief Create acceptor cells at boundaries for a given domain
 PetscErrorCode createAcceptorCellOverset(overset_ *os);
 
+//! \brief Create acceptor cells at hole boundary for a given domain
 PetscErrorCode createAcceptorCellBackground(overset_ *os, PetscInt donorMeshId);
 
+//! \brief Find donor cells from child to parent 
 PetscErrorCode findClosestDonorC2P(mesh_ *meshDonor, mesh_ *meshAcceptor, PetscInt donorId);
 
+//! \brief Find donor cells from parent to child 
 PetscErrorCode findClosestDonorP2C(mesh_ *meshDonor, mesh_ *meshAcceptor);
 
-// Interpolation routines for overset (child) mesh
+//! \brief Perform trilinear interpolation from parent to child
 PetscErrorCode interpolateACellTrilinearP2C(mesh_ *donorMesh, mesh_ *acceptorMesh);
 
+//! \brief Perform trilinear interpolation from child to parent
 PetscErrorCode interpolateACellTrilinearC2P(mesh_ *meshD, mesh_ *meshA, PetscInt donorId);
 
+//! \brief DEPRECATED (COMMENTED OUT IN overset.c)
 PetscErrorCode oversetContravariantBC(mesh_ *mesh, PetscInt i, PetscInt j, PetscInt k, Cmpnts ucart, PetscInt face);
 
+//! \brief DEPRECATED (COMMENTED OUT IN overset.c)
 PetscErrorCode setOversetBC(mesh_ *meshA);
 
+//! \brief Updates contracariant velocity at interpolated faces
 PetscErrorCode setBackgroundBC(mesh_ *meshA);
 
+//! \brief DEPRECATED (COMMENTED OUT IN overset.c)
 PetscErrorCode acell1Dcell0Connectivity(mesh_ *meshP, mesh_ *mesh);  
 
-// Least–Squares weights (for overset interpolation from base donor cells)
+//! \brief DEPRECATED (COMMENTED OUT IN overset.c)
 PetscErrorCode getLSWeights(mesh_ *meshP, mesh_ *mesh);
 
+//! \brief DEPRECATED (COMMENTED OUT IN overset.c)
 PetscErrorCode getLSWeights_2nd(mesh_ *meshP, mesh_ *mesh);
 
+//! \brief DEPRECATED (COMMENTED OUT IN overset.c)
 PetscErrorCode getLSWeights_3rd(mesh_ *meshP, mesh_ *mesh);
 
+//! \brief DEPRECATED (COMMENTED OUT IN overset.c)
 PetscErrorCode interpolateACellInvD(mesh_ *meshP, mesh_ *mesh);
 
+//! \brief DEPRECATED (COMMENTED OUT IN overset.c)
 PetscErrorCode interpolateACellLS(mesh_ *meshP, mesh_ *mesh);
 
+//! \brief DEPRECATED 
 PetscErrorCode updateAcellCoordinates(domain_ *domain);
 
+//! \brief DEPRECATED 
 PetscErrorCode updateIntersectingProcessors(domain_ *domain);
 
+//! \brief DEPRECATED 
 PetscErrorCode updateDonorCells(domain_ *domain);
 
-// Dynamic overset motion
+//! \brief Basic motion for dynamic overset mesh 
 PetscErrorCode oversetMeshTranslation(overset_ *os);  
 
+//! \brief MPI operation function to find the sum the elements of the vector of structs
 void sum_struct_Acell(void *in, void *inout, int *len, MPI_Datatype *type);
+
+//! \brief Define MPI datatype for Acell struct
 void defineStruct_Acell(MPI_Datatype *tstype);
 
+//! \brief Compute the normal vector for overset IBM hole cut boundary elements
 PetscErrorCode computeOversetIBMElementNormal(ibm_ *ibm);
 
+//! \brief Perform overset IBM search to find hole cut and the interpolated cells 
 PetscErrorCode oversetIbmSearch(ibm_ *ibm);
 
 
