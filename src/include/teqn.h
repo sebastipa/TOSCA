@@ -73,9 +73,3 @@ PetscErrorCode SolveTEqn(teqn_ *teqn);
 
 //! \brief Computes g*h times gradient of rho_k / rho_0
 PetscErrorCode ghGradRhoK(teqn_ *teqn);
-
-//! \brief Forward-Euler conv-only T predictor: T* = T^n + dt*N(T^n) -> lTmprt (for buoyancy in SolveUEqn)
-PetscErrorCode TmprtPredictor(teqn_ *teqn);
-
-//! \brief Restore Tmprt/lTmprt to T^n from Tmprt_o (undo TmprtPredictor before SolveTEqn)
-PetscErrorCode TmprtRestoreFromOld(teqn_ *teqn);
