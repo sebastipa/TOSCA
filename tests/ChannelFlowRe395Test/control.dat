@@ -20,7 +20,8 @@
 # ---------------------------------
 -potentialT                0
 -abl                       0
--meanGradPForce            1
+-bulkGradPForce            1
+-u_bulk                    17.55
 -absTolU                   1e-8
 -poissonIt                 12
 -poissonTol                1e-8
