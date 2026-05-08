@@ -4,9 +4,7 @@
 #internal field 
 
 internalField    readField
-{
-  uBulk		 (17.55 0.0 0.0)
-}
+
 # boundary patches
 iLeft   periodic
 
