@@ -308,6 +308,9 @@ int main(int argc, char **argv)
             UpdateOversetInterpolation(domain);
         }
 
+        // remove gauge pressure and sync
+        SyncPressureAcrossDomains(domain);
+
         WriteAcquisition(domain);
 
         clock.it ++;
