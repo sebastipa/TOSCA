@@ -22,8 +22,7 @@
 # ---------------------------------
 -abl                       1
 -potentialT                1
-#-zDampingLayer            0
-#-xDampingLayer            0
+-pTildeBuoyancy            1
 -ibm                       0
 -overset                   1
 -absTolU                   1e-7
