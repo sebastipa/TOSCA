@@ -19,11 +19,6 @@
 
 # Solution
 # ---------------------------------
--potentialT                0
--abl                       0
--zDampingLayer             0
--xDampingLayer             0
--overset		   0
 -absTolU                   1e-6
 -poissonIt                 20
 -poissonTol                1e-8
@@ -38,7 +33,8 @@
 # Numerical Schemes
 # ---------------------------------
 -dUdtScheme                CN
--divScheme                 centralUpwind
+-divScheme                 centralUpwindW
+
 # Wind Turbine
 # ---------------------------------
 -windplant                1
