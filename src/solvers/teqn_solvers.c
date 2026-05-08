@@ -146,17 +146,25 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
                     PetscReal denom;
                     getFace2Cell4StencilCsi(mesh, k, j, i, mx, &iL, &iR, &denom, nvert, meshTag);
 
-                    div[k][j][i].x =
-                    - ucont[k][j][i].x  
-                    * weno3
-                    (
-                        tmprt[k][j][iL],
-                        tmprt[k][j][i],
-                        tmprt[k][j][i+1],
-                        tmprt[k][j][iR],
-                        ucont[k][j][i].x
-                        //,limiter[k][j][i].x
-                    );
+                    // use central differences at overset interpolated faces
+                    if(isOversetIFace(k, j, i, i+1, meshTag))
+                    {
+                        div[k][j][i].x = -ucont[k][j][i].x * central(tmprt[k][j][i], tmprt[k][j][i+1]);
+                    }
+                    else
+                    {
+                        div[k][j][i].x =
+                        - ucont[k][j][i].x  
+                        * weno3
+                        (
+                            tmprt[k][j][iL],
+                            tmprt[k][j][i],
+                            tmprt[k][j][i+1],
+                            tmprt[k][j][iR],
+                            ucont[k][j][i].x
+                            //,limiter[k][j][i].x
+                        );
+                    }
 
                     PetscReal nu = cst->nu, nut;
                     PetscReal kappaEff;
@@ -263,17 +271,25 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
                     PetscReal denom;
                     getFace2Cell4StencilEta(mesh, k, j, i, my, &jL, &jR, &denom, nvert, meshTag);
 
-                    div[k][j][i].y =
-                    - ucont[k][j][i].y 
-                    * weno3
-                    (
-                        tmprt[k][jL][i],
-                        tmprt[k][j][i],
-                        tmprt[k][j+1][i],
-                        tmprt[k][jR][i],
-                        ucont[k][j][i].y
-                        //,limiter[k][j][i].y
-                    );
+                    // use central differences at overset interpolated faces
+                    if(isOversetJFace(k, j, i, j+1, meshTag))
+                    {
+                        div[k][j][i].y = -ucont[k][j][i].y * central(tmprt[k][j][i], tmprt[k][j+1][i]);
+                    }
+                    else
+                    {
+                        div[k][j][i].y = 
+                        - ucont[k][j][i].y 
+                        * weno3
+                        (
+                            tmprt[k][jL][i],
+                            tmprt[k][j][i],
+                            tmprt[k][j+1][i],
+                            tmprt[k][jR][i],
+                            ucont[k][j][i].y
+                            //,limiter[k][j][i].y
+                        );
+                    }
 
                     PetscReal nu = cst->nu, nut;
                     PetscReal kappaEff;
@@ -379,17 +395,25 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
                     PetscReal denom;
                     getFace2Cell4StencilZet(mesh, k, j, i, mz, &kL, &kR, &denom, nvert, meshTag);
 
-                    div[k][j][i].z =
-                    - ucont[k][j][i].z 
-                    * weno3
-                    (
-                        tmprt[kL][j][i],
-                        tmprt[k][j][i],
-                        tmprt[k+1][j][i],
-                        tmprt[kR][j][i],
-                        ucont[k][j][i].z
-                        //,limiter[k][j][i].z
-                    );
+                    // use central differences at overset interpolated faces
+                    if(isOversetKFace(k, j, i, k+1, meshTag))
+                    {
+                        div[k][j][i].z = -ucont[k][j][i].z * central(tmprt[k][j][i], tmprt[k+1][j][i]);
+                    }
+                    else
+                    {
+                        div[k][j][i].z =
+                        - ucont[k][j][i].z 
+                        * weno3
+                        (
+                            tmprt[kL][j][i],
+                            tmprt[k][j][i],
+                            tmprt[k+1][j][i],
+                            tmprt[kR][j][i],
+                            ucont[k][j][i].z
+                            //,limiter[k][j][i].z
+                        );
+                    }
 
                     PetscReal nu = cst->nu, nut;
                     PetscReal kappaEff;
