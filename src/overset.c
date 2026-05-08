@@ -40,7 +40,8 @@
 // Note: this overset implementation does not handle intersecting domains at the same level. Overset meshes need to be either cascaded (within another domain) or non intersecting if at same level
 //       Use a buffer of alteast 2 cells of the coarser mesh between the donor and acceptor meshes. 
 
-//! \brief Initialize overset coupling 
+//***************************************************************************************************************//
+
 PetscErrorCode InitializeOverset(domain_ *domain)
 {
     PetscInt nDomains = domain[0].info.nDomains;
@@ -105,6 +106,9 @@ PetscErrorCode InitializeOverset(domain_ *domain)
             PetscPrintf(domain[d].mesh->MESH_COMM, "\nStarted recursive donor search from domain %ld:\n", d);
             findClosestDomainDonors(d, domain, 0, holeObjects);
         }
+
+        // poisson equation initialize
+        InitializePEqn(domain[d].peqn);
     }
 
     // Re-run a clean interpolation cycle with all domains fully initialized
@@ -130,6 +134,8 @@ PetscErrorCode InitializeOverset(domain_ *domain)
 
 PetscErrorCode UpdateOversetInterpolation(domain_ *domain)
 {
+    PetscPrintf(PETSC_COMM_WORLD, "\n");
+
     PetscInt nDomains = domain[0].info.nDomains;
     PetscReal ts, te;
     PetscTime(&ts);
@@ -170,16 +176,17 @@ PetscErrorCode UpdateOversetInterpolation(domain_ *domain)
     }
 
     PetscTime(&te);
-    PetscPrintf(PETSC_COMM_WORLD, "Overset Interpolation Elapsed Time = %lf\n", te - ts);
+    PetscPrintf(PETSC_COMM_WORLD, "OS interpolation, Elapsed Time = %lf\n", te - ts);
+
     return 0;
 }
 
 //***************************************************************************************************************//
-//! \brief Update overset interpolation for all domains.
 
-// function to update interpolation for a single domain and its dependencies recursively
 PetscErrorCode UpdateDomainInterpolation(PetscInt d, domain_ *domain, PetscInt level)
 {
+    // function to update interpolation for a single domain and its dependencies recursively
+
     PetscInt nDomains = domain[0].info.nDomains;
     if (d < 0 || d >= nDomains) return 0; 
     if (domain[d].os == NULL) return 0;   
@@ -193,6 +200,9 @@ PetscErrorCode UpdateDomainInterpolation(PetscInt d, domain_ *domain, PetscInt l
         if (os->parentMeshId[pi] != -1)
         {
             mesh_ *parentMesh = domain[os->parentMeshId[pi]].mesh;
+
+            // print interpolation info for debugging
+            PetscPrintf(mesh->MESH_COMM, "OS Interpolation, %s > %s (acceptor is lvl %ld)\n", parentMesh->meshName.c_str(), mesh->meshName.c_str(), level);
 
             interpolateACellTrilinearP2C(parentMesh, mesh);
 
@@ -218,6 +228,7 @@ PetscErrorCode UpdateDomainInterpolation(PetscInt d, domain_ *domain, PetscInt l
     // 2: update boundary conditions: updates remaining domain boundaries
     UpdateCartesianBCs(domain[d].ueqn);
     UpdateContravariantBCs(domain[d].ueqn);
+    UpdatePressureBCs(domain[d].peqn);
 
     if (domain[d].flags.isTeqnActive)
     {
@@ -232,6 +243,9 @@ PetscErrorCode UpdateDomainInterpolation(PetscInt d, domain_ *domain, PetscInt l
             mesh_ *childMesh = domain[os->childMeshId[ci]].mesh;
             PetscInt childId = os->childMeshId[ci];
 
+            // print interpolation info for debugging
+            PetscPrintf(mesh->MESH_COMM, "OS Interpolation, %s > %s (acceptor is lvl %ld)\n", childMesh->meshName.c_str(),  mesh->meshName.c_str(), level);
+
             interpolateACellTrilinearC2P(childMesh, mesh, childId);
 
             MPI_Barrier(mesh->MESH_COMM);
@@ -240,6 +254,269 @@ PetscErrorCode UpdateDomainInterpolation(PetscInt d, domain_ *domain, PetscInt l
             UpdateDomainInterpolation(childId, domain, level + 1);
         }
     }
+
+    return 0;
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode SyncPressureAcrossDomains(domain_ *domain)
+{
+    PetscInt nDomains = domain[0].info.nDomains;
+
+    // Single domain: shift entire pressure field so that p[1][1][1] = 0
+    if (nDomains == 1)
+    {
+        mesh_         *mesh = domain[0].mesh;
+        DM             da   = mesh->da;
+        DMDALocalInfo  info = mesh->info;
+        PetscInt       xs   = info.xs, xe = info.xs + info.xm;
+        PetscInt       ys   = info.ys, ye = info.ys + info.ym;
+        PetscInt       zs   = info.zs, ze = info.zs + info.zm;
+
+        PetscReal ***p;
+        DMDAVecGetArray(da, domain[0].peqn->P, &p);
+
+        // read p[1][1][1] on whichever rank owns it and send it to all other ranks
+        PetscReal localRef = 0.0;
+
+        if (xs <= 1 && 1 < xe && ys <= 1 && 1 < ye && zs <= 1 && 1 < ze)
+        {
+            localRef  = p[1][1][1];
+        }
+
+        PetscReal globalRef = 0.0;
+        MPI_Allreduce(&localRef, &globalRef, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+        // shift all pressure values 
+        for (PetscInt k = zs; k < ze; k++)
+            for (PetscInt j = ys; j < ye; j++)
+                for (PetscInt i = xs; i < xe; i++)
+                    p[k][j][i] -= globalRef;
+
+        DMDAVecRestoreArray(da, domain[0].peqn->P, &p);
+
+        DMGlobalToLocalBegin(da, domain[0].peqn->P, INSERT_VALUES, domain[0].peqn->lP);
+        DMGlobalToLocalEnd  (da, domain[0].peqn->P, INSERT_VALUES, domain[0].peqn->lP);
+
+        PetscPrintf(mesh->MESH_COMM, "Gauge pressure removal, shift is %.6e\n", -globalRef);
+
+        return 0;
+    }
+
+    // Multiple domains: first find the root parent, then for each non root shift its
+    // pressure to match the parent's value at the cell closest to the child's cent[1][1][1]. 
+    // This ensures that the gauge is consistent across all domains and that the solution 
+    // remains attached across the overset interfaces (it doesn't matter currently, but we do not
+    // want pressure shifts). 
+
+    // Identify the root parent domain
+    PetscInt rootId = -1;
+    for (PetscInt d = 0; d < nDomains; d++)
+    {
+        PetscBool isChild = PETSC_FALSE;
+        for (PetscInt other = 0; other < nDomains && !isChild; other++)
+        {
+            if (other == d || domain[other].os == NULL) continue;
+            for (PetscInt ci = 0; ci < (PetscInt)domain[other].os->childMeshId.size(); ci++)
+            {
+                if (domain[other].os->childMeshId[ci] == d)
+                {
+                    isChild = PETSC_TRUE;
+                    break;
+                }
+            }
+        }
+        if (!isChild) { rootId = d; break; }
+    }
+
+    if (rootId < 0)
+    {
+        char error[512];
+        sprintf(error, "no root parent domain found for pressure synchronization\n");
+        fatalErrorInFunction("SyncPressureAcrossDomains", error);
+    }
+
+    // Shift pressure so that p[1][1][1] = 0 in the root parent domain
+    {
+        mesh_        *rootMesh = domain[rootId].mesh;
+        DM            rootDa   = rootMesh->da;
+        DMDALocalInfo rInfo    = rootMesh->info;
+        PetscInt      rxs = rInfo.xs, rxe = rInfo.xs + rInfo.xm;
+        PetscInt      rys = rInfo.ys, rye = rInfo.ys + rInfo.ym;
+        PetscInt      rzs = rInfo.zs, rze = rInfo.zs + rInfo.zm;
+
+        PetscReal ***rootP;
+        DMDAVecGetArray(rootDa, domain[rootId].peqn->P, &rootP);
+
+        PetscReal localRef = 0.0;
+        if (rxs <= 1 && 1 < rxe && rys <= 1 && 1 < rye && rzs <= 1 && 1 < rze)
+            localRef = rootP[1][1][1];
+
+        PetscReal globalRef = 0.0;
+        MPI_Allreduce(&localRef, &globalRef, 1, MPIU_REAL, MPIU_SUM, rootMesh->MESH_COMM);
+
+        for (PetscInt k = rzs; k < rze; k++)
+            for (PetscInt j = rys; j < rye; j++)
+                for (PetscInt i = rxs; i < rxe; i++)
+                    rootP[k][j][i] -= globalRef;
+
+        DMDAVecRestoreArray(rootDa, domain[rootId].peqn->P, &rootP);
+
+        // sync lP so children read the shifted values below
+        DMGlobalToLocalBegin(rootDa, domain[rootId].peqn->P, INSERT_VALUES, domain[rootId].peqn->lP);
+        DMGlobalToLocalEnd  (rootDa, domain[rootId].peqn->P, INSERT_VALUES, domain[rootId].peqn->lP);
+
+        PetscPrintf(rootMesh->MESH_COMM, "OS gauge pressure removal: root domain %ld shift is %.6e\n", rootId, -globalRef);
+    }
+
+    // Shift each child domain so that its closest cell to the parent's cent[1][1][1] has the same pressure as the parent at that cell
+    // Note: use multiple passes to handle any domain numbering order: after at most
+    //       nDomains-1 passes every level in a telescopic chain is processed.
+    //       A domain is processed only once its direct parent's lP is already finalized.
+    std::vector<PetscBool> done(nDomains, PETSC_FALSE);
+    done[rootId] = PETSC_TRUE;
+
+    for (PetscInt pass = 0; pass < nDomains; pass++)
+    {
+        for (PetscInt d = 0; d < nDomains; d++)
+        {
+            if (done[d]) continue;
+
+            // skip domains with no overset structure or no parent
+            if (domain[d].os == NULL) { done[d] = PETSC_TRUE; continue; }
+            if (domain[d].os->parentMeshId.empty()) { done[d] = PETSC_TRUE; continue; }
+
+            PetscInt parentId = domain[d].os->parentMeshId[0];
+            if (parentId < 0 || parentId >= nDomains) { done[d] = PETSC_TRUE; continue; }
+
+            // only process this domain once its direct parent is finalized
+            if (!done[parentId]) continue;
+
+            mesh_        *childMesh  = domain[d].mesh;
+            mesh_        *parentMesh = domain[parentId].mesh;
+            DM            childDa    = childMesh->da;
+            DM            parentDa   = parentMesh->da;
+            DM            parentFda  = parentMesh->fda;
+
+            DMDALocalInfo  cInfo  = childMesh->info;
+            DMDALocalInfo  pInfo  = parentMesh->info;
+
+            PetscReal ***childP, ***parentP;
+            Cmpnts    ***parentCent;
+
+            // Step 1: broadcast cent[1][1][1] of the child 
+            PetscReal localChildX = 0.0, localChildY = 0.0, localChildZ = 0.0;
+            {
+                DM     cFda = childMesh->fda;
+                Cmpnts ***childCent;
+
+                DMDAVecGetArray(cFda, childMesh->lCent, &childCent);
+
+                PetscInt cxs = cInfo.xs, cxe = cInfo.xs + cInfo.xm;
+                PetscInt cys = cInfo.ys, cye = cInfo.ys + cInfo.ym;
+                PetscInt czs = cInfo.zs, cze = cInfo.zs + cInfo.zm;
+
+                if (cxs <= 1 && 1 < cxe && cys <= 1 && 1 < cye && czs <= 1 && 1 < cze)
+                {
+                    localChildX = childCent[1][1][1].x;
+                    localChildY = childCent[1][1][1].y;
+                    localChildZ = childCent[1][1][1].z;
+                }
+
+                DMDAVecRestoreArray(cFda, childMesh->lCent, &childCent);
+            }
+
+            PetscReal childRefX = 0.0, childRefY = 0.0, childRefZ = 0.0;
+            MPI_Allreduce(&localChildX, &childRefX, 1, MPIU_REAL, MPIU_SUM, childMesh->MESH_COMM);
+            MPI_Allreduce(&localChildY, &childRefY, 1, MPIU_REAL, MPIU_SUM, childMesh->MESH_COMM);
+            MPI_Allreduce(&localChildZ, &childRefZ, 1, MPIU_REAL, MPIU_SUM, childMesh->MESH_COMM);
+
+            // Step 2: find closest cell in parent and read its p value
+            DMDAVecGetArray(parentFda, parentMesh->lCent, &parentCent);
+            DMDAVecGetArray(parentDa,  domain[parentId].peqn->lP, &parentP);
+
+            PetscInt  pxs = pInfo.xs, pxe = pInfo.xs + pInfo.xm;
+            PetscInt  pys = pInfo.ys, pye = pInfo.ys + pInfo.ym;
+            PetscInt  pzs = pInfo.zs, pze = pInfo.zs + pInfo.zm;
+            PetscInt  pmx = pInfo.mx, pmy = pInfo.my, pmz = pInfo.mz;
+
+            PetscReal localMinDist = 1.0e30;
+            PetscReal localParentP = 0.0;
+
+            for (PetscInt k = PetscMax(pzs,1); k < PetscMin(pze, pmz-1); k++)
+            {
+                for (PetscInt j = PetscMax(pys,1); j < PetscMin(pye, pmy-1); j++)
+                {
+                    for (PetscInt i = PetscMax(pxs,1); i < PetscMin(pxe, pmx-1); i++)
+                    {
+                        PetscReal dx = parentCent[k][j][i].x - childRefX;
+                        PetscReal dy = parentCent[k][j][i].y - childRefY;
+                        PetscReal dz = parentCent[k][j][i].z - childRefZ;
+                        PetscReal dist = dx*dx + dy*dy + dz*dz;
+                        if (dist < localMinDist)
+                        {
+                            localMinDist = dist;
+                            localParentP = parentP[k][j][i];
+                        }
+                    }
+                }
+            }
+
+            DMDAVecRestoreArray(parentFda, parentMesh->lCent, &parentCent);
+            DMDAVecRestoreArray(parentDa,  domain[parentId].peqn->lP, &parentP);
+
+            // find global minimum and corresponding parent p value
+            PetscReal globalMinDist = 0.0;
+            MPI_Allreduce(&localMinDist, &globalMinDist, 1, MPIU_REAL, MPIU_MIN, parentMesh->MESH_COMM);
+
+            PetscReal localContrib = 0.0;
+            if (localMinDist == globalMinDist)
+                localContrib = localParentP;
+
+            PetscReal parentRefP = 0.0;
+            MPI_Allreduce(&localContrib, &parentRefP, 1, MPIU_REAL, MPIU_SUM, parentMesh->MESH_COMM);
+
+            // Step 3: read child p[1][1][1] 
+            DMDAVecGetArray(childDa, domain[d].peqn->P, &childP);
+
+            PetscReal localChildP = 0.0;
+            {
+                PetscInt cxs = cInfo.xs, cxe = cInfo.xs + cInfo.xm;
+                PetscInt cys = cInfo.ys, cye = cInfo.ys + cInfo.ym;
+                PetscInt czs = cInfo.zs, cze = cInfo.zs + cInfo.zm;
+                if (cxs <= 1 && 1 < cxe && cys <= 1 && 1 < cye && czs <= 1 && 1 < cze)
+                    localChildP = childP[1][1][1];
+            }
+            PetscReal globalChildP = 0.0;
+            MPI_Allreduce(&localChildP, &globalChildP, 1, MPIU_REAL, MPIU_SUM, childMesh->MESH_COMM);
+
+            // Step 4: shift child pressure by the difference 
+            PetscReal shift = parentRefP - globalChildP;
+
+            PetscInt cxs = cInfo.xs, cxe = cInfo.xs + cInfo.xm;
+            PetscInt cys = cInfo.ys, cye = cInfo.ys + cInfo.ym;
+            PetscInt czs = cInfo.zs, cze = cInfo.zs + cInfo.zm;
+
+            for (PetscInt k = czs; k < cze; k++)
+                for (PetscInt j = cys; j < cye; j++)
+                    for (PetscInt i = cxs; i < cxe; i++)
+                        childP[k][j][i] += shift;
+
+            DMDAVecRestoreArray(childDa, domain[d].peqn->P, &childP);
+
+            DMGlobalToLocalBegin(childDa, domain[d].peqn->P, INSERT_VALUES, domain[d].peqn->lP);
+            DMGlobalToLocalEnd  (childDa, domain[d].peqn->P, INSERT_VALUES, domain[d].peqn->lP);
+
+            PetscPrintf(childMesh->MESH_COMM,
+                "OS gauge pressure removal: child (%ld) to parent (%ld) shift is %+.6e\n",
+                d, parentId, shift);
+
+            done[d] = PETSC_TRUE;
+        }
+    }
+
+    PetscPrintf(PETSC_COMM_WORLD, "\n");
 
     return 0;
 }
@@ -401,9 +678,7 @@ PetscErrorCode findClosestDomainDonors(PetscInt d, domain_ *domain, PetscInt lev
 }
 //***************************************************************************************************************//
 
-// function to find the hole object for a parent-child pair
-PetscErrorCode FindHoleObject(const std::vector<HoleObject> &holeObjects, 
-                                PetscInt parentId, PetscInt childId, char **holeObjectName)
+PetscErrorCode FindHoleObject(const std::vector<HoleObject> &holeObjects, PetscInt parentId, PetscInt childId, char **holeObjectName)
 {
     for (const auto &hole : holeObjects)
     {
@@ -424,7 +699,6 @@ PetscErrorCode FindHoleObject(const std::vector<HoleObject> &holeObjects,
 
 //***************************************************************************************************************//
 
-// Function to read hole objects from the input file
 PetscErrorCode readHoleObjects(std::vector<HoleObject> &holeObjects, PetscInt numHoleObjects)
 {
     PetscErrorCode ierr;
@@ -600,8 +874,9 @@ PetscErrorCode readBlankingIBMObject(overset_ *os, domain_ *domain, char *holeOb
 
     return (0);
 }
+
 //***************************************************************************************************************//
-// overset simulation properties
+
 PetscErrorCode readOversetProperties(overset_ *os)
 {
     // to set dynamic overset on
@@ -648,9 +923,16 @@ PetscErrorCode readOversetProperties(overset_ *os)
     return 0;
 }
 
-//*************************************************************** */
+//***************************************************************************************************************//
+
 PetscErrorCode interpolateACellTrilinearP2C(mesh_ *meshD, mesh_ *meshA)
 {
+    // Note: in the current form of overset method PRESSURE DATA IS EXCHANGED BUT NOT USED 
+    //       the pressure matrix uses phi = 0 at os boundaries and velocity has non-zero fluxes
+    //       at interpolated faces. Conversely the full pressure at interpolated cells is never 
+    //       accessed when computing gradient (zero gradient is only applied for visualization 
+    //       in UpdatePressureBCs)
+
     overset_         *os     = meshA->access->os;
     ueqn_            *ueqnA  = meshA->access->ueqn;
     ueqn_            *ueqnD  = meshD->access->ueqn;
@@ -669,11 +951,11 @@ PetscErrorCode interpolateACellTrilinearP2C(mesh_ *meshD, mesh_ *meshA)
     PetscInt         zs = infoA.zs, ze = infoA.zs + infoA.zm;
     PetscInt         mx = infoA.mx, my = infoA.my, mz = infoA.mz;
 
-    PetscInt         i, j, k, ic, kc, jc, b, n, m;
+    PetscInt         i, j, k, ic, kc, jc, b, n;
 
-    Cmpnts           ***lucatD, ***ucatA, ***cent, ucart;
-    PetscReal        ***ltempD, ***tempA, Temp;
-    PetscReal        ***lpressD, ***pressA, Pres;
+    Cmpnts           ***lucatD, ***ucatA, ***cent;
+    PetscReal        ***ltempD, ***tempA;
+    PetscReal        ***lpressD, ***pressA;
 
     Cmpnts           pCoor;
 
@@ -703,40 +985,74 @@ PetscErrorCode interpolateACellTrilinearP2C(mesh_ *meshD, mesh_ *meshA)
         DMDAVecGetArray(daA, teqnA->Tmprt, &tempA);
     }
 
-    // loop through the ranks
-    for(n = 0; n < sizeA; n++)
-    {
+    // we want to send one message per rank pair, data layout is
+    // [ux, uy, uz, temp, pres] (5 PetscReals) temperature slot hardcoded for now 
+    // and will be set to zero when temperature is not active. 
+    PetscInt stride = 5;
 
+    // Count how many cells this rank sends to each acceptor rank
+    std::vector<PetscInt> sendCount(sizeA, 0);
+    std::vector<PetscInt> recvCount(sizeD, 0);
+
+    for (b = 0; b < (PetscInt)aCell.size(); b++)
+    {
+        if (rankD == dCell[b].rank)
+        {
+            sendCount[aCell[b].rank]++;
+        }
+        if (rankA == aCell[b].rank)
+        {
+            recvCount[dCell[b].rank]++;
+        }
+    }
+
+    // Allocate buffers per rank
+    std::vector<std::vector<PetscReal>> sendBufs(sizeA);
+    std::vector<std::vector<PetscReal>> recvBufs(sizeD);
+
+    for (n = 0; n < sizeA; n++)
+    {
+        if (sendCount[n] > 0) sendBufs[n].resize(sendCount[n] * stride);
+    }
+    for (n = 0; n < sizeD; n++)
+    {
+        if (recvCount[n] > 0) recvBufs[n].resize(recvCount[n] * stride);
+    }
+
+    // Fill send buffers
+    std::vector<PetscInt> sendOffset(sizeA, 0);
+
+    // we also need to store the cell indices for unpacking on the recv side
+    // recvCellOrder[rank] is the list of cell indices b in the order they appear
+    std::vector<std::vector<PetscInt>> recvCellOrder(sizeD);
+
+    for (n = 0; n < sizeD; n++)
+    {
+        if (recvCount[n] > 0) recvCellOrder[n].reserve(recvCount[n]);
+    }
+
+    for (n = 0; n < sizeA; n++)
+    {
         if(NumAcellPerProc[n]!=0)
         {
-
             if(AcellProcMat[n][rankD] !=MPI_UNDEFINED)
             {
-
-                // loop through the aCell cells of a given processor n
                 for(b = sum_ind1; b < sum_ind1 + NumAcellPerProc[n]; b++)
                 {
-                    // aCell cell index
-                    i = aCell[b].indi;
-                    j = aCell[b].indj;
-                    k = aCell[b].indk;
-
-                    pCoor.x = aCell[b].coorx;
-                    pCoor.y = aCell[b].coory;
-                    pCoor.z = aCell[b].coorz;
-
-                    ucart.x = 0.0;
-                    ucart.y = 0.0;
-                    ucart.z = 0.0;
-                    Temp = 0.0;
-                    Pres = 0.0;
-
                     if (rankD == dCell[b].rank)
                     {
+                        PetscInt destRank = aCell[b].rank;
+                        PetscInt off      = sendOffset[destRank] * stride;
+
+                        pCoor.x = aCell[b].coorx;
+                        pCoor.y = aCell[b].coory;
+                        pCoor.z = aCell[b].coorz;
+
                         ic = dCell[b].indi;
                         jc = dCell[b].indj;
                         kc = dCell[b].indk;
 
+                        Cmpnts ucart;
                         vectorPointLocalVolumeInterpolation
                         (
                                 meshD,
@@ -747,8 +1063,13 @@ PetscErrorCode interpolateACellTrilinearP2C(mesh_ *meshD, mesh_ *meshA)
                                 ucart
                         );
 
+                        sendBufs[destRank][off + 0] = ucart.x;
+                        sendBufs[destRank][off + 1] = ucart.y;
+                        sendBufs[destRank][off + 2] = ucart.z;
+
                         if (flags->isTeqnActive)
                         {
+                            PetscReal Temp = 0.0;
                             scalarPointLocalVolumeInterpolation
                             (
                                     meshD,
@@ -758,8 +1079,14 @@ PetscErrorCode interpolateACellTrilinearP2C(mesh_ *meshD, mesh_ *meshA)
                                     ltempD,
                                     Temp
                             );
+                            sendBufs[destRank][off + 3] = Temp;
+                        }
+                        else
+                        {
+                            sendBufs[destRank][off + 3] = 0.0;
                         }
 
+                        PetscReal Pres = 0.0;
                         scalarPointLocalVolumeInterpolation
                         (
                                 meshD,
@@ -769,42 +1096,81 @@ PetscErrorCode interpolateACellTrilinearP2C(mesh_ *meshD, mesh_ *meshA)
                                 lpressD,
                                 Pres
                         );
+                        sendBufs[destRank][off + 4] = Pres;
 
-                        MPI_Send(&ucart, 3, MPIU_REAL, aCell[b].rank, 0, meshD->MESH_COMM);
-                        MPI_Send(&Temp, 1, MPIU_REAL, aCell[b].rank, 1, meshD->MESH_COMM);
-                        MPI_Send(&Pres, 1, MPIU_REAL, aCell[b].rank, 2, meshD->MESH_COMM);
-
-                        // if(k == 25 && j == 25 && i == 20)
-                        //     PetscPrintf(PETSC_COMM_SELF, "donor = %ld %ld %ld, ucatD = %lf %lf %lf, ucatA = %lf %lf %lf\n", kc, jc, ic, lucatD[kc][jc][ic].x, lucatD[kc][jc][ic].y, lucatD[kc][jc][ic].z, ucart.x, ucart.y, ucart.z );
+                        sendOffset[destRank]++;
                     }
 
                     if (rankA == aCell[b].rank)
                     {
-
-                        MPI_Recv(&ucart, 3, MPIU_REAL, dCell[b].rank, 0, meshD->MESH_COMM, MPI_STATUS_IGNORE);
-                        MPI_Recv(&Temp, 1, MPIU_REAL, dCell[b].rank, 1, meshD->MESH_COMM, MPI_STATUS_IGNORE);
-                        MPI_Recv(&Pres, 1, MPIU_REAL, dCell[b].rank, 2, meshD->MESH_COMM, MPI_STATUS_IGNORE);
-
-                        ucatA[k][j][i].x = ucart.x;
-                        ucatA[k][j][i].y = ucart.y;
-                        ucatA[k][j][i].z = ucart.z;
-
-                        pressA[k][j][i]   = Pres;
-
-                        if (flags->isTeqnActive)
-                        {
-                            tempA[k][j][i] = Temp;
-                        }
-
+                        recvCellOrder[dCell[b].rank].push_back(b);
                     }
                 }
             }
 
-            sum_ind1 +=NumAcellPerProc[n];
+            sum_ind1 += NumAcellPerProc[n];
         }
-
     }
 
+    // Receive data. Nonblocking, one per source rank
+    std::vector<MPI_Request> requests;
+    requests.reserve(sizeA + sizeD);
+
+    for (n = 0; n < sizeD; n++)
+    {
+        if (recvCount[n] > 0)
+        {
+            MPI_Request req;
+            MPI_Irecv(recvBufs[n].data(), recvCount[n] * stride, MPIU_REAL, n, 0, meshD->MESH_COMM, &req);
+            requests.push_back(req);
+        }
+    }
+
+    // Send data. Nonblocking, one per destination rank
+    for (n = 0; n < sizeA; n++)
+    {
+        if (sendCount[n] > 0)
+        {
+            MPI_Request req;
+            MPI_Isend(sendBufs[n].data(), sendCount[n] * stride, MPIU_REAL, n, 0, meshD->MESH_COMM, &req);
+            requests.push_back(req);
+        }
+    }
+
+    // Complete all comms 
+    if (!requests.empty())
+    {
+        MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);
+    }
+
+    // Put received data into field arrays
+    for (n = 0; n < sizeD; n++)
+    {
+        for (PetscInt idx = 0; idx < (PetscInt)recvCellOrder[n].size(); idx++)
+        {
+            b = recvCellOrder[n][idx];
+            i = aCell[b].indi;
+            j = aCell[b].indj;
+            k = aCell[b].indk;
+
+            PetscInt off = idx * stride;
+
+            ucatA[k][j][i].x = recvBufs[n][off + 0];
+            ucatA[k][j][i].y = recvBufs[n][off + 1];
+            ucatA[k][j][i].z = recvBufs[n][off + 2];
+
+            pressA[k][j][i] = recvBufs[n][off + 4];
+
+            if (flags->isTeqnActive)
+            {
+                tempA[k][j][i] = recvBufs[n][off + 3];
+
+                //PetscPrintf(PETSC_COMM_SELF, "P -> C: theta = %.2f\n", tempA[k][j][i]);
+            }
+        }
+    }
+
+    // free memory
     std::vector<Acell> ().swap(aCell);
     std::vector<Dcell> ().swap(dCell);
     std::vector<std::vector<PetscInt>> ().swap(AcellProcMat);
@@ -840,6 +1206,12 @@ PetscErrorCode interpolateACellTrilinearP2C(mesh_ *meshD, mesh_ *meshA)
 
 PetscErrorCode interpolateACellTrilinearC2P(mesh_ *meshD, mesh_ *meshA, PetscInt donorId)
 {
+    // Note: in the current form of overset method PRESSURE DATA IS EXCHANGED BUT NOT USED 
+    //       the pressure matrix uses phi = 0 at os boundaries and velocity has non-zero fluxes
+    //       at interpolated faces. Conversely the full pressure at interpolated cells is never 
+    //       accessed when computing gradient (zero gradient is only applied for visualization 
+    //       in UpdatePressureBCs)
+
     overset_         *os     = meshA->access->os;
     ueqn_            *ueqnA  = meshA->access->ueqn;
     ueqn_            *ueqnD  = meshD->access->ueqn;
@@ -864,8 +1236,7 @@ PetscErrorCode interpolateACellTrilinearC2P(mesh_ *meshD, mesh_ *meshA, PetscInt
     PetscReal        ***ltempD, ***tempA;
     PetscReal        ***lpressD, ***pressA;
 
-    Cmpnts           pCoor, ucart;
-    PetscReal        Temp, Pres;
+    Cmpnts           pCoor;
 
     PetscMPIInt      rankA, sizeA, rankD, sizeD;
     PetscInt         sum_ind1 = 0;
@@ -875,58 +1246,122 @@ PetscErrorCode interpolateACellTrilinearC2P(mesh_ *meshD, mesh_ *meshA, PetscInt
     MPI_Comm_size(meshD->MESH_COMM, &sizeD);
     MPI_Comm_rank(meshD->MESH_COMM, &rankD);
 
-    std::vector<Acell> aCell = os->aCellHc;
-    std::vector<Dcell> dCell = os->closestDonorHc;
+    std::vector<Acell> aCell                        = os->aCellHc;
+    std::vector<Dcell> dCell                        = os->closestDonorHc;
     std::vector<std::vector<PetscInt>> AcellProcMat = os->AcellProcMatHc;
-    std::vector<PetscInt> NumAcellPerProc = os->NumAcellPerProcHc;
+    std::vector<PetscInt> NumAcellPerProc           = os->NumAcellPerProcHc;
 
     DMDAVecGetArray(fdaD, ueqnD->lUcat, &lucatD);
-    DMDAVecGetArray(fdaA, ueqnA->Ucat, &ucatA);
+    DMDAVecGetArray(fdaA, ueqnA->Ucat,  &ucatA);
     DMDAVecGetArray(fdaD, meshD->lCent, &cent);
-    DMDAVecGetArray(daD, peqnD->lP, &lpressD);
-    DMDAVecGetArray(daA, peqnA->P,  &pressA);
+    DMDAVecGetArray(daD, peqnD->lP,     &lpressD);
+    DMDAVecGetArray(daA, peqnA->P,      &pressA);
 
     if (flags->isTeqnActive)
     {
         DMDAVecGetArray(daD, teqnD->lTmprt, &ltempD);
-        DMDAVecGetArray(daA, teqnA->Tmprt, &tempA);
+        DMDAVecGetArray(daA, teqnA->Tmprt,  &tempA);
     }
 
-    // Map to store interpolated values for each parent cell
-    std::map<PetscInt, std::vector<Cmpnts>> vertexVelocities; // parentCellId -> list of velocities
-    std::map<PetscInt, std::vector<PetscReal>> vertexTemps;   // parentCellId -> list of temperatures
-    std::map<PetscInt, std::vector<PetscReal>> vertexPressures; // parentCellId -> list of pressures
-    std::map<PetscInt, std::tuple<PetscInt, PetscInt, PetscInt>> cellIndices; // parentCellId -> (i, j, k)
+    // we want to send one message per rank pair, data layout is
+    // [ux, uy, uz, temp, pres] (5 PetscReals) temperature slot hardcoded for now 
+    // and will be set to zero when temperature is not active. 
+    PetscInt stride = 5;
 
-    // Loop through the ranks
+    // how many values this donor rank sends to each of the acceptor ranks
+    std::vector<PetscInt> sendCount(sizeA, 0);
+
+    // how many values this acceptor rank receives from each of the donor ranks
+    std::vector<PetscInt> recvCount(sizeD, 0);
+
+    // loop through all acceptor/donor pairs 
+    for (b = 0; b < (PetscInt)aCell.size(); b++)
+    {
+        if (aCell[b].donorId == donorId)
+        {
+            // guard against vertices for which no donor was found (e.g. corners outside child mesh)
+            if (dCell[b].rank < 0 || dCell[b].rank >= sizeD)
+            {
+                if (rankA == aCell[b].rank)
+                {
+                    PetscPrintf(PETSC_COMM_SELF, "Warning: C2P interpolation - no donor found for vertex of parent cell (%ld,%ld,%ld), parentCellId=%ld, vertex coords=(%.4f,%.4f,%.4f). Skipping. Check child mesh overlap.\n",
+                        aCell[b].indi, aCell[b].indj, aCell[b].indk, aCell[b].parentCellId,
+                        aCell[b].coorx, aCell[b].coory, aCell[b].coorz);
+                }
+                continue;
+            }
+
+            // I am the donor rank for this pair, so I need to send data to aCell[b].rank
+            if (rankD == dCell[b].rank)
+            {
+                sendCount[aCell[b].rank]++;
+            }
+
+            // I am the acceptor rank for this pair, so I need to receive data from dCell[b].rank
+            if (rankA == aCell[b].rank)
+            {
+                recvCount[dCell[b].rank]++;
+            }
+        }
+    }
+
+    // allocate send/receive buffers fore each rank
+    std::vector<std::vector<PetscReal>> sendBufs(sizeA);
+    std::vector<std::vector<PetscReal>> recvBufs(sizeD);
+
     for (n = 0; n < sizeA; n++)
     {
+        // allocate sendCount[n] * stride PetscReals to be sent to rank n
+        if (sendCount[n] > 0) sendBufs[n].resize(sendCount[n] * stride);
+    }
+
+    for (n = 0; n < sizeD; n++)
+    {
+        // allocate recvCount[n] * stride PetscReals to be received from rank n
+        if (recvCount[n] > 0) recvBufs[n].resize(recvCount[n] * stride);
+    }
+
+    // vector to keep track of the current offset in the send buffer for each destination rank
+    std::vector<PetscInt> sendOffset(sizeA, 0);
+
+    // vector to store the cell indices for unpacking on the recv side. recvCellOrder[rank] is the list of cell indices b in the order they appear in the recv buffer from that rank
+    std::vector<std::vector<PetscInt>> recvCellOrder(sizeD);
+
+    for (n = 0; n < sizeD; n++)
+    {
+        if (recvCount[n] > 0) recvCellOrder[n].reserve(recvCount[n]);
+    }
+
+    // loop through all acceptor ranks 
+    for (n = 0; n < sizeA; n++)
+    {
+        // check if acceptor rank n has any acceptor cells 
         if (NumAcellPerProc[n] != 0)
         {
+            // check if this rank donates any cell to rank n
             if (AcellProcMat[n][rankD] != MPI_UNDEFINED)
             {
-                // Loop through the aCell entries (vertices) of a given processor n
+                // loop through all acceptor cell for rank n
                 for (b = sum_ind1; b < sum_ind1 + NumAcellPerProc[n]; b++)
                 {
+                    // check if donor cell to acceptor cell b belongs to this donor domain
                     if (aCell[b].donorId == donorId)
                     {
-                        pCoor.x = aCell[b].coorx;
-                        pCoor.y = aCell[b].coory;
-                        pCoor.z = aCell[b].coorz;
-
-                        ucart.x = 0.0;
-                        ucart.y = 0.0;
-                        ucart.z = 0.0;
-                        Temp = 0.0;
-                        Pres = 0.0;
-
+                        // check if the donor cell is owned by this rank and record the send buffer 
                         if (rankD == dCell[b].rank)
                         {
-                            // Interpolate velocity at the vertex
+                            PetscInt destRank = aCell[b].rank;
+                            PetscInt off      = sendOffset[destRank] * stride;
+
+                            pCoor.x     = aCell[b].coorx;
+                            pCoor.y     = aCell[b].coory;
+                            pCoor.z     = aCell[b].coorz;
+
                             PetscInt ic = dCell[b].indi;
                             PetscInt jc = dCell[b].indj;
                             PetscInt kc = dCell[b].indk;
 
+                            Cmpnts ucart;
                             vectorPointLocalVolumeInterpolation
                             (
                                 meshD,
@@ -937,8 +1372,13 @@ PetscErrorCode interpolateACellTrilinearC2P(mesh_ *meshD, mesh_ *meshA, PetscInt
                                 ucart
                             );
 
+                            sendBufs[destRank][off + 0] = ucart.x;
+                            sendBufs[destRank][off + 1] = ucart.y;
+                            sendBufs[destRank][off + 2] = ucart.z;
+
                             if (flags->isTeqnActive)
                             {
+                                PetscReal Temp;
                                 scalarPointLocalVolumeInterpolation
                                 (
                                     meshD,
@@ -948,8 +1388,14 @@ PetscErrorCode interpolateACellTrilinearC2P(mesh_ *meshD, mesh_ *meshA, PetscInt
                                     ltempD,
                                     Temp
                                 );
+                                sendBufs[destRank][off + 3] = Temp;
+                            }
+                            else
+                            {
+                                sendBufs[destRank][off + 3] = 0.0;
                             }
 
+                            PetscReal Pres;
                             scalarPointLocalVolumeInterpolation
                             (
                                 meshD,
@@ -959,36 +1405,15 @@ PetscErrorCode interpolateACellTrilinearC2P(mesh_ *meshD, mesh_ *meshA, PetscInt
                                 lpressD,
                                 Pres
                             );
+                            sendBufs[destRank][off + 4] = Pres;
 
-                            // Send interpolated values to acceptor processor
-                            MPI_Send(&ucart, 3, MPIU_REAL, aCell[b].rank, b, meshD->MESH_COMM);
-                            if (flags->isTeqnActive)
-                            {
-                                MPI_Send(&Temp, 1, MPIU_REAL, aCell[b].rank, b + sizeA, meshD->MESH_COMM);
-                            }
-                            MPI_Send(&Pres, 1, MPIU_REAL, aCell[b].rank, b + 2*sizeA, meshD->MESH_COMM);
+                            sendOffset[destRank]++;
                         }
 
+                        // record the expected receive 
                         if (rankA == aCell[b].rank)
                         {
-                            // Receive interpolated values
-                            MPI_Recv(&ucart, 3, MPIU_REAL, dCell[b].rank, b, meshD->MESH_COMM, MPI_STATUS_IGNORE);
-                            vertexVelocities[aCell[b].parentCellId].push_back(ucart);
-
-                            if (flags->isTeqnActive)
-                            {
-                                MPI_Recv(&Temp, 1, MPIU_REAL, dCell[b].rank, b + sizeA, meshD->MESH_COMM, MPI_STATUS_IGNORE);
-                                vertexTemps[aCell[b].parentCellId].push_back(Temp);
-                            }
-
-                            MPI_Recv(&Pres, 1, MPIU_REAL, dCell[b].rank, b + 2*sizeA, meshD->MESH_COMM, MPI_STATUS_IGNORE);
-                            vertexPressures[aCell[b].parentCellId].push_back(Pres);
-
-                            // Store cell indices for this parentCellId (only once per cell)
-                            if (cellIndices.find(aCell[b].parentCellId) == cellIndices.end())
-                            {
-                                cellIndices[aCell[b].parentCellId] = {aCell[b].indi, aCell[b].indj, aCell[b].indk};
-                            }
+                            recvCellOrder[dCell[b].rank].push_back(b);
                         }
                     }
                 }
@@ -998,63 +1423,114 @@ PetscErrorCode interpolateACellTrilinearC2P(mesh_ *meshD, mesh_ *meshA, PetscInt
         }
     }
 
-    //perform averaging of the fields in any processor that has the acceptor cells 
-    bool isAcceptorProcessor = aCell.empty();
-    for (const auto& cell : aCell)
+    // receive data. Nonblocking, one per source rank
+    std::vector<MPI_Request> requests;
+    requests.reserve(sizeA + sizeD);
+
+    for (n = 0; n < sizeD; n++)
     {
-        if (cell.donorId == donorId && cell.rank == rankA)
+        if (recvCount[n] > 0)
         {
-            isAcceptorProcessor = true;
-            break;
+            MPI_Request req;
+            MPI_Irecv(recvBufs[n].data(), recvCount[n] * stride, MPIU_REAL, n, 1, meshD->MESH_COMM, &req);
+            requests.push_back(req);
         }
     }
 
-    // Average the velocities and temperatures for each parent cell
-    if (isAcceptorProcessor) // Ensure only acceptor processor processes
+    // send data. Nonblocking, one per destination rank
+    for (n = 0; n < sizeA; n++)
     {
-        for (const auto& [parentCellId, velocities] : vertexVelocities)
+        if (sendCount[n] > 0)
         {
-            if (velocities.size() == 8) // Ensure all 8 vertices are present
+            MPI_Request req;
+            MPI_Isend(sendBufs[n].data(), sendCount[n] * stride, MPIU_REAL, n, 1, meshD->MESH_COMM, &req);
+            requests.push_back(req);
+        }
+    }
+
+    // complete all comms 
+    if (!requests.empty())
+    {
+        MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);
+    }
+
+    // unpack received data and average 8 vertices per parent cell
+    std::map<PetscInt, std::vector<Cmpnts>>    vertexVelocities;
+    std::map<PetscInt, std::vector<PetscReal>> vertexTemps;
+    std::map<PetscInt, std::vector<PetscReal>> vertexPressures;
+    std::map<PetscInt, std::tuple<PetscInt, PetscInt, PetscInt>> cellIndices;
+
+    for (n = 0; n < sizeD; n++)
+    {
+        for (PetscInt idx = 0; idx < (PetscInt)recvCellOrder[n].size(); idx++)
+        {
+            b            = recvCellOrder[n][idx];
+            PetscInt off = idx * stride;
+
+            Cmpnts ucart;
+            ucart.x = recvBufs[n][off + 0];
+            ucart.y = recvBufs[n][off + 1];
+            ucart.z = recvBufs[n][off + 2];
+
+            vertexVelocities[aCell[b].parentCellId].push_back(ucart);
+
+            if (flags->isTeqnActive)
             {
-                Cmpnts avgVelocity = {0.0, 0.0, 0.0};
-                for (const auto& v : velocities)
-                {
-                    avgVelocity.x += v.x / 8.0;
-                    avgVelocity.y += v.y / 8.0;
-                    avgVelocity.z += v.z / 8.0;
-                }
+                vertexTemps[aCell[b].parentCellId].push_back(recvBufs[n][off + 3]);
+            }
 
-                // Get cell indices
-                auto [i, j, k] = cellIndices[parentCellId];
+            vertexPressures[aCell[b].parentCellId].push_back(recvBufs[n][off + 4]);
 
-                // Store averaged velocity
-                ucatA[k][j][i].x = avgVelocity.x;
-                ucatA[k][j][i].y = avgVelocity.y;
-                ucatA[k][j][i].z = avgVelocity.z;
-
-                // Average and store pressure
-                PetscReal avgPressure = 0.0;
-                for (const auto& p : vertexPressures[parentCellId])
-                {
-                    avgPressure += p / 8.0;
-                }
-                pressA[k][j][i] = avgPressure;
-
-                // Handle temperature if active
-                if (flags->isTeqnActive)
-                {
-                    PetscReal avgTemp = 0.0;
-                    for (const auto& t : vertexTemps[parentCellId])
-                    {
-                        avgTemp += t / 8.0;
-                    }
-                    tempA[k][j][i] = avgTemp;
-                }
+            if (cellIndices.find(aCell[b].parentCellId) == cellIndices.end())
+            {
+                cellIndices[aCell[b].parentCellId] = {aCell[b].indi, aCell[b].indj, aCell[b].indk};
             }
         }
     }
 
-    // Clean up
+    // Average the velocities and temperatures for each parent cell
+    for (const auto& [parentCellId, velocities] : vertexVelocities)
+    {
+        if (velocities.size() == 8)
+        {
+            Cmpnts avgVelocity = {0.0, 0.0, 0.0};
+            for (const auto& v : velocities)
+            {
+                avgVelocity.x += v.x / 8.0;
+                avgVelocity.y += v.y / 8.0;
+                avgVelocity.z += v.z / 8.0;
+            }
+
+            auto [i, j, k] = cellIndices[parentCellId];
+
+            ucatA[k][j][i].x = avgVelocity.x;
+            ucatA[k][j][i].y = avgVelocity.y;
+            ucatA[k][j][i].z = avgVelocity.z;
+
+            PetscReal avgPressure = 0.0;
+            for (const auto& p : vertexPressures[parentCellId])
+            {
+                avgPressure += p / 8.0;
+            }
+            pressA[k][j][i] = avgPressure;
+
+            if (flags->isTeqnActive)
+            {
+                PetscReal avgTemp = 0.0;
+                for (const auto& t : vertexTemps[parentCellId])
+                {
+                    avgTemp += t / 8.0;
+                }
+                tempA[k][j][i] = avgTemp;
+            }
+        }
+        else
+        {
+            PetscPrintf(PETSC_COMM_SELF, "Warning: Parent cell %d has %lu vertices instead of 8. Skipping interpolation for this cell.\n", parentCellId, velocities.size());
+        }
+    }
+
+    // free memory
     std::vector<Acell>().swap(aCell);
     std::vector<Dcell>().swap(dCell);
     std::vector<std::vector<PetscInt>>().swap(AcellProcMat);
@@ -1087,6 +1563,7 @@ PetscErrorCode interpolateACellTrilinearC2P(mesh_ *meshD, mesh_ *meshA, PetscInt
 }
 
 //***************************************************************************************************************//
+
 PetscErrorCode setBackgroundBC(mesh_ *meshA)
 {
     ueqn_         *ueqn = meshA->access->ueqn;
@@ -1212,6 +1689,7 @@ PetscErrorCode setBackgroundBC(mesh_ *meshA)
 }
 
 //***************************************************************************************************************//
+
 PetscErrorCode createAcceptorCellOverset(overset_ *os)
 {
     mesh_         *mesh = os->access->mesh;
@@ -1357,7 +1835,6 @@ PetscErrorCode createAcceptorCellOverset(overset_ *os)
 }
 
 //***************************************************************************************************************//
-//! \brief Create the list of background acceptor cells 
 
 PetscErrorCode createAcceptorCellBackground(overset_ *os, PetscInt donorMeshId)
 {
@@ -1962,6 +2439,8 @@ PetscErrorCode findClosestDonorC2P_Bins(mesh_ *meshDonor, mesh_ *meshAcceptor, P
     return 0;
 }
 
+//***************************************************************************************************************//
+
 PetscErrorCode findClosestDonorC2P(mesh_ *meshDonor, mesh_ *meshAcceptor, PetscInt donorId)
 {
     overset_         *os  = meshAcceptor->access->os;
@@ -2178,6 +2657,8 @@ PetscErrorCode findClosestDonorC2P(mesh_ *meshDonor, mesh_ *meshAcceptor, PetscI
     return 0;
 }
 
+//***************************************************************************************************************//
+
 PetscErrorCode findClosestDonorP2C(mesh_ *meshDonor, mesh_ *meshAcceptor)
 {
     overset_      *os  = meshAcceptor->access->os;
@@ -2365,6 +2846,8 @@ PetscErrorCode findClosestDonorP2C(mesh_ *meshDonor, mesh_ *meshAcceptor)
     return 0;
 }
 
+//***************************************************************************************************************//
+
 PetscErrorCode findClosestDonorP2C_Bins(mesh_ *meshDonor, mesh_ *meshAcceptor)
 {
     overset_         *os  = meshAcceptor->access->os;
@@ -2548,40 +3031,41 @@ PetscErrorCode findClosestDonorP2C_Bins(mesh_ *meshDonor, mesh_ *meshAcceptor)
 
 PetscErrorCode updateAcceptorCoordinates(overset_ *os)
 {
-  oversetMotion *osetMotion = os->oMotion;
+    oversetMotion *osetMotion = os->oMotion;
 
-  if(osetMotion->setMotion)
-  {
-    if(osetMotion->motionType == "Translation")
+    if(osetMotion->setMotion)
     {
-      oversetMeshTranslation(os);
-    }
-    else if (osetMotion->motionType == "Rotation")
-    {
-      PetscPrintf(os->access->mesh->MESH_COMM, "Rotating the overset mesh\n");
-      exit(0);
+        if(osetMotion->motionType == "Translation")
+        {
+            oversetMeshTranslation(os);
+        }
+        else if (osetMotion->motionType == "Rotation")
+        {
+            PetscPrintf(os->access->mesh->MESH_COMM, "Rotating the overset mesh\n");
+            exit(0);
+        }
+        else
+        {
+            char error[512];
+            sprintf(error, "Only translation and rotation motion is available presently \n");
+            fatalErrorInFunction("readOversetParameters",  error);
+        }
     }
     else
     {
-     char error[512];
-      sprintf(error, "Only translation and rotation motion is available presently \n");
-      fatalErrorInFunction("readOversetParameters",  error);
-    }
-  }
-  else
-  {
-    // check if ibm is moving from ibm motion
-    // temporary variable for now to be added in IBM
-    PetscInt ibmMotion = 0;
+        // check if ibm is moving from ibm motion
+        // temporary variable for now to be added in IBM
+        PetscInt ibmMotion = 0;
 
-    if(!ibmMotion)
-    {
-     char error[512];
-      sprintf(error, "IBM is not moving. Use static overset as dynamic overset motion not required.\n");
-      fatalErrorInFunction("readOversetParameters",  error);
+        if(!ibmMotion)
+        {
+            char error[512];
+            sprintf(error, "IBM is not moving. Use static overset as dynamic overset motion not required.\n");
+            fatalErrorInFunction("readOversetParameters",  error);
+        }
     }
-  }
-  return(0);
+
+    return(0);
 }
 
 //***************************************************************************************************************//
@@ -2806,9 +3290,49 @@ PetscErrorCode oversetIbmSearch(ibm_ *ibm)
     DMGlobalToLocalEnd(da, mesh->meshTag, INSERT_VALUES, mesh->lmeshTag);
 
     MPI_Barrier(mesh->MESH_COMM);
-    
+
+    // set boundary conditions for meshTag: 
+    // if the boundary is set to overset interpolate then set it to 1 
+    DMDAVecGetArray(da, mesh->meshTag, &gmeshTag);
+    for (k = zs; k < ze; k++)
+    for (j = ys; j < ye; j++)
+    for (i = xs; i < xe; i++)
+    {
+        if(i==0 && mesh->boundaryU.iLeft == "oversetInterpolate")
+        {
+            gmeshTag[k][j][i] = 1;
+        }
+        if(i==mx-1 && mesh->boundaryU.iRight == "oversetInterpolate")
+        {
+            gmeshTag[k][j][i] = 1;
+        }
+        if(j==0 && mesh->boundaryU.jLeft == "oversetInterpolate")
+        {
+            gmeshTag[k][j][i] = 1;
+        }
+        if(j==my-1 && mesh->boundaryU.jRight == "oversetInterpolate")   
+        {
+            gmeshTag[k][j][i] = 1;
+        }
+        if(k==0 && mesh->boundaryU.kLeft == "oversetInterpolate")
+        {
+            gmeshTag[k][j][i] = 1;
+        }
+        if(k==mz-1 && mesh->boundaryU.kRight == "oversetInterpolate")
+        {
+            gmeshTag[k][j][i] = 1;
+        }
+    }
+
+    DMDAVecRestoreArray(da, mesh->meshTag, &gmeshTag);
+
+    DMGlobalToLocalBegin(da, mesh->meshTag, INSERT_VALUES, mesh->lmeshTag);
+    DMGlobalToLocalEnd(da, mesh->meshTag, INSERT_VALUES, mesh->lmeshTag);
+           
     return 0;
 }
+
+//***************************************************************************************************************//
 
 PetscErrorCode computeOversetIBMElementNormal(ibm_ *ibm)
 {
@@ -2983,7 +3507,6 @@ void defineStruct_Acell(MPI_Datatype *tstype) {
 
 //***************************************************************************************************************//
 
-//MPI operation function to find the sum the elements of the vector of structs
 void sum_struct_Acell(void *in, void *inout, int *len, MPI_Datatype *type) {
     Acell *invals    = (Acell*)in;
     Acell *inoutvals = (Acell*)inout;
@@ -3009,8 +3532,8 @@ void sum_struct_Acell(void *in, void *inout, int *len, MPI_Datatype *type) {
     return;
 }
 
-// ************************************************************************************************* //
-//Deprecated functions for other interpolations. Variables names need to be updated for integration.
+// DEPRECATED FUNCTION: for other interpolation methods. Variables names need to be updated for integration.
+//***************************************************************************************************************//
 
 // PetscErrorCode interpolateACellInvD(mesh_ *meshP, mesh_ *mesh)
 // {
