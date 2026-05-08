@@ -2179,17 +2179,17 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
                 // set to zero if solid
                 if(isIBMSolidCell(k, j, i, nvert) || isZeroedCell(k, j, i, meshTag))
                 {
-	            // if the ABL is active, use the  tRef value defined in ABLProperties.dat
-	    	    if(teqn->access->flags->isAblActive) 
-		    {
-		        t[k][j][i] = teqn->access->abl->tRef;
-		    }
-		    // if the ABL is not active, use the tRef value defined in control.dat
-		    else 
-	  	    {
-			t[k][j][i] = teqn->access->constants->tRef;
-		    }
-	            continue;
+                    // if the ABL is active, use the  tRef value defined in ABLProperties.dat
+                    if(teqn->access->flags->isAblActive) 
+                    {
+                        t[k][j][i] = teqn->access->abl->tRef;
+                    }
+                    // if the ABL is not active, use the tRef value defined in control.dat
+                    else 
+                    {
+                        t[k][j][i] = teqn->access->constants->tRef;
+                    }
+                    continue;
                 }
 
                 // special boundary condition where inflow is mapped from precursor
