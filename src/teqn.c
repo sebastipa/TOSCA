@@ -292,7 +292,7 @@ PetscErrorCode ghGradRhoK(teqn_ *teqn)
                   ***coor, ***db;
     Vec           Coor;
 
-    PetscReal     ***tmprt, ***rhok, ***nvert;
+    PetscReal     ***tmprt, ***rhok, ***nvert, ***meshTag;
 
     PetscReal     ***iaj, ***jaj, ***kaj;
 
@@ -319,7 +319,8 @@ PetscErrorCode ghGradRhoK(teqn_ *teqn)
     DMDAVecGetArray(fda, mesh->lKCsi, &kcsi);
     DMDAVecGetArray(fda, mesh->lKEta, &keta);
     DMDAVecGetArray(fda, mesh->lKZet, &kzet);
-    DMDAVecGetArray(da,  mesh->lNvert,&nvert);
+    DMDAVecGetArray(da,  mesh->lNvert,   &nvert);
+    DMDAVecGetArray(da,  mesh->lmeshTag, &meshTag);
     DMDAVecGetArray(da,  mesh->lIAj,  &iaj);
     DMDAVecGetArray(da,  mesh->lJAj,  &jaj);
     DMDAVecGetArray(da,  mesh->lKAj,  &kaj);
@@ -339,14 +340,13 @@ PetscErrorCode ghGradRhoK(teqn_ *teqn)
             {
                 rhok[k][j][i]
                 =
-                (2* tRef - tmprt[k][j][i]) / tRef;
+                (tRef - tmprt[k][j][i]) / tRef;
             }
         }
     }
 
     DMDAVecRestoreArray(da, teqn->lRhoK,  &rhok);
 
-    // scatter Phi from global to local
     DMLocalToLocalBegin(da, teqn->lRhoK, INSERT_VALUES, teqn->lRhoK);
     DMLocalToLocalEnd(da, teqn->lRhoK, INSERT_VALUES, teqn->lRhoK);
 
@@ -386,7 +386,7 @@ PetscErrorCode ghGradRhoK(teqn_ *teqn)
                         (
                             i==mx-2
                         )
-                    )
+                    ) || isOversetIFace(k, j+1, i, i+1, meshTag)
                 )
                 {
                     dbde = (rhok[k][j  ][i  ] - rhok[k][j-1][i  ] + rhok[k][j  ][i+1] - rhok[k][j-1][i+1]) * 0.5;
@@ -399,7 +399,7 @@ PetscErrorCode ghGradRhoK(teqn_ *teqn)
                         (
                             i == mx - 2
                         )
-                     )
+                     ) || isOversetIFace(k, j-1, i, i+1, meshTag)
                 )
                 {
                     dbde = (rhok[k][j+1][i  ] - rhok[k][j  ][i  ] + rhok[k][j+1][i+1] - rhok[k][j  ][i+1]) * 0.5;
@@ -417,7 +417,7 @@ PetscErrorCode ghGradRhoK(teqn_ *teqn)
                         (
                             i==mx-2
                         )
-                    )
+                    ) || isOversetIFace(k+1, j, i, i+1, meshTag)
                 )
                 {
                     dbdz = (rhok[k][j][i  ] - rhok[k-1][j][i  ] + rhok[k][j][i+1] - rhok[k-1][j][i+1]) * 0.5;
@@ -430,7 +430,7 @@ PetscErrorCode ghGradRhoK(teqn_ *teqn)
                         (
                             i==mx-2
                         )
-                    )
+                    ) || isOversetIFace(k-1, j, i, i+1, meshTag)
                 )
                 {
                     dbdz = (rhok[k+1][j][i  ] - rhok[k][j][i  ] + rhok[k+1][j][i+1] - rhok[k][j][i+1]) * 0.5;
@@ -451,7 +451,7 @@ PetscErrorCode ghGradRhoK(teqn_ *teqn)
                         (
                             j==my-2
                         )
-                    )
+                    ) || isOversetJFace(k, j, i+1, j+1, meshTag)
                 )
                 {
                     dbdc = (rhok[k][j  ][i] - rhok[k][j  ][i-1] + rhok[k][j+1][i] - rhok[k][j+1][i-1]) * 0.5;
@@ -464,7 +464,7 @@ PetscErrorCode ghGradRhoK(teqn_ *teqn)
                         (
                             j==my-2
                         )
-                    )
+                    ) || isOversetJFace(k, j, i-1, j+1, meshTag)
                 )
                 {
                     dbdc = (rhok[k][j  ][i+1] - rhok[k][j  ][i] + rhok[k][j+1][i+1] - rhok[k][j+1][i]) * 0.5;
@@ -491,7 +491,7 @@ PetscErrorCode ghGradRhoK(teqn_ *teqn)
                         (
                             j== my-2
                         )
-                    )
+                    ) || isOversetJFace(k+1, j, i, j+1, meshTag)
                 )
                 {
                     dbdz = (rhok[k][j  ][i] - rhok[k-1][j  ][i] + rhok[k][j+1][i] - rhok[k-1][j+1][i]) * 0.5;
@@ -504,7 +504,7 @@ PetscErrorCode ghGradRhoK(teqn_ *teqn)
                         (
                             j== my-2
                         )
-                    )
+                    ) || isOversetJFace(k-1, j, i, j+1, meshTag)
                 )
                 {
                     dbdz = (rhok[k+1][j  ][i] - rhok[k][j  ][i] + rhok[k+1][j+1][i] - rhok[k][j+1][i]) * 0.5;
@@ -525,7 +525,7 @@ PetscErrorCode ghGradRhoK(teqn_ *teqn)
                         (
                             k==mz-2
                         )
-                    )
+                    ) || isOversetKFace(k, j, i+1, k+1, meshTag)
                 )
                 {
                     dbdc = (rhok[k  ][j][i] - rhok[k  ][j][i-1] + rhok[k+1][j][i] - rhok[k+1][j][i-1]) * 0.5;
@@ -538,7 +538,7 @@ PetscErrorCode ghGradRhoK(teqn_ *teqn)
                         (
                             k == mz - 2
                         )
-                    )
+                    ) || isOversetKFace(k, j, i-1, k+1, meshTag)
                 )
                 {
                     dbdc = (rhok[k  ][j][i+1] - rhok[k  ][j][i] + rhok[k+1][j][i+1] - rhok[k+1][j][i]) * 0.5;
@@ -556,7 +556,7 @@ PetscErrorCode ghGradRhoK(teqn_ *teqn)
                         (
                             k==mz-2
                         )
-                    )
+                    ) || isOversetKFace(k, j+1, i, k+1, meshTag)
                 )
                 {
                     dbde = (rhok[k  ][j][i] - rhok[k  ][j-1][i] + rhok[k+1][j][i] - rhok[k+1][j-1][i]) * 0.5;
@@ -569,7 +569,7 @@ PetscErrorCode ghGradRhoK(teqn_ *teqn)
                         (
                             k==mz-2
                         )
-                    )
+                    ) || isOversetKFace(k, j-1, i, k+1, meshTag)
                 )
                 {
                     dbde = (rhok[k  ][j+1][i] - rhok[k  ][j][i] + rhok[k+1][j+1][i] - rhok[k+1][j][i]) * 0.5;
@@ -594,21 +594,21 @@ PetscErrorCode ghGradRhoK(teqn_ *teqn)
                 // non-periodic: set to zero also on right boundaries since the contrav. velocity is not solved there
                 if
                 (
-                    i==0 || (!mesh->i_periodic && !mesh->ii_periodic && i==mx-2)
+                    i==0 || (!mesh->i_periodic && !mesh->ii_periodic && i==mx-2) || isOversetIFace(k, j, i, i+1, meshTag)
                 )
                 {
                     db[k][j][i].x = 0;
                 }
                 if
                 (
-                    j==0 || (!mesh->j_periodic && !mesh->jj_periodic && j==my-2)
+                    j==0 || (!mesh->j_periodic && !mesh->jj_periodic && j==my-2) || isOversetJFace(k, j, i, j+1, meshTag)
                 )
                 {
                     db[k][j][i].y = 0;
                 }
                 if
                 (
-                    k==0 || (!mesh->k_periodic && !mesh->kk_periodic && k==mz-2)
+                    k==0 || (!mesh->k_periodic && !mesh->kk_periodic && k==mz-2) || isOversetKFace(k, j, i, k+1, meshTag)
                 )
                 {
                     db[k][j][i].z = 0;
@@ -628,7 +628,8 @@ PetscErrorCode ghGradRhoK(teqn_ *teqn)
     DMDAVecRestoreArray(fda, mesh->lKCsi, &kcsi);
     DMDAVecRestoreArray(fda, mesh->lKEta, &keta);
     DMDAVecRestoreArray(fda, mesh->lKZet, &kzet);
-    DMDAVecRestoreArray(da,  mesh->lNvert,&nvert);
+    DMDAVecRestoreArray(da,  mesh->lNvert,   &nvert);
+    DMDAVecRestoreArray(da,  mesh->lmeshTag, &meshTag);
     DMDAVecRestoreArray(da,  mesh->lIAj,  &iaj);
     DMDAVecRestoreArray(da,  mesh->lJAj,  &jaj);
     DMDAVecRestoreArray(da,  mesh->lKAj,  &kaj);
@@ -643,55 +644,3 @@ PetscErrorCode ghGradRhoK(teqn_ *teqn)
 }
 
 //***************************************************************************************************************//
-PetscErrorCode TmprtPredictor(teqn_ *teqn)
-{
-    // Explicit forward-Euler conv-only predictor: T* = T^n + dt * N(T^n)
-    // Advances Tmprt/lTmprt from T^n to T* so that Buoyancy() in SolveUEqn
-    // sees a forward-extrapolated temperature field.
-    // Tmprt_o retains T^n so TmprtRestoreFromOld() can undo this before SolveTEqn.
-
-    mesh_  *mesh  = teqn->access->mesh;
-    clock_ *clock = teqn->access->clock;
-
-    PetscReal ts, te;
-    PetscTime(&ts);
-    //PetscPrintf(mesh->MESH_COMM, "Predicted potential temperature in ");
-
-    VecSet(teqn->Rhs, 0.0);
-
-    // conv-only explicit RHS: avoids explicit diffusion stability limit (dt << dx^2/kappa_eff)
-    resetCellPeriodicFluxes(mesh, teqn->Tmprt, teqn->lTmprt, "scalar", "globalToLocal");
-    FormT(teqn, teqn->Rhs, 1.0, 1);
-    resetNonResolvedCellCentersScalar(mesh, teqn->Rhs);
-
-    // T* = T^n + 0.5*dt * N(T^n)  — half-step: midpoint estimate consistent with CN U integration
-    VecAXPY(teqn->Tmprt, 0.5 * clock->dt, teqn->Rhs);
-    DMGlobalToLocalBegin(mesh->da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
-    DMGlobalToLocalEnd  (mesh->da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
-
-    // fix periodic ghost cells: ghost slots at i=0/mx-1 were left at T^n, not T*
-    resetCellPeriodicFluxes(mesh, teqn->Tmprt, teqn->lTmprt, "scalar", "globalToLocal");
-
-    PetscTime(&te);
-    //PetscPrintf(mesh->MESH_COMM, "%f\n", te-ts);
-
-    return(0);
-}
-
-//***************************************************************************************************************//
-
-PetscErrorCode TmprtRestoreFromOld(teqn_ *teqn)
-{
-    // Restore Tmprt/lTmprt to T^n (saved in Tmprt_o) after TmprtPredictor has
-    // temporarily advanced them to T* for buoyancy in SolveUEqn.
-    // Must be called before SolveTEqn so the T solve starts from T^n.
-
-    mesh_ *mesh = teqn->access->mesh;
-
-    VecCopy(teqn->Tmprt_o, teqn->Tmprt);
-    DMGlobalToLocalBegin(mesh->da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
-    DMGlobalToLocalEnd  (mesh->da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
-    resetCellPeriodicFluxes(mesh, teqn->Tmprt, teqn->lTmprt, "scalar", "globalToLocal");
-
-    return(0);
-}
