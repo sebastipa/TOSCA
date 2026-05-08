@@ -1,0 +1,12 @@
+Date: May 8, 2026
+Author: Joshua Brinkerhoff 
+Test case: Heated NLF 416 airfoil
+
+This test case simulates an NLF416 airfoil at an angle of attack of 10.19 degrees. The chord Reynolds number is 1000. The airfoil surface temperature is 30K hotter than the background flow. Overset meshing is used to create a refined region around the airfoil. The airfoil shape is imposed using the immersed boundary method (IBM). This test case provides a simple test of the interaction between overset mesh, IBM, and potential temperature variations in the flow.
+
+
+How to generate the airfoil surface mesh for IBM:
+
+1) Install GMSH via `$ sudo apt-get install gmsh`
+
+2) Execute the provided nlf416.sh script, which reads the NLF416 airfoil coordinates from nlf416.txt, uses Lagrangian interpolation to increase the resolution of the surface coordinates, writes the surface geometry to a GMSH input file, executes GMSH to create the surface mesh, and then runs the gmsh2ucd.py script to create the surface mesh in a format that is readable by TOSCA. (The script also writes the interpolated coordinates to  nlf416PS.out and nlf416SS.out for the pressure surface and suction surface, respectively.)
