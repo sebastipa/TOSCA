@@ -222,8 +222,20 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
                         PetscReal denom;
                         getFace2Cell4StencilCsi(mesh, k, j, i, mx, &iL, &iR, &denom, nvert, meshTag);
 
+                        // always use 2-point central differencing at overset interpolated faces
+                        if(isOversetIFace(k, j, i, i+1, meshTag))
+                        {
+                            div1[k][j][i] = nScale
+                            (
+                                - ucont[k][j][i].x,
+                                centralVec
+                                (
+                                    ucat[k][j][i], ucat[k][j][i+1]
+                                )
+                            );
+                        }
                         // test: inviscid flow or weno3Div
-                        if(ueqn->inviscid || ueqn->weno3Div)
+                        else if(ueqn->inviscid || ueqn->weno3Div)
                         {
                             div1[k][j][i] = nScale
                             (
@@ -424,8 +436,20 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
                         PetscReal denom;
                         getFace2Cell4StencilEta(mesh, k, j, i, my, &jL, &jR, &denom, nvert, meshTag);
 
+                        // always use 2-point central differencing at overset interpolated faces
+                        if(isOversetJFace(k, j, i, j+1, meshTag))
+                        {
+                            div2[k][j][i] = nScale
+                            (
+                                - ucont[k][j][i].y,
+                                centralVec
+                                (
+                                    ucat[k][j][i], ucat[k][j+1][i]
+                                )
+                            );
+                        }
                         // test: inviscid flow or weno3Div
-                        if( ueqn->inviscid || ueqn->weno3Div)
+                        else if( ueqn->inviscid || ueqn->weno3Div)
                         {
                             div2[k][j][i] = nScale
                             (
@@ -625,8 +649,20 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
                         PetscReal denom;
                         getFace2Cell4StencilZet(mesh, k, j, i, mz, &kL, &kR, &denom, nvert, meshTag);
 
+                        // always use 2-point central differencing at overset interpolated faces
+                        if(isOversetKFace(k, j, i, k+1, meshTag))
+                        {
+                            div3[k][j][i] = nScale
+                            (
+                                - ucont[k][j][i].z,
+                                centralVec
+                                (
+                                    ucat[k][j][i], ucat[k+1][j][i]
+                                )
+                            );
+                        }
                         // inviscid flow or weno3Div
-                        if(ueqn->inviscid || ueqn->weno3Div)
+                        else if(ueqn->inviscid || ueqn->weno3Div)
                         {
                             div3[k][j][i] = nScale
                             (
