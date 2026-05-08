@@ -2412,7 +2412,7 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
                     t[k][j+1][i] = lt[k][j][i];
                 }
                 // zeroGradient boundary condition on k-left patch
-                if (mesh->boundaryT.kLeft=="zeroGradient" && k==1)
+                if (mesh->boundaryT.kLeft=="zeroGradient"  && k==1)
                 {
                     t[k-1][j][i] = lt[k][j][i];
                 }
@@ -3054,12 +3054,13 @@ PetscErrorCode UpdatePressureBCs(peqn_ *peqn)
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
     PetscInt      i, j, k;
 
-    PetscReal     ***p, ***lp;
+    PetscReal     ***p, ***lp, ***meshTag;
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
 
+    DMDAVecGetArray(da, mesh->lmeshTag, &meshTag);
     DMDAVecGetArray(da, peqn->lP, &lp);
     DMDAVecGetArray(da, peqn->P, &p);
 
@@ -3071,37 +3072,37 @@ PetscErrorCode UpdatePressureBCs(peqn_ *peqn)
             {
                 PetscInt a=i, b=j, c=k, flag=0;
 
-                if(i==0 && mesh->boundaryU.iLeft!="oversetInterpolate")
+                if(i==0)
                 {
                     if(mesh->i_periodic)       a=mx-2, flag=1;
                     else if(mesh->ii_periodic) a=-2, flag=1;
                     else                       a=1, flag=1;
                 }
-                if(i==mx-1 && mesh->boundaryU.iRight!="oversetInterpolate")
+                if(i==mx-1)
                 {
                     if(mesh->i_periodic)       a=1, flag=1;
                     else if(mesh->ii_periodic) a=mx+1, flag=1;
                     else                       a=mx-2, flag=1;
                 }
-                if(j==0 && mesh->boundaryU.jLeft!="oversetInterpolate")
+                if(j==0)
                 {
                     if(mesh->j_periodic)       b=my-2, flag=1;
                     else if(mesh->jj_periodic) b=-2, flag=1;
                     else                       b=1, flag=1;
                 }
-                if(j==my-1 && mesh->boundaryU.jRight!="oversetInterpolate")
+                if(j==my-1)
                 {
                     if(mesh->j_periodic)       b=1, flag=1;
                     else if(mesh->jj_periodic) b=my+1, flag=1;
                     else                       b=my-2, flag=1;
                 }
-                if(k==0 && mesh->boundaryU.kLeft!="oversetInterpolate")
+                if(k==0)
                 {
                     if(mesh->k_periodic)       c=mz-2, flag=1;
                     else if(mesh->kk_periodic) c=-2, flag=1;
                     else                       c=1, flag=1;
                 }
-                if(k==mz-1 && mesh->boundaryU.kRight!="oversetInterpolate")
+                if(k==mz-1)
                 {
                     if(mesh->k_periodic)       c=1, flag=1;
                     else if(mesh->kk_periodic) c=mz+1, flag=1;
@@ -3112,10 +3113,37 @@ PetscErrorCode UpdatePressureBCs(peqn_ *peqn)
                 {
                     p[k][j][i] = lp[c][b][a];
                 }
+
+                // apply zero gradient also at interpolated faces from the hole mesh in overset 
+                if(isInterpolatedCell(k, j, i, meshTag) && isZeroedCell(k, j, i+1, meshTag))
+                {
+                    p[k][j][i] = lp[k][j][i-1];
+                }
+                if(isInterpolatedCell(k, j, i, meshTag) && isZeroedCell(k, j, i-1, meshTag))
+                {
+                    p[k][j][i] = lp[k][j][i+1];
+                }
+                if(isInterpolatedCell(k, j, i, meshTag) && isZeroedCell(k, j+1, i, meshTag))
+                {
+                    p[k][j][i] = lp[k][j-1][i];
+                }
+                if(isInterpolatedCell(k, j, i, meshTag) && isZeroedCell(k, j-1, i, meshTag))
+                {
+                    p[k][j][i] = lp[k][j+1][i];
+                }
+                if(isInterpolatedCell(k, j, i, meshTag) && isZeroedCell(k+1, j, i, meshTag))
+                {
+                    p[k][j][i] = lp[k-1][j][i];
+                }
+                if(isInterpolatedCell(k, j, i, meshTag) && isZeroedCell(k-1, j, i, meshTag))
+                {
+                    p[k][j][i] = lp[k+1][j][i];
+                }
             }
         }
     }
 
+    DMDAVecRestoreArray(da, mesh->lmeshTag, &meshTag);
     DMDAVecRestoreArray(da, peqn->lP, &lp);
     DMDAVecRestoreArray(da, peqn->P, &p);
 
@@ -3160,47 +3188,49 @@ PetscErrorCode UpdatePhiBCs(peqn_ *peqn)
             {
                 PetscInt a=i, b=j, c=k, flag=0;
 
-                if(i==0)
+                if(i==0 && mesh->boundaryU.iLeft != "oversetInterpolate")
                 {
                     if(mesh->i_periodic)       a=mx-2, flag=1;
                     else if(mesh->ii_periodic) a=-2, flag=1;
-                    else                      a=1, flag=1;
+                    else                       a=1, flag=1;
                 }
-                if(i==mx-1)
+                if(i==mx-1 && mesh->boundaryU.iRight != "oversetInterpolate")
                 {
                     if(mesh->i_periodic)       a=1, flag=1;
                     else if(mesh->ii_periodic) a=mx+1, flag=1;
-                    else                      a=mx-2, flag=1;
+                    else                       a=mx-2, flag=1;
                 }
-                if(j==0)
+                if(j==0 && mesh->boundaryU.jLeft != "oversetInterpolate")
                 {
                     if(mesh->j_periodic)       b=my-2, flag=1;
                     else if(mesh->jj_periodic) b=-2, flag=1;
-                    else                      b=1, flag=1;
+                    else                       b=1, flag=1;
                 }
-                if(j==my-1)
+                if(j==my-1 && mesh->boundaryU.jRight != "oversetInterpolate")
                 {
                     if(mesh->j_periodic)       b=1, flag=1;
                     else if(mesh->jj_periodic) b=my+1, flag=1;
-                    else                      b=my-2, flag=1;
+                    else                       b=my-2, flag=1;
                 }
-                if(k==0)
+                if(k==0 && mesh->boundaryU.kLeft != "oversetInterpolate")
                 {
                     if(mesh->k_periodic)       c=mz-2, flag=1;
                     else if(mesh->kk_periodic) c=-2, flag=1;
-                    else                      c=1, flag=1;
+                    else                       c=1, flag=1;
                 }
-                if(k==mz-1)
+                if(k==mz-1 && mesh->boundaryU.kRight != "oversetInterpolate")
                 {
                     if(mesh->k_periodic)       c=1, flag=1;
                     else if(mesh->kk_periodic) c=mz+1, flag=1;
-                    else                      c=mz-2, flag=1;
+                    else                       c=mz-2, flag=1;
                 }
 
                 if(flag)
                 {
                     phi[k][j][i] = lphi[c][b][a];
                 }
+
+
             }
         }
     }
