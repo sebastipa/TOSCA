@@ -349,9 +349,9 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
     if(ueqn->access->flags->isBulkGradPForcingActive)
     {
         ueqn->uBulk = nSetZero();
-        PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-u_bulk", &(ueqn->meanGradP.x), PETSC_NULL);
-        PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-v_bulk", &(ueqn->meanGradP.y), PETSC_NULL);
-        PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-w_bulk", &(ueqn->meanGradP.z), PETSC_NULL);
+        PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-u_bulk", &(ueqn->uBulk.x), PETSC_NULL);
+        PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-v_bulk", &(ueqn->uBulk.y), PETSC_NULL);
+        PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-w_bulk", &(ueqn->uBulk.z), PETSC_NULL);
 
         // at least one component of the bulk velocity controller must be nonzero if the controller is active
         if(ueqn->uBulk.x == 0.0 && ueqn->uBulk.y == 0.0 && ueqn->uBulk.z == 0.0)
