@@ -214,9 +214,6 @@ PetscErrorCode InitializeWindFarm(farm_ *farm)
         // initialize sample sphere cells and see what processor controls which sampling rig
         initSampleControlledCells(farm);
 
-        // ensure best practices with respect to mesh size and turbine dimension are followed
-        checkTurbineMesh(farm);
-
         // initialize OpenFAST 
         #if USE_OPENFAST
         PetscPrintf(mesh->MESH_COMM, "   sending inputs to OpenFAST...\n");
@@ -248,6 +245,9 @@ PetscErrorCode InitializeWindFarm(farm_ *farm)
                 meshAFM(farm->wt[t]);
             }
         }
+
+        // ensure best practices with respect to mesh size and turbine dimension are followed
+        checkTurbineMesh(farm);
 
         #if USE_OPENFAST
         // update global vars and position of force and velocity points from openfast
