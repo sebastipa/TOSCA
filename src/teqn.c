@@ -299,7 +299,18 @@ PetscErrorCode ghGradRhoK(teqn_ *teqn)
     PetscInt      i, j, k;
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
 
-    const PetscReal  g = -9.81, tRef = ueqn->access->abl->tRef;;
+    const PetscReal  g = -9.81;
+    PetscReal  tRef;
+    
+    // Use tRef from ABLProperties.dat if ABL is active
+    if (teqn->access->flags->isAblActive) 
+    {
+        tRef = teqn->access->abl->tRef;
+    } // Use tRef from control.dat if ABL is not active
+    else
+    {
+        tRef = teqn->access->constants->tRef;
+    }
 
     PetscReal     dbdc, dbde, dbdz;
 
