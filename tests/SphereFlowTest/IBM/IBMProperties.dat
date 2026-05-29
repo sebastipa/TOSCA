@@ -19,6 +19,8 @@ pressureBC                          0
 averageNormal                       0
 abl                                 0
 
+procBuffOverlap                     0.0
+
 writeSettings
 {
     timeStart           0
