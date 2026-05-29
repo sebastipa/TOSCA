@@ -35,8 +35,13 @@ PetscErrorCode readIBMProperties(ibm_ *ibm)
     // set wall shear force from wall model
     readDictInt("./IBM/IBMProperties.dat", "wallShear", &(ibm->wallShearOn));
 
+    // read ABL flag
     readDictInt("./IBM/IBMProperties.dat", "abl", &(ibm->ibmABL));
 
+    // set processor overlap in the ownership of ibm elements 
+    readDictDouble("./IBM/IBMProperties.dat", "procBuffOverlap", &(ibm->procBuffOverlap));
+
+    // special entries
     if(ibm->ibmABL)      readDictDouble("./IBM/IBMProperties.dat", "groundLevel",      &(mesh->grndLevel));
     if(ibm->wallShearOn) readDictDouble("./IBM/IBMProperties.dat", "interpolationDistance", &(ibm->interpDist));
 
