@@ -4202,26 +4202,8 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
                 }
             }
 
-            // allocate variables where data are stored
-            if(atLeastOneVector)
-            {
-                kSections->vectorSec = (Cmpnts **)malloc( sizeof(Cmpnts *) * my );
-
-                for(j=0; j<my; j++)
-                {
-                    kSections->vectorSec[j] = (Cmpnts *)malloc( sizeof(Cmpnts) * mx );
-                }
-            }
-
-            if(atLeastOneScalar)
-            {
-                kSections->scalarSec = (PetscReal **)malloc( sizeof(PetscReal *) * my );
-
-                for(j=0; j<my; j++)
-                {
-                    kSections->scalarSec[j] = (PetscReal *)malloc( sizeof(PetscReal) * mx );
-                }
-            }
+            kSections->vectorSec = NULL;
+            kSections->scalarSec = NULL;
         }
         else
         {
@@ -4537,26 +4519,8 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
                 }
             }
 
-            // allocate variables where data are stored
-            if(atLeastOneVector)
-            {
-                jSections->vectorSec = (Cmpnts **)malloc( sizeof(Cmpnts *) * mz );
-
-                for(k=0; k<mz; k++)
-                {
-                    jSections->vectorSec[k] = (Cmpnts *)malloc( sizeof(Cmpnts) * mx );
-                }
-            }
-
-            if(atLeastOneScalar)
-            {
-                jSections->scalarSec = (PetscReal **)malloc( sizeof(PetscReal *) * mz );
-
-                for(k=0; k<mz; k++)
-                {
-                    jSections->scalarSec[k] = (PetscReal *)malloc( sizeof(PetscReal) * mx );
-                }
-            }
+            jSections->vectorSec = NULL;
+            jSections->scalarSec = NULL;
         }
         else
         {
@@ -4868,26 +4832,8 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
                 }
             }
 
-            // allocate variables where data are stored
-            if(atLeastOneVector)
-            {
-                iSections->vectorSec = (Cmpnts **)malloc( sizeof(Cmpnts *) * mz );
-
-                for(k=0; k<mz; k++)
-                {
-                    iSections->vectorSec[k] = (Cmpnts *)malloc( sizeof(Cmpnts) * my );
-                }
-            }
-
-            if(atLeastOneScalar)
-            {
-                iSections->scalarSec = (PetscReal **)malloc( sizeof(PetscReal *) * mz );
-
-                for(k=0; k<mz; k++)
-                {
-                    iSections->scalarSec[k] = (PetscReal *)malloc( sizeof(PetscReal) * my );
-                }
-            }
+            iSections->vectorSec = NULL;
+            iSections->scalarSec = NULL;
         }
         else
         {
@@ -5594,278 +5540,237 @@ PetscErrorCode writeSections(acquisition_ *acquisition)
 
 //***************************************************************************************************************//
 
-PetscErrorCode iSectionSaveVector(mesh_ *mesh, sections *sec, PetscInt iplane, Vec &V, const char* fieldName)
+//! \brief Gathers per-rank section tiles onto rank 0 and writes the assembled slice.
+static PetscErrorCode writeSectionTileGatherv
+(
+    MPI_Comm     comm,
+    const char  *fname,
+    PetscBool    ownsPlane,
+    PetscInt     slow_start,
+    PetscInt     slow_count,
+    PetscInt     slow_size_global,
+    PetscInt     fast_start,
+    PetscInt     fast_count,
+    PetscInt     fast_size_global,
+    PetscInt     elem_doubles,
+    const void  *tile_buf,
+    const char  *errLabel
+)
 {
-    clock_        *clock = mesh->access->clock;
-    DMDALocalInfo info = mesh->info;
-    PetscInt           xs = info.xs, xe = info.xs + info.xm;
-    PetscInt           ys = info.ys, ye = info.ys + info.ym;
-    PetscInt           zs = info.zs, ze = info.zs + info.zm;
-    PetscInt           mx = info.mx, my = info.my, mz = info.mz;
+    PetscMPIInt rank, size;
+    MPI_Comm_rank(comm, &rank);
+    MPI_Comm_size(comm, &size);
 
-    PetscInt           i, j, k;
-    PetscMPIInt        rank;
+    PetscInt myShape[4];
+    myShape[0] = slow_start;
+    myShape[1] = (ownsPlane && slow_count > 0 && fast_count > 0) ? slow_count : 0;
+    myShape[2] = fast_start;
+    myShape[3] = (ownsPlane && slow_count > 0 && fast_count > 0) ? fast_count : 0;
 
-    Cmpnts        ***v;
+    std::vector<PetscInt> allShape;
+    if (rank == 0) allShape.resize((size_t)4 * (size_t)size);
+    MPI_Gather(myShape, 4, MPIU_INT,
+               rank == 0 ? allShape.data() : NULL, 4, MPIU_INT,
+               0, comm);
 
-    // formatted print width
-    PetscInt width1 = -5;
-    PetscInt width2 = -50;
-
-    MPI_Comm_rank(mesh->MESH_COMM, &rank);
-
-    // set velocity values to zero in all processes
-    for(k=0; k<mz; k++)
+    PetscInt myDoubles = myShape[1] * myShape[3] * elem_doubles;
+    std::vector<int> counts, displs;
+    PetscInt totalDoubles = 0;
+    if (rank == 0)
     {
-        for(j=0; j<my; j++)
+        counts.resize((size_t)size);
+        displs.resize((size_t)size);
+        PetscInt cum = 0;
+        for (PetscMPIInt r = 0; r < size; r++)
         {
-            sec->vectorSec[k][j].x = 0;
-            sec->vectorSec[k][j].y = 0;
-            sec->vectorSec[k][j].z = 0;
+            counts[r] = (int)(allShape[4*r + 1] * allShape[4*r + 3] * elem_doubles);
+            displs[r] = (int)cum;
+            cum += counts[r];
         }
+        totalDoubles = cum;
     }
 
-    DMDAVecGetArray(mesh->fda, V, &v);
+    std::vector<double> recvBuf;
+    if (rank == 0) recvBuf.resize((size_t)totalDoubles);
 
-    if(iplane>=xs && iplane<xe)
+    MPI_Gatherv(tile_buf, (int)myDoubles, MPI_DOUBLE,
+                rank == 0 ? recvBuf.data() : NULL,
+                rank == 0 ? counts.data() : NULL,
+                rank == 0 ? displs.data() : NULL,
+                MPI_DOUBLE, 0, comm);
+
+    if (rank == 0)
     {
-        for (k=zs; k<ze; k++)
+        const size_t row_doubles  = (size_t)fast_size_global * (size_t)elem_doubles;
+        const size_t slice_doubles = (size_t)slow_size_global * row_doubles;
+        std::vector<double> slice(slice_doubles, 0.0);
+
+        for (PetscMPIInt r = 0; r < size; r++)
         {
-            for (j=ys; j<ye; j++)
+            PetscInt rSlowStart = allShape[4*r + 0];
+            PetscInt rSlowCount = allShape[4*r + 1];
+            PetscInt rFastStart = allShape[4*r + 2];
+            PetscInt rFastCount = allShape[4*r + 3];
+            if (rSlowCount == 0 || rFastCount == 0) continue;
+
+            const double *src = recvBuf.data() + (size_t)displs[r];
+            for (PetscInt s = 0; s < rSlowCount; s++)
             {
-                mSet(sec->vectorSec[k][j], v[k][j][iplane]);
+                size_t dstOff = ((size_t)(rSlowStart + s) * (size_t)fast_size_global
+                                + (size_t)rFastStart) * (size_t)elem_doubles;
+                size_t srcOff = (size_t)s * (size_t)rFastCount * (size_t)elem_doubles;
+                size_t nBytes = (size_t)rFastCount * (size_t)elem_doubles * sizeof(double);
+                memcpy(&slice[dstOff], src + srcOff, nBytes);
             }
         }
-    }
 
-    DMDAVecRestoreArray(mesh->fda, V, &v);
-
-    // reduce the values by storing only on the master node
-    // mpi operation is sum because the other values are zero
-    if(!rank)
-    {
-        for(k=0; k<mz; k++)
+        FILE *fp = fopen(fname, "wb");
+        if (!fp)
         {
-            MPI_Reduce(MPI_IN_PLACE, sec->vectorSec[k], my*3, MPIU_REAL, MPIU_SUM, 0, mesh->MESH_COMM);
+            char error[1024];
+            sprintf(error, "cannot open file %s in %s", fname, errLabel);
+            fatalErrorInFunction("writeSectionTileGatherv", error);
         }
-    }
-    else
-    {
-        for(k=0; k<mz; k++)
-        {
-            MPI_Reduce(sec->vectorSec[k], sec->vectorSec[k], my*3, MPIU_REAL, MPIU_SUM, 0, mesh->MESH_COMM);
-        }
-    }
-
-    if(!rank)
-    {
-        word timeName = getTimeName(clock);
-
-        char fname[256];
-        sprintf(fname, "./postProcessing/%s/iSurfaces/%ld/%s/%s", mesh->meshName.c_str(), iplane, fieldName, timeName.c_str());
-
-        PetscPrintf(mesh->MESH_COMM, "    %*d/%s to %*s\n", width1, iplane, fieldName, width2, fname);
-
-        FILE *fp=fopen(fname, "wb");
-        if(!fp)
-        {
-           char error[512];
-            sprintf(error, "cannot open file %s", fname);
-            fatalErrorInFunction("save_inflow_section",  error);
-        }
-
-        for(k=0; k<mz; k++)
-        {
-            fwrite(&sec->vectorSec[k][0], sizeof(Cmpnts), my, fp);
-        }
+        fwrite(slice.data(), sizeof(double), slice_doubles, fp);
         fclose(fp);
     }
 
-    return(0);
+    return 0;
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode iSectionSaveVector(mesh_ *mesh, sections *sec, PetscInt iplane, Vec &V, const char* fieldName)
+{
+    clock_         *clock = mesh->access->clock;
+    DMDALocalInfo  info   = mesh->info;
+    PetscInt       xs = info.xs, xe = info.xs + info.xm;
+    PetscInt       ys = info.ys, ye = info.ys + info.ym;
+    PetscInt       zs = info.zs, ze = info.zs + info.zm;
+    PetscInt       my = info.my, mz = info.mz;
+
+    PetscBool ownsPlane = (iplane >= xs && iplane < xe) ? PETSC_TRUE : PETSC_FALSE;
+    PetscInt slow_count = ze - zs;
+    PetscInt fast_count = ye - ys;
+
+    std::vector<Cmpnts> tile;
+    if (ownsPlane && slow_count > 0 && fast_count > 0)
+    {
+        tile.resize((size_t)slow_count * (size_t)fast_count);
+        Cmpnts ***v;
+        DMDAVecGetArray(mesh->fda, V, &v);
+        for (PetscInt k = zs; k < ze; k++)
+        {
+            for (PetscInt j = ys; j < ye; j++)
+            {
+                tile[(size_t)(k - zs) * (size_t)fast_count + (size_t)(j - ys)] = v[k][j][iplane];
+            }
+        }
+        DMDAVecRestoreArray(mesh->fda, V, &v);
+    }
+
+    char fname[256];
+    word timeName = getTimeName(clock);
+    sprintf(fname, "./postProcessing/%s/iSurfaces/%ld/%s/%s",
+            mesh->meshName.c_str(), iplane, fieldName, timeName.c_str());
+
+    PetscPrintf(mesh->MESH_COMM, "    %*d/%s to %*s\n", -5, iplane, fieldName, -50, fname);
+
+    return writeSectionTileGatherv(mesh->MESH_COMM, fname, ownsPlane,
+                               zs, slow_count, mz,
+                               ys, fast_count, my,
+                               3, tile.data(),
+                               "iSectionSaveVector");
 }
 
 //***************************************************************************************************************//
 
 PetscErrorCode jSectionSaveVector(mesh_ *mesh, sections *sec, PetscInt jplane, Vec &V, const char* fieldName)
 {
-    clock_        *clock = mesh->access->clock;
-    DMDALocalInfo info = mesh->info;
-    PetscInt           xs = info.xs, xe = info.xs + info.xm;
-    PetscInt           ys = info.ys, ye = info.ys + info.ym;
-    PetscInt           zs = info.zs, ze = info.zs + info.zm;
-    PetscInt           mx = info.mx, my = info.my, mz = info.mz;
+    clock_         *clock = mesh->access->clock;
+    DMDALocalInfo  info   = mesh->info;
+    PetscInt       xs = info.xs, xe = info.xs + info.xm;
+    PetscInt       ys = info.ys, ye = info.ys + info.ym;
+    PetscInt       zs = info.zs, ze = info.zs + info.zm;
+    PetscInt       mx = info.mx, mz = info.mz;
 
-    PetscInt           i, j, k;
-    PetscMPIInt        rank;
+    PetscBool ownsPlane = (jplane >= ys && jplane < ye) ? PETSC_TRUE : PETSC_FALSE;
+    PetscInt slow_count = ze - zs;
+    PetscInt fast_count = xe - xs;
 
-    Cmpnts        ***v;
-
-    // formatted print width
-    PetscInt width1 = -5;
-    PetscInt width2 = -50;
-
-    MPI_Comm_rank(mesh->MESH_COMM, &rank);
-
-    // set velocity values to zero in all processes
-    for(k=0; k<mz; k++)
+    std::vector<Cmpnts> tile;
+    if (ownsPlane && slow_count > 0 && fast_count > 0)
     {
-        for(i=0; i<mx; i++)
+        tile.resize((size_t)slow_count * (size_t)fast_count);
+        Cmpnts ***v;
+        DMDAVecGetArray(mesh->fda, V, &v);
+        for (PetscInt k = zs; k < ze; k++)
         {
-            sec->vectorSec[k][i].x = 0;
-            sec->vectorSec[k][i].y = 0;
-            sec->vectorSec[k][i].z = 0;
-        }
-    }
-
-    DMDAVecGetArray(mesh->fda, V, &v);
-
-    if(jplane>=ys && jplane<ye)
-    {
-        for (k=zs; k<ze; k++)
-        {
-            for (i=xs; i<xe; i++)
+            for (PetscInt i = xs; i < xe; i++)
             {
-                mSet(sec->vectorSec[k][i], v[k][jplane][i]);
+                tile[(size_t)(k - zs) * (size_t)fast_count + (size_t)(i - xs)] = v[k][jplane][i];
             }
         }
+        DMDAVecRestoreArray(mesh->fda, V, &v);
     }
 
-    DMDAVecRestoreArray(mesh->fda, V, &v);
+    char fname[256];
+    word timeName = getTimeName(clock);
+    sprintf(fname, "./postProcessing/%s/jSurfaces/%ld/%s/%s",
+            mesh->meshName.c_str(), jplane, fieldName, timeName.c_str());
 
-    // reduce the values by storing only on the master node
-    // mpi operation is sum because the other values are zero
-    if(!rank)
-    {
-        for(k=0; k<mz; k++)
-        {
-            MPI_Reduce(MPI_IN_PLACE, sec->vectorSec[k], mx*3, MPIU_REAL, MPIU_SUM, 0, mesh->MESH_COMM);
-        }
-    }
-    else
-    {
-        for(k=0; k<mz; k++)
-        {
-            MPI_Reduce(sec->vectorSec[k], sec->vectorSec[k], mx*3, MPIU_REAL, MPIU_SUM, 0, mesh->MESH_COMM);
-        }
-    }
+    PetscPrintf(mesh->MESH_COMM, "    %*d/%s to %*s\n", -5, jplane, fieldName, -50, fname);
 
-    if(!rank)
-    {
-        word timeName = getTimeName(clock);
-
-        char fname[256];
-        sprintf(fname, "./postProcessing/%s/jSurfaces/%ld/%s/%s", mesh->meshName.c_str(), jplane, fieldName, timeName.c_str());
-
-        PetscPrintf(mesh->MESH_COMM, "    %*d/%s to %*s\n", width1, jplane, fieldName, width2, fname);
-
-        FILE *fp=fopen(fname, "wb");
-        if(!fp)
-        {
-           char error[512];
-            sprintf(error, "cannot open file %s", fname);
-            fatalErrorInFunction("save_inflow_section",  error);
-        }
-
-        for(k=0; k<mz; k++)
-        {
-            fwrite(&sec->vectorSec[k][0], sizeof(Cmpnts), mx, fp);
-        }
-        fclose(fp);
-    }
-
-    return(0);
+    return writeSectionTileGatherv(mesh->MESH_COMM, fname, ownsPlane,
+                               zs, slow_count, mz,
+                               xs, fast_count, mx,
+                               3, tile.data(),
+                               "jSectionSaveVector");
 }
 
 //***************************************************************************************************************//
 
 PetscErrorCode kSectionSaveVector(mesh_ *mesh, sections *sec, PetscInt kplane, Vec &V, const char* fieldName)
 {
-    clock_        *clock = mesh->access->clock;
-    DMDALocalInfo info = mesh->info;
-    PetscInt           xs = info.xs, xe = info.xs + info.xm;
-    PetscInt           ys = info.ys, ye = info.ys + info.ym;
-    PetscInt           zs = info.zs, ze = info.zs + info.zm;
-    PetscInt           mx = info.mx, my = info.my, mz = info.mz;
+    clock_         *clock = mesh->access->clock;
+    DMDALocalInfo  info   = mesh->info;
+    PetscInt       xs = info.xs, xe = info.xs + info.xm;
+    PetscInt       ys = info.ys, ye = info.ys + info.ym;
+    PetscInt       zs = info.zs, ze = info.zs + info.zm;
+    PetscInt       mx = info.mx, my = info.my;
 
-    PetscInt           i, j, k;
-    PetscMPIInt        rank;
+    PetscBool ownsPlane = (kplane >= zs && kplane < ze) ? PETSC_TRUE : PETSC_FALSE;
+    PetscInt slow_count = ye - ys;
+    PetscInt fast_count = xe - xs;
 
-    Cmpnts        ***v;
-
-    // formatted print width
-    PetscInt width1 = -5;
-    PetscInt width2 = -50;
-
-    MPI_Comm_rank(mesh->MESH_COMM, &rank);
-
-    // set velocity values to zero in all processes
-    for(j=0; j<my; j++)
+    std::vector<Cmpnts> tile;
+    if (ownsPlane && slow_count > 0 && fast_count > 0)
     {
-        for(i=0; i<mx; i++)
+        tile.resize((size_t)slow_count * (size_t)fast_count);
+        Cmpnts ***v;
+        DMDAVecGetArray(mesh->fda, V, &v);
+        for (PetscInt j = ys; j < ye; j++)
         {
-            sec->vectorSec[j][i].x = 0;
-            sec->vectorSec[j][i].y = 0;
-            sec->vectorSec[j][i].z = 0;
-        }
-    }
-
-    DMDAVecGetArray(mesh->fda, V, &v);
-
-    if(kplane>=zs && kplane<ze)
-    {
-        for (j=ys; j<ye; j++)
-        {
-            for (i=xs; i<xe; i++)
+            for (PetscInt i = xs; i < xe; i++)
             {
-                mSet(sec->vectorSec[j][i], v[kplane][j][i]);
+                tile[(size_t)(j - ys) * (size_t)fast_count + (size_t)(i - xs)] = v[kplane][j][i];
             }
         }
+        DMDAVecRestoreArray(mesh->fda, V, &v);
     }
 
-    DMDAVecRestoreArray(mesh->fda, V, &v);
+    char fname[256];
+    word timeName = getTimeName(clock);
+    sprintf(fname, "./postProcessing/%s/kSurfaces/%ld/%s/%s",
+            mesh->meshName.c_str(), kplane, fieldName, timeName.c_str());
 
-    // reduce the values by storing only on the master node
-    // mpi operation is sum because the other values are zero
-    if(!rank)
-    {
-        for(j=0; j<my; j++)
-        {
-            MPI_Reduce(MPI_IN_PLACE, sec->vectorSec[j], mx*3, MPIU_REAL, MPIU_SUM, 0, mesh->MESH_COMM);
-        }
-    }
-    else
-    {
-        for(j=0; j<my; j++)
-        {
-            MPI_Reduce(sec->vectorSec[j], sec->vectorSec[j], mx*3, MPIU_REAL, MPIU_SUM, 0, mesh->MESH_COMM);
-        }
-    }
+    PetscPrintf(mesh->MESH_COMM, "    %*d/%s to %*s\n", -5, kplane, fieldName, -50, fname);
 
-    if(!rank)
-    {
-        word timeName = getTimeName(clock);
-
-        char fname[256];
-        sprintf(fname, "./postProcessing/%s/kSurfaces/%ld/%s/%s", mesh->meshName.c_str(), kplane, fieldName, timeName.c_str());
-
-        PetscPrintf(mesh->MESH_COMM, "    %*d/%s to %*s\n", width1, kplane, fieldName, width2, fname);
-
-        FILE *fp=fopen(fname, "wb");
-        if(!fp)
-        {
-           char error[512];
-            sprintf(error, "cannot open file %s", fname);
-            fatalErrorInFunction("kSectionSaveVector",  error);
-        }
-
-        for(j=0; j<my; j++)
-        {
-            fwrite(&sec->vectorSec[j][0], sizeof(Cmpnts), mx, fp);
-        }
-        fclose(fp);
-    }
-
-    return(0);
+    return writeSectionTileGatherv(mesh->MESH_COMM, fname, ownsPlane,
+                               ys, slow_count, my,
+                               xs, fast_count, mx,
+                               3, tile.data(),
+                               "kSectionSaveVector");
 }
 
 //***************************************************************************************************************//
@@ -6003,270 +5908,135 @@ PetscErrorCode userSectionSaveVector(mesh_ *mesh, uSections *uSection, Vec &V, c
 
 PetscErrorCode iSectionSaveScalar(mesh_ *mesh, sections *sec, PetscInt iplane, Vec &V, const char* fieldName)
 {
-    clock_        *clock = mesh->access->clock;
-    DMDALocalInfo info = mesh->info;
-    PetscInt           xs = info.xs, xe = info.xs + info.xm;
-    PetscInt           ys = info.ys, ye = info.ys + info.ym;
-    PetscInt           zs = info.zs, ze = info.zs + info.zm;
-    PetscInt           mx = info.mx, my = info.my, mz = info.mz;
+    clock_         *clock = mesh->access->clock;
+    DMDALocalInfo  info   = mesh->info;
+    PetscInt       xs = info.xs, xe = info.xs + info.xm;
+    PetscInt       ys = info.ys, ye = info.ys + info.ym;
+    PetscInt       zs = info.zs, ze = info.zs + info.zm;
+    PetscInt       my = info.my, mz = info.mz;
 
-    PetscInt           i, j, k;
-    PetscMPIInt        rank;
+    PetscBool ownsPlane = (iplane >= xs && iplane < xe) ? PETSC_TRUE : PETSC_FALSE;
+    PetscInt slow_count = ze - zs;
+    PetscInt fast_count = ye - ys;
 
-    PetscReal     ***v;
-
-    // formatted print width
-    PetscInt width1 = -5;
-    PetscInt width2 = -50;
-
-    MPI_Comm_rank(mesh->MESH_COMM, &rank);
-
-    // set velocity values to zero in all processes
-    for(k=0; k<mz; k++)
+    std::vector<PetscReal> tile;
+    if (ownsPlane && slow_count > 0 && fast_count > 0)
     {
-        for(j=0; j<my; j++)
+        tile.resize((size_t)slow_count * (size_t)fast_count);
+        PetscReal ***v;
+        DMDAVecGetArray(mesh->da, V, &v);
+        for (PetscInt k = zs; k < ze; k++)
         {
-            sec->scalarSec[k][j] = 0;
-        }
-    }
-
-    DMDAVecGetArray(mesh->da, V, &v);
-
-    if(iplane>=xs && iplane<xe)
-    {
-        for (k=zs; k<ze; k++)
-        {
-            for (j=ys; j<ye; j++)
+            for (PetscInt j = ys; j < ye; j++)
             {
-                sec->scalarSec[k][j] = v[k][j][iplane];
+                tile[(size_t)(k - zs) * (size_t)fast_count + (size_t)(j - ys)] = v[k][j][iplane];
             }
         }
+        DMDAVecRestoreArray(mesh->da, V, &v);
     }
 
-    DMDAVecRestoreArray(mesh->da, V, &v);
+    char fname[256];
+    word timeName = getTimeName(clock);
+    sprintf(fname, "./postProcessing/%s/iSurfaces/%ld/%s/%s",
+            mesh->meshName.c_str(), iplane, fieldName, timeName.c_str());
 
-    // reduce the values by storing only on the master node
-    // mpi operation is sum because the other values are zero
-    if (!rank)
-    {
-        for(k=0; k<mz; k++)
-        {
-            MPI_Reduce(MPI_IN_PLACE, sec->scalarSec[k], my, MPIU_REAL, MPIU_SUM, 0, mesh->MESH_COMM);
-        }
-    }
-    else
-    {
-        for(k=0; k<mz; k++)
-        {
-            MPI_Reduce(sec->scalarSec[k], sec->scalarSec[k], my, MPIU_REAL, MPIU_SUM, 0, mesh->MESH_COMM);
-        }
-    }
+    PetscPrintf(mesh->MESH_COMM, "    %*d/%s to %*s\n", -5, iplane, fieldName, -50, fname);
 
-    if(!rank)
-    {
-        word timeName = getTimeName(clock);
-
-        char fname[256];
-        sprintf(fname, "./postProcessing/%s/iSurfaces/%ld/%s/%s",  mesh->meshName.c_str(), iplane, fieldName, timeName.c_str());
-
-        PetscPrintf(mesh->MESH_COMM, "    %*d/%s to %*s\n", width1, iplane, fieldName, width2, fname);
-
-        FILE *fp=fopen(fname, "wb");
-        if(!fp)
-        {
-           char error[512];
-            sprintf(error, "cannot open file %s", fname);
-            fatalErrorInFunction("save_inflow_section",  error);
-        }
-
-        for(k=0; k<mz; k++)
-        {
-            fwrite(&sec->scalarSec[k][0], sizeof(PetscReal), my, fp);
-        }
-        fclose(fp);
-    }
-
-    return(0);
+    return writeSectionTileGatherv(mesh->MESH_COMM, fname, ownsPlane,
+                               zs, slow_count, mz,
+                               ys, fast_count, my,
+                               1, tile.data(),
+                               "iSectionSaveScalar");
 }
 
 //***************************************************************************************************************//
 
 PetscErrorCode jSectionSaveScalar(mesh_ *mesh, sections *sec, PetscInt jplane, Vec &V, const char* fieldName)
 {
-    clock_        *clock = mesh->access->clock;
-    DMDALocalInfo info = mesh->info;
-    PetscInt           xs = info.xs, xe = info.xs + info.xm;
-    PetscInt           ys = info.ys, ye = info.ys + info.ym;
-    PetscInt           zs = info.zs, ze = info.zs + info.zm;
-    PetscInt           mx = info.mx, my = info.my, mz = info.mz;
+    clock_         *clock = mesh->access->clock;
+    DMDALocalInfo  info   = mesh->info;
+    PetscInt       xs = info.xs, xe = info.xs + info.xm;
+    PetscInt       ys = info.ys, ye = info.ys + info.ym;
+    PetscInt       zs = info.zs, ze = info.zs + info.zm;
+    PetscInt       mx = info.mx, mz = info.mz;
 
-    PetscInt           i, j, k;
-    PetscMPIInt        rank;
+    PetscBool ownsPlane = (jplane >= ys && jplane < ye) ? PETSC_TRUE : PETSC_FALSE;
+    PetscInt slow_count = ze - zs;
+    PetscInt fast_count = xe - xs;
 
-    PetscReal     ***v;
-
-    // formatted print width
-    PetscInt width1 = -5;
-    PetscInt width2 = -50;
-
-    MPI_Comm_rank(mesh->MESH_COMM, &rank);
-
-    // set velocity values to zero in all processes
-    for(k=0; k<mz; k++)
+    std::vector<PetscReal> tile;
+    if (ownsPlane && slow_count > 0 && fast_count > 0)
     {
-        for(i=0; i<mx; i++)
+        tile.resize((size_t)slow_count * (size_t)fast_count);
+        PetscReal ***v;
+        DMDAVecGetArray(mesh->da, V, &v);
+        for (PetscInt k = zs; k < ze; k++)
         {
-            sec->scalarSec[k][i] = 0;
-        }
-    }
-
-    DMDAVecGetArray(mesh->da, V, &v);
-
-    if(jplane>=ys && jplane<ye)
-    {
-        for (k=zs; k<ze; k++)
-        {
-            for (i=xs; i<xe; i++)
+            for (PetscInt i = xs; i < xe; i++)
             {
-                sec->scalarSec[k][i] = v[k][jplane][i];
+                tile[(size_t)(k - zs) * (size_t)fast_count + (size_t)(i - xs)] = v[k][jplane][i];
             }
         }
+        DMDAVecRestoreArray(mesh->da, V, &v);
     }
 
-    DMDAVecRestoreArray(mesh->da, V, &v);
+    char fname[256];
+    word timeName = getTimeName(clock);
+    sprintf(fname, "./postProcessing/%s/jSurfaces/%ld/%s/%s",
+            mesh->meshName.c_str(), jplane, fieldName, timeName.c_str());
 
-    // reduce the values by storing only on the master node
-    // mpi operation is sum because the other values are zero
-    if(!rank)
-    {
-        for(k=0; k<mz; k++)
-        {
-            MPI_Reduce(MPI_IN_PLACE, sec->scalarSec[k], mx, MPIU_REAL, MPIU_SUM, 0, mesh->MESH_COMM);
-        }
-    }
-    else
-    {
-        for(k=0; k<mz; k++)
-        {
-            MPI_Reduce(sec->scalarSec[k], sec->scalarSec[k], mx, MPIU_REAL, MPIU_SUM, 0, mesh->MESH_COMM);
-        }
-    }
+    PetscPrintf(mesh->MESH_COMM, "    %*d/%s to %*s\n", -5, jplane, fieldName, -50, fname);
 
-    if(!rank)
-    {
-        word timeName = getTimeName(clock);
-
-        char fname[256];
-        sprintf(fname, "./postProcessing/%s/jSurfaces/%ld/%s/%s", mesh->meshName.c_str(), jplane, fieldName, timeName.c_str());
-
-        PetscPrintf(mesh->MESH_COMM, "    %*d/%s to %*s\n", width1, jplane, fieldName, width2, fname);
-
-        FILE *fp=fopen(fname, "wb");
-        if(!fp)
-        {
-           char error[512];
-            sprintf(error, "cannot open file %s", fname);
-            fatalErrorInFunction("save_inflow_section",  error);
-        }
-
-        for(k=0; k<mz; k++)
-        {
-            fwrite(&sec->scalarSec[k][0], sizeof(PetscReal), mx, fp);
-        }
-        fclose(fp);
-    }
-
-    return(0);
+    return writeSectionTileGatherv(mesh->MESH_COMM, fname, ownsPlane,
+                               zs, slow_count, mz,
+                               xs, fast_count, mx,
+                               1, tile.data(),
+                               "jSectionSaveScalar");
 }
 
 //***************************************************************************************************************//
 
 PetscErrorCode kSectionSaveScalar(mesh_ *mesh, sections *sec, PetscInt kplane, Vec &V, const char* fieldName)
 {
-    clock_        *clock = mesh->access->clock;
-    DMDALocalInfo info = mesh->info;
-    PetscInt           xs = info.xs, xe = info.xs + info.xm;
-    PetscInt           ys = info.ys, ye = info.ys + info.ym;
-    PetscInt           zs = info.zs, ze = info.zs + info.zm;
-    PetscInt           mx = info.mx, my = info.my, mz = info.mz;
+    clock_         *clock = mesh->access->clock;
+    DMDALocalInfo  info   = mesh->info;
+    PetscInt       xs = info.xs, xe = info.xs + info.xm;
+    PetscInt       ys = info.ys, ye = info.ys + info.ym;
+    PetscInt       zs = info.zs, ze = info.zs + info.zm;
+    PetscInt       mx = info.mx, my = info.my;
 
-    PetscInt           i, j, k;
-    PetscMPIInt        rank;
+    PetscBool ownsPlane = (kplane >= zs && kplane < ze) ? PETSC_TRUE : PETSC_FALSE;
+    PetscInt slow_count = ye - ys;
+    PetscInt fast_count = xe - xs;
 
-    PetscReal     ***v;
-
-    // formatted print width
-    PetscInt width1 = -5;
-    PetscInt width2 = -50;
-
-    MPI_Comm_rank(mesh->MESH_COMM, &rank);
-
-    // set velocity values to zero in all processes
-    for(j=0; j<my; j++)
+    std::vector<PetscReal> tile;
+    if (ownsPlane && slow_count > 0 && fast_count > 0)
     {
-        for(i=0; i<mx; i++)
+        tile.resize((size_t)slow_count * (size_t)fast_count);
+        PetscReal ***v;
+        DMDAVecGetArray(mesh->da, V, &v);
+        for (PetscInt j = ys; j < ye; j++)
         {
-            sec->scalarSec[j][i] = 0;
-        }
-    }
-
-    DMDAVecGetArray(mesh->da, V, &v);
-
-    if(kplane>=zs && kplane<ze)
-    {
-        for (j=ys; j<ye; j++)
-        {
-            for (i=xs; i<xe; i++)
+            for (PetscInt i = xs; i < xe; i++)
             {
-                sec->scalarSec[j][i] = v[kplane][j][i];
+                tile[(size_t)(j - ys) * (size_t)fast_count + (size_t)(i - xs)] = v[kplane][j][i];
             }
         }
+        DMDAVecRestoreArray(mesh->da, V, &v);
     }
 
-    DMDAVecRestoreArray(mesh->da, V, &v);
+    char fname[256];
+    word timeName = getTimeName(clock);
+    sprintf(fname, "./postProcessing/%s/kSurfaces/%ld/%s/%s",
+            mesh->meshName.c_str(), kplane, fieldName, timeName.c_str());
 
-    // reduce the values by storing only on the master node
-    // mpi operation is sum because the other values are zero
-    if(!rank)
-    {
-        for(j=0; j<my; j++)
-        {
-            MPI_Reduce(MPI_IN_PLACE, sec->scalarSec[j], mx, MPIU_REAL, MPIU_SUM, 0, mesh->MESH_COMM);
-        }
-    }
-    else
-    {
-        for(j=0; j<my; j++)
-        {
-            MPI_Reduce(sec->scalarSec[j], sec->scalarSec[j], mx, MPIU_REAL, MPIU_SUM, 0, mesh->MESH_COMM);
-        }
-    }
+    PetscPrintf(mesh->MESH_COMM, "    %*d/%s to %*s\n", -5, kplane, fieldName, -50, fname);
 
-    if(!rank)
-    {
-        word timeName = getTimeName(clock);
-
-        char fname[256];
-        sprintf(fname, "./postProcessing/%s/kSurfaces/%ld/%s/%s", mesh->meshName.c_str(), kplane, fieldName, timeName.c_str());
-
-        PetscPrintf(mesh->MESH_COMM, "    %*d/%s to %*s\n", width1, kplane, fieldName, width2, fname);
-
-        FILE *fp=fopen(fname, "wb");
-        if(!fp)
-        {
-           char error[512];
-            sprintf(error, "cannot open file %s", fname);
-            fatalErrorInFunction("save_inflow_section",  error);
-        }
-
-        for(j=0; j<my; j++)
-        {
-            fwrite(&sec->scalarSec[j][0], sizeof(PetscReal), mx, fp);
-        }
-        fclose(fp);
-    }
-
-    return(0);
+    return writeSectionTileGatherv(mesh->MESH_COMM, fname, ownsPlane,
+                               ys, slow_count, my,
+                               xs, fast_count, mx,
+                               1, tile.data(),
+                               "kSectionSaveScalar");
 }
 
 //***************************************************************************************************************//
@@ -7061,8 +6831,6 @@ PetscErrorCode writeProbes(domain_ *domain)
                             PetscInt           zs = info.zs, ze = info.zs + info.zm;
                             PetscInt           mx = info.mx, my = info.my, mz = info.mz;
 
-                            Cmpnts             ***cent;
-
                             PetscInt           i, j, k;
                             PetscInt           lxs, lxe, lys, lye, lzs, lze;
 
@@ -7072,8 +6840,6 @@ PetscErrorCode writeProbes(domain_ *domain)
 
                             PetscMPIInt meshRank;
                             MPI_Comm_rank(mesh->MESH_COMM, &meshRank);
-
-                            DMDAVecGetArray(mesh->fda, mesh->lCent, &cent);
 
                             if(rake->Uflag)
                             {
@@ -7086,20 +6852,12 @@ PetscErrorCode writeProbes(domain_ *domain)
 
                                 if(meshRank == rake->owner[p])
                                 {
-                                    Cmpnts uprobe;
-
-                                    // trilinear interpolate
-                                    vectorPointLocalVolumeInterpolation
-                                    (
-                                        mesh,
-                                        rake->locations[p][0], rake->locations[p][1], rake->locations[p][2],
-                                        rake->cells[p][2], rake->cells[p][1], rake->cells[p][0],
-                                        cent, ucat, uprobe
-                                    );
-
-                                    lprobeValuesU[p].x = uprobe.x;
-                                    lprobeValuesU[p].y = uprobe.y;
-                                    lprobeValuesU[p].z = uprobe.z;
+                                    k = rake->cells[p][0];
+                                    j = rake->cells[p][1];
+                                    i = rake->cells[p][2];
+                                    lprobeValuesU[p].x = ucat[k][j][i].x;
+                                    lprobeValuesU[p].y = ucat[k][j][i].y;
+                                    lprobeValuesU[p].z = ucat[k][j][i].z;
                                 }
 
                                 DMDAVecRestoreArray(mesh->fda, ueqn->lUcat, &ucat);
@@ -7116,18 +6874,10 @@ PetscErrorCode writeProbes(domain_ *domain)
 
                                 if(meshRank == rake->owner[p])
                                 {
-                                    PetscReal tprobe;
-
-                                    // trilinear interpolate
-                                    scalarPointLocalVolumeInterpolation
-                                    (
-                                        mesh,
-                                        rake->locations[p][0], rake->locations[p][1], rake->locations[p][2],
-                                        rake->cells[p][2], rake->cells[p][1], rake->cells[p][0],
-                                        cent, t, tprobe
-                                    );
-
-                                    lprobeValuesT[p] = tprobe;
+                                    k = rake->cells[p][0];
+                                    j = rake->cells[p][1];
+                                    i = rake->cells[p][2];
+                                    lprobeValuesT[p] = t[k][j][i];
                                 }
 
                                 DMDAVecRestoreArray(mesh->da, teqn->lTmprt, &t);
@@ -7144,24 +6894,14 @@ PetscErrorCode writeProbes(domain_ *domain)
 
                                 if(meshRank == rake->owner[p])
                                 {
-                                    PetscReal pprobe;
-
-                                    // trilinear interpolate
-                                    scalarPointLocalVolumeInterpolation
-                                    (
-                                        mesh,
-                                        rake->locations[p][0], rake->locations[p][1], rake->locations[p][2],
-                                        rake->cells[p][2], rake->cells[p][1], rake->cells[p][0],
-                                        cent, lp, pprobe
-                                    );
-
-                                    lprobeValuesP[p] = pprobe;
+                                    k = rake->cells[p][0];
+                                    j = rake->cells[p][1];
+                                    i = rake->cells[p][2];
+                                    lprobeValuesP[p] = lp[k][j][i];
                                 }
 
                                 DMDAVecRestoreArray(mesh->da, peqn->lP, &lp);
                             }
-
-                            DMDAVecRestoreArray(mesh->fda, mesh->lCent, &cent);
                         }
                     }
 

@@ -6,6 +6,8 @@
 
 #include <unordered_map>
 #include <map>
+#include <algorithm>
+#include "petscsf.h"
 
 //! \brief Structure to hold hole object data
 typedef struct {
@@ -59,22 +61,23 @@ struct overset_
     PetscInt                    procChange;     //!< Flag if background processor intersections have changed
     oversetMotion               *oMotion;       //!< Pointer to overset motion data
 
-    // In general there are 2 sets of acceptor cells, acceptor cell at domain boundary(aCellDb) and acceptor cell at holeCut boundary(aCellHc)
-    // All variables need to be created for both sets of acceptors 
+    // PetscSF-based connectivity for P2C (parent-to-child, domain boundary acceptors)
+    std::vector<Acell>                      localAcceptorsDb;  //!< Acceptors owned by this rank
+    std::vector<Dcell>                      localDonorMapDb;   //!< Donor map, 1:1 with localAcceptorsDb
+    PetscInt                                nRootsDb;          //!< Number of donor roots on this rank
+    std::vector<PetscInt>                   rootSlotIdxDb;     //!< Donor cell (i,j,k) per slot, stride 3
+    std::vector<PetscReal>                  rootSlotCoordsDb;  //!< Acceptor (x,y,z) per slot, stride 3
+    PetscSF                                 sfP2C;             //!< Star-forest for P2C
 
-    std::vector<std::vector<PetscInt>>      AcellProcMatDb;    //!< Processor connectivity matrix for acceptor cells
-    std::vector<std::vector<PetscInt>>      AcellProcMatHc;    //!< Processor connectivity matrix for acceptor cells
+    // PetscSF-based connectivity for C2P (child-to-parent, hole-cut acceptors), keyed by donor mesh id
+    std::map<PetscInt, std::vector<Acell>>     localAcceptorsHc;
+    std::map<PetscInt, std::vector<Dcell>>     localDonorMapHc;
+    std::map<PetscInt, PetscInt>               nRootsHc;
+    std::map<PetscInt, std::vector<PetscInt>>  rootSlotIdxHc;
+    std::map<PetscInt, std::vector<PetscReal>> rootSlotCoordsHc;
+    std::map<PetscInt, PetscSF>                sfC2P;
 
-    std::vector<PetscInt>                   NumAcellPerProcDb; //!< Number of acceptor cells per processor
-    std::vector<PetscInt>                   NumAcellPerProcHc; //!< Number of acceptor cells per processor
-
-    std::vector<Acell>                      aCellDb;           //!< List of acceptor cells
-    std::vector<Acell>                      aCellHc;           //!< List of acceptor cells
- 
-    std::vector<Dcell>                      closestDonorDb;    //!< For trilinear interpolation: closest donor cell per acceptor at domain boundary
-    std::vector<Dcell>                      closestDonorHc;    //!< For trilinear interpolation: closest donor cell per acceptor at hole cut boundary
-
-    // For other interpolation methods (currently deprecated)
+    // For other interpolation methods (currently not in use)
     std::vector<std::vector<PetscReal>>     DWeights;        //!< MLS weights for overset interpolation 
     std::vector<std::vector<Dcell>>         dCell;           //!< List of donor cell 
 
@@ -88,24 +91,6 @@ struct overset_
     ibm_    *oibm;
     access_ *access;
 };
-
-//! \brief Struct for 3D binning of hole cut boundary elements for efficient donor search
-struct BinIndex {
-    int ix, iy, iz;
-    bool operator==(const BinIndex& other) const {
-        return ix == other.ix && iy == other.iy && iz == other.iz;
-    }
-};
-
-//! \brief Hash function for BinIndex to be used in unordered_map
-namespace std {
-    template <>
-    struct hash<BinIndex> {
-        std::size_t operator()(const BinIndex& b) const {
-            return ((std::hash<int>()(b.ix) ^ (std::hash<int>()(b.iy) << 1)) >> 1) ^ (std::hash<int>()(b.iz) << 1);
-        }
-    };
-}
 
 #endif
 
