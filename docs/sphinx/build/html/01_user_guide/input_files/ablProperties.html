@@ -44,8 +44,8 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
-<ul class="current">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../tosca_getting_started.html">Getting Started</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../tosca_installation.html">Installation</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="../../tosca_user_guide.html">User Guide</a><ul class="current">
 <li class="toctree-l2 current"><a class="reference internal" href="../input_files.html">Input Files</a><ul class="current">
@@ -971,15 +971,19 @@ horizontal advection of vertical velocity). The sum of <code class="docutils lit
 <td><p><strong>entry type</strong></p></td>
 <td><p><strong>description</strong></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">kLeftPatchDist</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">kLeftDampingStart</span></code></p></td>
 <td><p>scalar</p></td>
-<td><p>width of the k Raileigh damping region, given as distance from the kLeft patch.</p></td>
+<td><p>start coordinate of the k Raileigh damping region in meters</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">kLeftDampingAlpha</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">kLeftDampingEnd</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>end coordinate of the k Raileigh damping region in meters</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">kLeftDampingAlpha</span></code></p></td>
 <td><p>scalar</p></td>
 <td><p>damping coefficient <span class="math notranslate nohighlight">\(\alpha\)</span>. Usually set to 0.3.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">kLeftDampingUBar</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">kLeftDampingUBar</span></code></p></td>
 <td><p>vector</p></td>
 <td><p>reference unpertuerbed velocity that should be obtained when the flow exits the
 Rayleigh damping region. Notably, if the kLeft is the inlet patch, this should be
@@ -991,13 +995,13 @@ consistent with the inlet boundary condition, which should be steady above
 averaging the inflow data, velocity values will be printed in the TOSCA log file.
 The consistent <code class="docutils literal notranslate"><span class="pre">kLeftDampingUBar</span></code> will be the value at the highest cell.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">kLeftFilterHeight</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">kLeftFilterHeight</span></code></p></td>
 <td><p>scalar</p></td>
 <td><p>Filter height for turbulent flow. It should be set to the height of the incoming
 boundary layer, damping will only be applied above, while turbulence will allowed
 through below.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">kLeftFilterWidth</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">kLeftFilterWidth</span></code></p></td>
 <td><p>scalar</p></td>
 <td><p>Sharpness of the filter in m. The filtering function is such that damping is 1% at
 <code class="docutils literal notranslate"><span class="pre">kLeftFilterHeight</span></code> - <code class="docutils literal notranslate"><span class="pre">kLeftFilterWidth</span></code>/2 and 99% at <code class="docutils literal notranslate"><span class="pre">kLeftFilterHeight</span></code> +
@@ -1019,28 +1023,32 @@ through below.</p></td>
 <td><p><strong>entry type</strong></p></td>
 <td><p><strong>description</strong></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">kRightPatchDist</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">kRightDampingStart</span></code></p></td>
 <td><p>scalar</p></td>
-<td><p>width of the k Raileigh damping region, given as distance from the kRight patch.</p></td>
+<td><p>start coordinate of the k Raileigh damping region in meters</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">kRightDampingAlpha</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">kRightDampingEnd</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>end coordinate of the k Raileigh damping region in meters</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">kRightDampingAlpha</span></code></p></td>
 <td><p>scalar</p></td>
 <td><p>damping coefficient <span class="math notranslate nohighlight">\(\alpha\)</span>. Usually set to 0.3.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">kRightDampingUBar</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">kRightDampingUBar</span></code></p></td>
 <td><p>vector</p></td>
 <td><p>reference unpertuerbed velocity that should be obtained when the flow exits the
 Rayleigh damping region. It should be consistent with the incoming flow. As kRight
 and kLeft damping are usually employed together, <code class="docutils literal notranslate"><span class="pre">kRightDampingUBar</span></code> and
 <code class="docutils literal notranslate"><span class="pre">kLeftDampingUBar</span></code> should be the same.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">kRightFilterHeight</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">kRightFilterHeight</span></code></p></td>
 <td><p>scalar</p></td>
 <td><p>Filter height for turbulent flow. It should be set to the height of the incoming
 boundary layer, damping will only be applied above, while turbulence will allowed
 through below.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">kRightFilterWidth</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">kRightFilterWidth</span></code></p></td>
 <td><p>scalar</p></td>
 <td><p>Sharpness of the filter in m. The filtering function is such that damping is 1% at
 <code class="docutils literal notranslate"><span class="pre">kRightFilterHeight</span></code> - <code class="docutils literal notranslate"><span class="pre">kRightFilterWidth</span></code>/2 and 99% at <code class="docutils literal notranslate"><span class="pre">kRightFilterHeight</span></code> +

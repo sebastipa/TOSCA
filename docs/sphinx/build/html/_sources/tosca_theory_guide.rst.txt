@@ -14,6 +14,7 @@ refer to the following index to access the different subsections.
    04_theory_guide/time_integration.rst
    04_theory_guide/advection_schemes.rst
    04_theory_guide/parallel_efficiency.rst
+   04_theory_guide/overset.rst
    04_theory_guide/turbulence_models.rst
    04_theory_guide/flow_controllers.rst
    04_theory_guide/precursor.rst
@@ -29,7 +30,8 @@ either used to fix a given velocity at a reference height or to couple the TOSCA
 Sec. :ref:`controllers-section`. Sec. :ref:`precursor-section` details TOSCA's hybrid off-line/concurrent precursor methodology, which saves 
 computational resources when performing the turbulence initialization of boundary layer flows. The sharp-interface immersed boundary method (IBM), which 
 enables the simulation of flows over complex terrain, objects and moving bodies, is described in Sec. :ref:`ibm-theory-section`. Actuator models used to 
-represent wind turbines in the domain are described in Sec. :ref:`turbine-models-section`. Finally, an overview of TOSCA's parallel efficiency is given in 
+represent wind turbines in the domain are described in Sec. :ref:`turbine-models-section`. The algorithm of the overset mesh strategy developed in 
+TOSCA is detailed in :ref:`overset-theory-section`. Finally, an overview of TOSCA's parallel efficiency is given in 
 Sec. :ref:`parallel_eff-section`, where the time per iteration is analyzed with increasing number of nodes and mesh elements on the Niagara 
 high-performance computer at the SciNet HPC Consortium in Canada. 
 

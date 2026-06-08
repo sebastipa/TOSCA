@@ -56,6 +56,7 @@
 <li class="toctree-l2"><a class="reference internal" href="04_theory_guide/time_integration.html">Time Integration Schemes</a></li>
 <li class="toctree-l2"><a class="reference internal" href="04_theory_guide/advection_schemes.html">Advection Schemes</a></li>
 <li class="toctree-l2"><a class="reference internal" href="04_theory_guide/parallel_efficiency.html">Parallel Efficiency</a></li>
+<li class="toctree-l2"><a class="reference internal" href="04_theory_guide/overset.html">Overset Algorithm</a></li>
 <li class="toctree-l2"><a class="reference internal" href="04_theory_guide/turbulence_models.html">Sub-grid Scale Models</a></li>
 <li class="toctree-l2"><a class="reference internal" href="04_theory_guide/flow_controllers.html">Flow Controllers and Mesoscale Coupling</a></li>
 <li class="toctree-l2"><a class="reference internal" href="04_theory_guide/precursor.html">Precursor, Fringe Regions &amp; Damping Layers</a></li>
@@ -101,6 +102,7 @@ refer to the following index to access the different subsections.</p>
 <li class="toctree-l1"><a class="reference internal" href="04_theory_guide/time_integration.html">Time Integration Schemes</a></li>
 <li class="toctree-l1"><a class="reference internal" href="04_theory_guide/advection_schemes.html">Advection Schemes</a></li>
 <li class="toctree-l1"><a class="reference internal" href="04_theory_guide/parallel_efficiency.html">Parallel Efficiency</a></li>
+<li class="toctree-l1"><a class="reference internal" href="04_theory_guide/overset.html">Overset Algorithm</a></li>
 <li class="toctree-l1"><a class="reference internal" href="04_theory_guide/turbulence_models.html">Sub-grid Scale Models</a></li>
 <li class="toctree-l1"><a class="reference internal" href="04_theory_guide/flow_controllers.html">Flow Controllers and Mesoscale Coupling</a></li>
 <li class="toctree-l1"><a class="reference internal" href="04_theory_guide/precursor.html">Precursor, Fringe Regions &amp; Damping Layers</a></li>
@@ -117,7 +119,8 @@ either used to fix a given velocity at a reference height or to couple the TOSCA
 Sec. <a class="reference internal" href="04_theory_guide/flow_controllers.html#controllers-section"><span class="std std-ref">Flow Controllers and Mesoscale Coupling</span></a>. Sec. <a class="reference internal" href="04_theory_guide/precursor.html#precursor-section"><span class="std std-ref">Precursor, Fringe Regions &amp; Damping Layers</span></a> details TOSCA’s hybrid off-line/concurrent precursor methodology, which saves
 computational resources when performing the turbulence initialization of boundary layer flows. The sharp-interface immersed boundary method (IBM), which
 enables the simulation of flows over complex terrain, objects and moving bodies, is described in Sec. <a class="reference internal" href="04_theory_guide/ibm.html#ibm-theory-section"><span class="std std-ref">Immersed Boundary Method</span></a>. Actuator models used to
-represent wind turbines in the domain are described in Sec. <a class="reference internal" href="04_theory_guide/turbine_models.html#turbine-models-section"><span class="std std-ref">Turbine Models</span></a>. Finally, an overview of TOSCA’s parallel efficiency is given in
+represent wind turbines in the domain are described in Sec. <a class="reference internal" href="04_theory_guide/turbine_models.html#turbine-models-section"><span class="std std-ref">Turbine Models</span></a>. The algorithm of the overset mesh strategy developed in
+TOSCA is detailed in <a class="reference internal" href="04_theory_guide/overset.html#overset-theory-section"><span class="std std-ref">Overset Algorithm</span></a>. Finally, an overview of TOSCA’s parallel efficiency is given in
 Sec. <a class="reference internal" href="04_theory_guide/parallel_efficiency.html#parallel-eff-section"><span class="std std-ref">Parallel Efficiency</span></a>, where the time per iteration is analyzed with increasing number of nodes and mesh elements on the Niagara
 high-performance computer at the SciNet HPC Consortium in Canada.</p>
 <p>Notably, TOSCA has been used to run large wind farm simulations on the entire Niagara cluster (2024 nodes, 40 cores per node) and on all Cascade nodes of the
