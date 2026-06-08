@@ -15,6 +15,9 @@ int main(int argc, char **argv)
     // initialize PETSc
     PetscInitialize(&argc, &argv, (char *)0, head);
 
+    // uncomment to enable PETSc peak-memory tracking
+    // PetscMemorySetGetMaximumUsage();
+
     // domains array
     domain_ *domain;
 

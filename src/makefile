@@ -24,7 +24,7 @@ OPENFAST   = ${OPENFAST_DIR}
 
 # Compiler and flags
 CC         = mpicxx
-CFLAGS     = -O3 -g
+CFLAGS     = -O3 -g -fPIE
 CPPFLAGS   = $(INC_FLAGS) -DPARAVIEW_IMPL_DIR=\"\"
 LDFLAGS    = -L$(PETSC_DIR)/$(PETSC_ARCH)/lib 
 LIBS       = -lpthread -lrt -ldl -lstdc++ -lpetsc -lf2cblas -lf2clapack -lHYPRE 
