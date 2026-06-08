@@ -100,8 +100,13 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm)
                         // reverse sign to the velocity (we go backward along streamline)
                         mScale(-1.0, uc_p);
 
-                        // find the point at which velocity must be sampled
-                        Cmpnts sample = nScale(clock->dt, uc_p);
+                        // find the point at which velocity must be sampled.
+                        // In case the timestep size is reduced due to a file write,
+                        // use the maximum of the current and old timestep size to avoid
+                        // abrupt changes in the sample location.
+
+                        PetscReal dtmax = PetscMax(clock->dt, clock->dtOld);
+                        Cmpnts sample = nScale(dtmax, uc_p);
                                         mSum(sample, point_p);
 
                         // find the closest cell indices to the sample point,
@@ -253,8 +258,12 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm)
                         // reverse sign to the velocity (we go backward along streamline)
                         mScale(-1.0, uc_p);
 
-                        // find the point at which velocity must be sampled
-                        Cmpnts sample = nScale(clock->dt, uc_p);
+                        // find the point at which velocity must be sampled.
+                        // In case the timestep size is reduced due to a file write,
+                        // use the maximum of the current and old timestep size to avoid
+                        // abrupt changes in the sample location.
+                        PetscReal dtmax = PetscMax(clock->dt, clock->dtOld);
+                        Cmpnts sample = nScale(dtmax, uc_p);
                                         mSum(sample, point_p);
 
                         // find the closest cell indices to the sample point,
@@ -667,8 +676,12 @@ PetscErrorCode computeWindVectorsRotor(farm_ *farm)
                         // reverse sign to the velocity (we go backward along streamline)
                         mScale(-1.0, uc_p);
 
-                        // find the point at which velocity must be sampled
-                        Cmpnts sample = nScale(clock->dt, uc_p);
+                        // find the point at which velocity must be sampled.
+                        // In case the timestep size is reduced due to a file write,
+                        // use the maximum of the current and old timestep size to avoid
+                        // abrupt changes in the sample location.
+                        PetscReal dtmax = PetscMax(clock->dt, clock->dtOld);
+                        Cmpnts sample = nScale(dtmax, uc_p);
                                         mSum(sample, point_p);
 
                         // find the closest cell indices to the sample point,
