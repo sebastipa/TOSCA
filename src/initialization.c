@@ -393,6 +393,7 @@ PetscErrorCode SetDomainsAndAllocate(domain_ **domainAddr, flags_ *flags, simInf
 
             // allocate memory for overset
             domain[d].os = new overset_;
+            domain[d].os->sfP2C = NULL;   // must be NULL before first PetscSFDestroy check
 
             overset_ *os = domain[d].os;
 
