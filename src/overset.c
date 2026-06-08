@@ -929,6 +929,12 @@ PetscErrorCode readOversetProperties(overset_ *os)
 
 PetscErrorCode interpolateACellTrilinearP2C(mesh_ *meshD, mesh_ *meshA)
 {
+    // Note: in the current form of overset method PRESSURE DATA IS EXCHANGED BUT NOT USED 
+    //       the pressure matrix uses phi = 0 at os boundaries and velocity has non-zero fluxes
+    //       at interpolated faces. Conversely the full pressure at interpolated cells is never 
+    //       accessed when computing gradient (zero gradient is only applied for visualization 
+    //       in UpdatePressureBCs)
+
     overset_         *os     = meshA->access->os;
     ueqn_            *ueqnA  = meshA->access->ueqn;
     ueqn_            *ueqnD  = meshD->access->ueqn;
@@ -1527,13 +1533,15 @@ void buildOctree
     // if the number of cells is below the threshold or max depth is reached, this is a leaf node 
     if (cellCount <= maxCellsPerNode || maxDepth == 0) 
     {
-        node->hasCells = 1; 
-        node->imin     = imin;
-        node->imax     = imax;
-        node->jmin     = jmin;
-        node->jmax     = jmax;
-        node->kmin     = kmin;
-        node->kmax     = kmax;
+        node->hasCells = (cellCount > 0) ? 1 : 0;
+        // If no cells fell in this node the sentinel values are meaningless;
+        // clamp to a harmless empty range so searchOctree loops are skipped.
+        node->imin     = (cellCount > 0) ? imin : lxe;
+        node->imax     = (cellCount > 0) ? imax : lxs - 1;
+        node->jmin     = (cellCount > 0) ? jmin : lye;
+        node->jmax     = (cellCount > 0) ? jmax : lys - 1;
+        node->kmin     = (cellCount > 0) ? kmin : lze;
+        node->kmax     = (cellCount > 0) ? kmax : lzs - 1;
         
         return;
     }
@@ -1641,6 +1649,7 @@ Dcell searchOctree
 
     return closestDonor;
 }
+
 //***************************************************************************************************************//
 
 //! \brief Per-rank axis-aligned bounding box of donor mesh cell centres.
@@ -1673,6 +1682,8 @@ struct OversetReply
     PetscInt  slotIdx;
     PetscReal dist;
 };
+
+//***************************************************************************************************************//
 
 //! \brief Builds the PetscSF (and matching local donor map) for one donor/acceptor mesh pair.
 static PetscErrorCode BuildOversetSF(
@@ -1716,42 +1727,45 @@ static PetscErrorCode BuildOversetSF(
 
     Vec           Coor;
     Cmpnts        ***cent, ***coor;
-    PetscReal     ***aj;
     DMDAVecGetArray(fda, meshDonor->lCent, &cent);
-    DMDAVecGetArray(da, meshDonor->lAj, &aj);
     DMGetCoordinatesLocal(da, &Coor);
     DMDAVecGetArray(fda, Coor, &coor);
 
-    // Expand the donor bounding box by one cell so neighbouring ranks overlap
+    // expand the donor bounding box by one cell so neighbouring ranks overlap
     PetscInt bsz = zs; if (zs != 0) bsz = bsz - 1;
     PetscInt bsy = ys; if (ys != 0) bsy = bsy - 1;
     PetscInt bsx = xs; if (xs != 0) bsx = bsx - 1;
     Cmpnts procDeltas = {fabs(coor[lze-1][lye-1][lxe-1].x - coor[bsz][bsy][bsx].x),
                          fabs(coor[lze-1][lye-1][lxe-1].y - coor[bsz][bsy][bsx].y),
                          fabs(coor[lze-1][lye-1][lxe-1].z - coor[bsz][bsy][bsx].z)};
-    Cmpnts oMin = {coor[bsz][bsy][bsx].x - procDeltas.x,
-                   coor[bsz][bsy][bsx].y - procDeltas.y,
-                   coor[bsz][bsy][bsx].z - procDeltas.z};
-    Cmpnts oMax = {coor[lze-1][lye-1][lxe-1].x + procDeltas.x,
-                   coor[lze-1][lye-1][lxe-1].y + procDeltas.y,
-                   coor[lze-1][lye-1][lxe-1].z + procDeltas.z};
+    Cmpnts oMin       = {coor[bsz][bsy][bsx].x - procDeltas.x,
+                         coor[bsz][bsy][bsx].y - procDeltas.y,
+                         coor[bsz][bsy][bsx].z - procDeltas.z};
+    Cmpnts oMax       = {coor[lze-1][lye-1][lxe-1].x + procDeltas.x,
+                         coor[lze-1][lye-1][lxe-1].y + procDeltas.y,
+                         coor[lze-1][lye-1][lxe-1].z + procDeltas.z};
 
-    // Build the local donor-side octree
+    // build the local donor-side octree
     OctreeNode *root = new OctreeNode(oMin, oMax);
     buildOctree(root, cent, lxs, lxe, lys, lye, lzs, lze, 15, 1000);
 
-    // Allgather donor bboxes across all ranks
+    // this rank's donor domain spans [oMin, oMax] in physical space
     OversetBbox myBb;
     myBb.xmin = oMin.x; myBb.xmax = oMax.x;
     myBb.ymin = oMin.y; myBb.ymax = oMax.y;
     myBb.zmin = oMin.z; myBb.zmax = oMax.z;
-    std::vector<OversetBbox> allBb(sizeD);
-    MPI_Allgather(&myBb, sizeof(OversetBbox), MPI_BYTE,
-                  allBb.data(), sizeof(OversetBbox), MPI_BYTE, comm);
 
-    // Count candidate donor ranks per local acceptor (those whose bbox contains the acceptor)
+    // collect all ranks' bboxes into a single vector
+    std::vector<OversetBbox> allBb(sizeD);
+    MPI_Allgather(&myBb, sizeof(OversetBbox), MPI_BYTE, allBb.data(), sizeof(OversetBbox), MPI_BYTE, comm);
+
+    // count candidate donor ranks per local acceptor (those whose bbox contains the acceptor)
     PetscInt nLocal = (PetscInt)localAcceptors.size();
+
+    // sCount[d] is number of queries to send to rank d
     std::vector<int> sCount(sizeD, 0), sDispl(sizeD, 0);
+
+    // sDispl[d] is starting position in send buffer for rank d
     std::vector<int> rCount(sizeD, 0), rDispl(sizeD, 0);
 
     for (PetscInt b = 0; b < nLocal; b++)
@@ -1764,10 +1778,17 @@ static PetscErrorCode BuildOversetSF(
             if (bboxContains(allBb[d], x, y, z, 0.0)) sCount[d]++;
         }
     }
-    for (PetscMPIInt d = 1; d < sizeD; d++) sDispl[d] = sDispl[d-1] + sCount[d-1];
+
+    // compute send displacements
+    for (PetscMPIInt d = 1; d < sizeD; d++) 
+    {
+        sDispl[d] = sDispl[d-1] + sCount[d-1];
+    }
+
+    // compute total send count for buffer allocation
     PetscInt totalSend = (sizeD > 0) ? sDispl[sizeD-1] + sCount[sizeD-1] : 0;
 
-    // Pack the queries grouped by destination rank
+    // pack the queries grouped by destination rank
     std::vector<OversetQuery> sendQ(totalSend);
     std::vector<PetscInt> cursor(sizeD, 0);
     for (PetscInt b = 0; b < nLocal; b++)
@@ -1787,9 +1808,12 @@ static PetscErrorCode BuildOversetSF(
         }
     }
 
-    // Exchange counts, then queries, via Alltoall/Alltoallv
+    // exchange counts, then queries
     MPI_Alltoall(sCount.data(), 1, MPI_INT, rCount.data(), 1, MPI_INT, comm);
-    for (PetscMPIInt d = 1; d < sizeD; d++) rDispl[d] = rDispl[d-1] + rCount[d-1];
+    for (PetscMPIInt d = 1; d < sizeD; d++) 
+    {
+        rDispl[d] = rDispl[d-1] + rCount[d-1];
+    }
     PetscInt totalRecv = (sizeD > 0) ? rDispl[sizeD-1] + rCount[sizeD-1] : 0;
 
     MPI_Datatype qtype;
@@ -1811,7 +1835,7 @@ static PetscErrorCode BuildOversetSF(
     MPI_Alltoallv(sendQ.data(), sCount.data(), sDispl.data(), qtype,
                   recvQ.data(), rCount.data(), rDispl.data(), qtype, comm);
 
-    // Donor side: search the octree for each incoming query and allocate a root slot
+    // donor side: search the octree for each incoming query and allocate a root slot
     rootI.clear(); rootJ.clear(); rootK.clear();
     rootX.clear(); rootY.clear(); rootZ.clear();
     rootI.reserve(totalRecv); rootJ.reserve(totalRecv); rootK.reserve(totalRecv);
@@ -1847,7 +1871,7 @@ static PetscErrorCode BuildOversetSF(
     }
     nRoots = slotCounter;
 
-    // Send replies back; send and recv counts are swapped for the return trip
+    // send replies back; send and recv counts are swapped for the return trip
     MPI_Datatype rtype;
     {
         int blocklens[3] = {1, 1, 1};
@@ -1867,7 +1891,7 @@ static PetscErrorCode BuildOversetSF(
     MPI_Alltoallv(reply.data(),    rCount.data(), rDispl.data(), rtype,
                   recvReply.data(), sCount.data(), sDispl.data(), rtype, comm);
 
-    // Pick the minimum-distance donor for each local acceptor
+    // pick the minimum-distance donor for each local acceptor
     std::vector<PetscReal> bestDist(nLocal, 1e20);
     std::vector<PetscInt>  bestRank(nLocal, -1);
     std::vector<PetscInt>  bestSlot(nLocal, -1);
@@ -1888,7 +1912,7 @@ static PetscErrorCode BuildOversetSF(
         }
     }
 
-    // Build the local donor map and the PetscSF graph
+    // build the local donor map and the PetscSF graph
     localDonorMap.assign(nLocal, Dcell());
     PetscInt nLeaves = 0;
     for (PetscInt b = 0; b < nLocal; b++) if (bestRank[b] >= 0) nLeaves++;
@@ -1929,7 +1953,6 @@ static PetscErrorCode BuildOversetSF(
 
     DMDAVecRestoreArray(fda, Coor, &coor);
     DMDAVecRestoreArray(fda, meshDonor->lCent, &cent);
-    DMDAVecRestoreArray(da, meshDonor->lAj, &aj);
 
     return 0;
 }
@@ -1940,17 +1963,24 @@ PetscErrorCode findClosestDonorC2P(mesh_ *meshDonor, mesh_ *meshAcceptor, PetscI
 {
     overset_ *os = meshAcceptor->access->os;
 
-    // No acceptors registered for this donor mesh: install an empty PetscSF and return
+    // no acceptors registered for this donor mesh: create an empty PetscSF and return
     auto it = os->localAcceptorsHc.find(donorId);
+    
     if (it == os->localAcceptorsHc.end())
     {
-        if (os->sfC2P.count(donorId) && os->sfC2P[donorId]) PetscSFDestroy(&os->sfC2P[donorId]);
+        if (os->sfC2P.count(donorId) && os->sfC2P[donorId]) 
+        {
+            PetscSFDestroy(&os->sfC2P[donorId]);
+        }
+
         PetscSFCreate(meshDonor->MESH_COMM, &os->sfC2P[donorId]);
         PetscSFSetGraph(os->sfC2P[donorId], 0, 0, NULL, PETSC_COPY_VALUES, NULL, PETSC_COPY_VALUES);
+        
         os->nRootsHc[donorId] = 0;
         os->rootSlotIdxHc[donorId].clear();
         os->rootSlotCoordsHc[donorId].clear();
         os->localDonorMapHc[donorId].clear();
+
         return 0;
     }
 
@@ -1959,21 +1989,21 @@ PetscErrorCode findClosestDonorC2P(mesh_ *meshDonor, mesh_ *meshAcceptor, PetscI
     PetscInt               nRoots = 0;
     PetscSF                sf     = NULL;
 
-    // Build the PetscSF for this (donor, acceptor) pair
-    PetscErrorCode ierr = BuildOversetSF(meshDonor, meshAcceptor,
-                                         it->second,
-                                         os->localDonorMapHc[donorId],
-                                         nRoots,
-                                         rootI, rootJ, rootK,
-                                         rootX, rootY, rootZ,
-                                         sf);
-    CHKERRQ(ierr);
+    // build the PetscSF for this (donor, acceptor) pair
+    BuildOversetSF(meshDonor, meshAcceptor,
+                   it->second, // acceptor cell
+                   os->localDonorMapHc[donorId],
+                   nRoots,
+                   rootI, rootJ, rootK,
+                   rootX, rootY, rootZ,
+                   sf);
 
     os->nRootsHc[donorId] = nRoots;
     std::vector<PetscInt>  &flatI = os->rootSlotIdxHc[donorId];
     std::vector<PetscReal> &flatC = os->rootSlotCoordsHc[donorId];
     flatI.resize(3 * nRoots);
     flatC.resize(3 * nRoots);
+    
     for (PetscInt s = 0; s < nRoots; s++)
     {
         flatI[3*s + 0] = rootI[s];
@@ -1983,17 +2013,26 @@ PetscErrorCode findClosestDonorC2P(mesh_ *meshDonor, mesh_ *meshAcceptor, PetscI
         flatC[3*s + 1] = rootY[s];
         flatC[3*s + 2] = rootZ[s];
     }
-    if (os->sfC2P.count(donorId) && os->sfC2P[donorId]) PetscSFDestroy(&os->sfC2P[donorId]);
+
+    if (os->sfC2P.count(donorId) && os->sfC2P[donorId]) 
+    {
+        PetscSFDestroy(&os->sfC2P[donorId]);
+    }
     os->sfC2P[donorId] = sf;
 
     PetscInt nMissing = 0;
-    for (const auto &dc : os->localDonorMapHc[donorId]) if (dc.rank < 0) nMissing++;
+    for (const auto &dc : os->localDonorMapHc[donorId]) 
+    {
+        if (dc.rank < 0) nMissing++;
+    }
+
     PetscInt gMissing = 0;
     MPI_Allreduce(&nMissing, &gMissing, 1, MPIU_INT, MPI_SUM, meshDonor->MESH_COMM);
+    
     if (gMissing > 0)
     {
         PetscPrintf(meshDonor->MESH_COMM,
-                    "     C2P donor search for donorId %ld left %ld vertices without a donor\n",
+                    "     C2P donor search for donorId %ld left %ld vertices without a donor. Please check mesh overlap.\n",
                     (long)donorId, (long)gMissing);
     }
 
@@ -2011,43 +2050,51 @@ PetscErrorCode findClosestDonorP2C(mesh_ *meshDonor, mesh_ *meshAcceptor)
     PetscInt               nRoots = 0;
     PetscSF                sf     = NULL;
 
-    PetscErrorCode ierr = BuildOversetSF(meshDonor, meshAcceptor,
-                                         os->localAcceptorsDb,
-                                         os->localDonorMapDb,
-                                         nRoots,
-                                         rootI, rootJ, rootK,
-                                         rootX, rootY, rootZ,
-                                         sf);
-    CHKERRQ(ierr);
+    BuildOversetSF(meshDonor, meshAcceptor,
+                   os->localAcceptorsDb,
+                   os->localDonorMapDb,
+                   nRoots,
+                   rootI, rootJ, rootK,
+                   rootX, rootY, rootZ,
+                   sf);
 
     os->nRootsDb = nRoots;
-    // Pack (i,j,k) and (x,y,z) into flat stride-3 arrays
+
+    // put 3 indices and 3 coords into flat stride-3 arrays
     os->rootSlotIdxDb.resize(3 * nRoots);
     os->rootSlotCoordsDb.resize(3 * nRoots);
+
     for (PetscInt s = 0; s < nRoots; s++)
     {
-        os->rootSlotIdxDb[3*s + 0] = rootI[s];
-        os->rootSlotIdxDb[3*s + 1] = rootJ[s];
-        os->rootSlotIdxDb[3*s + 2] = rootK[s];
+        os->rootSlotIdxDb[3*s + 0]    = rootI[s];
+        os->rootSlotIdxDb[3*s + 1]    = rootJ[s];
+        os->rootSlotIdxDb[3*s + 2]    = rootK[s];
         os->rootSlotCoordsDb[3*s + 0] = rootX[s];
         os->rootSlotCoordsDb[3*s + 1] = rootY[s];
         os->rootSlotCoordsDb[3*s + 2] = rootZ[s];
     }
-    // Destroy any previous PetscSF before overwriting
+
+    // destroy any previous PetscSF before overwriting
     if (os->sfP2C) PetscSFDestroy(&os->sfP2C);
     os->sfP2C = sf;
 
-    // Report acceptors that did not find a donor (likely a mesh-overlap issue)
+    // report acceptors that did not find a donor (likely a mesh-overlap issue)
     PetscMPIInt rankD;
     MPI_Comm_rank(meshDonor->MESH_COMM, &rankD);
+    
     PetscInt nMissing = 0;
-    for (const auto &dc : os->localDonorMapDb) if (dc.rank < 0) nMissing++;
+    for (const auto &dc : os->localDonorMapDb) 
+    {
+        if (dc.rank < 0) nMissing++;
+    }
+
     PetscInt gMissing = 0;
     MPI_Allreduce(&nMissing, &gMissing, 1, MPIU_INT, MPI_SUM, meshDonor->MESH_COMM);
+    
     if (gMissing > 0)
     {
         PetscPrintf(meshDonor->MESH_COMM,
-                    "     P2C donor search left %ld acceptors without a donor check overlap of meshes\n",
+                    "     P2C donor search left %ld acceptors cells without any donor cell. Please check mesh overlap.\n",
                     (long)gMissing);
     }
 
