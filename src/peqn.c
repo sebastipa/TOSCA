@@ -1611,7 +1611,7 @@ PetscErrorCode phiToPhi(peqn_ *peqn)
             {
                 if(isIBMCell(k,j,i,nvert) || isOversetCell(k,j,i,meshTag))
                 {
-                    phi[k][j][i] = 0;
+                    phi[k][j][i] = 0.0;
                     pos++;
                 }
                 else
@@ -1956,7 +1956,7 @@ PetscErrorCode SetRHS(peqn_ *peqn)
     PetscInt           i, j, k, size;
     PetscInt           lxs, lxe, lys, lye, lzs, lze;
 
-    PetscReal        dt   = clock->dt;
+    PetscReal          dt   = clock->dt;
 
     PetscReal     ***nvert, ***gid, *rhs, ***meshTag;
     Cmpnts        ***ucont;
@@ -1975,9 +1975,6 @@ PetscErrorCode SetRHS(peqn_ *peqn)
         VecGetArray(peqn->petscRhs, &rhs);
         VecGetLocalSize(peqn->petscRhs, &size);
     }
-
-    PetscReal lsum     = 0.0, gsum  = 0.0;
-    PetscInt    lcount   = 0, gcount  = 0;
 
     for (k=lzs; k<lze; k++)
     {
@@ -2023,9 +2020,6 @@ PetscErrorCode SetRHS(peqn_ *peqn)
                     val -= ucont[k-1][j][i].z;
 
                     val *=  1.0 / dt;
-
-                    lsum += val;
-                    lcount++;
                 }
 
                 if(peqn->solverType == "HYPRE")
@@ -2047,50 +2041,6 @@ PetscErrorCode SetRHS(peqn_ *peqn)
             }
         }
     }
-
-    /*
-    if(!flags->isOversetActive)
-    {
-        MPI_Allreduce(&lsum,   &gsum,   1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-        MPI_Allreduce(&lcount, &gcount, 1, MPIU_INT,    MPI_SUM, mesh->MESH_COMM);
-
-        gsum = - gsum / (PetscReal)gcount;
-
-        // subtract the mean to apply compatibility condition)
-        for (k=lzs; k<lze; k++)
-        {
-            for (j=lys; j<lye; j++)
-            {
-                for (i=lxs; i<lxe; i++)
-                {
-                    if (isIBMCell(k, j, i, nvert) || isOversetCell(k, j, i, meshTag))
-                    {
-                        continue;
-                    }
-                    else
-                    {
-                        if(peqn->solverType == "HYPRE")
-                        {
-                            // get connectivity
-                            HYPRE_Int idx = matID(i,j,k);
-
-                            // subtract the mean to apply compatibility condition
-                            HYPRE_IJVectorAddToValues(peqn->hypreRhs, 1, &idx, &gsum);
-                        }
-                        else if(peqn->solverType == "PETSc")
-                        {
-                            // get connectivity
-                            PetscInt idx = (PetscInt)matID(i,j,k) - peqn->thisRankStart;
-
-                            // set the RHS value
-                            rhs[idx] += gsum;
-                        }
-                    }
-                }
-            }
-        }
-    }
-    */
 
     if(peqn->solverType == "HYPRE")
     {
@@ -2976,9 +2926,6 @@ PetscErrorCode UpdatePressure(peqn_ *peqn)
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
 
-    PetscReal lPsum    = 0.0, gPsum  = 0.0;
-    PetscInt  lnPoints = 0, gnPoints = 0;
-
     DMDAVecGetArray(da, peqn->P, &p);
     DMDAVecGetArray(da, peqn->lPhi, &lphi);
     DMDAVecGetArray(da, mesh->lNvert, &nvert);
@@ -2992,14 +2939,12 @@ PetscErrorCode UpdatePressure(peqn_ *peqn)
             {
                 if (isIBMCell(k, j, i, nvert) || isOversetCell(k, j, i, meshTag)) 
                 {
-                    continue;
+                    p[k][j][i] = 0.0;
                 }
                 else
                 {
                     // p updated only at fluid cells
                     p[k][j][i] += lphi[k][j][i];
-                    lPsum += p[k][j][i];
-                    lnPoints++;
                 }
             }
         }

@@ -263,6 +263,7 @@ PetscErrorCode UpdateDomainInterpolation(PetscInt d, domain_ *domain, PetscInt l
 PetscErrorCode SyncPressureAcrossDomains(domain_ *domain)
 {
     PetscInt nDomains = domain[0].info.nDomains;
+    PetscInt i, j, k;
 
     // Single domain: shift entire pressure field so that p[1][1][1] = 0
     if (nDomains == 1)
@@ -274,8 +275,11 @@ PetscErrorCode SyncPressureAcrossDomains(domain_ *domain)
         PetscInt       ys   = info.ys, ye = info.ys + info.ym;
         PetscInt       zs   = info.zs, ze = info.zs + info.zm;
 
-        PetscReal ***p;
+        PetscReal ***p, ***nvert, ***meshTag;
+
         DMDAVecGetArray(da, domain[0].peqn->P, &p);
+        DMDAVecGetArray(da, mesh->lNvert, &nvert);
+        DMDAVecGetArray(da, mesh->lmeshTag, &meshTag);
 
         // read p[1][1][1] on whichever rank owns it and send it to all other ranks
         PetscReal localRef = 0.0;
@@ -289,12 +293,24 @@ PetscErrorCode SyncPressureAcrossDomains(domain_ *domain)
         MPI_Allreduce(&localRef, &globalRef, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
 
         // shift all pressure values 
-        for (PetscInt k = zs; k < ze; k++)
-            for (PetscInt j = ys; j < ye; j++)
-                for (PetscInt i = xs; i < xe; i++)
-                    p[k][j][i] -= globalRef;
+        for (k = zs; k < ze; k++)
+        for (j = ys; j < ye; j++)
+        for (i = xs; i < xe; i++)
+        {
+            if(isIBMCell(k, j, i, nvert) || isOversetCell(k, j, i, meshTag)) 
+            {
+                p[k][j][i] = 0.0;
+            }
+            else
+            {
+                p[k][j][i] -= globalRef;
+            }
+        }
+            
 
         DMDAVecRestoreArray(da, domain[0].peqn->P, &p);
+        DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+        DMDAVecRestoreArray(da, mesh->lmeshTag, &meshTag);
 
         DMGlobalToLocalBegin(da, domain[0].peqn->P, INSERT_VALUES, domain[0].peqn->lP);
         DMGlobalToLocalEnd  (da, domain[0].peqn->P, INSERT_VALUES, domain[0].peqn->lP);
@@ -304,13 +320,12 @@ PetscErrorCode SyncPressureAcrossDomains(domain_ *domain)
         return 0;
     }
 
-    // Multiple domains: first find the root parent, then for each non root shift its
+    // multiple domains: first find the root parent, then for each non root shift its
     // pressure to match the parent's value at the cell closest to the child's cent[1][1][1]. 
     // This ensures that the gauge is consistent across all domains and that the solution 
-    // remains attached across the overset interfaces (it doesn't matter currently, but we do not
-    // want pressure shifts). 
+    // remains attached across the overset interfaces 
 
-    // Identify the root parent domain
+    // identify the root parent domain
     PetscInt rootId = -1;
     for (PetscInt d = 0; d < nDomains; d++)
     {
@@ -337,7 +352,7 @@ PetscErrorCode SyncPressureAcrossDomains(domain_ *domain)
         fatalErrorInFunction("SyncPressureAcrossDomains", error);
     }
 
-    // Shift pressure so that p[1][1][1] = 0 in the root parent domain
+    // shift pressure so that p[1][1][1] = 0 in the root parent domain
     {
         mesh_        *rootMesh = domain[rootId].mesh;
         DM            rootDa   = rootMesh->da;
@@ -346,22 +361,37 @@ PetscErrorCode SyncPressureAcrossDomains(domain_ *domain)
         PetscInt      rys = rInfo.ys, rye = rInfo.ys + rInfo.ym;
         PetscInt      rzs = rInfo.zs, rze = rInfo.zs + rInfo.zm;
 
-        PetscReal ***rootP;
+        PetscReal ***rootP, ***rootNvert, ***rootMeshTag;
         DMDAVecGetArray(rootDa, domain[rootId].peqn->P, &rootP);
+        DMDAVecGetArray(rootDa, rootMesh->lNvert, &rootNvert);
+        DMDAVecGetArray(rootDa, rootMesh->lmeshTag, &rootMeshTag);
 
         PetscReal localRef = 0.0;
         if (rxs <= 1 && 1 < rxe && rys <= 1 && 1 < rye && rzs <= 1 && 1 < rze)
+        {
             localRef = rootP[1][1][1];
+        }
 
         PetscReal globalRef = 0.0;
         MPI_Allreduce(&localRef, &globalRef, 1, MPIU_REAL, MPIU_SUM, rootMesh->MESH_COMM);
 
-        for (PetscInt k = rzs; k < rze; k++)
-            for (PetscInt j = rys; j < rye; j++)
-                for (PetscInt i = rxs; i < rxe; i++)
-                    rootP[k][j][i] -= globalRef;
+        for (k = rzs; k < rze; k++)
+        for (j = rys; j < rye; j++)
+        for (i = rxs; i < rxe; i++)
+        {
+            if(isIBMCell(k, j, i, rootNvert) || isOversetCell(k, j, i, rootMeshTag)) 
+            {
+                rootP[k][j][i] = 0.0;
+            }
+            else
+            {
+                rootP[k][j][i] -= globalRef;
+            }
+        }
 
         DMDAVecRestoreArray(rootDa, domain[rootId].peqn->P, &rootP);
+        DMDAVecRestoreArray(rootDa, rootMesh->lNvert, &rootNvert);
+        DMDAVecRestoreArray(rootDa, rootMesh->lmeshTag, &rootMeshTag);
 
         // sync lP so children read the shifted values below
         DMGlobalToLocalBegin(rootDa, domain[rootId].peqn->P, INSERT_VALUES, domain[rootId].peqn->lP);
@@ -370,7 +400,7 @@ PetscErrorCode SyncPressureAcrossDomains(domain_ *domain)
         PetscPrintf(rootMesh->MESH_COMM, "OS gauge pressure removal: root domain %ld shift is %.6e\n", rootId, -globalRef);
     }
 
-    // Shift each child domain so that its closest cell to the parent's cent[1][1][1] has the same pressure as the parent at that cell
+    // shift each child domain so that its closest cell to the parent's cent[1][1][1] has the same pressure as the parent at that cell
     // Note: use multiple passes to handle any domain numbering order: after at most
     //       nDomains-1 passes every level in a telescopic chain is processed.
     //       A domain is processed only once its direct parent's lP is already finalized.
@@ -403,9 +433,10 @@ PetscErrorCode SyncPressureAcrossDomains(domain_ *domain)
             DMDALocalInfo  pInfo  = parentMesh->info;
 
             PetscReal ***childP, ***parentP;
+            PetscReal ***childNvert, ***childMeshTag;
             Cmpnts    ***parentCent;
 
-            // Step 1: broadcast cent[1][1][1] of the child 
+            // step 1: broadcast cent[1][1][1] of the child 
             PetscReal localChildX = 0.0, localChildY = 0.0, localChildZ = 0.0;
             {
                 DM     cFda = childMesh->fda;
@@ -432,7 +463,7 @@ PetscErrorCode SyncPressureAcrossDomains(domain_ *domain)
             MPI_Allreduce(&localChildY, &childRefY, 1, MPIU_REAL, MPIU_SUM, childMesh->MESH_COMM);
             MPI_Allreduce(&localChildZ, &childRefZ, 1, MPIU_REAL, MPIU_SUM, childMesh->MESH_COMM);
 
-            // Step 2: find closest cell in parent and read its p value
+            // step 2: find closest cell in parent and read its p value
             DMDAVecGetArray(parentFda, parentMesh->lCent, &parentCent);
             DMDAVecGetArray(parentDa,  domain[parentId].peqn->lP, &parentP);
 
@@ -444,11 +475,11 @@ PetscErrorCode SyncPressureAcrossDomains(domain_ *domain)
             PetscReal localMinDist = 1.0e30;
             PetscReal localParentP = 0.0;
 
-            for (PetscInt k = PetscMax(pzs,1); k < PetscMin(pze, pmz-1); k++)
+            for (k = PetscMax(pzs,1); k < PetscMin(pze, pmz-1); k++)
             {
-                for (PetscInt j = PetscMax(pys,1); j < PetscMin(pye, pmy-1); j++)
+                for (j = PetscMax(pys,1); j < PetscMin(pye, pmy-1); j++)
                 {
-                    for (PetscInt i = PetscMax(pxs,1); i < PetscMin(pxe, pmx-1); i++)
+                    for (i = PetscMax(pxs,1); i < PetscMin(pxe, pmx-1); i++)
                     {
                         PetscReal dx = parentCent[k][j][i].x - childRefX;
                         PetscReal dy = parentCent[k][j][i].y - childRefY;
@@ -477,8 +508,10 @@ PetscErrorCode SyncPressureAcrossDomains(domain_ *domain)
             PetscReal parentRefP = 0.0;
             MPI_Allreduce(&localContrib, &parentRefP, 1, MPIU_REAL, MPIU_SUM, parentMesh->MESH_COMM);
 
-            // Step 3: read child p[1][1][1] 
+            // step 3: read child p[1][1][1] 
             DMDAVecGetArray(childDa, domain[d].peqn->P, &childP);
+            DMDAVecGetArray(childDa, childMesh->lNvert, &childNvert);
+            DMDAVecGetArray(childDa, childMesh->lmeshTag, &childMeshTag);
 
             PetscReal localChildP = 0.0;
             {
@@ -486,24 +519,38 @@ PetscErrorCode SyncPressureAcrossDomains(domain_ *domain)
                 PetscInt cys = cInfo.ys, cye = cInfo.ys + cInfo.ym;
                 PetscInt czs = cInfo.zs, cze = cInfo.zs + cInfo.zm;
                 if (cxs <= 1 && 1 < cxe && cys <= 1 && 1 < cye && czs <= 1 && 1 < cze)
+                {
                     localChildP = childP[1][1][1];
+                }
             }
+
             PetscReal globalChildP = 0.0;
             MPI_Allreduce(&localChildP, &globalChildP, 1, MPIU_REAL, MPIU_SUM, childMesh->MESH_COMM);
 
-            // Step 4: shift child pressure by the difference 
+            // step 4: shift child pressure by the difference 
             PetscReal shift = parentRefP - globalChildP;
 
             PetscInt cxs = cInfo.xs, cxe = cInfo.xs + cInfo.xm;
             PetscInt cys = cInfo.ys, cye = cInfo.ys + cInfo.ym;
             PetscInt czs = cInfo.zs, cze = cInfo.zs + cInfo.zm;
 
-            for (PetscInt k = czs; k < cze; k++)
-                for (PetscInt j = cys; j < cye; j++)
-                    for (PetscInt i = cxs; i < cxe; i++)
-                        childP[k][j][i] += shift;
+            for (k = czs; k < cze; k++)
+            for (j = cys; j < cye; j++)
+            for (i = cxs; i < cxe; i++)
+            {        
+                if(isIBMCell(k, j, i, childNvert) || isOversetCell(k, j, i, childMeshTag)) 
+                {
+                    childP[k][j][i] = 0.0;
+                }
+                else
+                {
+                    childP[k][j][i] += shift;
+                }
+            }
 
             DMDAVecRestoreArray(childDa, domain[d].peqn->P, &childP);
+            DMDAVecRestoreArray(childDa, childMesh->lNvert, &childNvert);
+            DMDAVecRestoreArray(childDa, childMesh->lmeshTag, &childMeshTag);
 
             DMGlobalToLocalBegin(childDa, domain[d].peqn->P, INSERT_VALUES, domain[d].peqn->lP);
             DMGlobalToLocalEnd  (childDa, domain[d].peqn->P, INSERT_VALUES, domain[d].peqn->lP);
