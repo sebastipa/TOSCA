@@ -91,15 +91,22 @@ The following tables summarize all available entries for each of the `IBMPropert
    ``wallShear``                  bool                directly computes the wall shear and applies within the momentum equation.
                                                       Recommended for terrains. Requires `interpolationDistance`. 
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   ``interpolationDistance``      scalar              Distance from the body surface where the ghost point is placed. This 
+   ``interpolationDistance``      scalar              Required when ``wallShear`` is set to 1, discarded otherwise. 
+                                                      Distance from the body surface where the ghost point is placed. This 
                                                       parameter should be set according to the mean mesh size at the wall and it 
                                                       it is uniform to avoid spikes in the stress produced by variable IBM fluid 
                                                       cell to surface distance. 
    ------------------------------ ------------------- ----------------------------------------------------------------------------
    ``abl``                        bool                if set to 1 allows to set `groundLevel`. 
    ------------------------------ ------------------- ----------------------------------------------------------------------------
-   ``groundLevel``                scalar              Allows to set a user-defined ground level. This used at differet levels in 
+   ``groundLevel``                scalar              Required when ``abl`` is set to 1, discarded otherwise. 
+                                                      Allows to set a user-defined ground level. This used at differet levels in 
                                                       the code when evaluating heigh-dipendend BCs and models. 
+   ------------------------------ ------------------- ----------------------------------------------------------------------------
+   ``procBuffOverlap``            scalar              Overlap in meters used for splitting IBM elements across processors. If 
+                                                      buffer is zero, no elements are duplicated among processrs (Faster), but
+                                                      certain IBM cells might not have a closest IBM element. Usually set to 
+                                                      2-3 times the average mesh size.
    ------------------------------ ------------------- ----------------------------------------------------------------------------
    ``writeSettings``              dictionary          Required when `computeForce` is set to 1. Contains entries for the IBM force 
                                                       writing. It is defined as follows: 
