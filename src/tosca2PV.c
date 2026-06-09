@@ -7796,7 +7796,6 @@ PetscErrorCode binaryISectionsToXMF(domain_ *domain)
                 PetscInt fp = file_exist(fileName.c_str());
                 if(!fp) 
                 {
-                    PetscPrintf(mesh->MESH_COMM, "\n  Writing %s ...\n", fileName.c_str());
                     // Write the data file.
                     hid_t     dataspace_id;
                     hsize_t   dims[3];
