@@ -94,11 +94,21 @@ automatically set the <strong>master</strong> as the default branch. If you want
 be found below.</p>
 <dl class="simple">
 <dt>New working features since release (V1.2.0):</dt><dd><ul class="simple">
-<li><p>OpenFAST coupling support</p></li>
+<li><p>Added TOSCA theory guide to sphynx documentation.</p></li>
+<li><p>Added new time integration schemes for U and T, detailed in the theory guide of the documentation (new faster and more stable IMEX schemes)</p></li>
+<li><p>OpenFAST coupling support.</p></li>
+<li><p>When compiled with OpenFAST, each turbine can be either coupled with OpenFAST or modeled using the existing actuator disk/line/method models.</p></li>
 <li><p>Added additional test case NREL5MWOpenFastTest to demonstrate OpenFAST coupling.</p></li>
+<li><p>Added height-varying reference state for kRight/kLeft Rayleigh damping layers.</p></li>
+<li><p>Major overset code refactoring to reduce memory usage by exploiting PETSc Star Forest data structure.</p></li>
+<li><p>Enhanced p solver for better compatibility with overset. Added p shift to maintain p stable across iterations.</p></li>
+<li><p>Added pTildeBuoyancy formulation for the buoyancy term (should be used with overset, especially under stable flow).</p></li>
+<li><p>Removed upstream velocity sampling for all actuator models. Currently always sampling at point location.</p></li>
+<li><p>Added STL file read for IBM bodies.</p></li>
 </ul>
 </dd>
 </dl>
+<p>Note: the current master branch will become TOSCA v2.0.0.</p>
 </section>
 <section id="v1-2-0">
 <h2>V1.2.0<a class="headerlink" href="#v1-2-0" title="Link to this heading"></a></h2>

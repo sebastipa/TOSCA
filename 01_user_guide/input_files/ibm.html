@@ -201,7 +201,8 @@ Recommended for terrains. Requires <cite>interpolationDistance</cite>.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">interpolationDistance</span></code></p></td>
 <td><p>scalar</p></td>
-<td><p>Distance from the body surface where the ghost point is placed. This
+<td><p>Required when <code class="docutils literal notranslate"><span class="pre">wallShear</span></code> is set to 1, discarded otherwise.
+Distance from the body surface where the ghost point is placed. This
 parameter should be set according to the mean mesh size at the wall and it
 it is uniform to avoid spikes in the stress produced by variable IBM fluid
 cell to surface distance.</p></td>
@@ -212,10 +213,18 @@ cell to surface distance.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">groundLevel</span></code></p></td>
 <td><p>scalar</p></td>
-<td><p>Allows to set a user-defined ground level. This used at differet levels in
+<td><p>Required when <code class="docutils literal notranslate"><span class="pre">abl</span></code> is set to 1, discarded otherwise.
+Allows to set a user-defined ground level. This used at differet levels in
 the code when evaluating heigh-dipendend BCs and models.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">writeSettings</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">procBuffOverlap</span></code></p></td>
+<td><p>scalar</p></td>
+<td><p>Overlap in meters used for splitting IBM elements across processors. If
+buffer is zero, no elements are duplicated among processrs (Faster), but
+certain IBM cells might not have a closest IBM element. Usually set to
+2-3 times the average mesh size.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">writeSettings</span></code></p></td>
 <td><p>dictionary</p></td>
 <td><p>Required when <cite>computeForce</cite> is set to 1. Contains entries for the IBM force
 writing. It is defined as follows:</p>
@@ -229,13 +238,13 @@ writing. It is defined as follows:</p>
 </div>
 </td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">InterpolationMethod</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">InterpolationMethod</span></code></p></td>
 <td><p>string</p></td>
 <td><p><cite>CURVIB</cite> (preferred, requires <cite>CURVIBInterpolationType</cite>) or <cite>MSL</cite>
 (Moving Least Squares). The first method is preferred while the last is
 only recommended for simple geometries and for no-slip BCs only.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CURVIBInterpolationType</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CURVIBInterpolationType</span></code></p></td>
 <td><p>string</p></td>
 <td><p><cite>CurvibTrilinear</cite> (recommended) or <cite>CurvibTriangular</cite>. The first
 interpolates the velocity at the ghost node using tri-linera interpolation
@@ -243,14 +252,14 @@ from the 8 surrounding fluid cells. The second uses a triangular
 interpolation from 3 surrounding fluid cells. The first method is
 recommended and it is the most tested, although it is a bit more expensive.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">interpolationOrder</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">interpolationOrder</span></code></p></td>
 <td><p>string</p></td>
 <td><p>Only required for <cite>CurvibTrilinear</cite>, can be <cite>linear</cite> (more stable) or
 <cite>quadratic</cite> (less stable). The latter is recommended for smooth terrain or
 smooth static bodies. It referst to how many fictitious ghost points are
 projected from the surface mesh into the fluid domain.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">object&lt;N&gt;</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">object&lt;N&gt;</span></code></p></td>
 <td><p>dictionary</p></td>
 <td><p>specifies the object-specific properties. There are as meny dictionaries as
 the number of bodies. The name of the dictionary is <cite>object</cite> followed by the
