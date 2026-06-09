@@ -3349,8 +3349,6 @@ PetscInt file_exist(const char *str)
     if(!fp)
     {
         r=0;
-        printf("\n\n--> Warning: ");
-        printf("file %s does not exist !!!\n\n", str);
     }
     else
     {

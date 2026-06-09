@@ -5833,7 +5833,7 @@ PetscErrorCode binaryKSectionsToXMF(domain_ *domain)
                         }
                     } else
                     {
-                        PetscPrintf(mesh->MESH_COMM, "\n File %s exists. Skipping writing.", fileName.c_str());
+                        PetscPrintf(mesh->MESH_COMM, "\n File %s exists. Skipping.", fileName.c_str());
                     }
                     // close this time section in the XMF file
                     if(!rank) xmfWriteFileEndTimeSection(xmf, fieldsFileName.c_str());
@@ -7203,7 +7203,7 @@ PetscErrorCode binaryJSectionsToXMF(domain_ *domain, postProcess *pp)
                         }
                         else
                         {
-                            PetscPrintf(mesh->MESH_COMM, "\n File %s exists. Skipping writing.", fileName.c_str());
+                            PetscPrintf(mesh->MESH_COMM, "\n File %s exists. Skipping.", fileName.c_str());
                         }
                         // close this time section in the XMF file
                         if(!rank) xmfWriteFileEndTimeSection(xmf, fieldsFileName.c_str());
@@ -7961,7 +7961,7 @@ PetscErrorCode binaryISectionsToXMF(domain_ *domain)
                 }
                 else
                 {
-                    PetscPrintf(mesh->MESH_COMM, "\n File %s exists. Skipping writing.", fileName.c_str());
+                    PetscPrintf(mesh->MESH_COMM, "\n File %s exists. Skipping.", fileName.c_str());
                 }
                 // close this time section in the XMF file
                 if(!rank) xmfWriteFileEndTimeSection(xmf, fieldsFileName.c_str());
