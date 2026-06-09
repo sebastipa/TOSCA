@@ -1,0 +1,385 @@
+\doxysection{catalyst\+Adaptor.\+h}
+\hypertarget{catalystAdaptor_8h_source}{}\label{catalystAdaptor_8h_source}\index{/zfs60/nobackup/stipa/software/TOSCA/src/include/catalystAdaptor.h@{/zfs60/nobackup/stipa/software/TOSCA/src/include/catalystAdaptor.h}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ \textcolor{preprocessor}{\#ifndef\ CatalystAdaptor\_h}}
+\DoxyCodeLine{00002\ \textcolor{preprocessor}{\#define\ CatalystAdaptor\_h}}
+\DoxyCodeLine{00003\ }
+\DoxyCodeLine{00004\ \textcolor{preprocessor}{\#include\ <catalyst.h>}}
+\DoxyCodeLine{00005\ \textcolor{preprocessor}{\#include\ <stdio.h>}}
+\DoxyCodeLine{00006\ \textcolor{preprocessor}{\#include\ <string.h>}}
+\DoxyCodeLine{00007\ }
+\DoxyCodeLine{00008\ \textcolor{comment}{//***************************************************************************************************************//}}
+\DoxyCodeLine{00009\ }
+\DoxyCodeLine{00010\ \textcolor{keywordtype}{void}\ catalystInitialize(\mbox{\hyperlink{structdomain__}{domain\_}}\ *domain)}
+\DoxyCodeLine{00011\ \{}
+\DoxyCodeLine{00012\ \ \ \ \ \textcolor{comment}{//\ read\ input\ parameter}}
+\DoxyCodeLine{00013\ \ \ \ \ \mbox{\hyperlink{structio__}{io\_}}\ \ \ *io\ \ \ =\ domain-\/>\mbox{\hyperlink{structdomain___a8d4cb3ec9ddea9d00f780d86706dcff0}{io}};}
+\DoxyCodeLine{00014\ \ \ \ \ \mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh\ =\ domain-\/>\mbox{\hyperlink{structdomain___a79f72bff941f3c94c89da0b2777083cd}{mesh}};}
+\DoxyCodeLine{00015\ }
+\DoxyCodeLine{00016\ \ \ \ \ PetscPrintf(mesh-\/>MESH\_COMM,\ \textcolor{stringliteral}{"{}Initializing\ TOSCA's\ catalyst-\/paraview\ interface..."{}});}
+\DoxyCodeLine{00017\ }
+\DoxyCodeLine{00018\ \ \ \ \ \mbox{\hyperlink{io_8h_a7a0754926617aa39a1011c902f168e2e}{readDictWord}}\ \ (\textcolor{stringliteral}{"{}sampling/catalystProperties"{}},\ \textcolor{stringliteral}{"{}ioType"{}},\ \ \ \ \ \ \&(io-\/>\mbox{\hyperlink{structio___a848ebacf5859a33765d1755735e2d58e}{ioTypeCatalyst}}));}
+\DoxyCodeLine{00019\ \ \ \ \ \mbox{\hyperlink{io_8h_a7a0754926617aa39a1011c902f168e2e}{readDictWord}}\ \ (\textcolor{stringliteral}{"{}sampling/catalystProperties"{}},\ \textcolor{stringliteral}{"{}outputType"{}},\ \ \&(io-\/>outputTypeCatalyst));}
+\DoxyCodeLine{00020\ \ \ \ \ \mbox{\hyperlink{io_8h_a5f8fc88b35d47c8350c91248852ce4a3}{readDictDouble}}(\textcolor{stringliteral}{"{}sampling/catalystProperties"{}},\ \textcolor{stringliteral}{"{}startTime"{}},\ \ \ \&(io-\/>startTimeCatalyst));}
+\DoxyCodeLine{00021\ \ \ \ \ \mbox{\hyperlink{io_8h_a5f8fc88b35d47c8350c91248852ce4a3}{readDictDouble}}(\textcolor{stringliteral}{"{}sampling/catalystProperties"{}},\ \textcolor{stringliteral}{"{}timeInterval"{}},\&(io-\/>timeIntervalCatalyst));}
+\DoxyCodeLine{00022\ }
+\DoxyCodeLine{00023\ \ \ \ \ \textcolor{keywordflow}{if}(io-\/>outputTypeCatalyst!=\textcolor{stringliteral}{"{}adjustableTime"{}}\ \&\&\ io-\/>outputTypeCatalyst!=\textcolor{stringliteral}{"{}timeStep"{}})}
+\DoxyCodeLine{00024\ \ \ \ \ \{}
+\DoxyCodeLine{00025\ \ \ \ \ \ \ \ \ \textcolor{keywordtype}{char}\ error[512];}
+\DoxyCodeLine{00026\ \ \ \ \ \ \ \ \ sprintf(error,\ \textcolor{stringliteral}{"{}unknown\ catalyst\ outputType.\ Available\ types\ are\(\backslash\)n\ -\/\ adjustableTime\(\backslash\)n\ -\/\ timeStep\(\backslash\)n"{}});}
+\DoxyCodeLine{00027\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{io_8h_a68cb6557f006e2a0740834acd0d4e4db}{fatalErrorInFunction}}(\textcolor{stringliteral}{"{}catalystInitialize"{}},\ \ error);}
+\DoxyCodeLine{00028\ \ \ \ \ \}}
+\DoxyCodeLine{00029\ }
+\DoxyCodeLine{00030\ \ \ \ \ \textcolor{comment}{//\ create\ catalyst\ folder}}
+\DoxyCodeLine{00031\ \ \ \ \ PetscMPIInt\ rank;}
+\DoxyCodeLine{00032\ \ \ \ \ MPI\_Comm\_rank(PETSC\_COMM\_WORLD,\ \&rank);}
+\DoxyCodeLine{00033\ }
+\DoxyCodeLine{00034\ \ \ \ \ \textcolor{keywordflow}{if}(!rank)}
+\DoxyCodeLine{00035\ \ \ \ \ \{}
+\DoxyCodeLine{00036\ \ \ \ \ \ \ \ \ errno\ =\ 0;}
+\DoxyCodeLine{00037\ \ \ \ \ \ \ \ \ PetscInt\ dirRes\ =\ mkdir(\textcolor{stringliteral}{"{}./catalyst"{}},\ 0777);}
+\DoxyCodeLine{00038\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}(dirRes\ !=\ 0\ \&\&\ errno\ !=\ EEXIST)}
+\DoxyCodeLine{00039\ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{00040\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordtype}{char}\ error[512];}
+\DoxyCodeLine{00041\ \ \ \ \ \ \ \ \ \ \ \ \ sprintf(error,\ \textcolor{stringliteral}{"{}could\ not\ create\ catalyst\ directory\(\backslash\)n"{}});}
+\DoxyCodeLine{00042\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{io_8h_a68cb6557f006e2a0740834acd0d4e4db}{fatalErrorInFunction}}(\textcolor{stringliteral}{"{}catalystInitialize"{}},\ \ error);}
+\DoxyCodeLine{00043\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00044\ \ \ \ \ \}}
+\DoxyCodeLine{00045\ }
+\DoxyCodeLine{00046\ \ \ \ \ \textcolor{keywordflow}{if}(io-\/>\mbox{\hyperlink{structio___a848ebacf5859a33765d1755735e2d58e}{ioTypeCatalyst}}\ ==\ \textcolor{stringliteral}{"{}general"{}})\ \{\}}
+\DoxyCodeLine{00047\ \ \ \ \ \textcolor{keywordflow}{else}\ \textcolor{keywordflow}{if}(io-\/>\mbox{\hyperlink{structio___a848ebacf5859a33765d1755735e2d58e}{ioTypeCatalyst}}\ ==\ \textcolor{stringliteral}{"{}script"{}})}
+\DoxyCodeLine{00048\ \ \ \ \ \{}
+\DoxyCodeLine{00049\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{io_8h_a7a0754926617aa39a1011c902f168e2e}{readDictWord}}(\textcolor{stringliteral}{"{}sampling/catalystProperties"{}},\ \textcolor{stringliteral}{"{}scriptName"{}},\ \&(io-\/>\mbox{\hyperlink{structio___a9e8bb27acc5a881bc2cfe7f27bb2e558}{scriptNameCatalyst}}));}
+\DoxyCodeLine{00050\ \ \ \ \ \}}
+\DoxyCodeLine{00051\ \ \ \ \ \textcolor{keywordflow}{else}}
+\DoxyCodeLine{00052\ \ \ \ \ \{}
+\DoxyCodeLine{00053\ \ \ \ \ \ \ \ \ \textcolor{keywordtype}{char}\ error[512];}
+\DoxyCodeLine{00054\ \ \ \ \ \ \ \ \ sprintf(error,\ \textcolor{stringliteral}{"{}unknown\ catalyst\ ioType.\ Available\ types\ are\(\backslash\)n\ -\/\ general\(\backslash\)n\ -\/\ script\(\backslash\)n"{}});}
+\DoxyCodeLine{00055\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{io_8h_a68cb6557f006e2a0740834acd0d4e4db}{fatalErrorInFunction}}(\textcolor{stringliteral}{"{}catalystInitialize"{}},\ \ error);}
+\DoxyCodeLine{00056\ \ \ \ \ \}}
+\DoxyCodeLine{00057\ }
+\DoxyCodeLine{00058\ \ \ \ \ \textcolor{comment}{//\ initialize\ catalyst}}
+\DoxyCodeLine{00059\ \ \ \ \ conduit\_node*\ catalyst\_init\_params\ =\ conduit\_node\_create();}
+\DoxyCodeLine{00060\ \ \ \ \ \textcolor{keywordflow}{if}(io-\/>\mbox{\hyperlink{structio___a848ebacf5859a33765d1755735e2d58e}{ioTypeCatalyst}}\ ==\ \textcolor{stringliteral}{"{}general"{}})}
+\DoxyCodeLine{00061\ \ \ \ \ \{}
+\DoxyCodeLine{00062\ \ \ \ \ \ \ \ \ std::string\ path2save\ =\ \textcolor{stringliteral}{"{}catalyst/dataset-\/\%04t.vtpd"{}};}
+\DoxyCodeLine{00063\ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_char8\_str(catalyst\_init\_params,\ \textcolor{stringliteral}{"{}catalyst/pipelines/0/type"{}},\ \textcolor{stringliteral}{"{}io"{}});}
+\DoxyCodeLine{00064\ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_char8\_str(catalyst\_init\_params,\ \textcolor{stringliteral}{"{}catalyst/pipelines/0/filename"{}},\ path2save.c\_str());}
+\DoxyCodeLine{00065\ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_char8\_str(catalyst\_init\_params,\ \textcolor{stringliteral}{"{}catalyst/pipelines/0/channel"{}},\ \textcolor{stringliteral}{"{}grid"{}});}
+\DoxyCodeLine{00066\ \ \ \ \ \}}
+\DoxyCodeLine{00067\ \ \ \ \ \textcolor{keywordflow}{else}\ \textcolor{keywordflow}{if}(io-\/>\mbox{\hyperlink{structio___a848ebacf5859a33765d1755735e2d58e}{ioTypeCatalyst}}\ ==\ \textcolor{stringliteral}{"{}script"{}})}
+\DoxyCodeLine{00068\ \ \ \ \ \{}
+\DoxyCodeLine{00069\ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ pass\ scripts\ on\ command\ line}}
+\DoxyCodeLine{00070\ \ \ \ \ \ \ \ \ word\ scriptName\ =\ \textcolor{stringliteral}{"{}./sampling/"{}}\ +\ io-\/>\mbox{\hyperlink{structio___a9e8bb27acc5a881bc2cfe7f27bb2e558}{scriptNameCatalyst}};}
+\DoxyCodeLine{00071\ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_char8\_str(catalyst\_init\_params,\ \textcolor{stringliteral}{"{}catalyst/scripts/script0"{}},\ scriptName.c\_str());}
+\DoxyCodeLine{00072\ \ \ \ \ \}}
+\DoxyCodeLine{00073\ }
+\DoxyCodeLine{00074\ \ \ \ \ conduit\_node\_set\_path\_char8\_str(catalyst\_init\_params,\ \textcolor{stringliteral}{"{}catalyst\_load/implementation"{}},\ \textcolor{stringliteral}{"{}paraview"{}});}
+\DoxyCodeLine{00075\ \ \ \ \ conduit\_node\_set\_path\_char8\_str(catalyst\_init\_params,\ \textcolor{stringliteral}{"{}catalyst\_load/search\_paths/paraview"{}},\ PARAVIEW\_IMPL\_DIR);}
+\DoxyCodeLine{00076\ \ \ \ \ \textcolor{keyword}{enum}\ catalyst\_status\ err\ =\ catalyst\_initialize(catalyst\_init\_params);}
+\DoxyCodeLine{00077\ \ \ \ \ conduit\_node\_destroy(catalyst\_init\_params);}
+\DoxyCodeLine{00078\ }
+\DoxyCodeLine{00079\ \ \ \ \ \textcolor{keywordflow}{if}\ (err\ !=\ catalyst\_status\_ok)}
+\DoxyCodeLine{00080\ \ \ \ \ \{}
+\DoxyCodeLine{00081\ \ \ \ \ \ \ \ \ \textcolor{keywordtype}{char}\ error[512];}
+\DoxyCodeLine{00082\ \ \ \ \ \ \ \ \ sprintf(error,\ \textcolor{stringliteral}{"{}\(\backslash\)nTOSCA's\ catalyst-\/paraview\ interface\ initialization\ failed\(\backslash\)n"{}});}
+\DoxyCodeLine{00083\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{io_8h_a68cb6557f006e2a0740834acd0d4e4db}{fatalErrorInFunction}}(\textcolor{stringliteral}{"{}catalystInitialize"{}},\ \ error);}
+\DoxyCodeLine{00084\ \ \ \ \ \}}
+\DoxyCodeLine{00085\ }
+\DoxyCodeLine{00086\ \ \ \ \ PetscPrintf(mesh-\/>MESH\_COMM,\ \textcolor{stringliteral}{"{}done\(\backslash\)n\(\backslash\)n"{}});}
+\DoxyCodeLine{00087\ \}}
+\DoxyCodeLine{00088\ }
+\DoxyCodeLine{00089\ \textcolor{comment}{//***************************************************************************************************************//}}
+\DoxyCodeLine{00090\ }
+\DoxyCodeLine{00091\ \textcolor{keywordtype}{void}\ catalystExecute(\mbox{\hyperlink{structdomain__}{domain\_}}\ *domain)}
+\DoxyCodeLine{00092\ \{}
+\DoxyCodeLine{00093\ \ \ \ \ PetscInt\ \ executeCatalystOperations\ =\ 0;}
+\DoxyCodeLine{00094\ }
+\DoxyCodeLine{00095\ \ \ \ \ word\ \ \ \ \ \ intervalType\ =\ domain-\/>\mbox{\hyperlink{structdomain___a8d4cb3ec9ddea9d00f780d86706dcff0}{io}}-\/>outputTypeCatalyst;}
+\DoxyCodeLine{00096\ \ \ \ \ PetscReal\ timeInterval\ =\ domain-\/>\mbox{\hyperlink{structdomain___a8d4cb3ec9ddea9d00f780d86706dcff0}{io}}-\/>timeIntervalCatalyst;}
+\DoxyCodeLine{00097\ }
+\DoxyCodeLine{00098\ \ \ \ \ \textcolor{comment}{//\ write\ every\ "{}timeInterval"{}\ seconds}}
+\DoxyCodeLine{00099\ \ \ \ \ \textcolor{keywordflow}{if}}
+\DoxyCodeLine{00100\ \ \ \ \ (}
+\DoxyCodeLine{00101\ \ \ \ \ \ \ \ \ intervalType\ ==\ \textcolor{stringliteral}{"{}adjustableTime"{}}\ \&\&}
+\DoxyCodeLine{00102\ \ \ \ \ \ \ \ \ mustWrite(domain-\/>\mbox{\hyperlink{structdomain___a349b3ead6d03bfb0a0a717f3bd1598dc}{clock}}-\/>\mbox{\hyperlink{structclock___a3422d46b301c3748a32d1aee26b89fd3}{time}},\ domain-\/>\mbox{\hyperlink{structdomain___a8d4cb3ec9ddea9d00f780d86706dcff0}{io}}-\/>startTimeCatalyst,\ timeInterval)}
+\DoxyCodeLine{00103\ \ \ \ \ )}
+\DoxyCodeLine{00104\ \ \ \ \ \{}
+\DoxyCodeLine{00105\ \ \ \ \ \ \ \ \ executeCatalystOperations\ =\ 1;}
+\DoxyCodeLine{00106\ \ \ \ \ \}}
+\DoxyCodeLine{00107\ \ \ \ \ \textcolor{comment}{//\ write\ every\ "{}timeInterval"{}\ iterations}}
+\DoxyCodeLine{00108\ \ \ \ \ \textcolor{keywordflow}{else}\ \textcolor{keywordflow}{if}}
+\DoxyCodeLine{00109\ \ \ \ \ (}
+\DoxyCodeLine{00110\ \ \ \ \ \ \ \ \ (intervalType\ ==\ \textcolor{stringliteral}{"{}timeStep"{}})\ \&\&}
+\DoxyCodeLine{00111\ \ \ \ \ \ \ \ \ (}
+\DoxyCodeLine{00112\ \ \ \ \ \ \ \ \ \ \ \ \ domain-\/>\mbox{\hyperlink{structdomain___a349b3ead6d03bfb0a0a717f3bd1598dc}{clock}}-\/>\mbox{\hyperlink{structclock___af83016cb4bb0a771fd86fd208efeb1e2}{it}}\ /\ timeInterval\ -\/}
+\DoxyCodeLine{00113\ \ \ \ \ \ \ \ \ \ \ \ \ std::floor}
+\DoxyCodeLine{00114\ \ \ \ \ \ \ \ \ \ \ \ \ (}
+\DoxyCodeLine{00115\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ domain-\/>\mbox{\hyperlink{structdomain___a349b3ead6d03bfb0a0a717f3bd1598dc}{clock}}-\/>\mbox{\hyperlink{structclock___af83016cb4bb0a771fd86fd208efeb1e2}{it}}\ /\ timeInterval}
+\DoxyCodeLine{00116\ \ \ \ \ \ \ \ \ \ \ \ \ )\ <\ 1e-\/10}
+\DoxyCodeLine{00117\ \ \ \ \ \ \ \ \ )}
+\DoxyCodeLine{00118\ \ \ \ \ )}
+\DoxyCodeLine{00119\ \ \ \ \ \{}
+\DoxyCodeLine{00120\ \ \ \ \ \ \ \ \ executeCatalystOperations\ =\ 1;}
+\DoxyCodeLine{00121\ \ \ \ \ \}}
+\DoxyCodeLine{00122\ }
+\DoxyCodeLine{00123\ \ \ \ \ \textcolor{keywordflow}{if}(executeCatalystOperations)}
+\DoxyCodeLine{00124\ \ \ \ \ \{}
+\DoxyCodeLine{00125\ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ add\ time/cycle\ information}}
+\DoxyCodeLine{00126\ \ \ \ \ \ \ \ \ conduit\_node*\ catalyst\_exec\_params\ =\ conduit\_node\_create();}
+\DoxyCodeLine{00127\ }
+\DoxyCodeLine{00128\ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_int64(catalyst\_exec\_params,\ \textcolor{stringliteral}{"{}catalyst/state/timestep"{}},\ domain-\/>\mbox{\hyperlink{structdomain___a349b3ead6d03bfb0a0a717f3bd1598dc}{clock}}-\/>\mbox{\hyperlink{structclock___af83016cb4bb0a771fd86fd208efeb1e2}{it}});}
+\DoxyCodeLine{00129\ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_float64(catalyst\_exec\_params,\ \textcolor{stringliteral}{"{}catalyst/state/time"{}},\ domain-\/>\mbox{\hyperlink{structdomain___a349b3ead6d03bfb0a0a717f3bd1598dc}{clock}}-\/>\mbox{\hyperlink{structclock___a3422d46b301c3748a32d1aee26b89fd3}{time}});}
+\DoxyCodeLine{00130\ }
+\DoxyCodeLine{00131\ \ \ \ \ \ \ \ \ \textcolor{comment}{//create\ the\ mesh\ in\ "{}grid"{}\ channel,\ using\ Conduit\ Mesh\ Blueprint}}
+\DoxyCodeLine{00132\ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_char8\_str(catalyst\_exec\_params,\ \textcolor{stringliteral}{"{}catalyst/channels/grid/type"{}},\ \textcolor{stringliteral}{"{}mesh"{}});}
+\DoxyCodeLine{00133\ \ \ \ \ \ \ \ \ conduit\_node*\ condMesh\ =\ conduit\_node\_create();}
+\DoxyCodeLine{00134\ }
+\DoxyCodeLine{00135\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structmesh__}{mesh\_}}\ \ \ \ \ \ \ \ \ *mesh\ \ =\ domain-\/>\mbox{\hyperlink{structdomain___a79f72bff941f3c94c89da0b2777083cd}{mesh}};}
+\DoxyCodeLine{00136\ \ \ \ \ \ \ \ \ DM\ \ \ \ \ \ \ \ \ \ \ \ fda\ =\ mesh-\/>\mbox{\hyperlink{structmesh___af9e5239da6b5567b743756a5405d019d}{fda}},\ da\ =\ mesh-\/>\mbox{\hyperlink{structmesh___a259e98399a57e71a8e082e013943dc60}{da}};}
+\DoxyCodeLine{00137\ \ \ \ \ \ \ \ \ DMDALocalInfo\ info\ =\ mesh-\/>\mbox{\hyperlink{structmesh___a72b6b3606cac065bb5fb0aba74b38648}{info}};}
+\DoxyCodeLine{00138\ \ \ \ \ \ \ \ \ PetscInt\ \ \ \ \ \ i,\ j,\ k;}
+\DoxyCodeLine{00139\ \ \ \ \ \ \ \ \ PetscInt\ \ \ \ \ \ xs\ =\ info.xs,\ xe\ =\ info.xs\ +\ info.xm;}
+\DoxyCodeLine{00140\ \ \ \ \ \ \ \ \ PetscInt\ \ \ \ \ \ ys\ =\ info.ys,\ ye\ =\ info.ys\ +\ info.ym;}
+\DoxyCodeLine{00141\ \ \ \ \ \ \ \ \ PetscInt\ \ \ \ \ \ zs\ =\ info.zs,\ ze\ =\ info.zs\ +\ info.zm;}
+\DoxyCodeLine{00142\ \ \ \ \ \ \ \ \ PetscInt\ \ \ \ \ \ mx\ =\ info.mx,\ my\ =\ info.my,\ mz\ =\ info.mz;}
+\DoxyCodeLine{00143\ }
+\DoxyCodeLine{00144\ \ \ \ \ \ \ \ \ PetscInt\ \ \ \ \ \ lxs,\ lxe,\ lys,\ lye,\ lzs,\ lze;}
+\DoxyCodeLine{00145\ }
+\DoxyCodeLine{00146\ \ \ \ \ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ Coor;}
+\DoxyCodeLine{00147\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ ***coor,\ ***ucat;}
+\DoxyCodeLine{00148\ \ \ \ \ \ \ \ \ PetscReal\ \ \ \ \ ***qcrit,\ ***p;}
+\DoxyCodeLine{00149\ }
+\DoxyCodeLine{00150\ \ \ \ \ \ \ \ \ lxs\ =\ xs;\ lxe\ =\ xe;\ \textcolor{keywordflow}{if}\ (xs==0)\ lxs\ =\ xs+1;\ \textcolor{keywordflow}{if}\ (xe==mx)\ lxe\ =\ xe-\/1;}
+\DoxyCodeLine{00151\ \ \ \ \ \ \ \ \ lys\ =\ ys;\ lye\ =\ ye;\ \textcolor{keywordflow}{if}\ (ys==0)\ lys\ =\ ys+1;\ \textcolor{keywordflow}{if}\ (ye==my)\ lye\ =\ ye-\/1;}
+\DoxyCodeLine{00152\ \ \ \ \ \ \ \ \ lzs\ =\ zs;\ lze\ =\ ze;\ \textcolor{keywordflow}{if}\ (zs==0)\ lzs\ =\ zs+1;\ \textcolor{keywordflow}{if}\ (ze==mz)\ lze\ =\ ze-\/1;}
+\DoxyCodeLine{00153\ }
+\DoxyCodeLine{00154\ \ \ \ \ \ \ \ \ PetscInt\ \ numberOfCells\ =\ (lxe-\/lxs)\ *\ (lye-\/lys)\ *\ (lze-\/lzs);}
+\DoxyCodeLine{00155\ \ \ \ \ \ \ \ \ PetscReal\ *cellVar;\ cellVar\ =\ \textcolor{keyword}{new}\ PetscReal[numberOfCells];}
+\DoxyCodeLine{00156\ }
+\DoxyCodeLine{00157\ \ \ \ \ \ \ \ \ PetscReal\ ts,\ te;}
+\DoxyCodeLine{00158\ \ \ \ \ \ \ \ \ PetscTime(\&ts);}
+\DoxyCodeLine{00159\ }
+\DoxyCodeLine{00160\ \ \ \ \ \ \ \ \ PetscPrintf(mesh-\/>MESH\_COMM,\ \textcolor{stringliteral}{"{}Executed\ paraview-\/catalyst\ actions\ in\ "{}});}
+\DoxyCodeLine{00161\ }
+\DoxyCodeLine{00162\ \ \ \ \ \ \ \ \ DMGetCoordinatesLocal(da,\ \&Coor);\ \ \textcolor{comment}{//\ get\ the\ local\ vector\ Coor\ linked\ to\ the\ coordinates}}
+\DoxyCodeLine{00163\ \ \ \ \ \ \ \ \ DMDAVecGetArray(fda,\ Coor,\ \&coor);\ \textcolor{comment}{//\ access\ this\ vector\ using\ the\ 3D\ array\ coor}}
+\DoxyCodeLine{00164\ }
+\DoxyCodeLine{00165\ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ store\ Qcrit\ inside\ acquisition}}
+\DoxyCodeLine{00166\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{acquisition_8c_ad70fb1290d0295cd8c42d2156bd735e7}{computeQCritIO}}(domain-\/>\mbox{\hyperlink{structdomain___a0aee26a44aecf1c97bc82f7e053e4efa}{acquisition}});}
+\DoxyCodeLine{00167\ }
+\DoxyCodeLine{00168\ \ \ \ \ \ \ \ \ DMDAVecGetArray(fda,\ domain-\/>\mbox{\hyperlink{structdomain___a1c92925cbe2bacb65d8ee9bc8f3b722e}{ueqn}}-\/>Ucat,\ \&ucat);}
+\DoxyCodeLine{00169\ \ \ \ \ \ \ \ \ DMDAVecGetArray(da,\ domain-\/>\mbox{\hyperlink{structdomain___a8e85d4190a080798df2a831c3efede35}{peqn}}-\/>P,\ \&p);}
+\DoxyCodeLine{00170\ \ \ \ \ \ \ \ \ DMDAVecGetArray(da,\ \ domain-\/>\mbox{\hyperlink{structdomain___a0aee26a44aecf1c97bc82f7e053e4efa}{acquisition}}-\/>\mbox{\hyperlink{structacquisition___aaa78b7df02024a49d4afd6b9ac6ce64b}{fields}}-\/>\mbox{\hyperlink{structavgFields_a167f4a245fbcd55acd35b504e2472755}{Q}},\ \&qcrit);}
+\DoxyCodeLine{00171\ }
+\DoxyCodeLine{00172\ \ \ \ \ \ \ \ \ PetscInt\ cartesian\ \ \ \ =\ 1,}
+\DoxyCodeLine{00173\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ rectilinear\ \ =\ 2,}
+\DoxyCodeLine{00174\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ unstructured\ =\ 3;}
+\DoxyCodeLine{00175\ \ \ \ \ \ \ \ \ PetscInt\ gridType\ \ \ \ \ =\ rectilinear;}
+\DoxyCodeLine{00176\ }
+\DoxyCodeLine{00177\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (gridType\ ==\ cartesian)}
+\DoxyCodeLine{00178\ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{00179\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ add\ coordsets}}
+\DoxyCodeLine{00180\ \ \ \ \ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_char8\_str(condMesh,\ \textcolor{stringliteral}{"{}coordsets/coords/type"{}},\ \textcolor{stringliteral}{"{}uniform"{}});}
+\DoxyCodeLine{00181\ }
+\DoxyCodeLine{00182\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ add\ topology}}
+\DoxyCodeLine{00183\ \ \ \ \ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_char8\_str(condMesh,\ \textcolor{stringliteral}{"{}topologies/mesh/type"{}},\ \textcolor{stringliteral}{"{}uniform"{}});}
+\DoxyCodeLine{00184\ \ \ \ \ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_char8\_str(condMesh,\ \textcolor{stringliteral}{"{}topologies/mesh/coordset"{}},\ \textcolor{stringliteral}{"{}coords"{}});}
+\DoxyCodeLine{00185\ }
+\DoxyCodeLine{00186\ \ \ \ \ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_int64(condMesh,\ \textcolor{stringliteral}{"{}coordsets/coords/dims/i"{}},\ lze-\/lzs+1);\ \textcolor{comment}{//\ number\ of\ points\ in\ each\ dimension}}
+\DoxyCodeLine{00187\ \ \ \ \ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_int64(condMesh,\ \textcolor{stringliteral}{"{}coordsets/coords/dims/j"{}},\ lxe-\/lxs+1);}
+\DoxyCodeLine{00188\ \ \ \ \ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_int64(condMesh,\ \textcolor{stringliteral}{"{}coordsets/coords/dims/k"{}},\ lye-\/lys+1);}
+\DoxyCodeLine{00189\ }
+\DoxyCodeLine{00190\ \ \ \ \ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_float64(condMesh,\ \textcolor{stringliteral}{"{}coordsets/coords/origin/x"{}},\ lzs);}
+\DoxyCodeLine{00191\ \ \ \ \ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_float64(condMesh,\ \textcolor{stringliteral}{"{}coordsets/coords/origin/y"{}},\ lxs);}
+\DoxyCodeLine{00192\ \ \ \ \ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_float64(condMesh,\ \textcolor{stringliteral}{"{}coordsets/coords/origin/z"{}},\ lys);}
+\DoxyCodeLine{00193\ }
+\DoxyCodeLine{00194\ \ \ \ \ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_float64(condMesh,\ \textcolor{stringliteral}{"{}coordsets/coords/spacing/dx"{}},\ 0.1);}
+\DoxyCodeLine{00195\ \ \ \ \ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_float64(condMesh,\ \textcolor{stringliteral}{"{}coordsets/coords/spacing/dy"{}},\ 0.1);}
+\DoxyCodeLine{00196\ \ \ \ \ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_float64(condMesh,\ \textcolor{stringliteral}{"{}coordsets/coords/spacing/dz"{}},\ 0.1);}
+\DoxyCodeLine{00197\ }
+\DoxyCodeLine{00198\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ add\ cell-\/based\ q-\/criterion}}
+\DoxyCodeLine{00199\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ (k=lzs;\ k<lze;\ k++)}
+\DoxyCodeLine{00200\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ (j=lys;\ j<lye;\ j++)}
+\DoxyCodeLine{00201\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ (i=lxs;\ i<lxe;\ i++)}
+\DoxyCodeLine{00202\ \ \ \ \ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{00203\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ cellVar[(k-\/lzs)*(lxe-\/lxs)*(lye-\/lys)\ +\ (j-\/lys)*(lxe-\/lxs)\ +\ (i-\/lxs)]\ =\ qcrit[k-\/lzs+zs][j-\/lys+ys][i-\/lxs+xs];}
+\DoxyCodeLine{00204\ \ \ \ \ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00205\ }
+\DoxyCodeLine{00206\ \ \ \ \ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_char8\_str(condMesh,\ \textcolor{stringliteral}{"{}fields/q/association"{}},\ \textcolor{stringliteral}{"{}element"{}});}
+\DoxyCodeLine{00207\ \ \ \ \ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_char8\_str(condMesh,\ \textcolor{stringliteral}{"{}fields/q/topology"{}},\ \textcolor{stringliteral}{"{}mesh"{}});}
+\DoxyCodeLine{00208\ \ \ \ \ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_char8\_str(condMesh,\ \textcolor{stringliteral}{"{}fields/q/volume\_dependent"{}},\ \textcolor{stringliteral}{"{}false"{}});}
+\DoxyCodeLine{00209\ \ \ \ \ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_external\_float64\_ptr(condMesh,\ \textcolor{stringliteral}{"{}fields/q/values"{}},\ cellVar,\ numberOfCells);}
+\DoxyCodeLine{00210\ }
+\DoxyCodeLine{00211\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ add\ cell-\/based\ pressure}}
+\DoxyCodeLine{00212\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ (k=lzs;\ k<lze;\ k++)}
+\DoxyCodeLine{00213\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ (j=lys;\ j<lye;\ j++)}
+\DoxyCodeLine{00214\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ (i=lxs;\ i<lxe;\ i++)}
+\DoxyCodeLine{00215\ \ \ \ \ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{00216\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ cellVar[(k-\/lzs)*(lxe-\/lxs)*(lye-\/lys)\ +\ (j-\/lys)*(lxe-\/lxs)\ +\ (i-\/lxs)]\ =\ p[k-\/lzs+zs][j-\/lys+ys][i-\/lxs+xs];}
+\DoxyCodeLine{00217\ \ \ \ \ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00218\ }
+\DoxyCodeLine{00219\ \ \ \ \ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_char8\_str(condMesh,\ \textcolor{stringliteral}{"{}fields/p/association"{}},\ \textcolor{stringliteral}{"{}element"{}});}
+\DoxyCodeLine{00220\ \ \ \ \ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_char8\_str(condMesh,\ \textcolor{stringliteral}{"{}fields/p/topology"{}},\ \textcolor{stringliteral}{"{}mesh"{}});}
+\DoxyCodeLine{00221\ \ \ \ \ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_char8\_str(condMesh,\ \textcolor{stringliteral}{"{}fields/p/volume\_dependent"{}},\ \textcolor{stringliteral}{"{}false"{}});}
+\DoxyCodeLine{00222\ \ \ \ \ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_external\_float64\_ptr(condMesh,\ \textcolor{stringliteral}{"{}fields/p/values"{}},\ cellVar,\ numberOfCells);}
+\DoxyCodeLine{00223\ }
+\DoxyCodeLine{00224\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ add\ cell-\/based\ velocity\ magnitude}}
+\DoxyCodeLine{00225\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ (k=lzs;\ k<lze;\ k++)}
+\DoxyCodeLine{00226\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ (j=lys;\ j<lye;\ j++)}
+\DoxyCodeLine{00227\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ (i=lxs;\ i<lxe;\ i++)}
+\DoxyCodeLine{00228\ \ \ \ \ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{00229\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ cellVar[(k-\/lzs)*(lxe-\/lxs)*(lye-\/lys)\ +\ (j-\/lys)*(lxe-\/lxs)\ +\ (i-\/lxs)]\ =\ nMag(ucat[k-\/lzs+zs][j-\/lys+ys][i-\/lxs+xs]);}
+\DoxyCodeLine{00230\ \ \ \ \ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00231\ }
+\DoxyCodeLine{00232\ \ \ \ \ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_char8\_str(condMesh,\ \textcolor{stringliteral}{"{}fields/uMag/association"{}},\ \textcolor{stringliteral}{"{}element"{}});}
+\DoxyCodeLine{00233\ \ \ \ \ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_char8\_str(condMesh,\ \textcolor{stringliteral}{"{}fields/uMag/topology"{}},\ \textcolor{stringliteral}{"{}mesh"{}});}
+\DoxyCodeLine{00234\ \ \ \ \ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_char8\_str(condMesh,\ \textcolor{stringliteral}{"{}fields/uMag/volume\_dependent"{}},\ \textcolor{stringliteral}{"{}false"{}});}
+\DoxyCodeLine{00235\ \ \ \ \ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_external\_float64\_ptr(condMesh,\ \textcolor{stringliteral}{"{}fields/uMag/values"{}},\ cellVar,\ numberOfCells);}
+\DoxyCodeLine{00236\ }
+\DoxyCodeLine{00237\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ add\ the\ mesh\ info\ (condMesh)\ to\ catalyst\_exec\_params}}
+\DoxyCodeLine{00238\ \ \ \ \ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_external\_node(catalyst\_exec\_params,\ \textcolor{stringliteral}{"{}catalyst/channels/grid/data"{}},\ condMesh);}
+\DoxyCodeLine{00239\ }
+\DoxyCodeLine{00240\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{enum}\ catalyst\_status\ err\ =\ catalyst\_execute(catalyst\_exec\_params);}
+\DoxyCodeLine{00241\ }
+\DoxyCodeLine{00242\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (err\ !=\ catalyst\_status\_ok)}
+\DoxyCodeLine{00243\ \ \ \ \ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{00244\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordtype}{char}\ error[512];}
+\DoxyCodeLine{00245\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ sprintf(error,\ \textcolor{stringliteral}{"{}failed\ to\ execute\ catalyst-\/paraview\ interface\(\backslash\)n"{}});}
+\DoxyCodeLine{00246\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{io_8h_a68cb6557f006e2a0740834acd0d4e4db}{fatalErrorInFunction}}(\textcolor{stringliteral}{"{}catalystInitialize"{}},\ \ error);}
+\DoxyCodeLine{00247\ \ \ \ \ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00248\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00249\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}\ \textcolor{keywordflow}{if}\ (gridType\ ==\ rectilinear)}
+\DoxyCodeLine{00250\ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{00251\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ add\ coordsets}}
+\DoxyCodeLine{00252\ \ \ \ \ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_char8\_str(condMesh,\ \textcolor{stringliteral}{"{}coordsets/coords/type"{}},\ \textcolor{stringliteral}{"{}rectilinear"{}});}
+\DoxyCodeLine{00253\ }
+\DoxyCodeLine{00254\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ add\ topology}}
+\DoxyCodeLine{00255\ \ \ \ \ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_char8\_str(condMesh,\ \textcolor{stringliteral}{"{}topologies/mesh/type"{}},\ \textcolor{stringliteral}{"{}rectilinear"{}});}
+\DoxyCodeLine{00256\ \ \ \ \ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_char8\_str(condMesh,\ \textcolor{stringliteral}{"{}topologies/mesh/coordset"{}},\ \textcolor{stringliteral}{"{}coords"{}});}
+\DoxyCodeLine{00257\ }
+\DoxyCodeLine{00258\ \ \ \ \ \ \ \ \ \ \ \ \ PetscReal\ *xval;\ xval\ =\ \textcolor{keyword}{new}\ PetscReal[lze-\/lzs+1];}
+\DoxyCodeLine{00259\ \ \ \ \ \ \ \ \ \ \ \ \ PetscReal\ *yval;\ yval\ =\ \textcolor{keyword}{new}\ PetscReal[lxe-\/lxs+1];}
+\DoxyCodeLine{00260\ \ \ \ \ \ \ \ \ \ \ \ \ PetscReal\ *zval;\ zval\ =\ \textcolor{keyword}{new}\ PetscReal[lye-\/lys+1];}
+\DoxyCodeLine{00261\ }
+\DoxyCodeLine{00262\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ (i=lxs;\ i<lxe;\ i++)\ yval[i-\/lxs]\ =\ coor[lzs][lys][i].y;}
+\DoxyCodeLine{00263\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ (j=lys;\ j<lye;\ j++)\ zval[j-\/lys]\ =\ coor[lzs][j][lxs].z;}
+\DoxyCodeLine{00264\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ (k=lzs;\ k<lze;\ k++)\ xval[k-\/lzs]\ =\ coor[k][lys][lxs].x;}
+\DoxyCodeLine{00265\ }
+\DoxyCodeLine{00266\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ fill\ in\ the\ last\ point\ in\ each\ dimension}}
+\DoxyCodeLine{00267\ \ \ \ \ \ \ \ \ \ \ \ \ PetscInt\ lastIndex;}
+\DoxyCodeLine{00268\ \ \ \ \ \ \ \ \ \ \ \ \ lastIndex\ =\ lxe-\/lxs;\ yval[lastIndex]\ =\ 2*yval[lastIndex-\/1]\ -\/\ yval[lastIndex-\/2];}
+\DoxyCodeLine{00269\ \ \ \ \ \ \ \ \ \ \ \ \ lastIndex\ =\ lye-\/lys;\ zval[lastIndex]\ =\ 2*zval[lastIndex-\/1]\ -\/\ zval[lastIndex-\/2];}
+\DoxyCodeLine{00270\ \ \ \ \ \ \ \ \ \ \ \ \ lastIndex\ =\ lze-\/lzs;\ xval[lastIndex]\ =\ 2*xval[lastIndex-\/1]\ -\/\ xval[lastIndex-\/2];}
+\DoxyCodeLine{00271\ }
+\DoxyCodeLine{00272\ \ \ \ \ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_float64\_ptr(condMesh,\ \textcolor{stringliteral}{"{}coordsets/coords/values/x"{}},\ xval,\ lze-\/lzs+1);}
+\DoxyCodeLine{00273\ \ \ \ \ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_float64\_ptr(condMesh,\ \textcolor{stringliteral}{"{}coordsets/coords/values/y"{}},\ yval,\ lxe-\/lxs+1);}
+\DoxyCodeLine{00274\ \ \ \ \ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_float64\_ptr(condMesh,\ \textcolor{stringliteral}{"{}coordsets/coords/values/z"{}},\ zval,\ lye-\/lys+1);}
+\DoxyCodeLine{00275\ }
+\DoxyCodeLine{00276\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ add\ cell-\/based\ velocity\ mag}}
+\DoxyCodeLine{00277\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{/*}}
+\DoxyCodeLine{00278\ \textcolor{comment}{\ \ \ \ \ \ \ \ \ \ \ \ for\ (k=lzs;\ k<lze;\ k++)}}
+\DoxyCodeLine{00279\ \textcolor{comment}{\ \ \ \ \ \ \ \ \ \ \ \ for\ (j=lys;\ j<lye;\ j++)}}
+\DoxyCodeLine{00280\ \textcolor{comment}{\ \ \ \ \ \ \ \ \ \ \ \ for\ (i=lxs;\ i<lxe;\ i++)}}
+\DoxyCodeLine{00281\ \textcolor{comment}{\ \ \ \ \ \ \ \ \ \ \ \ \{}}
+\DoxyCodeLine{00282\ \textcolor{comment}{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ cellVar[(k-\/lzs)*(lxe-\/lxs)*(lye-\/lys)\ +\ (j-\/lys)*(lxe-\/lxs)\ +\ (i-\/lxs)]\ =\ nMag(ucat[k-\/lzs+zs][j-\/lys+ys][i-\/lxs+xs]);}}
+\DoxyCodeLine{00283\ \textcolor{comment}{\ \ \ \ \ \ \ \ \ \ \ \ \}}}
+\DoxyCodeLine{00284\ \textcolor{comment}{\ \ \ \ \ \ \ \ \ \ \ \ */}}
+\DoxyCodeLine{00285\ }
+\DoxyCodeLine{00286\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ add\ cell-\/based\ velocity\ mag}}
+\DoxyCodeLine{00287\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ (j=lys;\ j<lye;\ j++)}
+\DoxyCodeLine{00288\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ (i=lxs;\ i<lxe;\ i++)}
+\DoxyCodeLine{00289\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ (k=lzs;\ k<lze;\ k++)}
+\DoxyCodeLine{00290\ \ \ \ \ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{00291\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ cellVar[(j-\/lys)*(lze-\/lzs)*(lxe-\/lxs)\ +\ (i-\/lxs)*(lze-\/lzs)\ +\ (k-\/lzs)]\ =\ nMag(ucat[k-\/lzs+zs][j-\/lys+ys][i-\/lxs+xs]);}
+\DoxyCodeLine{00292\ \ \ \ \ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00293\ }
+\DoxyCodeLine{00294\ \ \ \ \ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_char8\_str(condMesh,\ \textcolor{stringliteral}{"{}fields/uMag/association"{}},\ \textcolor{stringliteral}{"{}element"{}});}
+\DoxyCodeLine{00295\ \ \ \ \ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_char8\_str(condMesh,\ \textcolor{stringliteral}{"{}fields/uMag/topology"{}},\ \textcolor{stringliteral}{"{}mesh"{}});}
+\DoxyCodeLine{00296\ \ \ \ \ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_char8\_str(condMesh,\ \textcolor{stringliteral}{"{}fields/uMag/volume\_dependent"{}},\ \textcolor{stringliteral}{"{}false"{}});}
+\DoxyCodeLine{00297\ \ \ \ \ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_float64\_ptr(condMesh,\ \textcolor{stringliteral}{"{}fields/uMag/values"{}},\ cellVar,\ numberOfCells);}
+\DoxyCodeLine{00298\ }
+\DoxyCodeLine{00299\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ add\ cell-\/based\ pressure}}
+\DoxyCodeLine{00300\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ (j=lys;\ j<lye;\ j++)}
+\DoxyCodeLine{00301\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ (i=lxs;\ i<lxe;\ i++)}
+\DoxyCodeLine{00302\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ (k=lzs;\ k<lze;\ k++)}
+\DoxyCodeLine{00303\ \ \ \ \ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{00304\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ cellVar[(j-\/lys)*(lze-\/lzs)*(lxe-\/lxs)\ +\ (i-\/lxs)*(lze-\/lzs)\ +\ (k-\/lzs)]\ =\ p[k-\/lzs+zs][j-\/lys+ys][i-\/lxs+xs];}
+\DoxyCodeLine{00305\ \ \ \ \ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00306\ }
+\DoxyCodeLine{00307\ \ \ \ \ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_char8\_str(condMesh,\ \textcolor{stringliteral}{"{}fields/p/association"{}},\ \textcolor{stringliteral}{"{}element"{}});}
+\DoxyCodeLine{00308\ \ \ \ \ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_char8\_str(condMesh,\ \textcolor{stringliteral}{"{}fields/p/topology"{}},\ \textcolor{stringliteral}{"{}mesh"{}});}
+\DoxyCodeLine{00309\ \ \ \ \ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_char8\_str(condMesh,\ \textcolor{stringliteral}{"{}fields/p/volume\_dependent"{}},\ \textcolor{stringliteral}{"{}false"{}});}
+\DoxyCodeLine{00310\ \ \ \ \ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_float64\_ptr(condMesh,\ \textcolor{stringliteral}{"{}fields/p/values"{}},\ cellVar,\ numberOfCells);}
+\DoxyCodeLine{00311\ }
+\DoxyCodeLine{00312\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ add\ cell-\/based\ qcrit}}
+\DoxyCodeLine{00313\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ (j=lys;\ j<lye;\ j++)}
+\DoxyCodeLine{00314\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ (i=lxs;\ i<lxe;\ i++)}
+\DoxyCodeLine{00315\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}\ (k=lzs;\ k<lze;\ k++)}
+\DoxyCodeLine{00316\ \ \ \ \ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{00317\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ cellVar[(j-\/lys)*(lze-\/lzs)*(lxe-\/lxs)\ +\ (i-\/lxs)*(lze-\/lzs)\ +\ (k-\/lzs)]\ =\ qcrit[k-\/lzs+zs][j-\/lys+ys][i-\/lxs+xs];}
+\DoxyCodeLine{00318\ \ \ \ \ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00319\ }
+\DoxyCodeLine{00320\ \ \ \ \ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_char8\_str(condMesh,\ \textcolor{stringliteral}{"{}fields/q/association"{}},\ \textcolor{stringliteral}{"{}element"{}});}
+\DoxyCodeLine{00321\ \ \ \ \ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_char8\_str(condMesh,\ \textcolor{stringliteral}{"{}fields/q/topology"{}},\ \textcolor{stringliteral}{"{}mesh"{}});}
+\DoxyCodeLine{00322\ \ \ \ \ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_char8\_str(condMesh,\ \textcolor{stringliteral}{"{}fields/q/volume\_dependent"{}},\ \textcolor{stringliteral}{"{}false"{}});}
+\DoxyCodeLine{00323\ \ \ \ \ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_float64\_ptr(condMesh,\ \textcolor{stringliteral}{"{}fields/q/values"{}},\ cellVar,\ numberOfCells);}
+\DoxyCodeLine{00324\ }
+\DoxyCodeLine{00325\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ for\ debugging}}
+\DoxyCodeLine{00326\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ conduit\_node\_print(condMesh);}}
+\DoxyCodeLine{00327\ }
+\DoxyCodeLine{00328\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ add\ the\ mesh\ info\ (condMesh)\ to\ catalyst\_exec\_params}}
+\DoxyCodeLine{00329\ \ \ \ \ \ \ \ \ \ \ \ \ conduit\_node\_set\_path\_external\_node(catalyst\_exec\_params,\ \textcolor{stringliteral}{"{}catalyst/channels/grid/data"{}},\ condMesh);}
+\DoxyCodeLine{00330\ }
+\DoxyCodeLine{00331\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{enum}\ catalyst\_status\ err\ =\ catalyst\_execute(catalyst\_exec\_params);}
+\DoxyCodeLine{00332\ }
+\DoxyCodeLine{00333\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{if}\ (err\ !=\ catalyst\_status\_ok)}
+\DoxyCodeLine{00334\ \ \ \ \ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{00335\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordtype}{char}\ error[512];}
+\DoxyCodeLine{00336\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ sprintf(error,\ \textcolor{stringliteral}{"{}failed\ to\ execute\ catalyst-\/paraview\ interface\(\backslash\)n"{}});}
+\DoxyCodeLine{00337\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{io_8h_a68cb6557f006e2a0740834acd0d4e4db}{fatalErrorInFunction}}(\textcolor{stringliteral}{"{}catalystInitialize"{}},\ \ error);}
+\DoxyCodeLine{00338\ \ \ \ \ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00339\ }
+\DoxyCodeLine{00340\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{delete}\ []\ xval,\ yval,\ zval;}
+\DoxyCodeLine{00341\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00342\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{else}\ \textcolor{keywordflow}{if}\ (gridType\ ==\ unstructured)}
+\DoxyCodeLine{00343\ \ \ \ \ \ \ \ \ \{}
+\DoxyCodeLine{00344\ \ \ \ \ \ \ \ \ \ \ \textcolor{comment}{//\ not\ implemented}}
+\DoxyCodeLine{00345\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00346\ }
+\DoxyCodeLine{00347\ \ \ \ \ \ \ \ \ DMDAVecRestoreArray(fda,\ Coor,\ \&coor);}
+\DoxyCodeLine{00348\ \ \ \ \ \ \ \ \ DMDAVecRestoreArray(fda,\ domain-\/>\mbox{\hyperlink{structdomain___a1c92925cbe2bacb65d8ee9bc8f3b722e}{ueqn}}-\/>Ucat,\ \&ucat);}
+\DoxyCodeLine{00349\ \ \ \ \ \ \ \ \ DMDAVecRestoreArray(da,\ \ domain-\/>\mbox{\hyperlink{structdomain___a8e85d4190a080798df2a831c3efede35}{peqn}}-\/>P,\ \&p);}
+\DoxyCodeLine{00350\ \ \ \ \ \ \ \ \ DMDAVecRestoreArray(da,\ \ domain-\/>\mbox{\hyperlink{structdomain___a0aee26a44aecf1c97bc82f7e053e4efa}{acquisition}}-\/>\mbox{\hyperlink{structacquisition___aaa78b7df02024a49d4afd6b9ac6ce64b}{fields}}-\/>\mbox{\hyperlink{structavgFields_a167f4a245fbcd55acd35b504e2472755}{Q}},\ \&qcrit);}
+\DoxyCodeLine{00351\ }
+\DoxyCodeLine{00352\ \ \ \ \ \ \ \ \ \textcolor{keyword}{delete}\ []\ cellVar;}
+\DoxyCodeLine{00353\ }
+\DoxyCodeLine{00354\ \ \ \ \ \ \ \ \ conduit\_node\_destroy(catalyst\_exec\_params);}
+\DoxyCodeLine{00355\ \ \ \ \ \ \ \ \ conduit\_node\_destroy(condMesh);}
+\DoxyCodeLine{00356\ }
+\DoxyCodeLine{00357\ \ \ \ \ \ \ \ \ PetscTime(\&te);}
+\DoxyCodeLine{00358\ \ \ \ \ \ \ \ \ PetscPrintf(mesh-\/>MESH\_COMM,\ \textcolor{stringliteral}{"{}\%lf\ s\(\backslash\)n"{}},te-\/ts);}
+\DoxyCodeLine{00359\ \ \ \ \ \}}
+\DoxyCodeLine{00360\ \}}
+\DoxyCodeLine{00361\ }
+\DoxyCodeLine{00362\ \textcolor{comment}{//***************************************************************************************************************//}}
+\DoxyCodeLine{00363\ }
+\DoxyCodeLine{00364\ \textcolor{keywordtype}{void}\ catalystFinalize()}
+\DoxyCodeLine{00365\ \{}
+\DoxyCodeLine{00366\ \ \ \ \ conduit\_node*\ catalyst\_fini\_params\ =\ conduit\_node\_create();}
+\DoxyCodeLine{00367\ \ \ \ \ \textcolor{keyword}{enum}\ catalyst\_status\ err\ =\ catalyst\_finalize(catalyst\_fini\_params);}
+\DoxyCodeLine{00368\ }
+\DoxyCodeLine{00369\ \ \ \ \ \textcolor{keywordflow}{if}\ (err\ !=\ catalyst\_status\_ok)}
+\DoxyCodeLine{00370\ \ \ \ \ \{}
+\DoxyCodeLine{00371\ \ \ \ \ \ \ \ \ \textcolor{keywordtype}{char}\ error[512];}
+\DoxyCodeLine{00372\ \ \ \ \ \ \ \ \ sprintf(error,\ \textcolor{stringliteral}{"{}failed\ to\ finalize\ catalyst-\/paraview\ interface\(\backslash\)n"{}});}
+\DoxyCodeLine{00373\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{io_8h_a68cb6557f006e2a0740834acd0d4e4db}{fatalErrorInFunction}}(\textcolor{stringliteral}{"{}catalystFinalize"{}},\ \ error);}
+\DoxyCodeLine{00374\ \ \ \ \ \}}
+\DoxyCodeLine{00375\ }
+\DoxyCodeLine{00376\ \ \ \ \ conduit\_node\_destroy(catalyst\_fini\_params);}
+\DoxyCodeLine{00377\ \}}
+\DoxyCodeLine{00378\ }
+\DoxyCodeLine{00379\ \textcolor{preprocessor}{\#endif}}
+
+\end{DoxyCode}

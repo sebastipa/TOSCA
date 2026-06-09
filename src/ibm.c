@@ -8205,7 +8205,7 @@ PetscErrorCode createProcessorBufferZones(ibm_ *ibm)
     PetscInt       mx = info.mx, my = info.my, mz = info.mz;
 
     PetscInt       lxs, lxe, lys, lye, lzs, lze;
-    PetscReal      buffer = 0.0;
+    PetscReal      buffer = ibm->procBuffOverlap;
     Vec            Coor;
     Cmpnts         ***coor;
 

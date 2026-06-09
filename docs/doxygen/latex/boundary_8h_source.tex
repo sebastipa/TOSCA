@@ -1,0 +1,177 @@
+\doxysection{boundary.\+h}
+\hypertarget{boundary_8h_source}{}\label{boundary_8h_source}\index{/zfs60/nobackup/stipa/software/TOSCA/src/include/boundary.h@{/zfs60/nobackup/stipa/software/TOSCA/src/include/boundary.h}}
+\mbox{\hyperlink{boundary_8h}{Go to the documentation of this file.}}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ }
+\DoxyCodeLine{00003\ }
+\DoxyCodeLine{00004\ \textcolor{preprocessor}{\#ifndef\ \_BOUNDARY\_H\_}}
+\DoxyCodeLine{00005\ \textcolor{preprocessor}{\#define\ \_BOUNDARY\_H\_}}
+\DoxyCodeLine{00006\ }
+\DoxyCodeLine{00008\ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structscalarBC}{scalarBC}}}
+\DoxyCodeLine{00009\ \{}
+\DoxyCodeLine{00010\ \ \ \ \ word\ \ \ \ \ \ iLeft,\ \mbox{\hyperlink{structscalarBC_a387c08488ee25d58631cd2cb6d133b6b}{iRight}},\ \ }
+\DoxyCodeLine{00011\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ jLeft,\ jRight,}
+\DoxyCodeLine{00012\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ kLeft,\ kRight;}
+\DoxyCodeLine{00013\ \ \ \ \ PetscInt\ \ \mbox{\hyperlink{structscalarBC_a59250dee5fa6ea43a7b4855921a37bbc}{iLeftPatchType}},\ }
+\DoxyCodeLine{00014\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ iRightPatchType,\ \ }
+\DoxyCodeLine{00015\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ jLeftPatchType,\ }
+\DoxyCodeLine{00016\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ jRightPatchType,}
+\DoxyCodeLine{00017\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ kLeftPatchType,}
+\DoxyCodeLine{00018\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ kRightPatchType;}
+\DoxyCodeLine{00019\ \ \ \ \ PetscReal\ iLval,\ \mbox{\hyperlink{structscalarBC_a9246f5a5ce19857c862c901f1e95593f}{iRval}}\ ,\ \ }
+\DoxyCodeLine{00020\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ jLval,\ jRval\ ,}
+\DoxyCodeLine{00021\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ kLval,\ kRval\ ;}
+\DoxyCodeLine{00022\ \ \ \ \ PetscInt\ \ iLWF\ ,\ \mbox{\hyperlink{structscalarBC_a575008301736f39d0e54bf055cd5dbd7}{iRWF}}\ \ ,\ \ }
+\DoxyCodeLine{00023\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ jLWF\ ,\ jRWF\ \ ,}
+\DoxyCodeLine{00024\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ kLWF\ ,\ kRWF\ \ ;}
+\DoxyCodeLine{00025\ \};}
+\DoxyCodeLine{00026\ }
+\DoxyCodeLine{00028\ }
+\DoxyCodeLine{00029\ \textcolor{keyword}{struct\ \ }\mbox{\hyperlink{structvectorBC}{vectorBC}}}
+\DoxyCodeLine{00030\ \{}
+\DoxyCodeLine{00031\ \ \ \ \ word\ \ \ \ \ iLeft,\ \mbox{\hyperlink{structvectorBC_a6b85aab200d600c50450d6131ca7d07b}{iRight}},\ \ }
+\DoxyCodeLine{00032\ \ \ \ \ \ \ \ \ \ \ \ \ \ jLeft,\ jRight,}
+\DoxyCodeLine{00033\ \ \ \ \ \ \ \ \ \ \ \ \ \ kLeft,\ kRight;}
+\DoxyCodeLine{00034\ \ \ \ \ PetscInt\ \mbox{\hyperlink{structvectorBC_a8dad81f18aad60b6561e598a19539f76}{iLeftPatchType}},\ }
+\DoxyCodeLine{00035\ \ \ \ \ \ \ \ \ \ \ \ \ \ iRightPatchType,\ \ }
+\DoxyCodeLine{00036\ \ \ \ \ \ \ \ \ \ \ \ \ \ jLeftPatchType,\ }
+\DoxyCodeLine{00037\ \ \ \ \ \ \ \ \ \ \ \ \ \ jRightPatchType,}
+\DoxyCodeLine{00038\ \ \ \ \ \ \ \ \ \ \ \ \ \ kLeftPatchType,}
+\DoxyCodeLine{00039\ \ \ \ \ \ \ \ \ \ \ \ \ \ kRightPatchType;}
+\DoxyCodeLine{00040\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ iLval,\ \mbox{\hyperlink{structvectorBC_a067b2181530955197c5213494c1c2bfc}{iRval}}\ ,\ \ }
+\DoxyCodeLine{00041\ \ \ \ \ \ \ \ \ \ \ \ \ \ jLval,\ jRval\ ,}
+\DoxyCodeLine{00042\ \ \ \ \ \ \ \ \ \ \ \ \ \ kLval,\ kRval\ ;}
+\DoxyCodeLine{00043\ \ \ \ \ PetscInt\ iLWF\ ,\ \mbox{\hyperlink{structvectorBC_a41658f4399eb3a65431648b0d8c9e16c}{iRWF}}\ \ ,\ \ }
+\DoxyCodeLine{00044\ \ \ \ \ \ \ \ \ \ \ \ \ \ jLWF\ ,\ jRWF\ \ ,}
+\DoxyCodeLine{00045\ \ \ \ \ \ \ \ \ \ \ \ \ \ kLWF\ ,\ kRWF\ \ ;}
+\DoxyCodeLine{00046\ \};}
+\DoxyCodeLine{00047\ }
+\DoxyCodeLine{00049\ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structinflowData}{inflowData}}}
+\DoxyCodeLine{00050\ \{}
+\DoxyCodeLine{00051\ \ \ \ \ PetscReal\ \ \ *\mbox{\hyperlink{structinflowData_a0741c086d98eef497d18c2a72b697418}{inflowTimes}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00052\ \ \ \ \ PetscInt\ \ \ \ \mbox{\hyperlink{structinflowData_af902d70cc6f32c5e90180b4316634d2e}{nInflowTimes}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00053\ \ \ \ \ PetscInt\ \ \ \ \mbox{\hyperlink{structinflowData_a008d725ff8710cdace1b6488e219768b}{currentCloseIdx}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00054\ \};}
+\DoxyCodeLine{00055\ }
+\DoxyCodeLine{00057\ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structinletFunctionTypes}{inletFunctionTypes}}}
+\DoxyCodeLine{00058\ \{}
+\DoxyCodeLine{00059\ \ \ \ \ \textcolor{comment}{//\ type\ of\ inlet\ function}}
+\DoxyCodeLine{00060\ \ \ \ \ PetscInt\ \ \ \ \ \ typeU;}
+\DoxyCodeLine{00061\ \ \ \ \ PetscInt\ \ \ \ \ \ typeT;}
+\DoxyCodeLine{00062\ \ \ \ \ PetscInt\ \ \ \ \ \ typeNut;}
+\DoxyCodeLine{00063\ }
+\DoxyCodeLine{00064\ \ \ \ \ \textcolor{comment}{//\ type\ 1:\ power\ law\ (velocity\ only)}}
+\DoxyCodeLine{00065\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ Uref;}
+\DoxyCodeLine{00066\ \ \ \ \ PetscReal\ \ \ \ \ Href;}
+\DoxyCodeLine{00067\ \ \ \ \ PetscReal\ \ \ \ \ uPrimeRMS;}
+\DoxyCodeLine{00068\ }
+\DoxyCodeLine{00069\ \ \ \ \ \textcolor{comment}{//\ type\ 2/5:\ log\ law/with\ veer\ +\ neutral\ stratification}}
+\DoxyCodeLine{00070\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \mbox{\hyperlink{structinletFunctionTypes_a50b49bd10a1e9b5c553afd0fe7b0b890}{Udir}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00071\ \ \ \ \ PetscReal\ \ \ \ \ \mbox{\hyperlink{structinletFunctionTypes_a09819aefea6b83d9224b10fc15b0bda5}{roughness}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00072\ \ \ \ \ PetscReal\ \ \ \ \ \mbox{\hyperlink{structinletFunctionTypes_aeba243adfafd6337ccbeb2466518b264}{hInv}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00073\ \ \ \ \ PetscReal\ \ \ \ \ \mbox{\hyperlink{structinletFunctionTypes_ae3758ea97f170c4eeb57bb3541d0c363}{uTau}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00074\ \ \ \ \ PetscReal\ \ \ \ \ \mbox{\hyperlink{structinletFunctionTypes_a8822b562d96d34a376f9209d46f3b99a}{dInv}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00075\ \ \ \ \ PetscReal\ \ \ \ \ \mbox{\hyperlink{structinletFunctionTypes_a2f2c4209130c804040e9dfbed2f3ad48}{gInv}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00076\ \ \ \ \ PetscReal\ \ \ \ \ \mbox{\hyperlink{structinletFunctionTypes_acc732a9488b99b45fd919edb894a332e}{tRef}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00077\ \ \ \ \ PetscReal\ \ \ \ \ \mbox{\hyperlink{structinletFunctionTypes_aecf667b71fe7505a9de8668f4f804174}{gTop}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00078\ \ \ \ \ PetscReal\ \ \ \ \ \mbox{\hyperlink{structinletFunctionTypes_a997dca455abfcc0441d9bbd35b42e9c6}{gABL}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00079\ \ \ \ \ PetscReal\ \ \ \ \ \mbox{\hyperlink{structinletFunctionTypes_a405295e6a320db90bfc090b571c933cd}{smear}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00080\ \ \ \ \ PetscReal\ \ \ \ \ \mbox{\hyperlink{structinletFunctionTypes_a0819eb782de2760f6946a5193e620891}{latitude}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00081\ \ \ \ \ PetscReal\ \ \ \ \ \mbox{\hyperlink{structinletFunctionTypes_a9ce05994c45d627718b365ac32b91369}{fc}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00082\ }
+\DoxyCodeLine{00083\ \ \ \ \ \textcolor{comment}{//\ type\ 3/4:\ unsteady\ mapped/interpolated\ inflow\ (mapped\ assumes\ precursor\ and\ successor\ mesh\ are\ equal\ at\ the\ inflow\ location,\ interpolated\ assumes\ only\ periodicity)}}
+\DoxyCodeLine{00084\ \ \ \ \ PetscInt\ \ \ \ \ \ \mbox{\hyperlink{structinletFunctionTypes_a9f31c66a76534b4a905f3136ce37596e}{n1}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00085\ \ \ \ \ PetscInt\ \ \ \ \ \ \mbox{\hyperlink{structinletFunctionTypes_a7896b465f6fd0165155e9fdf7252444d}{n2}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00086\ \ \ \ \ PetscInt\ \ \ \ \ \ \mbox{\hyperlink{structinletFunctionTypes_a14b4a0933e8e1c029749f7546b95a95e}{n1wg}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00087\ \ \ \ \ PetscInt\ \ \ \ \ \ \mbox{\hyperlink{structinletFunctionTypes_afae1661bc87b37edcfba209bf2941b6d}{n2wg}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00088\ \ \ \ \ PetscInt\ \ \ \ \ \ \mbox{\hyperlink{structinletFunctionTypes_ad8e38299050061651ab52c665f8b82c0}{prds1}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00089\ \ \ \ \ PetscInt\ \ \ \ \ \ \mbox{\hyperlink{structinletFunctionTypes_ae6ed92cf431a4a42e2ae117f8efde7b2}{prds2}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00090\ \ \ \ \ PetscInt\ \ \ \ \ \ \mbox{\hyperlink{structinletFunctionTypes_aceccf1a51aa96a07c91b8c6c7aaa4919}{merge1}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00091\ \ \ \ \ PetscInt\ \ \ \ \ \ \mbox{\hyperlink{structinletFunctionTypes_a4922b9a54b17ffdbc07f5d3df616b652}{shift2}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00092\ }
+\DoxyCodeLine{00093\ \ \ \ \ PetscInt\ \ \ \ \ \ \mbox{\hyperlink{structinletFunctionTypes_aae6085875f810580e5146c0f57c7fba5}{mapT}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00094\ \ \ \ \ PetscInt\ \ \ \ \ \ \mbox{\hyperlink{structinletFunctionTypes_ac3aa711aa9f3cd2ea4e7e5572cf8d46e}{mapNut}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00095\ }
+\DoxyCodeLine{00096\ \ \ \ \ PetscReal\ \ \ \ \ ***\mbox{\hyperlink{structinletFunctionTypes_a7fd2c59962696718ef033bc95d78eb5d}{inflowWeights}};\ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00097\ \ \ \ \ \mbox{\hyperlink{structcellIds}{cellIds}}\ \ \ \ \ \ \ ***\mbox{\hyperlink{structinletFunctionTypes_a1410ab9a289670a716efd9be02a557e8}{closestCells}};\ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00098\ \ \ \ \ PetscReal\ \ \ \ \ ***\mbox{\hyperlink{structinletFunctionTypes_a102af40dac5ca3776b74a66374be0cd5}{inflowWeights\_1}};\ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00099\ \ \ \ \ \mbox{\hyperlink{structcellIds}{cellIds}}\ \ \ \ \ \ \ ***\mbox{\hyperlink{structinletFunctionTypes_ac3481f41c84cf533b92e610122a931c0}{closestCells\_1}};\ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00100\ \ \ \ \ PetscReal\ \ \ \ \ ***\mbox{\hyperlink{structinletFunctionTypes_aa405479ce84f051fa06a5fe3f8a734ac}{inflowWeights\_2}};\ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00101\ \ \ \ \ \mbox{\hyperlink{structcellIds}{cellIds}}\ \ \ \ \ \ \ ***\mbox{\hyperlink{structinletFunctionTypes_a39618df9f8d2b8e6e3156efc1de32276}{closestCells\_2}};\ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00102\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structinletFunctionTypes_a05efba2d5198c221f7e9181415c79459}{sourceType}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00103\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structinletFunctionTypes_a17a59e42ec168f3ec75be71f76ee0fc5}{interpMethod}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00104\ \ \ \ \ PetscReal\ \ \ \ \ \mbox{\hyperlink{structinletFunctionTypes_a6968eeee539407f71906a8104c9940e8}{width1}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00105\ \ \ \ \ PetscReal\ \ \ \ \ \mbox{\hyperlink{structinletFunctionTypes_a55024ab8b5929994e4b5148095252d10}{width2}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00106\ \ \ \ \ PetscReal\ \ \ \ \ \mbox{\hyperlink{structinletFunctionTypes_aebb01b9dcf9f9ece041def5d525c9df9}{inflowHeigth}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00107\ }
+\DoxyCodeLine{00108\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ **\mbox{\hyperlink{structinletFunctionTypes_ab689cd6a286c2aebc468286a2e2b57c2}{ucat\_plane}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00109\ \ \ \ \ PetscReal\ \ \ \ \ **\mbox{\hyperlink{structinletFunctionTypes_a237ff64d3012067536ef8a13c44a9868}{t\_plane}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00110\ \ \ \ \ PetscReal\ \ \ \ \ **\mbox{\hyperlink{structinletFunctionTypes_aca72491a1b8808195c4f3ed1a20059b0}{nut\_plane}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00111\ \ \ \ \ \mbox{\hyperlink{structinflowData}{inflowData}}\ \ \ \ \mbox{\hyperlink{structinletFunctionTypes_ab5c766e0d00c0ba44061d49f470d9aca}{inflowU}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00112\ \ \ \ \ \mbox{\hyperlink{structinflowData}{inflowData}}\ \ \ \ \mbox{\hyperlink{structinletFunctionTypes_ae7a9393d8bf9358666afbb60d0940314}{inflowT}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00113\ \ \ \ \ \mbox{\hyperlink{structinflowData}{inflowData}}\ \ \ \ \mbox{\hyperlink{structinletFunctionTypes_a6fbea38c7b5d8fbfc7798537f4776b93}{inflowNut}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00114\ }
+\DoxyCodeLine{00115\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ *\mbox{\hyperlink{structinletFunctionTypes_a2eca91946f9d33df0b1be18338542f1c}{uBarAvgTopX}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00116\ \ \ \ \ PetscReal\ \ \ \ *\mbox{\hyperlink{structinletFunctionTypes_a7676e215fbaec0743bbd69244e733358}{tBarAvgTopX}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00117\ \ \ \ \ PetscReal\ \ \ \ *\mbox{\hyperlink{structinletFunctionTypes_acafeecaddaa55f486f77d731678fa78f}{avgTopPointCoords}};\ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00118\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structinletFunctionTypes_add029bbd383aedbb4dba09b605d60333}{avgTopDelta}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00119\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structinletFunctionTypes_a8c6e3d537dd5a5e021f2a646c4d21faf}{avgTopLength}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00120\ }
+\DoxyCodeLine{00121\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structinletFunctionTypes_ad3ccb4b5935d5604c9129aaa0245a466}{shiftSpeed}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00122\ \ \ \ \ PetscReal\ \ \ \ *\mbox{\hyperlink{structinletFunctionTypes_a4ad180d04965e5ce1aadecc39acb3382}{ycent}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00123\ \ \ \ \ PetscInt\ \ \ \ \ *\mbox{\hyperlink{structinletFunctionTypes_abb3a2843eb440ff8885ce83d1ce78df3}{yIDs}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00124\ \ \ \ \ PetscReal\ \ \ \ *\mbox{\hyperlink{structinletFunctionTypes_adf514a120776c52421867b393443225d}{yWeights}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00125\ \ \ \ \ MPI\_Comm\ \ \ \ \ \mbox{\hyperlink{structinletFunctionTypes_a3a33442b86743f15d675f4cf37b3afdb}{IFFCN\_COMM}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00126\ }
+\DoxyCodeLine{00127\ \ \ \ \ \textcolor{comment}{//\ type\ 6:\ i-\/dir\ sinusoidal\ inflow}}
+\DoxyCodeLine{00128\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structinletFunctionTypes_a32f4f87008df096e6f743ea874580c2b}{amplitude}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00129\ \ \ \ \ PetscReal\ \ \ \ \mbox{\hyperlink{structinletFunctionTypes_a8761a393ade7f1a96b0968761089bc7f}{periods}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00130\ \};}
+\DoxyCodeLine{00131\ }
+\DoxyCodeLine{00133\ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structinletFunctions}{inletFunctions}}}
+\DoxyCodeLine{00134\ \{}
+\DoxyCodeLine{00135\ \ \ \ \ \mbox{\hyperlink{structinletFunctionTypes}{inletFunctionTypes}}\ *iLeft;}
+\DoxyCodeLine{00136\ \ \ \ \ \mbox{\hyperlink{structinletFunctionTypes}{inletFunctionTypes}}\ *iRight;}
+\DoxyCodeLine{00137\ \ \ \ \ \mbox{\hyperlink{structinletFunctionTypes}{inletFunctionTypes}}\ *jLeft;}
+\DoxyCodeLine{00138\ \ \ \ \ \mbox{\hyperlink{structinletFunctionTypes}{inletFunctionTypes}}\ *jRight;}
+\DoxyCodeLine{00139\ \ \ \ \ \mbox{\hyperlink{structinletFunctionTypes}{inletFunctionTypes}}\ *kLeft;}
+\DoxyCodeLine{00140\ \ \ \ \ \mbox{\hyperlink{structinletFunctionTypes}{inletFunctionTypes}}\ *kRight;}
+\DoxyCodeLine{00141\ \};}
+\DoxyCodeLine{00142\ }
+\DoxyCodeLine{00143\ \textcolor{preprocessor}{\#endif}}
+\DoxyCodeLine{00144\ }
+\DoxyCodeLine{00146\ PetscErrorCode\ \mbox{\hyperlink{boundary_8h_ac9d8770d9dfd6158236fdeca5a86cb89}{readScalarBC}}(\textcolor{keyword}{const}\ word\ \&location,\ \textcolor{keyword}{const}\ word\ \&field,\ \mbox{\hyperlink{structscalarBC}{scalarBC}}\ *bc);}
+\DoxyCodeLine{00147\ }
+\DoxyCodeLine{00149\ PetscErrorCode\ \mbox{\hyperlink{boundary_8h_addc260155b46403911c3d2e3dbe083f5}{readVectorBC}}(\textcolor{keyword}{const}\ word\ \&location,\ \textcolor{keyword}{const}\ word\ \&field,\ \mbox{\hyperlink{structvectorBC}{vectorBC}}\ *bc);}
+\DoxyCodeLine{00150\ }
+\DoxyCodeLine{00152\ PetscErrorCode\ \mbox{\hyperlink{boundary_8h_a8107b5649f1c0595bae2a2c1212aae9c}{SetBoundaryConditions}}(\mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh);}
+\DoxyCodeLine{00153\ }
+\DoxyCodeLine{00155\ PetscErrorCode\ \mbox{\hyperlink{boundary_8h_a3321b3464dc5ade5ad53475361ccb4e9}{checkBCsAndSetPatchTypes}}(\mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh);}
+\DoxyCodeLine{00156\ }
+\DoxyCodeLine{00158\ PetscErrorCode\ \mbox{\hyperlink{boundary_8h_aecfd83090107acdddf1ba9b05b8c7c9f}{SetPeriodicConnectivity}}(\mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh,\ word\ \&meshFileName);}
+\DoxyCodeLine{00159\ }
+\DoxyCodeLine{00161\ PetscErrorCode\ \mbox{\hyperlink{boundary_8h_a3c7962a5d7cd59a698ac24d917c1cf68}{SetWallModels}}(\mbox{\hyperlink{structueqn__}{ueqn\_}}\ *ueqn);}
+\DoxyCodeLine{00162\ }
+\DoxyCodeLine{00164\ PetscErrorCode\ \mbox{\hyperlink{boundary_8h_a04756dcef05f0bd88507031b9367c08b}{UpdateContravariantBCs}}(\mbox{\hyperlink{structueqn__}{ueqn\_}}\ *ueqn);}
+\DoxyCodeLine{00165\ }
+\DoxyCodeLine{00167\ PetscErrorCode\ \mbox{\hyperlink{boundary_8h_a08e83c67a1dfad413241aad90351174a}{UpdateCartesianBCs}}(\mbox{\hyperlink{structueqn__}{ueqn\_}}\ *ueqn);}
+\DoxyCodeLine{00168\ }
+\DoxyCodeLine{00170\ PetscErrorCode\ \mbox{\hyperlink{boundary_8h_a3f86ba8875fff062b0a81ae4e75424da}{UpdateTemperatureBCs}}(\mbox{\hyperlink{structteqn__}{teqn\_}}\ *teqn);}
+\DoxyCodeLine{00171\ }
+\DoxyCodeLine{00173\ PetscErrorCode\ \mbox{\hyperlink{boundary_8h_ad8624bc8f52d7c958751cd1837c72cb0}{UpdateNutBCs}}(\mbox{\hyperlink{structles__}{les\_}}\ *les);}
+\DoxyCodeLine{00174\ }
+\DoxyCodeLine{00176\ PetscErrorCode\ \mbox{\hyperlink{boundary_8h_a2753bdaeefd2dae311021fd996108b9a}{UpdatektBCs}}(\mbox{\hyperlink{structles__}{les\_}}\ *les);}
+\DoxyCodeLine{00177\ }
+\DoxyCodeLine{00179\ PetscErrorCode\ \mbox{\hyperlink{boundary_8h_a8c1a969787025ec2a34b8641a56821a3}{UpdatePressureBCs}}(\mbox{\hyperlink{structpeqn__}{peqn\_}}\ *peqn);}
+\DoxyCodeLine{00180\ }
+\DoxyCodeLine{00182\ PetscErrorCode\ \mbox{\hyperlink{boundary_8h_a7add0a6158c8b2a59b1d41ad26177835}{UpdatePhiBCs}}(\mbox{\hyperlink{structpeqn__}{peqn\_}}\ *peqn);}
+\DoxyCodeLine{00183\ }
+\DoxyCodeLine{00185\ PetscErrorCode\ \mbox{\hyperlink{boundary_8h_a717e2848f01d3ee4284e352513b8ca87}{UpdateImmersedBCs}}(\mbox{\hyperlink{structibm__}{ibm\_}}\ *ibm);}
+\DoxyCodeLine{00186\ }
+\DoxyCodeLine{00188\ PetscErrorCode\ \mbox{\hyperlink{boundary_8h_a102b49b0821cde01e5936884c38471cf}{UpdateWallModelsU}}(\mbox{\hyperlink{structueqn__}{ueqn\_}}\ *ueqn);}
+\DoxyCodeLine{00189\ }
+\DoxyCodeLine{00191\ PetscErrorCode\ \mbox{\hyperlink{boundary_8h_a5527b4f8d7021a2e6d6b8ea765f92de9}{UpdateWallModelsT}}(\mbox{\hyperlink{structteqn__}{teqn\_}}\ *teqn);}
+\DoxyCodeLine{00192\ }
+\DoxyCodeLine{00194\ PetscErrorCode\ \mbox{\hyperlink{boundary_8h_adba9f50e2d28559081b729428e0a100d}{readSurfaceTempData}}(\mbox{\hyperlink{structShumann}{Shumann}}\ *wm);}
+
+\end{DoxyCode}

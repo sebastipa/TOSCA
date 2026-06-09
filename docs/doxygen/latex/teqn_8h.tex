@@ -1,0 +1,35 @@
+\doxysection{/zfs60/nobackup/stipa/software/\+TOSCA/src/include/teqn.h File Reference}
+\hypertarget{teqn_8h}{}\label{teqn_8h}\index{/zfs60/nobackup/stipa/software/TOSCA/src/include/teqn.h@{/zfs60/nobackup/stipa/software/TOSCA/src/include/teqn.h}}
+
+
+T equation solution header file.  
+
+
+\doxysubsubsection*{Classes}
+\begin{DoxyCompactItemize}
+\item 
+struct \mbox{\hyperlink{structteqn__}{teqn\+\_\+}}
+\begin{DoxyCompactList}\small\item\em struct storing temperature equation \end{DoxyCompactList}\end{DoxyCompactItemize}
+\doxysubsubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{teqn_8h_ac5c60b468ea82539afc98853f47d0b01}\label{teqn_8h_ac5c60b468ea82539afc98853f47d0b01} 
+Petsc\+Error\+Code {\bfseries Initialize\+TEqn} (\mbox{\hyperlink{structteqn__}{teqn\+\_\+}} \texorpdfstring{$\ast$}{*}teqn)
+\begin{DoxyCompactList}\small\item\em Initializes Teqn environment. \end{DoxyCompactList}\item 
+\Hypertarget{teqn_8h_a7739b85e467cfde1fd5607597fe2c6db}\label{teqn_8h_a7739b85e467cfde1fd5607597fe2c6db} 
+Petsc\+Error\+Code {\bfseries Solve\+TEqn} (\mbox{\hyperlink{structteqn__}{teqn\+\_\+}} \texorpdfstring{$\ast$}{*}teqn)
+\begin{DoxyCompactList}\small\item\em Solve T equation. \end{DoxyCompactList}\item 
+\Hypertarget{teqn_8h_aeabc45c90afc8e23687e0d961058bc2c}\label{teqn_8h_aeabc45c90afc8e23687e0d961058bc2c} 
+Petsc\+Error\+Code {\bfseries gh\+Grad\+RhoK} (\mbox{\hyperlink{structteqn__}{teqn\+\_\+}} \texorpdfstring{$\ast$}{*}teqn)
+\begin{DoxyCompactList}\small\item\em Computes g\texorpdfstring{$\ast$}{*}h times gradient of rho\+\_\+k / rho\+\_\+0. \end{DoxyCompactList}\item 
+\Hypertarget{teqn_8h_aee7755c61b96230824c9f77b7dc2a0bb}\label{teqn_8h_aee7755c61b96230824c9f77b7dc2a0bb} 
+Petsc\+Error\+Code {\bfseries Tmprt\+Predictor} (\mbox{\hyperlink{structteqn__}{teqn\+\_\+}} \texorpdfstring{$\ast$}{*}teqn)
+\begin{DoxyCompactList}\small\item\em Forward-\/\+Euler conv-\/only T predictor\+: T\texorpdfstring{$\ast$}{*} = T\texorpdfstring{$^\wedge$}{\string^}n + dt\texorpdfstring{$\ast$}{*}N(T\texorpdfstring{$^\wedge$}{\string^}n) -\/\texorpdfstring{$>$}{>} l\+Tmprt (for buoyancy in Solve\+UEqn) \end{DoxyCompactList}\item 
+\Hypertarget{teqn_8h_ae41f7792ffdde4fb3035329c68e51536}\label{teqn_8h_ae41f7792ffdde4fb3035329c68e51536} 
+Petsc\+Error\+Code {\bfseries Tmprt\+Restore\+From\+Old} (\mbox{\hyperlink{structteqn__}{teqn\+\_\+}} \texorpdfstring{$\ast$}{*}teqn)
+\begin{DoxyCompactList}\small\item\em Restore Tmprt/l\+Tmprt to T\texorpdfstring{$^\wedge$}{\string^}n from Tmprt\+\_\+o (undo Tmprt\+Predictor before Solve\+TEqn) \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+T equation solution header file. 
+

@@ -1,0 +1,127 @@
+\doxysection{/zfs60/nobackup/stipa/software/\+TOSCA/src/turbines/turbines\+\_\+io.h File Reference}
+\hypertarget{turbines__io_8h}{}\label{turbines__io_8h}\index{/zfs60/nobackup/stipa/software/TOSCA/src/turbines/turbines\_io.h@{/zfs60/nobackup/stipa/software/TOSCA/src/turbines/turbines\_io.h}}
+
+
+Turbine IO routines.  
+
+
+{\ttfamily \#include "{}../include/base.\+h"{}}\newline
+{\ttfamily \#include "{}../include/domain.\+h"{}}\newline
+{\ttfamily \#include "{}../include/inline.\+h"{}}\newline
+{\ttfamily \#include "{}../include/turbines.\+h"{}}\newline
+\doxysubsubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{turbines__io_8h_ac2e05801940e1313c32796887a815ca8}\label{turbines__io_8h_ac2e05801940e1313c32796887a815ca8} 
+Petsc\+Error\+Code {\bfseries wind\+Turbines\+Write} (farm\+\_\+ \texorpdfstring{$\ast$}{*}farm)
+\begin{DoxyCompactList}\small\item\em Write output if applicable. \end{DoxyCompactList}\item 
+\Hypertarget{turbines__io_8h_a63518e35b9dfb74c25ea99e6b5b13705}\label{turbines__io_8h_a63518e35b9dfb74c25ea99e6b5b13705} 
+Petsc\+Error\+Code {\bfseries wind\+Turbines\+Write\+Checkpoint} (farm\+\_\+ \texorpdfstring{$\ast$}{*}farm)
+\begin{DoxyCompactList}\small\item\em Write checkpoint file. \end{DoxyCompactList}\item 
+\Hypertarget{turbines__io_8h_a3e9db925e70e002c6ac524138f20a5b0}\label{turbines__io_8h_a3e9db925e70e002c6ac524138f20a5b0} 
+Petsc\+Error\+Code {\bfseries wind\+Turbines\+Read\+Checkpoint} (farm\+\_\+ \texorpdfstring{$\ast$}{*}farm)
+\begin{DoxyCompactList}\small\item\em Read checkpoint file and prepare wind turbines. \end{DoxyCompactList}\item 
+\Hypertarget{turbines__io_8h_a637189e7a10be1025f90cb9d362c0cfe}\label{turbines__io_8h_a637189e7a10be1025f90cb9d362c0cfe} 
+Petsc\+Error\+Code {\bfseries print\+Farm\+Properties} (farm\+\_\+ \texorpdfstring{$\ast$}{*}farm)
+\begin{DoxyCompactList}\small\item\em Print wind farm information. \end{DoxyCompactList}\item 
+\Hypertarget{turbines__io_8h_a1395cf5fd0b5c6a1ff08085c306e66e3}\label{turbines__io_8h_a1395cf5fd0b5c6a1ff08085c306e66e3} 
+Petsc\+Error\+Code {\bfseries write\+Farm\+ADMesh} (farm\+\_\+ \texorpdfstring{$\ast$}{*}wf)
+\begin{DoxyCompactList}\small\item\em Write the wind farm AD mesh to ucd file. \end{DoxyCompactList}\item 
+\Hypertarget{turbines__io_8h_ae9f2e325c4e6d8ecb89bc159a8c43b1c}\label{turbines__io_8h_ae9f2e325c4e6d8ecb89bc159a8c43b1c} 
+Petsc\+Error\+Code {\bfseries write\+Farm\+ALMesh} (farm\+\_\+ \texorpdfstring{$\ast$}{*}farm)
+\begin{DoxyCompactList}\small\item\em Write the wind farm AL mesh to ucd file. \end{DoxyCompactList}\item 
+\Hypertarget{turbines__io_8h_aa7e42a50644a1a07db9216c4b43446c1}\label{turbines__io_8h_aa7e42a50644a1a07db9216c4b43446c1} 
+Petsc\+Error\+Code {\bfseries write\+Farm\+Twr\+Mesh} (farm\+\_\+ \texorpdfstring{$\ast$}{*}wf)
+\begin{DoxyCompactList}\small\item\em Write the wind farm tower mesh to ucd file. \end{DoxyCompactList}\item 
+\Hypertarget{turbines__io_8h_a5bb1116bb8603565b4e870e324a218ff}\label{turbines__io_8h_a5bb1116bb8603565b4e870e324a218ff} 
+Petsc\+Error\+Code {\bfseries read\+Actuator\+Model\+Parameters} (const word actuator\+Model, wind\+Turbine \texorpdfstring{$\ast$}{*}wt, const word mesh\+Name)
+\begin{DoxyCompactList}\small\item\em Read actuator model parameters and allocate memory. \end{DoxyCompactList}\item 
+\Hypertarget{turbines__io_8h_a760ef4fdb4ae1c19d3b9c115a1db37a9}\label{turbines__io_8h_a760ef4fdb4ae1c19d3b9c115a1db37a9} 
+Petsc\+Error\+Code {\bfseries read\+ADM} (wind\+Turbine \texorpdfstring{$\ast$}{*}wt, const word mesh\+Name)
+\begin{DoxyCompactList}\small\item\em Initializes the ADM reading from files and allocating memory. \end{DoxyCompactList}\item 
+\Hypertarget{turbines__io_8h_a039d4236894219bcbe5261fae5af8fbe}\label{turbines__io_8h_a039d4236894219bcbe5261fae5af8fbe} 
+Petsc\+Error\+Code {\bfseries mesh\+ADM} (wind\+Turbine \texorpdfstring{$\ast$}{*}wt)
+\begin{DoxyCompactList}\small\item\em Creates the ADM mesh. \end{DoxyCompactList}\item 
+\Hypertarget{turbines__io_8h_a98c772dc0c4ddc6dee4fc0b24cea9d5e}\label{turbines__io_8h_a98c772dc0c4ddc6dee4fc0b24cea9d5e} 
+Petsc\+Error\+Code {\bfseries read\+UADM} (wind\+Turbine \texorpdfstring{$\ast$}{*}wt, const word mesh\+Name)
+\begin{DoxyCompactList}\small\item\em Initialize the UADM Model. \end{DoxyCompactList}\item 
+\Hypertarget{turbines__io_8h_a11709a83bbc07dbe5c1f1a9b1caaa145}\label{turbines__io_8h_a11709a83bbc07dbe5c1f1a9b1caaa145} 
+Petsc\+Error\+Code {\bfseries mesh\+UADM} (wind\+Turbine \texorpdfstring{$\ast$}{*}wt)
+\begin{DoxyCompactList}\small\item\em Creates the UADM mesh. \end{DoxyCompactList}\item 
+\Hypertarget{turbines__io_8h_a82f9308cdf2e56afd856dd845ca748df}\label{turbines__io_8h_a82f9308cdf2e56afd856dd845ca748df} 
+Petsc\+Error\+Code {\bfseries read\+ALM} (wind\+Turbine \texorpdfstring{$\ast$}{*}wt, const word mesh\+Name)
+\begin{DoxyCompactList}\small\item\em Initializes the ALM reading from files and allocating memory. \end{DoxyCompactList}\item 
+\Hypertarget{turbines__io_8h_aa7c00f6b486f06bc1acb63fa65a5d3c1}\label{turbines__io_8h_aa7c00f6b486f06bc1acb63fa65a5d3c1} 
+Petsc\+Error\+Code {\bfseries mesh\+ALM} (wind\+Turbine \texorpdfstring{$\ast$}{*}wt)
+\begin{DoxyCompactList}\small\item\em Creates the ALM mesh. \end{DoxyCompactList}\item 
+\Hypertarget{turbines__io_8h_a471fe08eb2b17521fc1620f50221e8af}\label{turbines__io_8h_a471fe08eb2b17521fc1620f50221e8af} 
+Petsc\+Error\+Code {\bfseries read\+AFM} (wind\+Turbine \texorpdfstring{$\ast$}{*}wt, const word mesh\+Name)
+\begin{DoxyCompactList}\small\item\em Initializes the AFM reading from files and allocating memory. \end{DoxyCompactList}\item 
+\Hypertarget{turbines__io_8h_ad8e946d45a1b5255e53104bea6c73202}\label{turbines__io_8h_ad8e946d45a1b5255e53104bea6c73202} 
+Petsc\+Error\+Code {\bfseries mesh\+AFM} (wind\+Turbine \texorpdfstring{$\ast$}{*}wt)
+\begin{DoxyCompactList}\small\item\em Creates the AFM mesh. \end{DoxyCompactList}\item 
+\Hypertarget{turbines__io_8h_ad3ed3135eccd32d20e88878b0cc7432c}\label{turbines__io_8h_ad3ed3135eccd32d20e88878b0cc7432c} 
+Petsc\+Error\+Code {\bfseries init\+Sample\+Points} (wind\+Turbine \texorpdfstring{$\ast$}{*}wt, const word mesh\+Name)
+\begin{DoxyCompactList}\small\item\em Initialize the upstream sample points data structure. \end{DoxyCompactList}\item 
+\Hypertarget{turbines__io_8h_a7377487afce8dcba7e05e3fa92392f25}\label{turbines__io_8h_a7377487afce8dcba7e05e3fa92392f25} 
+Petsc\+Error\+Code {\bfseries init\+Twr\+Model} (wind\+Turbine \texorpdfstring{$\ast$}{*}wt, \mbox{\hyperlink{structCmpnts}{Cmpnts}} \&base)
+\begin{DoxyCompactList}\small\item\em Initializes the tower model. \end{DoxyCompactList}\item 
+\Hypertarget{turbines__io_8h_a94c683c5fb49621a08b051e3d4bdb618}\label{turbines__io_8h_a94c683c5fb49621a08b051e3d4bdb618} 
+Petsc\+Error\+Code {\bfseries init\+Nac\+Model} (wind\+Turbine \texorpdfstring{$\ast$}{*}wt, \mbox{\hyperlink{structCmpnts}{Cmpnts}} \&base)
+\begin{DoxyCompactList}\small\item\em Initializes the nacelle model. \end{DoxyCompactList}\item 
+\Hypertarget{turbines__io_8h_a2e73d89ba91c9555b9dbdbe03d35ce7a}\label{turbines__io_8h_a2e73d89ba91c9555b9dbdbe03d35ce7a} 
+Petsc\+Error\+Code {\bfseries read\+Farm\+Properties} (farm\+\_\+ \texorpdfstring{$\ast$}{*}farm)
+\begin{DoxyCompactList}\small\item\em Read the farm\+\_\+\+Properties file and fill the structs. \end{DoxyCompactList}\item 
+\Hypertarget{turbines__io_8h_a5c1f74aeed3730ca296af57a164590f9}\label{turbines__io_8h_a5c1f74aeed3730ca296af57a164590f9} 
+Petsc\+Error\+Code {\bfseries read\+Turbine\+Array} (farm\+\_\+ \texorpdfstring{$\ast$}{*}wf)
+\begin{DoxyCompactList}\small\item\em Read the wind turbines inside the farm\+\_\+\+Properties file. \end{DoxyCompactList}\item 
+\Hypertarget{turbines__io_8h_a1b7207213c5ab6d2ed368243f54d4a64}\label{turbines__io_8h_a1b7207213c5ab6d2ed368243f54d4a64} 
+Petsc\+Error\+Code {\bfseries read\+Turbine\+Properties} (wind\+Turbine \texorpdfstring{$\ast$}{*}wt, const char \texorpdfstring{$\ast$}{*}dict\+Name, const word mesh\+Name, const word model\+Name, \mbox{\hyperlink{structCmpnts}{Cmpnts}} \&base)
+\begin{DoxyCompactList}\small\item\em Fill the wind\+Turbine struct reading in the file named as the wind turbine type. \end{DoxyCompactList}\item 
+\Hypertarget{turbines__io_8h_a965b357761b1d07e1600a2cf23666431}\label{turbines__io_8h_a965b357761b1d07e1600a2cf23666431} 
+Petsc\+Error\+Code {\bfseries read\+Airfoil\+Properties} (wind\+Turbine \texorpdfstring{$\ast$}{*}wt, const char \texorpdfstring{$\ast$}{*}dict\+Name)
+\begin{DoxyCompactList}\small\item\em Reads the names of the airfoil used in the turbine (given in the airfoils subdict inside the file named as the wind turbine type) \end{DoxyCompactList}\item 
+\Hypertarget{turbines__io_8h_a4af3b60170aa7e2e37575dc8cf5bccb8}\label{turbines__io_8h_a4af3b60170aa7e2e37575dc8cf5bccb8} 
+Petsc\+Error\+Code {\bfseries read\+Blade\+Properties} (wind\+Turbine \texorpdfstring{$\ast$}{*}wt, const char \texorpdfstring{$\ast$}{*}dict\+Name, const Petsc\+Int read\+Thickness)
+\begin{DoxyCompactList}\small\item\em Reads the blades aero properties used in the turbine (given in the blade\+Data subdict inside the file named as the wind turbine type) \end{DoxyCompactList}\item 
+\Hypertarget{turbines__io_8h_ad2ecf70494f6960878cd7bb1b6c3f99c}\label{turbines__io_8h_ad2ecf70494f6960878cd7bb1b6c3f99c} 
+Petsc\+Error\+Code {\bfseries read\+Ct\+Table} (wind\+Turbine \texorpdfstring{$\ast$}{*}wt, const char \texorpdfstring{$\ast$}{*}dict\+Name)
+\begin{DoxyCompactList}\small\item\em Reads the turbine Ct curve used in the turbine (given in the Ct\+Table subdict inside the file named as the wind turbine type) \end{DoxyCompactList}\item 
+\Hypertarget{turbines__io_8h_aafc55056331b6bdeadc1985266c7d5a5}\label{turbines__io_8h_aafc55056331b6bdeadc1985266c7d5a5} 
+Petsc\+Error\+Code {\bfseries read\+Pitch\+Table} (wind\+Turbine \texorpdfstring{$\ast$}{*}wt, const char \texorpdfstring{$\ast$}{*}dict\+Name)
+\begin{DoxyCompactList}\small\item\em Reads the turbine blade pitch curve used in the turbine (given in the pitch\+Table subdict inside the file /turbines/control/blade\+Pitch\+Curve) \end{DoxyCompactList}\item 
+\Hypertarget{turbines__io_8h_a654909baf9d6637187e37bda86a14e10}\label{turbines__io_8h_a654909baf9d6637187e37bda86a14e10} 
+Petsc\+Error\+Code {\bfseries read\+Rpm\+Table} (wind\+Turbine \texorpdfstring{$\ast$}{*}wt, const char \texorpdfstring{$\ast$}{*}dict\+Name)
+\begin{DoxyCompactList}\small\item\em Reads the turbine rpm curve used in the turbine (given in the rpm\+Table subdict inside the file /turbines/control/rotor\+Rpm\+Curve) \end{DoxyCompactList}\item 
+\Hypertarget{turbines__io_8h_a597326fb8f6617e7647c85ab12e07ae7}\label{turbines__io_8h_a597326fb8f6617e7647c85ab12e07ae7} 
+Petsc\+Error\+Code {\bfseries read\+Tower\+Properties} (wind\+Turbine \texorpdfstring{$\ast$}{*}wt, const char \texorpdfstring{$\ast$}{*}dict\+Name)
+\begin{DoxyCompactList}\small\item\em Reads the tower properties used in the turbine (given in the tower\+Data subdict inside the file named as the wind turbine) \end{DoxyCompactList}\item 
+\Hypertarget{turbines__io_8h_a74e7b69e22d55a5e910cf72ef68a4121}\label{turbines__io_8h_a74e7b69e22d55a5e910cf72ef68a4121} 
+Petsc\+Error\+Code {\bfseries read\+Nacelle\+Properties} (wind\+Turbine \texorpdfstring{$\ast$}{*}wt, const char \texorpdfstring{$\ast$}{*}dict\+Name)
+\begin{DoxyCompactList}\small\item\em Reads the nacelle properties used in the turbine (given in the nacelle\+Data subdict inside the file named as the wind turbine) \end{DoxyCompactList}\item 
+\Hypertarget{turbines__io_8h_a4bb4e90d4b48776d8cefac8418edcecb}\label{turbines__io_8h_a4bb4e90d4b48776d8cefac8418edcecb} 
+Petsc\+Error\+Code {\bfseries read\+Airfoil\+Table} (foil\+Info \texorpdfstring{$\ast$}{*}af, const char \texorpdfstring{$\ast$}{*}table\+Name)
+\begin{DoxyCompactList}\small\item\em Reads the 2D airfoil tables given in the file named as the airfoil. \end{DoxyCompactList}\item 
+\Hypertarget{turbines__io_8h_a642de5fc034e14d5297502322c14c089}\label{turbines__io_8h_a642de5fc034e14d5297502322c14c089} 
+Petsc\+Error\+Code {\bfseries read\+Gen\+Controller\+Parameters} (wind\+Turbine \texorpdfstring{$\ast$}{*}wt, const char \texorpdfstring{$\ast$}{*}dict\+Name, const char \texorpdfstring{$\ast$}{*}mesh\+Name)
+\begin{DoxyCompactList}\small\item\em Reads generator torque controller parameters. \end{DoxyCompactList}\item 
+\Hypertarget{turbines__io_8h_a1d68afe95eef2c2e6df045755888ef05}\label{turbines__io_8h_a1d68afe95eef2c2e6df045755888ef05} 
+Petsc\+Error\+Code {\bfseries read\+Pitch\+Controller\+Parameters} (wind\+Turbine \texorpdfstring{$\ast$}{*}wt, const char \texorpdfstring{$\ast$}{*}dict\+Name, const char \texorpdfstring{$\ast$}{*}mesh\+Name)
+\begin{DoxyCompactList}\small\item\em Reads blade pitch controller parameters. \end{DoxyCompactList}\item 
+\Hypertarget{turbines__io_8h_a94e00e0f0b3852a822827c2cb266361b}\label{turbines__io_8h_a94e00e0f0b3852a822827c2cb266361b} 
+Petsc\+Error\+Code {\bfseries read\+Yaw\+Controller\+Parameters} (wind\+Turbine \texorpdfstring{$\ast$}{*}wt, const char \texorpdfstring{$\ast$}{*}dict\+Name, const char \texorpdfstring{$\ast$}{*}mesh\+Name)
+\begin{DoxyCompactList}\small\item\em Reads nacelle yaw controller parameters. \end{DoxyCompactList}\item 
+\Hypertarget{turbines__io_8h_ac1dc3a6f4b8ec97fed5723c333f6cbcf}\label{turbines__io_8h_ac1dc3a6f4b8ec97fed5723c333f6cbcf} 
+Petsc\+Error\+Code {\bfseries read\+Wind\+Farm\+Control\+Table} (wind\+Turbine \texorpdfstring{$\ast$}{*}wt)
+\begin{DoxyCompactList}\small\item\em Read wind farm controller table (1 header and time -\/ value list) \end{DoxyCompactList}\item 
+\Hypertarget{turbines__io_8h_aa730e87183b63c607b1014ff65c260e5}\label{turbines__io_8h_aa730e87183b63c607b1014ff65c260e5} 
+Petsc\+Error\+Code {\bfseries read\+Dipc\+Controller\+Parameters} (wind\+Turbine \texorpdfstring{$\ast$}{*}wt, const char \texorpdfstring{$\ast$}{*}dict\+Name, const char \texorpdfstring{$\ast$}{*}mesh\+Name)
+\begin{DoxyCompactList}\small\item\em Read discrete induction controller parameters. \end{DoxyCompactList}\item 
+\Hypertarget{turbines__io_8h_aebc447ac913b72dc8c09e145ed8525b0}\label{turbines__io_8h_aebc447ac913b72dc8c09e145ed8525b0} 
+Petsc\+Error\+Code {\bfseries check\+Turbine\+Mesh} (farm\+\_\+ \texorpdfstring{$\ast$}{*}farm)
+\begin{DoxyCompactList}\small\item\em Check that the mesh is resolved around the turbine. \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Turbine IO routines. 
+

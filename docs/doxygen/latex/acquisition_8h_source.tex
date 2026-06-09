@@ -1,0 +1,159 @@
+\doxysection{acquisition.\+h}
+\hypertarget{acquisition_8h_source}{}\label{acquisition_8h_source}\index{/zfs60/nobackup/stipa/software/TOSCA/src/include/acquisition.h@{/zfs60/nobackup/stipa/software/TOSCA/src/include/acquisition.h}}
+\mbox{\hyperlink{acquisition_8h}{Go to the documentation of this file.}}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ }
+\DoxyCodeLine{00003\ }
+\DoxyCodeLine{00004\ \textcolor{preprocessor}{\#ifndef\ \_ACQUISITION\_H\_}}
+\DoxyCodeLine{00005\ \textcolor{preprocessor}{\#define\ \_ACQUISITION\_H\_}}
+\DoxyCodeLine{00006\ }
+\DoxyCodeLine{00007\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{averageAcquisition_8h}{acquisition/averageAcquisition.h}}"{}}}
+\DoxyCodeLine{00008\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{probesAcquisition_8h}{acquisition/probesAcquisition.h}}"{}}}
+\DoxyCodeLine{00009\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{sectionsAcquisition_8h}{acquisition/sectionsAcquisition.h}}"{}}}
+\DoxyCodeLine{00010\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{ablAcquisition_8h}{acquisition/ablAcquisition.h}}"{}}}
+\DoxyCodeLine{00011\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{keAcquisition_8h}{acquisition/keAcquisition.h}}"{}}}
+\DoxyCodeLine{00012\ \textcolor{preprocessor}{\#include\ "{}\mbox{\hyperlink{perturbAcquisition_8h}{acquisition/perturbAcquisition.h}}"{}}}
+\DoxyCodeLine{00013\ }
+\DoxyCodeLine{00015\ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structacquisition__}{acquisition\_}}}
+\DoxyCodeLine{00016\ \{}
+\DoxyCodeLine{00017\ \ \ \ \ \mbox{\hyperlink{structrakes}{rakes}}\ \ \ \ \ \ \ \ \ *\mbox{\hyperlink{structacquisition___a70a36129b2e6e69ed96883e833f37341}{probes}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00018\ \ \ \ \ \mbox{\hyperlink{structavgFields}{avgFields}}\ \ \ \ \ *\mbox{\hyperlink{structacquisition___aaa78b7df02024a49d4afd6b9ac6ce64b}{fields}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00019\ \ \ \ \ \mbox{\hyperlink{structkeFields}{keFields}}\ \ \ \ \ \ *\mbox{\hyperlink{structacquisition___a33c93d4f37cbceaee67e8be06574483d}{keBudFields}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00020\ \ \ \ \ \mbox{\hyperlink{structsections}{sections}}\ \ \ \ \ \ *\mbox{\hyperlink{structacquisition___ace99f663fa9266c5da4ce1451ecfd726}{kSections}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00021\ \ \ \ \ \mbox{\hyperlink{structsections}{sections}}\ \ \ \ \ \ *\mbox{\hyperlink{structacquisition___ab40bd4482b26234289a4b733e29a2772}{jSections}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00022\ \ \ \ \ \mbox{\hyperlink{structsections}{sections}}\ \ \ \ \ \ *\mbox{\hyperlink{structacquisition___ada2712685aecf6d38c086883e8cac04b}{iSections}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00023\ \ \ \ \ \mbox{\hyperlink{structudSections}{udSections}}\ \ \ \ *\mbox{\hyperlink{structacquisition___a90b8a12222867045a9802d3fc26f7b09}{userSections}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00024\ \ \ \ \ \mbox{\hyperlink{structdataABL}{dataABL}}\ \ \ \ \ \ \ *\mbox{\hyperlink{structacquisition___ad6c5866fc129abe6e5fd3f200710f9d8}{statisticsABL}};\ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00025\ \ \ \ \ \mbox{\hyperlink{structdata3LM}{data3LM}}\ \ \ \ \ \ \ *\mbox{\hyperlink{structacquisition___a4fde9b532fb7cda67e13cc99279d2603}{LM3}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00026\ \ \ \ \ \mbox{\hyperlink{structperturbFields}{perturbFields}}\ *\mbox{\hyperlink{structacquisition___a0cb6567bbaa698a4e92387fc855eb6d6}{perturbABL}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00027\ }
+\DoxyCodeLine{00028\ \ \ \ \ \textcolor{comment}{//\ acquisition\ flags}}
+\DoxyCodeLine{00029\ \ \ \ \ PetscInt\ \ \ \ \ \ isProbesActive;}
+\DoxyCodeLine{00030\ \ \ \ \ PetscInt\ \ \ \ \ \ isSectionsActive;}
+\DoxyCodeLine{00031\ \ \ \ \ PetscInt\ \ \ \ \ \ isAverageABLActive;}
+\DoxyCodeLine{00032\ \ \ \ \ PetscInt\ \ \ \ \ \ isAverage3LMActive;}
+\DoxyCodeLine{00033\ \ \ \ \ PetscInt\ \ \ \ \ \ isPerturbABLActive;}
+\DoxyCodeLine{00034\ }
+\DoxyCodeLine{00035\ \ \ \ \ \mbox{\hyperlink{structaccess__}{access\_}}\ \ \ \ \ \ \ *\mbox{\hyperlink{structacquisition___ac5288b703f4672d800a861f45ccd7034}{access}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00036\ \};}
+\DoxyCodeLine{00037\ }
+\DoxyCodeLine{00038\ \textcolor{preprocessor}{\#endif}}
+\DoxyCodeLine{00039\ }
+\DoxyCodeLine{00040\ \textcolor{comment}{//\ GLOBAL\ ACQUISITION}}
+\DoxyCodeLine{00041\ \textcolor{comment}{//\ =============================================================================================================\ //}}
+\DoxyCodeLine{00042\ }
+\DoxyCodeLine{00044\ PetscErrorCode\ \mbox{\hyperlink{acquisition_8h_aa2f12b980e9851b7b16b67e3431e8dc8}{InitializeAcquisition}}(\mbox{\hyperlink{structdomain__}{domain\_}}\ *domain);}
+\DoxyCodeLine{00045\ }
+\DoxyCodeLine{00047\ PetscErrorCode\ \mbox{\hyperlink{acquisition_8h_a9dd8032dbb4c0b84765ed04e90f714c1}{InitializeAcquisitionPrecursor}}(\mbox{\hyperlink{structdomain__}{domain\_}}\ *domain);}
+\DoxyCodeLine{00048\ }
+\DoxyCodeLine{00050\ PetscErrorCode\ \mbox{\hyperlink{acquisition_8h_a29596ec0b3e883f5b468c9da0c5a6fc9}{WriteAcquisition}}(\mbox{\hyperlink{structdomain__}{domain\_}}\ *domain);}
+\DoxyCodeLine{00051\ }
+\DoxyCodeLine{00052\ \textcolor{comment}{//\ PROBES\ ACQUISITION}}
+\DoxyCodeLine{00053\ \textcolor{comment}{//\ =============================================================================================================\ //}}
+\DoxyCodeLine{00054\ }
+\DoxyCodeLine{00056\ PetscErrorCode\ \mbox{\hyperlink{acquisition_8h_a17fa9b0747f23a44bcda3298f4878029}{ProbesInitialize}}(\mbox{\hyperlink{structdomain__}{domain\_}}\ *domain,\ PetscInt\ postProcessing=0);}
+\DoxyCodeLine{00057\ }
+\DoxyCodeLine{00059\ PetscErrorCode\ \mbox{\hyperlink{acquisition_8h_a49178fb083cf72ee1b6a48e5e4945630}{InitRakeFile}}(\mbox{\hyperlink{structprobeRake}{probeRake}}\ *rake,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}\ *fieldName);}
+\DoxyCodeLine{00060\ }
+\DoxyCodeLine{00062\ PetscErrorCode\ \mbox{\hyperlink{acquisition_8h_a443d88ca035f2857665b9a4e93c261fd}{writeProbes}}(\mbox{\hyperlink{structdomain__}{domain\_}}\ *domain);}
+\DoxyCodeLine{00063\ }
+\DoxyCodeLine{00064\ \textcolor{comment}{//\ SECTIONS\ ACQUISITION}}
+\DoxyCodeLine{00065\ \textcolor{comment}{//\ =============================================================================================================\ //}}
+\DoxyCodeLine{00066\ }
+\DoxyCodeLine{00068\ PetscErrorCode\ \mbox{\hyperlink{acquisition_8h_a5cd8f27f6d845cf27497ddfd33437987}{sectionsInitialize}}(\mbox{\hyperlink{structacquisition__}{acquisition\_}}\ *acquisition);}
+\DoxyCodeLine{00069\ }
+\DoxyCodeLine{00071\ PetscErrorCode\ \mbox{\hyperlink{acquisition_8h_a9f6272da692cc05daccd617647fdf1de}{writeSections}}(\mbox{\hyperlink{structacquisition__}{acquisition\_}}\ *acquisition);}
+\DoxyCodeLine{00072\ }
+\DoxyCodeLine{00074\ PetscErrorCode\ \mbox{\hyperlink{acquisition_8h_a7f7adb945ca99ac6193f4545cf433faa}{iSectionSaveVector}}(\mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh,\ \mbox{\hyperlink{structsections}{sections}}\ *sec,\ PetscInt\ iplane,\ Vec\ \&V,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}*\ fieldName);}
+\DoxyCodeLine{00075\ }
+\DoxyCodeLine{00077\ PetscErrorCode\ \mbox{\hyperlink{acquisition_8h_a2b8ce43a178c145225191c5983d13d62}{jSectionSaveVector}}(\mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh,\ \mbox{\hyperlink{structsections}{sections}}\ *sec,\ PetscInt\ jplane,\ Vec\ \&V,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}*\ fieldName);}
+\DoxyCodeLine{00078\ }
+\DoxyCodeLine{00080\ PetscErrorCode\ \mbox{\hyperlink{acquisition_8h_ac2fb6e54541435cb8b87de0b7d13736c}{kSectionSaveVector}}(\mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh,\ \mbox{\hyperlink{structsections}{sections}}\ *sec,\ PetscInt\ kplane,\ Vec\ \&V,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}*\ fieldName);}
+\DoxyCodeLine{00081\ }
+\DoxyCodeLine{00083\ PetscErrorCode\ \mbox{\hyperlink{acquisition_8h_a44ced709e9ce71e65fe801303515e3db}{userSectionSaveVector}}(\mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh,\ \mbox{\hyperlink{structuSections}{uSections}}\ *uSection,\ Vec\ \&V,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}*\ fieldName);}
+\DoxyCodeLine{00084\ }
+\DoxyCodeLine{00086\ PetscErrorCode\ \mbox{\hyperlink{acquisition_8h_a19d1984954e8f0c5eebff9ddbc42132d}{iSectionSaveScalar}}(\mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh,\ \mbox{\hyperlink{structsections}{sections}}\ *sec,\ PetscInt\ iplane,\ Vec\ \&V,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}*\ fieldName);}
+\DoxyCodeLine{00087\ }
+\DoxyCodeLine{00089\ PetscErrorCode\ \mbox{\hyperlink{acquisition_8h_ace36e53e6bbb23e824d79687c8e86197}{jSectionSaveScalar}}(\mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh,\ \mbox{\hyperlink{structsections}{sections}}\ *sec,\ PetscInt\ jplane,\ Vec\ \&V,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}*\ fieldName);}
+\DoxyCodeLine{00090\ }
+\DoxyCodeLine{00092\ PetscErrorCode\ \mbox{\hyperlink{acquisition_8h_a75064ac59494bfe3dd43a41bf0e08bad}{kSectionSaveScalar}}(\mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh,\ \mbox{\hyperlink{structsections}{sections}}\ *sec,\ PetscInt\ kplane,\ Vec\ \&V,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}*\ fieldName);}
+\DoxyCodeLine{00093\ }
+\DoxyCodeLine{00094\ PetscErrorCode\ userSectionSaveScalar(\mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh,\ \mbox{\hyperlink{structuSections}{uSections}}\ *uSection,\ Vec\ \&V,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{char}*\ fieldName);}
+\DoxyCodeLine{00095\ }
+\DoxyCodeLine{00096\ \textcolor{comment}{//\ FIELDS\ AVERAGES\ ACQUISITION}}
+\DoxyCodeLine{00097\ \textcolor{comment}{//\ =============================================================================================================\ //}}
+\DoxyCodeLine{00098\ }
+\DoxyCodeLine{00100\ PetscErrorCode\ \mbox{\hyperlink{acquisition_8h_a9c4b85d8d544d0ab775023c06ed46a6a}{averageFieldsInitialize}}(\mbox{\hyperlink{structacquisition__}{acquisition\_}}\ *acquisition);}
+\DoxyCodeLine{00101\ }
+\DoxyCodeLine{00103\ PetscErrorCode\ \mbox{\hyperlink{acquisition_8h_af1609d0f861e9b03292a2b76eb210bff}{averageFields}}(\mbox{\hyperlink{structacquisition__}{acquisition\_}}\ *acquisition);}
+\DoxyCodeLine{00104\ }
+\DoxyCodeLine{00106\ PetscErrorCode\ \mbox{\hyperlink{acquisition_8h_ad70fb1290d0295cd8c42d2156bd735e7}{computeQCritIO}}(\mbox{\hyperlink{structacquisition__}{acquisition\_}}\ *acquisition);}
+\DoxyCodeLine{00107\ }
+\DoxyCodeLine{00108\ \textcolor{comment}{//\ Five\ invariants\ of\ VGT\ Qg,\ Rg,\ Qs,\ Rs,\ Qr}}
+\DoxyCodeLine{00110\ PetscErrorCode\ \mbox{\hyperlink{acquisition_8h_ab35a5d71b9954767ff4aa8492a63803e}{computeVgtSecondInvariantIO}}(\mbox{\hyperlink{structacquisition__}{acquisition\_}}\ *acquisition);}
+\DoxyCodeLine{00111\ }
+\DoxyCodeLine{00113\ PetscErrorCode\ \mbox{\hyperlink{acquisition_8h_ad6b07778ddfe616223442ba0501cffbb}{computeVgtThirdInvariantIO}}(\mbox{\hyperlink{structacquisition__}{acquisition\_}}\ *acquisition);}
+\DoxyCodeLine{00114\ }
+\DoxyCodeLine{00116\ PetscErrorCode\ \mbox{\hyperlink{acquisition_8h_a6dff53af16e973620557881a4f795f98}{computeStrainRateSecondInvariantIO}}(\mbox{\hyperlink{structacquisition__}{acquisition\_}}\ *acquisition);}
+\DoxyCodeLine{00117\ }
+\DoxyCodeLine{00119\ PetscErrorCode\ \mbox{\hyperlink{acquisition_8h_a20a80d3e2333db1041e777f295f9a962}{computeStrainRateThirdInvariantIO}}(\mbox{\hyperlink{structacquisition__}{acquisition\_}}\ *acquisition);}
+\DoxyCodeLine{00120\ }
+\DoxyCodeLine{00122\ PetscErrorCode\ \mbox{\hyperlink{acquisition_8h_a8579646e026f0d63b0462df38cce7849}{computeQrIO}}(\mbox{\hyperlink{structacquisition__}{acquisition\_}}\ *acquisition);}
+\DoxyCodeLine{00123\ }
+\DoxyCodeLine{00125\ PetscErrorCode\ \mbox{\hyperlink{acquisition_8h_a4d218251ed79aa029be28045431edd47}{computeCoriolisIO}}(\mbox{\hyperlink{structacquisition__}{acquisition\_}}\ *acquisition);}
+\DoxyCodeLine{00126\ }
+\DoxyCodeLine{00128\ PetscErrorCode\ \mbox{\hyperlink{acquisition_8h_a81c13b493ebba5c0122e0aa1ad2f76e2}{computeDrivingSourceIO}}(\mbox{\hyperlink{structacquisition__}{acquisition\_}}\ *acquisition);}
+\DoxyCodeLine{00129\ }
+\DoxyCodeLine{00131\ PetscErrorCode\ \mbox{\hyperlink{acquisition_8h_ac3331f906452e7079651f9b5cb718b13}{computeXDampingIO}}(\mbox{\hyperlink{structacquisition__}{acquisition\_}}\ *acquisition);}
+\DoxyCodeLine{00132\ }
+\DoxyCodeLine{00134\ PetscErrorCode\ \mbox{\hyperlink{acquisition_8h_ae58fff0d801ac511d88c7842ab1d9f13}{computeCanopyForceIO}}(\mbox{\hyperlink{structacquisition__}{acquisition\_}}\ *acquisition);}
+\DoxyCodeLine{00135\ }
+\DoxyCodeLine{00137\ PetscErrorCode\ \mbox{\hyperlink{acquisition_8h_acb52ef52f49dfafd5054688d5a30d298}{computeVelocityDivergence}}(\mbox{\hyperlink{structacquisition__}{acquisition\_}}\ *acquisition);}
+\DoxyCodeLine{00138\ }
+\DoxyCodeLine{00139\ \textcolor{comment}{//\ MKE\ BUDGETS\ ACQUISITION}}
+\DoxyCodeLine{00140\ \textcolor{comment}{//\ =============================================================================================================\ //}}
+\DoxyCodeLine{00141\ }
+\DoxyCodeLine{00143\ PetscErrorCode\ \mbox{\hyperlink{acquisition_8h_aa8cf6ae86918befbb855d560f588e82e}{averageKEBudgetsInitialize}}(\mbox{\hyperlink{structacquisition__}{acquisition\_}}\ *acquisition);}
+\DoxyCodeLine{00144\ }
+\DoxyCodeLine{00146\ PetscErrorCode\ \mbox{\hyperlink{acquisition_8h_a91263a1ae1e35445bf58a52ded8148fb}{readKeBoxArray}}(\mbox{\hyperlink{structkeFields}{keFields}}\ *ke);}
+\DoxyCodeLine{00147\ }
+\DoxyCodeLine{00149\ PetscErrorCode\ \mbox{\hyperlink{acquisition_8h_acd02c40d09da28818552278198fadf56}{setKeBoundsAndComms}}(\mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh,\ \mbox{\hyperlink{structkeFields}{keFields}}\ *ke);}
+\DoxyCodeLine{00150\ }
+\DoxyCodeLine{00152\ PetscErrorCode\ \mbox{\hyperlink{acquisition_8h_a0172b61753d6c7748cf1419e9bec15be}{boxCumulateKEBudgets}}(\mbox{\hyperlink{structacquisition__}{acquisition\_}}\ *acquisition);}
+\DoxyCodeLine{00153\ }
+\DoxyCodeLine{00155\ PetscErrorCode\ \mbox{\hyperlink{acquisition_8h_a436c3f2bd5f2ea810fd077a4f3a237ab}{averageKEBudgets}}(\mbox{\hyperlink{structacquisition__}{acquisition\_}}\ *acquisition);}
+\DoxyCodeLine{00156\ }
+\DoxyCodeLine{00158\ PetscErrorCode\ \mbox{\hyperlink{acquisition_8h_ae02373b441e6bfa89628f1235cc6a3da}{averageKEBudgetsCat}}(\mbox{\hyperlink{structacquisition__}{acquisition\_}}\ *acquisition);}
+\DoxyCodeLine{00159\ }
+\DoxyCodeLine{00161\ PetscErrorCode\ \mbox{\hyperlink{acquisition_8h_afadf3be10e557e575a6f61eae686f9f0}{averageKEBudgetsCont}}(\mbox{\hyperlink{structacquisition__}{acquisition\_}}\ *acquisition);}
+\DoxyCodeLine{00162\ }
+\DoxyCodeLine{00163\ \textcolor{comment}{//\ 3LM\ ACQUISITION}}
+\DoxyCodeLine{00164\ \textcolor{comment}{//\ =============================================================================================================\ //}}
+\DoxyCodeLine{00165\ }
+\DoxyCodeLine{00167\ PetscErrorCode\ \mbox{\hyperlink{acquisition_8h_accc174c4786680d5a09079d3bc44048d}{averaging3LMInitialize}}(\mbox{\hyperlink{structdomain__}{domain\_}}\ *domain);}
+\DoxyCodeLine{00168\ }
+\DoxyCodeLine{00170\ PetscErrorCode\ \mbox{\hyperlink{acquisition_8h_a1ae264dbb2d37aa89db2a8c1daa14b2a}{writeAveraging3LM}}(\mbox{\hyperlink{structdomain__}{domain\_}}\ *domain);}
+\DoxyCodeLine{00171\ }
+\DoxyCodeLine{00173\ PetscErrorCode\ \mbox{\hyperlink{acquisition_8h_a0719e3c30a62f29dcc74de907e6f2355}{write3LMPoints}}(\mbox{\hyperlink{structacquisition__}{acquisition\_}}\ *acquisition);}
+\DoxyCodeLine{00174\ }
+\DoxyCodeLine{00176\ PetscErrorCode\ \mbox{\hyperlink{acquisition_8h_a444f9ab736492e28cfe1e3574ca46565}{write3LMFields}}(\mbox{\hyperlink{structacquisition__}{acquisition\_}}\ *acquisition);}
+\DoxyCodeLine{00177\ }
+\DoxyCodeLine{00179\ PetscErrorCode\ \mbox{\hyperlink{acquisition_8h_a326fe9711b1a9e4492a3ef987fb1b353}{findAvgLineIds}}(\mbox{\hyperlink{structacquisition__}{acquisition\_}}\ *acquisition);}
+\DoxyCodeLine{00180\ }
+\DoxyCodeLine{00182\ PetscErrorCode\ \mbox{\hyperlink{acquisition_8h_a00c464783e9635019173be9dd467b84c}{read3LMFields}}(\mbox{\hyperlink{structacquisition__}{acquisition\_}}\ *acquisition);}
+\DoxyCodeLine{00183\ }
+\DoxyCodeLine{00184\ \textcolor{comment}{//\ ABL\ PERTURBATION\ ACQUISITION}}
+\DoxyCodeLine{00185\ \textcolor{comment}{//\ =============================================================================================================\ //}}
+\DoxyCodeLine{00186\ }
+\DoxyCodeLine{00188\ PetscErrorCode\ \mbox{\hyperlink{acquisition_8h_acd62ba8f4bba5afd7a13b0cf9fee1f6b}{perturbationABLInitialize}}(\mbox{\hyperlink{structacquisition__}{acquisition\_}}\ *acquisition);}
+\DoxyCodeLine{00189\ }
+\DoxyCodeLine{00191\ PetscErrorCode\ \mbox{\hyperlink{acquisition_8h_adbc208ab680704fc45def4eba8420fe9}{averagePerturbationABL}}(\mbox{\hyperlink{structacquisition__}{acquisition\_}}\ *acquisition);}
+\DoxyCodeLine{00192\ }
+\DoxyCodeLine{00193\ \textcolor{comment}{//\ ABL\ PLANAR\ AVERAGING\ ACQUISITION}}
+\DoxyCodeLine{00194\ \textcolor{comment}{//\ =============================================================================================================\ //}}
+\DoxyCodeLine{00195\ }
+\DoxyCodeLine{00197\ PetscErrorCode\ \mbox{\hyperlink{acquisition_8h_a5b2adbb876893fb6257bf612b9d690e8}{averagingABLInitialize}}(\mbox{\hyperlink{structdomain__}{domain\_}}\ *domain);}
+\DoxyCodeLine{00198\ }
+\DoxyCodeLine{00200\ PetscErrorCode\ \mbox{\hyperlink{acquisition_8h_ae74d4f1acfed798435103a6921a05dcd}{writeAveragingABL}}(\mbox{\hyperlink{structdomain__}{domain\_}}\ *domain);}
+
+\end{DoxyCode}

@@ -1,0 +1,49 @@
+\doxysection{/zfs60/nobackup/stipa/software/\+TOSCA/src/turbines/turbines\+\_\+parallel.h File Reference}
+\hypertarget{turbines__parallel_8h}{}\label{turbines__parallel_8h}\index{/zfs60/nobackup/stipa/software/TOSCA/src/turbines/turbines\_parallel.h@{/zfs60/nobackup/stipa/software/TOSCA/src/turbines/turbines\_parallel.h}}
+
+
+Turbine parallel computation routines.  
+
+
+{\ttfamily \#include "{}../include/base.\+h"{}}\newline
+{\ttfamily \#include "{}../include/domain.\+h"{}}\newline
+{\ttfamily \#include "{}../include/inline.\+h"{}}\newline
+{\ttfamily \#include "{}../include/turbines.\+h"{}}\newline
+\doxysubsubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{turbines__parallel_8h_aa1ff8e3030c14442c0babf933a0d49f5}\label{turbines__parallel_8h_aa1ff8e3030c14442c0babf933a0d49f5} 
+Petsc\+Error\+Code {\bfseries init\+Controlled\+Cells} (farm\+\_\+ \texorpdfstring{$\ast$}{*}farm)
+\begin{DoxyCompactList}\small\item\em Initialize sphere cells and see what proc controls which turbine. \end{DoxyCompactList}\item 
+\Hypertarget{turbines__parallel_8h_a1482d8d41dc814c7222b5fddb3a6dde6}\label{turbines__parallel_8h_a1482d8d41dc814c7222b5fddb3a6dde6} 
+Petsc\+Error\+Code {\bfseries init\+Sample\+Controlled\+Cells} (farm\+\_\+ \texorpdfstring{$\ast$}{*}farm)
+\begin{DoxyCompactList}\small\item\em Initialize sphere cells and see what proc controls which sample point. \end{DoxyCompactList}\item 
+\Hypertarget{turbines__parallel_8h_afbcd4a6d04cf0e52044a5e003f1f665e}\label{turbines__parallel_8h_afbcd4a6d04cf0e52044a5e003f1f665e} 
+Petsc\+Error\+Code {\bfseries find\+Controlled\+Points\+Rotor} (farm\+\_\+ \texorpdfstring{$\ast$}{*}farm)
+\begin{DoxyCompactList}\small\item\em Discrimination algorithm\+: find out which points of each rotor are controlled by this processor. \end{DoxyCompactList}\item 
+\Hypertarget{turbines__parallel_8h_a36d824c70d196cd4eb2ebd8979e8745b}\label{turbines__parallel_8h_a36d824c70d196cd4eb2ebd8979e8745b} 
+Petsc\+Error\+Code {\bfseries find\+Controlled\+Points\+Tower} (farm\+\_\+ \texorpdfstring{$\ast$}{*}farm)
+\begin{DoxyCompactList}\small\item\em Discrimination algorithm\+: find out which points of each tower are controlled by this processor. \end{DoxyCompactList}\item 
+\Hypertarget{turbines__parallel_8h_a4a32e68ad41978580762469fd0d67b00}\label{turbines__parallel_8h_a4a32e68ad41978580762469fd0d67b00} 
+Petsc\+Error\+Code {\bfseries find\+Controlled\+Points\+Nacelle} (farm\+\_\+ \texorpdfstring{$\ast$}{*}farm)
+\begin{DoxyCompactList}\small\item\em Discrimination algorithm\+: find out which points of each nacelle are controlled by this processor. \end{DoxyCompactList}\item 
+\Hypertarget{turbines__parallel_8h_aae14e83a1e72bd7d59f07a1fc183cfd8}\label{turbines__parallel_8h_aae14e83a1e72bd7d59f07a1fc183cfd8} 
+Petsc\+Error\+Code {\bfseries find\+Controlled\+Points\+Sample} (farm\+\_\+ \texorpdfstring{$\ast$}{*}farm)
+\begin{DoxyCompactList}\small\item\em Discrimination algorithm\+: find out which points of each sample rig are controlled by this processor. \end{DoxyCompactList}\item 
+\Hypertarget{turbines__parallel_8h_aedcdfd78d0338e85314a9912111f0b92}\label{turbines__parallel_8h_aedcdfd78d0338e85314a9912111f0b92} 
+Petsc\+Error\+Code {\bfseries check\+Point\+Discrimination\+Rotor} (farm\+\_\+ \texorpdfstring{$\ast$}{*}farm)
+\begin{DoxyCompactList}\small\item\em Debug check for the discrimination algorithm on the rotor. \end{DoxyCompactList}\item 
+\Hypertarget{turbines__parallel_8h_a4b6b6c3fa1f1ce08e5ca32f46e20085c}\label{turbines__parallel_8h_a4b6b6c3fa1f1ce08e5ca32f46e20085c} 
+Petsc\+Error\+Code {\bfseries check\+Point\+Discrimination\+Tower} (farm\+\_\+ \texorpdfstring{$\ast$}{*}farm)
+\begin{DoxyCompactList}\small\item\em Debug check for the discrimination algorithm on the tower. \end{DoxyCompactList}\item 
+\Hypertarget{turbines__parallel_8h_a62bb38b315d91569b1c1553aa70b6195}\label{turbines__parallel_8h_a62bb38b315d91569b1c1553aa70b6195} 
+Petsc\+Error\+Code {\bfseries check\+Point\+Discrimination\+Nacelle} (farm\+\_\+ \texorpdfstring{$\ast$}{*}farm)
+\begin{DoxyCompactList}\small\item\em Debug check for the discrimination algorithm on the nacelle. \end{DoxyCompactList}\item 
+\Hypertarget{turbines__parallel_8h_ae1d821bd77f36ff9d0748f6456d73778}\label{turbines__parallel_8h_ae1d821bd77f36ff9d0748f6456d73778} 
+Petsc\+Error\+Code {\bfseries check\+Point\+Discrimination\+Sample} (farm\+\_\+ \texorpdfstring{$\ast$}{*}farm)
+\begin{DoxyCompactList}\small\item\em Debug check for the discrimination algorithm on sample points. \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Turbine parallel computation routines. 
+

@@ -1,0 +1,87 @@
+\doxysection{overset\+\_\+ Struct Reference}
+\hypertarget{structoverset__}{}\label{structoverset__}\index{overset\_@{overset\_}}
+
+
+Main overset structure. ~\newline
+ This structure holds the parameters, connectivity, and interpolation data for both the overset (child) mesh and the base (background) mesh update.  
+
+
+
+
+{\ttfamily \#include $<$overset.\+h$>$}
+
+\doxysubsubsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{structoverset___a2fdb73fb6008e358fee285cf457a43e6}\label{structoverset___a2fdb73fb6008e358fee285cf457a43e6} 
+label\+List {\bfseries parent\+Mesh\+Id}
+\begin{DoxyCompactList}\small\item\em List of parent (background) domains. \end{DoxyCompactList}\item 
+\Hypertarget{structoverset___ae1fa78568c7d5db456552a664606ad0c}\label{structoverset___ae1fa78568c7d5db456552a664606ad0c} 
+label\+List {\bfseries child\+Mesh\+Id}
+\begin{DoxyCompactList}\small\item\em List of attached overset (child) domains. \end{DoxyCompactList}\item 
+\Hypertarget{structoverset___a7ec3ede91baefa23485505f800a6243b}\label{structoverset___a7ec3ede91baefa23485505f800a6243b} 
+word {\bfseries interpolation\+Type}
+\begin{DoxyCompactList}\small\item\em Interpolation method ("{}trilinear"{}, "{}inverse\+Dist"{}, "{}\+LS1"{}, etc.) \end{DoxyCompactList}\item 
+\Hypertarget{structoverset___ade3e2342b4cf0b3aa02cbcf7c806a6b3}\label{structoverset___ade3e2342b4cf0b3aa02cbcf7c806a6b3} 
+Petsc\+Int {\bfseries dynamic\+Overset}
+\begin{DoxyCompactList}\small\item\em Flag for dynamic overset (nonzero if active) \end{DoxyCompactList}\item 
+\Hypertarget{structoverset___a586d248402446da66aacd74362db8a11}\label{structoverset___a586d248402446da66aacd74362db8a11} 
+Petsc\+Int {\bfseries proc\+Change}
+\begin{DoxyCompactList}\small\item\em Flag if background processor intersections have changed. \end{DoxyCompactList}\item 
+\Hypertarget{structoverset___a51dbcb8cb309881bdd2992076b21a056}\label{structoverset___a51dbcb8cb309881bdd2992076b21a056} 
+\mbox{\hyperlink{structoversetMotion}{overset\+Motion}} \texorpdfstring{$\ast$}{*} {\bfseries o\+Motion}
+\begin{DoxyCompactList}\small\item\em Pointer to overset motion data. \end{DoxyCompactList}\item 
+\Hypertarget{structoverset___a2d664a864a66bf0fa5dce07197faf377}\label{structoverset___a2d664a864a66bf0fa5dce07197faf377} 
+std\+::vector$<$ std\+::vector$<$ Petsc\+Int $>$ $>$ {\bfseries Acell\+Proc\+Mat\+Db}
+\begin{DoxyCompactList}\small\item\em Processor connectivity matrix for acceptor cells. \end{DoxyCompactList}\item 
+\Hypertarget{structoverset___a5f92f3f5730cf9aa257942c9c0af6aa7}\label{structoverset___a5f92f3f5730cf9aa257942c9c0af6aa7} 
+std\+::vector$<$ std\+::vector$<$ Petsc\+Int $>$ $>$ {\bfseries Acell\+Proc\+Mat\+Hc}
+\begin{DoxyCompactList}\small\item\em Processor connectivity matrix for acceptor cells. \end{DoxyCompactList}\item 
+\Hypertarget{structoverset___aa7ed7766bda129a3dafc26888cbcfa6d}\label{structoverset___aa7ed7766bda129a3dafc26888cbcfa6d} 
+std\+::vector$<$ Petsc\+Int $>$ {\bfseries Num\+Acell\+Per\+Proc\+Db}
+\begin{DoxyCompactList}\small\item\em Number of acceptor cells per processor. \end{DoxyCompactList}\item 
+\Hypertarget{structoverset___a41b7c2b5373a2645db238007e57a9dca}\label{structoverset___a41b7c2b5373a2645db238007e57a9dca} 
+std\+::vector$<$ Petsc\+Int $>$ {\bfseries Num\+Acell\+Per\+Proc\+Hc}
+\begin{DoxyCompactList}\small\item\em Number of acceptor cells per processor. \end{DoxyCompactList}\item 
+\Hypertarget{structoverset___ab7439ba12e4e27f7178f4a1a1a5d8a8f}\label{structoverset___ab7439ba12e4e27f7178f4a1a1a5d8a8f} 
+std\+::vector$<$ \mbox{\hyperlink{structAcell}{Acell}} $>$ {\bfseries a\+Cell\+Db}
+\begin{DoxyCompactList}\small\item\em List of acceptor cells. \end{DoxyCompactList}\item 
+\Hypertarget{structoverset___afdc719dcf922b322d64135c35d10866e}\label{structoverset___afdc719dcf922b322d64135c35d10866e} 
+std\+::vector$<$ \mbox{\hyperlink{structAcell}{Acell}} $>$ {\bfseries a\+Cell\+Hc}
+\begin{DoxyCompactList}\small\item\em List of acceptor cells. \end{DoxyCompactList}\item 
+\Hypertarget{structoverset___a1cf5f074d6e1478eb452c1f0f9e53b51}\label{structoverset___a1cf5f074d6e1478eb452c1f0f9e53b51} 
+std\+::vector$<$ \mbox{\hyperlink{structDcell}{Dcell}} $>$ {\bfseries closest\+Donor\+Db}
+\begin{DoxyCompactList}\small\item\em For trilinear interpolation\+: closest donor cell per acceptor at domain boundary. \end{DoxyCompactList}\item 
+\Hypertarget{structoverset___a751d163eff11c26e21606f85aee4df82}\label{structoverset___a751d163eff11c26e21606f85aee4df82} 
+std\+::vector$<$ \mbox{\hyperlink{structDcell}{Dcell}} $>$ {\bfseries closest\+Donor\+Hc}
+\begin{DoxyCompactList}\small\item\em For trilinear interpolation\+: closest donor cell per acceptor at hole cut boundary. \end{DoxyCompactList}\item 
+\Hypertarget{structoverset___a452a3128ee798fbe1340028d002a9437}\label{structoverset___a452a3128ee798fbe1340028d002a9437} 
+std\+::vector$<$ std\+::vector$<$ Petsc\+Real $>$ $>$ {\bfseries DWeights}
+\begin{DoxyCompactList}\small\item\em MLS weights for overset interpolation. \end{DoxyCompactList}\item 
+\Hypertarget{structoverset___af58542eaafbeb17670eaad48e9d9ddbb}\label{structoverset___af58542eaafbeb17670eaad48e9d9ddbb} 
+std\+::vector$<$ std\+::vector$<$ \mbox{\hyperlink{structDcell}{Dcell}} $>$ $>$ {\bfseries d\+Cell}
+\begin{DoxyCompactList}\small\item\em List of donor cell. \end{DoxyCompactList}\item 
+\Hypertarget{structoverset___a1cc34a18382217727c6dcf4c74ea1f6f}\label{structoverset___a1cc34a18382217727c6dcf4c74ea1f6f} 
+std\+::vector$<$ MPI\+\_\+\+Comm $>$ {\bfseries oset\+\_\+comm}
+\item 
+\Hypertarget{structoverset___af22d524f63481b0e3e53f46707e725d9}\label{structoverset___af22d524f63481b0e3e53f46707e725d9} 
+Petsc\+Real {\bfseries cell\+Avg}
+\begin{DoxyCompactList}\small\item\em Average cell size (optional) \end{DoxyCompactList}\item 
+\Hypertarget{structoverset___a519e8f2f0939b41dc7491dc7c8abc9eb}\label{structoverset___a519e8f2f0939b41dc7491dc7c8abc9eb} 
+Petsc\+Real {\bfseries cell\+Factor}
+\begin{DoxyCompactList}\small\item\em Factor to scale cell size for search radius. \end{DoxyCompactList}\item 
+\Hypertarget{structoverset___a3b08eee58cb4d7514d4be10924f6fd17}\label{structoverset___a3b08eee58cb4d7514d4be10924f6fd17} 
+\mbox{\hyperlink{structibm__}{ibm\+\_\+}} \texorpdfstring{$\ast$}{*} {\bfseries oibm}
+\item 
+\Hypertarget{structoverset___a0ae50ce0033ba75bf3bebd261647bc13}\label{structoverset___a0ae50ce0033ba75bf3bebd261647bc13} 
+\mbox{\hyperlink{structaccess__}{access\+\_\+}} \texorpdfstring{$\ast$}{*} {\bfseries access}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Main overset structure. ~\newline
+ This structure holds the parameters, connectivity, and interpolation data for both the overset (child) mesh and the base (background) mesh update. 
+
+The documentation for this struct was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+/zfs60/nobackup/stipa/software/\+TOSCA/src/include/\mbox{\hyperlink{overset_8h}{overset.\+h}}\end{DoxyCompactItemize}

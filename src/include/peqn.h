@@ -135,16 +135,11 @@ PetscErrorCode AdjustIBMFlux(peqn_ *peqn);
 //! \brief Update pressure and subtract average
 PetscErrorCode UpdatePressure(peqn_ *peqn);
 
-PetscErrorCode updateIBMPhi(ibm_ *ibm);
-
 //! \brief Project Ucont into an incompressible space
 PetscErrorCode ProjectVelocity(peqn_ *peqn);
 
 //! \brief Compute pressure gradient term
 PetscErrorCode SolvePEqn(peqn_ *peqn);
-
-//! \brief Set pressure = 0 at k = 0, j = 0, i = 0
-PetscErrorCode SetPressureReference(peqn_ *peqn);
 
 //! \brief Compute continuity errors (also calculates which cell and processor has the max)
 PetscErrorCode ContinuityErrors(peqn_ *peqn);

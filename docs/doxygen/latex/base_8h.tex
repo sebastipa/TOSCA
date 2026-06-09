@@ -1,0 +1,87 @@
+\doxysection{/zfs60/nobackup/stipa/software/\+TOSCA/src/include/base.h File Reference}
+\hypertarget{base_8h}{}\label{base_8h}\index{/zfs60/nobackup/stipa/software/TOSCA/src/include/base.h@{/zfs60/nobackup/stipa/software/TOSCA/src/include/base.h}}
+
+
+Base header file including c/c++ libraries and PETSc and HYPRE libs.  
+
+
+{\ttfamily \#include $<$random$>$}\newline
+{\ttfamily \#include $<$vector$>$}\newline
+{\ttfamily \#include $<$numeric$>$}\newline
+{\ttfamily \#include $<$algorithm$>$}\newline
+{\ttfamily \#include $<$assert.\+h$>$}\newline
+{\ttfamily \#include $<$complex$>$}\newline
+{\ttfamily \#include $<$sys/types.\+h$>$}\newline
+{\ttfamily \#include $<$sys/stat.\+h$>$}\newline
+{\ttfamily \#include $<$unistd.\+h$>$}\newline
+{\ttfamily \#include $<$dirent.\+h$>$}\newline
+{\ttfamily \#include $<$iostream$>$}\newline
+{\ttfamily \#include $<$fstream$>$}\newline
+{\ttfamily \#include $<$sstream$>$}\newline
+{\ttfamily \#include $<$string.\+h$>$}\newline
+{\ttfamily \#include $<$stdio.\+h$>$}\newline
+{\ttfamily \#include $<$stdlib.\+h$>$}\newline
+{\ttfamily \#include $<$time.\+h$>$}\newline
+{\ttfamily \#include $<$iomanip$>$}\newline
+{\ttfamily \#include "{}petsctime.\+h"{}}\newline
+{\ttfamily \#include "{}petscvec.\+h"{}}\newline
+{\ttfamily \#include "{}petscdmda.\+h"{}}\newline
+{\ttfamily \#include "{}petscksp.\+h"{}}\newline
+{\ttfamily \#include "{}petscsnes.\+h"{}}\newline
+{\ttfamily \#include "{}HYPRE\+\_\+krylov.\+h"{}}\newline
+{\ttfamily \#include "{}HYPRE.\+h"{}}\newline
+{\ttfamily \#include "{}HYPRE\+\_\+parcsr\+\_\+ls.\+h"{}}\newline
+{\ttfamily \#include "{}HYPRE\+\_\+struct\+\_\+ls.\+h"{}}\newline
+{\ttfamily \#include "{}HYPRE\+\_\+sstruct\+\_\+ls.\+h"{}}\newline
+{\ttfamily \#include "{}HYPRE\+\_\+\+IJ\+\_\+mv.\+h"{}}\newline
+\doxysubsubsection*{Classes}
+\begin{DoxyCompactItemize}
+\item 
+struct \mbox{\hyperlink{structsimInfo__}{sim\+Info\+\_\+}}
+\item 
+struct \mbox{\hyperlink{structconstants__}{constants\+\_\+}}
+\item 
+struct \mbox{\hyperlink{structcellIds}{cell\+Ids}}
+\begin{DoxyCompactList}\small\item\em Cell indices. \end{DoxyCompactList}\item 
+struct \mbox{\hyperlink{structCmpnts}{Cmpnts}}
+\begin{DoxyCompactList}\small\item\em Defines the x, y, z components of a vector. \end{DoxyCompactList}\item 
+struct \mbox{\hyperlink{structCpt2D}{Cpt2D}}
+\begin{DoxyCompactList}\small\item\em Structure for defining the x, y components of a 2D vector. \end{DoxyCompactList}\item 
+struct \mbox{\hyperlink{structsymmTensor}{symm\+Tensor}}
+\begin{DoxyCompactList}\small\item\em Defines the components of a symmetric tensor. \end{DoxyCompactList}\item 
+struct \mbox{\hyperlink{structskewSymmTensor}{skew\+Symm\+Tensor}}
+\item 
+struct \mbox{\hyperlink{structTensor}{Tensor}}
+\item 
+struct \mbox{\hyperlink{structTensorInvariants}{Tensor\+Invariants}}
+\item 
+struct \mbox{\hyperlink{structMatrix3}{Matrix3}}
+\item 
+struct \mbox{\hyperlink{structpatchVectorField}{patch\+Vector\+Field}}
+\begin{DoxyCompactList}\small\item\em Vector field on the patch (used to store wall models fields) \end{DoxyCompactList}\end{DoxyCompactItemize}
+\doxysubsubsection*{Macros}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{base_8h_ae71449b1cc6e6250b91f539153a7a0d3}\label{base_8h_ae71449b1cc6e6250b91f539153a7a0d3} 
+\#define {\bfseries M\+\_\+\+PI}~3.\+141592653589793238462643
+\end{DoxyCompactItemize}
+\doxysubsubsection*{Typedefs}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{base_8h_a2cefd089f92e4bb812dc4ced1a0153f8}\label{base_8h_a2cefd089f92e4bb812dc4ced1a0153f8} 
+typedef std\+::string {\bfseries word}
+\item 
+\Hypertarget{base_8h_a72302842e516f4092d6fd7e7fac1db8a}\label{base_8h_a72302842e516f4092d6fd7e7fac1db8a} 
+typedef std\+::vector$<$ Petsc\+Int $>$ {\bfseries label\+List}
+\item 
+\Hypertarget{base_8h_a6b809be3f9cd71108d56dc2fb69dc378}\label{base_8h_a6b809be3f9cd71108d56dc2fb69dc378} 
+typedef std\+::vector$<$ std\+::vector$<$ Petsc\+Int $>$ $>$ {\bfseries label\+List\+List}
+\item 
+\Hypertarget{base_8h_a990cd63edfc51217c880c82d45d3fe18}\label{base_8h_a990cd63edfc51217c880c82d45d3fe18} 
+typedef std\+::complex$<$ Petsc\+Real $>$ {\bfseries complex}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Base header file including c/c++ libraries and PETSc and HYPRE libs. 
+

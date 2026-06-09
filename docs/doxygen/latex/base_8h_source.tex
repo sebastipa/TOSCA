@@ -1,0 +1,131 @@
+\doxysection{base.\+h}
+\hypertarget{base_8h_source}{}\label{base_8h_source}\index{/zfs60/nobackup/stipa/software/TOSCA/src/include/base.h@{/zfs60/nobackup/stipa/software/TOSCA/src/include/base.h}}
+\mbox{\hyperlink{base_8h}{Go to the documentation of this file.}}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ }
+\DoxyCodeLine{00003\ }
+\DoxyCodeLine{00004\ \textcolor{preprocessor}{\#ifndef\ \_BASE\_H\_}}
+\DoxyCodeLine{00005\ \textcolor{preprocessor}{\#define\ \_BASE\_H\_}}
+\DoxyCodeLine{00006\ }
+\DoxyCodeLine{00007\ \textcolor{comment}{//\ include\ base\ headers}}
+\DoxyCodeLine{00008\ \textcolor{preprocessor}{\#include\ <random>}}
+\DoxyCodeLine{00009\ \textcolor{preprocessor}{\#include\ <vector>}}
+\DoxyCodeLine{00010\ \textcolor{preprocessor}{\#include\ <numeric>}}
+\DoxyCodeLine{00011\ \textcolor{preprocessor}{\#include\ <algorithm>}}
+\DoxyCodeLine{00012\ \textcolor{preprocessor}{\#include\ <assert.h>}}
+\DoxyCodeLine{00013\ \textcolor{preprocessor}{\#include\ <complex>}}
+\DoxyCodeLine{00014\ \textcolor{preprocessor}{\#include\ <sys/types.h>}}
+\DoxyCodeLine{00015\ \textcolor{preprocessor}{\#include\ <sys/stat.h>}}
+\DoxyCodeLine{00016\ \textcolor{preprocessor}{\#include\ <unistd.h>}}
+\DoxyCodeLine{00017\ \textcolor{preprocessor}{\#include\ <dirent.h>}}
+\DoxyCodeLine{00018\ \textcolor{preprocessor}{\#include\ <iostream>}}
+\DoxyCodeLine{00019\ \textcolor{preprocessor}{\#include\ <fstream>}}
+\DoxyCodeLine{00020\ \textcolor{preprocessor}{\#include\ <sstream>}}
+\DoxyCodeLine{00021\ \textcolor{preprocessor}{\#include\ <string.h>}}
+\DoxyCodeLine{00022\ \textcolor{preprocessor}{\#include\ <stdio.h>}}
+\DoxyCodeLine{00023\ \textcolor{preprocessor}{\#include\ <stdlib.h>}}
+\DoxyCodeLine{00024\ \textcolor{preprocessor}{\#include\ <time.h>}}
+\DoxyCodeLine{00025\ \textcolor{preprocessor}{\#include\ <iomanip>}}
+\DoxyCodeLine{00026\ }
+\DoxyCodeLine{00027\ \textcolor{comment}{//\ include\ PETSc\ headers}}
+\DoxyCodeLine{00028\ \textcolor{preprocessor}{\#include\ "{}petsctime.h"{}}}
+\DoxyCodeLine{00029\ \textcolor{preprocessor}{\#include\ "{}petscvec.h"{}}}
+\DoxyCodeLine{00030\ \textcolor{preprocessor}{\#include\ "{}petscdmda.h"{}}}
+\DoxyCodeLine{00031\ \textcolor{preprocessor}{\#include\ "{}petscksp.h"{}}}
+\DoxyCodeLine{00032\ \textcolor{preprocessor}{\#include\ "{}petscsnes.h"{}}}
+\DoxyCodeLine{00033\ }
+\DoxyCodeLine{00034\ \textcolor{comment}{//\ include\ HYPRE\ headers}}
+\DoxyCodeLine{00035\ \textcolor{preprocessor}{\#include\ "{}HYPRE\_krylov.h"{}}}
+\DoxyCodeLine{00036\ \textcolor{preprocessor}{\#include\ "{}HYPRE.h"{}}}
+\DoxyCodeLine{00037\ \textcolor{preprocessor}{\#include\ "{}HYPRE\_parcsr\_ls.h"{}}}
+\DoxyCodeLine{00038\ \textcolor{preprocessor}{\#include\ "{}HYPRE\_struct\_ls.h"{}}}
+\DoxyCodeLine{00039\ \textcolor{preprocessor}{\#include\ "{}HYPRE\_sstruct\_ls.h"{}}}
+\DoxyCodeLine{00040\ \textcolor{preprocessor}{\#include\ "{}HYPRE\_IJ\_mv.h"{}}}
+\DoxyCodeLine{00041\ }
+\DoxyCodeLine{00042\ \textcolor{comment}{//\ typedefs}}
+\DoxyCodeLine{00043\ \textcolor{keyword}{typedef}\ std::string\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ word;}
+\DoxyCodeLine{00044\ \textcolor{keyword}{typedef}\ std::vector<PetscInt>\ \ \ \ \ \ \ \ \ \ \ \ \ \ labelList;}
+\DoxyCodeLine{00045\ \textcolor{keyword}{typedef}\ std::vector<std::vector<PetscInt>>\ labelListList;}
+\DoxyCodeLine{00046\ \textcolor{keyword}{typedef}\ std::complex<PetscReal>\ \ \ \ \ \ \ \ \ \ \ \ complex;}
+\DoxyCodeLine{00047\ }
+\DoxyCodeLine{00048\ \textcolor{comment}{//\ constants}}
+\DoxyCodeLine{00049\ \textcolor{preprocessor}{\#ifndef\ M\_PI}}
+\DoxyCodeLine{00050\ \textcolor{preprocessor}{\ \ \ \ \#define\ M\_PI\ 3.141592653589793238462643}}
+\DoxyCodeLine{00051\ \textcolor{preprocessor}{\#endif}}
+\DoxyCodeLine{00052\ }
+\DoxyCodeLine{00053\ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structsimInfo__}{simInfo\_}}}
+\DoxyCodeLine{00054\ \{}
+\DoxyCodeLine{00055\ \ \ \ \ PetscInt\ nDomains;}
+\DoxyCodeLine{00056\ \ \ \ \ PetscInt\ periodic;}
+\DoxyCodeLine{00057\ \ \ \ \ PetscInt\ nHoleRegions;}
+\DoxyCodeLine{00058\ \};}
+\DoxyCodeLine{00059\ }
+\DoxyCodeLine{00060\ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structconstants__}{constants\_}}}
+\DoxyCodeLine{00061\ \{}
+\DoxyCodeLine{00062\ \ \ \ \ \textcolor{comment}{//\ dimensionless\ numbers}}
+\DoxyCodeLine{00063\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \mbox{\hyperlink{structconstants___a4fcac7b9efdaf07dcd94ffe13d431794}{Pr}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00064\ }
+\DoxyCodeLine{00065\ \ \ \ \ \textcolor{comment}{//\ physical\ constants}}
+\DoxyCodeLine{00066\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \mbox{\hyperlink{structconstants___a5795db2fdff366a0e8b0e01c27f86461}{nu}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00067\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \mbox{\hyperlink{structconstants___ae97f7348c6309ca2e60733bb9226e459}{rho}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00068\ }
+\DoxyCodeLine{00069\ \ \ \ \ \textcolor{comment}{//\ reference\ temperature}}
+\DoxyCodeLine{00070\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \mbox{\hyperlink{structconstants___a035ec54041d9495ee0ebf974a17d72c4}{tRef}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00071\ }
+\DoxyCodeLine{00072\ \};}
+\DoxyCodeLine{00073\ }
+\DoxyCodeLine{00075\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{struct}}
+\DoxyCodeLine{00076\ \{}
+\DoxyCodeLine{00077\ \ \ \ PetscInt\ i,j,k;}
+\DoxyCodeLine{00078\ \}\ \mbox{\hyperlink{structcellIds}{cellIds}};}
+\DoxyCodeLine{00079\ }
+\DoxyCodeLine{00081\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{struct}}
+\DoxyCodeLine{00082\ \{}
+\DoxyCodeLine{00083\ \ \ \ \ PetscScalar\ x,\ y,\ z;}
+\DoxyCodeLine{00084\ \}\ \mbox{\hyperlink{structCmpnts}{Cmpnts}};}
+\DoxyCodeLine{00085\ }
+\DoxyCodeLine{00087\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{struct}}
+\DoxyCodeLine{00088\ \{}
+\DoxyCodeLine{00089\ \ \ \ \ PetscReal\ x,\ y;}
+\DoxyCodeLine{00090\ \}\ \mbox{\hyperlink{structCpt2D}{Cpt2D}};}
+\DoxyCodeLine{00091\ }
+\DoxyCodeLine{00093\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{struct}}
+\DoxyCodeLine{00094\ \{}
+\DoxyCodeLine{00095\ \ \ \ \ PetscScalar\ xx,\ xy,\ xz,\ yy,\ yz,\ zz;}
+\DoxyCodeLine{00096\ \}\ \mbox{\hyperlink{structsymmTensor}{symmTensor}};}
+\DoxyCodeLine{00097\ }
+\DoxyCodeLine{00098\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{struct}}
+\DoxyCodeLine{00099\ \{}
+\DoxyCodeLine{00100\ \ \ \ \ PetscScalar\ xy,\ xz,\ yz;}
+\DoxyCodeLine{00101\ \}\ \mbox{\hyperlink{structskewSymmTensor}{skewSymmTensor}};}
+\DoxyCodeLine{00102\ }
+\DoxyCodeLine{00103\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{struct}}
+\DoxyCodeLine{00104\ \{}
+\DoxyCodeLine{00105\ \ \ \ \ PetscScalar\ xx,\ xy,\ xz,}
+\DoxyCodeLine{00106\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ yx,\ yy,\ yz,}
+\DoxyCodeLine{00107\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ zx,\ zy,\ zz;}
+\DoxyCodeLine{00108\ \}\ \mbox{\hyperlink{structTensor}{Tensor}};}
+\DoxyCodeLine{00109\ }
+\DoxyCodeLine{00110\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{struct\ }}
+\DoxyCodeLine{00111\ \{}
+\DoxyCodeLine{00112\ \ \ \ \ PetscScalar\ I1;\ \ \textcolor{comment}{//\ First\ invariant:\ trace(T)}}
+\DoxyCodeLine{00113\ \ \ \ \ PetscScalar\ I2;\ \ \textcolor{comment}{//\ Second\ invariant:\ 0.5*(trace(T)\string^2\ -\/\ trace(T\string^2))}}
+\DoxyCodeLine{00114\ \ \ \ \ PetscScalar\ I3;\ \ \textcolor{comment}{//\ Third\ invariant:\ determinant\ of\ T}}
+\DoxyCodeLine{00115\ \}\ \mbox{\hyperlink{structTensorInvariants}{TensorInvariants}};}
+\DoxyCodeLine{00116\ }
+\DoxyCodeLine{00117\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{struct\ }}
+\DoxyCodeLine{00118\ \{\ \ \ }
+\DoxyCodeLine{00119\ \ \ \ \ PetscScalar\ m[3][3];}
+\DoxyCodeLine{00120\ }
+\DoxyCodeLine{00121\ \}\ \mbox{\hyperlink{structMatrix3}{Matrix3}};}
+\DoxyCodeLine{00122\ }
+\DoxyCodeLine{00124\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{struct}}
+\DoxyCodeLine{00125\ \{}
+\DoxyCodeLine{00126\ \ \ \ \ PetscReal\ **x;}
+\DoxyCodeLine{00127\ \ \ \ \ PetscReal\ **y;}
+\DoxyCodeLine{00128\ \ \ \ \ PetscReal\ **z;}
+\DoxyCodeLine{00129\ \}\ \mbox{\hyperlink{structpatchVectorField}{patchVectorField}};}
+\DoxyCodeLine{00130\ }
+\DoxyCodeLine{00131\ \textcolor{preprocessor}{\#endif}}
+
+\end{DoxyCode}

@@ -1,0 +1,37 @@
+\doxysection{/zfs60/nobackup/stipa/software/\+TOSCA/src/turbines/turbines\+\_\+force.h File Reference}
+\hypertarget{turbines__force_8h}{}\label{turbines__force_8h}\index{/zfs60/nobackup/stipa/software/TOSCA/src/turbines/turbines\_force.h@{/zfs60/nobackup/stipa/software/TOSCA/src/turbines/turbines\_force.h}}
+
+
+Turbine force computation and projection routines.  
+
+
+{\ttfamily \#include "{}../include/base.\+h"{}}\newline
+{\ttfamily \#include "{}../include/domain.\+h"{}}\newline
+{\ttfamily \#include "{}../include/inline.\+h"{}}\newline
+{\ttfamily \#include "{}../include/turbines.\+h"{}}\newline
+\doxysubsubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{turbines__force_8h_a62dd43e693a83459db412b8730d92870}\label{turbines__force_8h_a62dd43e693a83459db412b8730d92870} 
+Petsc\+Error\+Code {\bfseries compute\+Blade\+Force} (farm\+\_\+ \texorpdfstring{$\ast$}{*}farm)
+\begin{DoxyCompactList}\small\item\em Compute aerodynamic forces at the turbine mesh points. \end{DoxyCompactList}\item 
+\Hypertarget{turbines__force_8h_a1c9f963195cd851c599dd964abd9a4d9}\label{turbines__force_8h_a1c9f963195cd851c599dd964abd9a4d9} 
+Petsc\+Error\+Code {\bfseries project\+Blade\+Force} (farm\+\_\+ \texorpdfstring{$\ast$}{*}farm)
+\begin{DoxyCompactList}\small\item\em Project the wind turbine forces on the background mesh. \end{DoxyCompactList}\item 
+\Hypertarget{turbines__force_8h_ae58bb532b77a4db28cb9a11e5a398289}\label{turbines__force_8h_ae58bb532b77a4db28cb9a11e5a398289} 
+Petsc\+Error\+Code {\bfseries compute\+Tower\+Force} (farm\+\_\+ \texorpdfstring{$\ast$}{*}farm)
+\begin{DoxyCompactList}\small\item\em Compute the tower forces on the background mesh. \end{DoxyCompactList}\item 
+\Hypertarget{turbines__force_8h_ad035b094ccb31e8ea8475652de8277f1}\label{turbines__force_8h_ad035b094ccb31e8ea8475652de8277f1} 
+Petsc\+Error\+Code {\bfseries project\+Tower\+Force} (farm\+\_\+ \texorpdfstring{$\ast$}{*}farm)
+\begin{DoxyCompactList}\small\item\em Compute project the tower forces on the background mesh. \end{DoxyCompactList}\item 
+\Hypertarget{turbines__force_8h_aac70f61e4da14da54148bc89b023c07c}\label{turbines__force_8h_aac70f61e4da14da54148bc89b023c07c} 
+Petsc\+Error\+Code {\bfseries project\+Nacelle\+Force} (farm\+\_\+ \texorpdfstring{$\ast$}{*}farm)
+\begin{DoxyCompactList}\small\item\em Compute and project the nacelle forces on the background mesh. \end{DoxyCompactList}\item 
+\Hypertarget{turbines__force_8h_a8bb5a50cbade8b6772f0c7686e7e3615}\label{turbines__force_8h_a8bb5a50cbade8b6772f0c7686e7e3615} 
+Petsc\+Error\+Code {\bfseries body\+Force\+Cartesian2\+Contravariant} (farm\+\_\+ \texorpdfstring{$\ast$}{*}farm)
+\begin{DoxyCompactList}\small\item\em Transform the cartesian body force to contravariant. \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Turbine force computation and projection routines. 
+

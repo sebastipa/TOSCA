@@ -6,6 +6,9 @@
 #include "include/io.h"
 #include "include/inline.h"
 #include "include/inflow.h"
+#include "sources/ueqn_sources.h"
+#include "sources/teqn_sources.h"
+#include "solvers/ueqn_solvers.h"
 #include "include/initialization.h"
 #include "include/initialField.h"
 
@@ -40,7 +43,8 @@ PetscErrorCode SetSolutionFlagsPrecursor(domain_ *domain)
     flags->isPvCatalystActive            = 0;
     flags->isGravityWaveModelingActive   = 0;
     flags->isNonInertialFrameActive      = 0;
-    flags->isMeangradPForcingActive      = 0;
+    flags->isBulkGradPForcingActive      = 0;
+    flags->isMeanGradPForcingActive      = 0;
 
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-les",            &(flags->isLesActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-potentialT",     &(flags->isTeqnActive), PETSC_NULL);
@@ -943,7 +947,7 @@ PetscErrorCode concurrentPrecursorSolve(abl_ *abl)
             Buoyancy(domain->ueqn, 1.0);
         }
 
-        if(domain->ueqn->centralUpwindDiv || domain->flags.isTeqnActive)
+        if(domain->ueqn->centralUpwindDiv || domain->ueqn->centralUpwindWDiv || domain->flags.isTeqnActive)
         {
             UpdateFluxLimiter(domain->ueqn);
         }
@@ -1017,7 +1021,7 @@ PetscErrorCode concurrentPrecursorSolve(abl_ *abl)
         ContinuityErrorsOptimized(domain->peqn);
 
         // save momentum right hand side
-        if(domain->ueqn->ddtScheme=="backwardEuler")
+        if(domain->ueqn->ddtScheme=="CN")
         {
             VecSet(domain->ueqn->Rhs_o, 0.0);
 
@@ -1070,7 +1074,7 @@ PetscErrorCode concurrentPrecursorSolve(abl_ *abl)
 
                 UpdateImmersedBCs(domain->ibm);
             }
-            FormU (domain->ueqn, domain->ueqn->Rhs_o, 1.0);
+            FormU (domain->ueqn, domain->ueqn->Rhs_o, 1.0, PETSC_FALSE);
         }
 
         if(domain->flags.isTeqnActive)

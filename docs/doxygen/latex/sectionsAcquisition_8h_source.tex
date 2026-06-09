@@ -1,0 +1,50 @@
+\doxysection{sections\+Acquisition.\+h}
+\hypertarget{sectionsAcquisition_8h_source}{}\label{sectionsAcquisition_8h_source}\index{/zfs60/nobackup/stipa/software/TOSCA/src/include/acquisition/sectionsAcquisition.h@{/zfs60/nobackup/stipa/software/TOSCA/src/include/acquisition/sectionsAcquisition.h}}
+\mbox{\hyperlink{sectionsAcquisition_8h}{Go to the documentation of this file.}}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ }
+\DoxyCodeLine{00003\ }
+\DoxyCodeLine{00004\ \textcolor{preprocessor}{\#ifndef\ \_SECTIONSACQUISITION\_H\_}}
+\DoxyCodeLine{00005\ \textcolor{preprocessor}{\#define\ \_SECTIONSACQUISITION\_H\_}}
+\DoxyCodeLine{00006\ }
+\DoxyCodeLine{00008\ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structsections}{sections}}}
+\DoxyCodeLine{00009\ \{}
+\DoxyCodeLine{00010\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structsections_a906a4712beb4eb0671a01ede2e6fd98c}{available}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00011\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structsections_abf3dc0740673a999928389cdec16f3df}{nSections}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00012\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structsections_a94cca1fc6b5fb904a854b96fbf8c7acb}{timeStart}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00013\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structsections_a44d1d9059ec4ef3c5b8d498c45fb983c}{intervalType}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00014\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structsections_a9ee32747f02bfae624ea9e6eb32652ea}{timeInterval}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00015\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ *indices;}
+\DoxyCodeLine{00016\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ *\mbox{\hyperlink{structsections_a41fc24100b6fcd8312022ef18a9d7939}{coordinates}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00017\ \ \ \ \ \mbox{\hyperlink{structsymmTensor}{symmTensor}}\ \ \ \ \ \ \ \ \ **\mbox{\hyperlink{structsections_a8946ffb7137ec9b63aeed5b9a6d96007}{symmTensorSec}};\ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00018\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \ \ \ \ \ **\mbox{\hyperlink{structsections_ae898561b1fcab3af84a26d3ce4777c55}{vectorSec}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00019\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ **\mbox{\hyperlink{structsections_a7c125b4774715dc92a625cb22e5af103}{scalarSec}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00020\ \};}
+\DoxyCodeLine{00021\ }
+\DoxyCodeLine{00023\ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structuSections}{uSections}}}
+\DoxyCodeLine{00024\ \{}
+\DoxyCodeLine{00025\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ nodes;}
+\DoxyCodeLine{00026\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ sectionName;}
+\DoxyCodeLine{00027\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \ \ \ \ \ **coor;}
+\DoxyCodeLine{00028\ \ \ \ \ \mbox{\hyperlink{structcellIds}{cellIds}}\ \ \ \ \ \ \ \ \ \ \ \ **closestId;}
+\DoxyCodeLine{00029\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ **\mbox{\hyperlink{structuSections_abb43eea20afb900b1cac3e10888026e3}{hasCoor}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00030\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structuSections_a736bd58b0c225d94a249892a9364d2e9}{timeStart}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00031\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structuSections_a36ede90bac57a4581d11041e1591580b}{intervalType}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00032\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structuSections_af77cc505648f2b58899b5b774dd58ff4}{timeInterval}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00033\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ nx;}
+\DoxyCodeLine{00034\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ ny;}
+\DoxyCodeLine{00035\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \ \ \ \ \ **\mbox{\hyperlink{structuSections_a4eb8bf845265da276fb11054d40492b4}{vectorSec}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00036\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ **\mbox{\hyperlink{structuSections_a35c5f370737aea7cc2187ccd52af577f}{scalarSec}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00037\ \};}
+\DoxyCodeLine{00038\ }
+\DoxyCodeLine{00039\ }
+\DoxyCodeLine{00040\ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structudSections}{udSections}}}
+\DoxyCodeLine{00041\ \{}
+\DoxyCodeLine{00042\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structudSections_a180928f30921d8f0b2890f9c370bd8fe}{available}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00043\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structudSections_a3e0b0e8cbcbb117720aee4d4b7578c88}{nSections}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00044\ \ \ \ \ \mbox{\hyperlink{structuSections}{uSections}}\ \ \ \ \ \ \ \ \ \ **uSection;}
+\DoxyCodeLine{00045\ \};}
+\DoxyCodeLine{00046\ }
+\DoxyCodeLine{00047\ \textcolor{preprocessor}{\#endif}}
+
+\end{DoxyCode}

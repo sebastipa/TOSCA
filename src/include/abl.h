@@ -93,16 +93,24 @@ struct abl_
     PetscInt     zDampingXYType;                 //!< type 1 (default) averages at inlet, type (2) requires concurrent precursor and xDamping and uses planar averages
 
     // kLeft damping layer
-    PetscReal    kLeftPatchDist;                 //!< width of the kLeft Rayleigh damping layer
+    PetscReal    kLeftDampingStart;              //!< start coordinate of the kLeft Rayleigh damping layer
+    PetscReal    kLeftDampingEnd;                //!< end coordinate of the kLeft Rayleigh damping layer
     PetscReal    kLeftDampingAlpha;              //!< kLeft Rayleigh damping coefficient
-    Cmpnts       kLeftDampingUBar;               //!< kLeft bar velocity with respect to which the flow is damped
+    Cmpnts       kLeftDampingUBar;               //!< kLeft bar velocity with respect to which the flow is damped (used when UBarSelectionType = 0)
+    PetscInt     kLeftDampingUBarSelectionType;  //!< 0 = constant uBar vector, 1 = height-varying mesoscale profile
+    word         kLeftDampingUBarTimeMode;       //!< profile time mode: "initial" (t=0), "average" (time-mean), or "timeVarying" (not yet implemented)
+    Cmpnts      *kLeftDampingUBarVec;            //!< height profile (mesh j-indexed, size my) when UBarSelectionType = 1
     PetscReal    kLeftDampingFilterHeight;       //!< above this height damping is unity (transitions to zero at kLeftDampingFilterHeight - kLeftDampingFilterWidth)
     PetscReal    kLeftDampingFilterWidth;        //!< width of transition region from no damping to damping
 
     // kRight damping layer
-    PetscReal    kRightPatchDist;                 //!< width of the kRight Rayleigh damping layer
+    PetscReal    kRightDampingStart;              //!< start coordinate of the kRight Rayleigh damping layer
+    PetscReal    kRightDampingEnd;                //!< end coordinate of the kRight Rayleigh damping layer
     PetscReal    kRightDampingAlpha;              //!< kRight Rayleigh damping coefficient
-    Cmpnts       kRightDampingUBar;               //!< kRight bar velocity with respect to which the flow is damped
+    Cmpnts       kRightDampingUBar;               //!< kRight bar velocity with respect to which the flow is damped (used when UBarSelectionType = 0)
+    PetscInt     kRightDampingUBarSelectionType; //!< 0 = constant uBar vector, 1 = height-varying mesoscale profile
+    word         kRightDampingUBarTimeMode;      //!< profile time mode: "initial" (t=0), "average" (time-mean), or "timeVarying" (not yet implemented)
+    Cmpnts      *kRightDampingUBarVec;           //!< height profile (mesh j-indexed, size my) when UBarSelectionType = 1
     PetscReal    kRightDampingFilterHeight;       //!< above this height damping is unity (transitions to zero at kRightDampingFilterHeight - kRightDampingFilterWidth)
     PetscReal    kRightDampingFilterWidth;        //!< width of transition region from no damping to damping
 
@@ -195,6 +203,8 @@ struct abl_
     PetscInt     numtV;
     PetscInt     numtT;
 
+    PetscInt     mesoVelocityDataSet;         //!< guard so readMesoScaleVelocityData is called only once
+
     PetscInt     **velInterpIdx;
     PetscReal    **velInterpWts;
 
@@ -275,6 +285,9 @@ PetscReal NieuwstadtGeostrophicWind(abl_ *abl);
 PetscErrorCode readMesoScaleTemperatureData(abl_ *abl);
 
 PetscErrorCode readMesoScaleVelocityData(abl_ *abl);
+
+//! \brief build the kRayleigh target uBar(z) profile by interpolating the mesoscale velocity data to the mesh heights
+PetscErrorCode buildKRayleighUBarProfile(abl_ *abl, const char *side, const word &timeMode, Cmpnts *uBarVec);
 
 PetscErrorCode findVelocityInterpolationWeights(abl_ *abl);
 

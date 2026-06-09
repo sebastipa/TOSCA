@@ -385,7 +385,7 @@ PetscErrorCode CreateHypreSolver(peqn_ *peqn)
 
     HYPRE_BoomerAMGSetStrongThreshold(peqn->hyprePC, peqn->amgThresh);  // 0.5 : Cartesian, 0.6 : Distorted
 
-    HYPRE_BoomerAMGSetTol (peqn->hyprePC, peqn->poissonTol);
+    HYPRE_BoomerAMGSetTol (peqn->hyprePC, 0.0);
     HYPRE_BoomerAMGSetPrintLevel(peqn->hyprePC, 0);                     // 1
     HYPRE_BoomerAMGSetCoarsenType(peqn->hyprePC, peqn->amgCoarsenType); // 0:CLJP, 6:Falgout, 8:PMIS, 10:HMIS,
     HYPRE_BoomerAMGSetCycleType(peqn->hyprePC, 1);                      // 1
@@ -433,12 +433,14 @@ PetscErrorCode CreateHypreSolver(peqn_ *peqn)
 PetscErrorCode MyKSPMonitorPoisson(KSP ksp, PetscInt iter, PetscReal rnorm, void* dummy)
 {
     peqn_* peqn = (peqn_*)dummy;
-    if(iter==1)
+    if(iter==0)
     {
         peqn->initialPoissonRes = rnorm;
     }
     return(0);
 }
+
+//***************************************************************************************************************//
 
 PetscErrorCode CreatePETScSolver(peqn_ *peqn)
 {
@@ -461,26 +463,32 @@ PetscErrorCode CreatePETScSolver(peqn_ *peqn)
     //PCSetType(peqn->petscPC, PCMG);
     //PCSetType(peqn->petscPC, PCILU);
     //PCMGSetType(peqn->petscPC,PC_MG_KASKADE);
-    PCSetType(peqn->petscPC,PCSOR);
-    //PCSetType(peqn->petscPC,PCGAMG);
+    //PCSetType(peqn->petscPC,PCSOR);
+    PCSetType(peqn->petscPC,PCGAMG);
 
-    // omega = 1 equivalent to Gauss Seidel preconditioner
-    PCSORSetOmega(peqn->petscPC,1.0);
-    PCSORSetIterations(peqn->petscPC,10,2);
+    // 1 smoother sweep per level is standard for scalar Poisson
+    PCGAMGSetNSmooths(peqn->petscPC, 1);
 
-    KSPSetPCSide(peqn->ksp,PC_LEFT);
+    // FGMRES only supports right preconditioning
+    KSPSetPCSide(peqn->ksp,PC_RIGHT);
 
     // null space
     MatNullSpaceCreate(mesh->MESH_COMM, PETSC_TRUE,0,0, &(peqn->petscNs));
     MatSetNullSpace(peqn->petscA,peqn->petscNs);
 
-
-    KSPSetType(peqn->ksp,KSPPGMRES);
+    // FGMRES allows variable preconditioners (required for AMG) and is more
+    // stable than pipelined PGMRES on CPU paths
+    KSPSetType(peqn->ksp,KSPFGMRES);
 
     KSPSetTolerances(peqn->ksp, 1e-30, peqn->poissonTol, 1e30, peqn->poissonIt);
 
-    KSPGMRESSetRestart(peqn->ksp, 100);
+    // AMG typically converges in <20 iterations; a restart of 20 avoids
+    // the memory overhead of the previous 100-vector Krylov basis
+    KSPGMRESSetRestart(peqn->ksp, 20);
     KSPSetFromOptions(peqn->ksp);
+
+    // use previous step's phi as initial guess (warm start)
+    KSPSetInitialGuessNonzero(peqn->ksp, PETSC_TRUE);
 
     KSPSetUp(peqn->ksp);
 
@@ -780,6 +788,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
     DMDAVecGetArray(da, G32, &g32);
     DMDAVecGetArray(da, G33, &g33);
 
+    // apply boundary conditions of the metric tensor 
     for (k=lzs-1; k<lze+1; k++)
     {
         for (j=lys-1; j<lye+1; j++)
@@ -792,37 +801,37 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                 {
                     if(mesh->i_periodic)       a=mx-2;
                     else if(mesh->ii_periodic) a=-2;
-                    else                      a=1;
+                    else                       a=1;
                 }
                 if(i==mx-1)
                 {
                     if(mesh->i_periodic)       a=1;
                     else if(mesh->ii_periodic) a=mx+1;
-                    else                      a=mx-2;
+                    else                       a=mx-2;
                 }
                 if(j==0)
                 {
                     if(mesh->j_periodic)       b=my-2;
                     else if(mesh->jj_periodic) b=-2;
-                    else                      b=1;
+                    else                       b=1;
                 }
                 if(j==my-1)
                 {
                     if(mesh->j_periodic)       b=1;
                     else if(mesh->jj_periodic) b=my+1;
-                    else                      b=my-2;
+                    else                       b=my-2;
                 }
                 if(k==0)
                 {
                     if(mesh->k_periodic)       c=mz-2;
                     else if(mesh->kk_periodic) c=-2;
-                    else                      c=1;
+                    else                       c=1;
                 }
                 if(k==mz-1)
                 {
                     if(mesh->k_periodic)       c=1;
                     else if(mesh->kk_periodic) c=mz+1;
-                    else                      c=mz-2;
+                    else                       c=mz-2;
                 }
 
                 // building metrics tensor
@@ -839,17 +848,22 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
         }
     }
 
+    // set constants 
+    PetscReal one  = 1.0;
+    PetscReal zero = 0.0;
+    PetscReal r    = 1.0;
+
+    // build poisson matrix
     for (k=lzs; k<lze; k++)
     {
         for (j=lys; j<lye; j++)
         {
             for (i=lxs; i<lxe; i++)
             {
-                PetscReal one  = 1.0;
-                PetscReal zero = 0.0;
-
+                // get matrix row
                 row = matID(i, j, k);
 
+                // set element to 1 for IBM and Overset cells (here RHS is zero so phi is also zero - pressure is not solved)
                 if(isIBMCell(k, j, i, nvert) || isOversetCell(k, j, i, meshTag))
                 {
                     if(peqn->solverType == "HYPRE")
@@ -865,21 +879,25 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                         MatSetValues(peqn->petscA, 1, &rowId, 1, &rowId, &one, ADD_VALUES);
                     }
                 }
+                // with all-Neumann BCs we have to remove the null space manually
+                else if(!flags->isOversetActive && i==1 && j==1 && k==1)
+                {
+                    HYPRE_Int nrows = 1, ncols = 1, col = row;
+                    HYPRE_IJMatrixSetValues(peqn->hypreA, nrows, &ncols, &row, &col, &one);
+                }
                 // i,j,k is a fluid point
                 else
                 {
                     // initialize contributions to zero
                     for (m=0; m<19; m++)
                     {
-                        vol[m] = 0.;
+                        vol[m] = 0.0;
                     }
-
-                    PetscReal r = 1.0;
 
                     // contribution from east face in i-direction (i+1/2)
                     if
                     (
-                        // exclude boundary cell for zero gradient BC if non-periodic (crucial also for curvilinear)
+                        // exclude boundary face for zero gradient BC if non-periodic and non-overset (crucial also for curvilinear)
                         (i != mx-2       ||
                         mesh->i_periodic ||
                         mesh->ii_periodic) && (isFluidCell(k,j,i+1,nvert) && isCalculatedCell(k,j,i+1,meshTag))
@@ -947,6 +965,15 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             vol[BP] -= g13[k][j][i] * 0.25 / r; //i, j, k-1
                             vol[BE] -= g13[k][j][i] * 0.25 / r; //i+1, j, k-1
                         }
+                    }
+                    // Dirichlet phi=0 at i+1: normal term only, consistent with velocity projection 
+                    else if
+                    (
+                        isInterpolatedCell(k,j,i+1,meshTag)
+                    )
+                    {
+                        // dpdc: (phi[i+1]-phi[i])*g11, phi[i+1]=0
+                        vol[CP] -= g11[k][j][i] / r;
                     }
 
                     // contribution from west face in i-direction (i-1/2)
@@ -1020,6 +1047,15 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             vol[BW] += g13[k][j][i-1] * 0.25 / r; // i-1, j, k-1
                         }
                     }
+                    // Dirichlet phi=0 at i-1: normal term only, consistent with velocity projection 
+                    else if
+                    (
+                        isInterpolatedCell(k,j,i-1,meshTag)
+                    )
+                    {
+                        // -dpdc: -(phi[i]-phi[i-1])*g11[i-1], phi[i-1]=0
+                        vol[CP] -= g11[k][j][i-1] / r;
+                    }
 
                     // contribution from north face in j-direction (j+1/2)
                     if
@@ -1091,6 +1127,15 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             vol[BP] -= g23[k][j][i] * 0.25 / r; // i, j, k-1
                             vol[BN] -= g23[k][j][i] * 0.25 / r; // i, j+1, k-1
                         }
+                    }
+                    // Dirichlet phi=0 at j+1: normal term only, consistent with velocity projection 
+                    else if
+                    (
+                        isInterpolatedCell(k,j+1,i,meshTag)
+                    )
+                    {
+                        // dpde: (phi[j+1]-phi[j])*g22, phi[j+1]=0
+                        vol[CP] -= g22[k][j][i] / r;
                     }
 
                     // contribution from south face in j-direction (j-1/2)
@@ -1164,6 +1209,18 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             vol[BS] += g23[k][j-1][i] * 0.25 / r; // i, j-1, k-1
                         }
                     }
+                    // Dirichlet phi=0 at j-1: normal term only, consistent with velocity projection 
+                    else if
+                    (
+                        isInterpolatedCell(k,j-1,i,meshTag)
+                    )
+                    {
+                        // -dpde: -(phi[j]-phi[j-1])*g22[j-1], phi[j-1]=0
+                        vol[CP] -= g22[k][j-1][i] / r;
+
+                        // normal term only, consistent with ProjectVelocity fringe correction
+                        // (cross terms removed - fringe face correction in ProjectVelocity also uses normal term only)
+                    }
 
                     // contribution from top face in k-direction (k+1/2)
                     if
@@ -1236,6 +1293,15 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                         vol[CP] -= g33[k][j][i] / r; // i, j, k
                         vol[TP] += g33[k][j][i] / r; // i, j, k+1
                     }
+                    // Dirichlet phi=0 at k+1: normal term only, consistent with velocity projection 
+                    else if
+                    (
+                        isInterpolatedCell(k+1,j,i,meshTag)
+                    )
+                    {
+                        // dpdz: (phi[k+1]-phi[k])*g33, phi[k+1]=0
+                        vol[CP] -= g33[k][j][i] / r;
+                    }
 
                     // contribution from bottom face in k-direction (k-1/2)
                     if
@@ -1307,6 +1373,18 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                         // -dpdz{k-1} = -(p{k} - p{k-1}) * g33[k-1][j][i]
                         vol[CP] -= g33[k-1][j][i] / r; // i, j, k
                         vol[BP] += g33[k-1][j][i] / r; //i, j, k-1
+                    }
+                    // Dirichlet phi=0 at k-1: normal term only, consistent with velocity projection 
+                    else if
+                    (
+                        isInterpolatedCell(k-1,j,i,meshTag)
+                    )
+                    {
+                        // -dpdz: -(phi[k]-phi[k-1])*g33[k-1], phi[k-1]=0
+                        vol[CP] -= g33[k-1][j][i] / r;
+
+                        // normal term only, consistent with ProjectVelocity fringe correction
+                        // (cross terms removed - fringe face correction in ProjectVelocity also uses normal term only)
                     }
 
                     idx[CP] = matID(i  , j  , k  );
@@ -1533,8 +1611,7 @@ PetscErrorCode phiToPhi(peqn_ *peqn)
             {
                 if(isIBMCell(k,j,i,nvert) || isOversetCell(k,j,i,meshTag))
                 {
-                    phi[k][j][i] = 0;
-                    phi1d[pos]   = 0;
+                    phi[k][j][i] = 0.0;
                     pos++;
                 }
                 else
@@ -1723,7 +1800,6 @@ PetscErrorCode SubtractAverageHypre(peqn_ *peqn, HYPRE_IJVector &B)
             {
                 PetscReal val;
 
-                // ensure gid differs from -1
                 if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
                 {
                     HYPRE_Int idx = matID(i, j, k);
@@ -1744,7 +1820,8 @@ PetscErrorCode SubtractAverageHypre(peqn_ *peqn, HYPRE_IJVector &B)
     MPI_Allreduce(&lcount, &gcount, 1, MPIU_INT, MPI_SUM, mesh->MESH_COMM);
 
     // compute the mean of the values in the vector
-    PetscReal val = -gsum/(PetscReal)gcount;
+    PetscReal val  = -gsum/(PetscReal)gcount;
+    PetscReal zero = 0.0;
 
     // subtract the mean to every component of the vector
     for (k=lzs; k<lze; k++)
@@ -1753,10 +1830,15 @@ PetscErrorCode SubtractAverageHypre(peqn_ *peqn, HYPRE_IJVector &B)
         {
             for (i=lxs; i<lxe; i++)
             {
-                if(isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
+                if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
                 {
                     HYPRE_Int idx = matID(i, j, k);
                     HYPRE_IJVectorAddToValues(B, 1, &idx, &val);
+                }
+                else 
+                {
+                    HYPRE_Int idx = matID(i, j, k);
+                    HYPRE_IJVectorSetValues(B, 1, &idx, &zero);
                 }
             }
         }
@@ -1784,8 +1866,7 @@ PetscErrorCode SubtractAveragePETSc(peqn_ *peqn, Vec &B)
 
     PetscInt           i, j, k;
     PetscInt           lxs, lxe, lys, lye, lzs, lze;
-    PetscInt           size;
-    PetscReal          ***nvert, ***gid, *b;
+    PetscReal          ***nvert, ***meshTag, ***gid, *b;
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
@@ -1793,37 +1874,62 @@ PetscErrorCode SubtractAveragePETSc(peqn_ *peqn, Vec &B)
 
     DMDAVecGetArray(da, peqn->lGid, &gid);
     DMDAVecGetArray(da, mesh->lNvert, &nvert);
+    DMDAVecGetArray(da, mesh->lmeshTag, &meshTag);
     VecGetArray(B, &b);
 
-    // get local Petsc array dimension
-    VecGetLocalSize(B, &size);
-
     PetscReal lsum = 0, gsum = 0;
-    PetscInt    lcount = 0, gcount = 0;
+    PetscInt  lcount = 0, gcount = 0;
 
-    for(PetscInt id=0; id<size; id++)
+    // average only over fluid/calculated cells, mirroring SubtractAverageHypre
+    for (k=lzs; k<lze; k++)
     {
-        lsum += b[id];
-        lcount++;
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+                if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
+                {
+                    PetscInt idx = (PetscInt)matID(i, j, k) - peqn->thisRankStart;
+                    lsum += b[idx];
+                    lcount++;
+                }
+            }
+        }
     }
 
     // global number of counts among processors
-    MPI_Allreduce(&lsum, &gsum, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-
-    // global number of counts among processors
-    MPI_Allreduce(&lcount, &gcount, 1, MPIU_INT, MPI_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&lsum,   &gsum,   1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&lcount, &gcount, 1, MPIU_INT,  MPI_SUM,  mesh->MESH_COMM);
 
     // compute the mean of the values in the vector
-    PetscReal val = -gsum/(PetscReal)gcount;
+    PetscReal val  = -gsum/(PetscReal)gcount;
+    PetscReal zero = 0.0;
 
-    for(PetscInt id=0; id<size; id++)
+    // subtract mean from fluid/calculated cells only
+    for (k=lzs; k<lze; k++)
     {
-        b[id] += val;
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+                if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
+                {
+                    PetscInt idx = (PetscInt)matID(i, j, k) - peqn->thisRankStart;
+                    b[idx] += val;
+                }
+                else 
+                {
+                    PetscInt idx = (PetscInt)matID(i, j, k) - peqn->thisRankStart;
+                    b[idx] = zero;
+                }
+            }
+        }
     }
 
     VecRestoreArray(B, &b);
     DMDAVecRestoreArray(da, peqn->lGid, &gid);
     DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da, mesh->lmeshTag, &meshTag);
 
     VecAssemblyBegin(B);
     VecAssemblyEnd  (B);
@@ -1838,6 +1944,8 @@ PetscErrorCode SetRHS(peqn_ *peqn)
     mesh_         *mesh  = peqn->access->mesh;
     clock_        *clock = peqn->access->clock;
     ueqn_         *ueqn  = peqn->access->ueqn;
+    flags_        *flags = peqn->access->flags;
+
     DM            da     = mesh->da, fda = mesh->fda;
     DMDALocalInfo info   = mesh->info;
     PetscInt           xs     = info.xs, xe = info.xs + info.xm;
@@ -1848,7 +1956,7 @@ PetscErrorCode SetRHS(peqn_ *peqn)
     PetscInt           i, j, k, size;
     PetscInt           lxs, lxe, lys, lye, lzs, lze;
 
-    PetscReal        dt   = clock->dt;
+    PetscReal          dt   = clock->dt;
 
     PetscReal     ***nvert, ***gid, *rhs, ***meshTag;
     Cmpnts        ***ucont;
@@ -1868,9 +1976,6 @@ PetscErrorCode SetRHS(peqn_ *peqn)
         VecGetLocalSize(peqn->petscRhs, &size);
     }
 
-    PetscReal lsum     = 0.0, gsum  = 0.0;
-    PetscInt    lcount   = 0, gcount  = 0;
-
     for (k=lzs; k<lze; k++)
     {
         for (j=lys; j<lye; j++)
@@ -1879,8 +1984,13 @@ PetscErrorCode SetRHS(peqn_ *peqn)
             {
                 PetscReal val;
 
-                // i, j, k is on solid body
+                // i, j, k is on solid body or overset cell
                 if (isIBMCell(k, j, i, nvert) || isOversetCell(k,j,i,meshTag))
+                {
+                    val = 0;
+                }
+                // with all-Neumann BCs we have to remove the null space manually
+                else if(!flags->isOversetActive && i==1 && j==1 && k==1)
                 {
                     val = 0;
                 }
@@ -1919,13 +2029,6 @@ PetscErrorCode SetRHS(peqn_ *peqn)
 
                     // set the RHS value
                     HYPRE_IJVectorSetValues(peqn->hypreRhs, 1, &idx, &val);
-
-                    // sum up this cell value
-                    if ((!isIBMCell(k, j, i, nvert)) && (!isOversetCell(k,j,i,meshTag)))
-                    {
-                        lsum += val;
-                        lcount++;
-                    }
                 }
                 else if(peqn->solverType == "PETSc")
                 {
@@ -1934,58 +2037,10 @@ PetscErrorCode SetRHS(peqn_ *peqn)
 
                     // set the RHS value
                     rhs[idx] = val;
-
-                    // sum up this cell value
-                    if ((!isIBMCell(k, j, i, nvert)) && (!isOversetCell(k,j,i,meshTag)))
-                    {
-                        lsum += val;
-                        lcount++;
-                    }
-
                 }
             }
         }
     }
-
-    MPI_Allreduce(&lsum,   &gsum,   1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-    MPI_Allreduce(&lcount, &gcount, 1, MPIU_INT,    MPI_SUM, mesh->MESH_COMM);
-
-    gsum = - gsum / (PetscReal)gcount;
-
-    for (k=lzs; k<lze; k++)
-    {
-        for (j=lys; j<lye; j++)
-        {
-            for (i=lxs; i<lxe; i++)
-            {
-                if(matID(i,j,k)>=0)
-                {
-
-                    if ((!isIBMCell(k, j, i, nvert)) && (!isOversetCell(k,j,i,meshTag)))
-                    {
-                        if(peqn->solverType == "HYPRE")
-                        {
-                            // get connectivity
-                            HYPRE_Int idx = matID(i,j,k);
-
-                            // subtract the mean to apply compatibility condition
-                            HYPRE_IJVectorAddToValues(peqn->hypreRhs, 1, &idx, &gsum);
-                        }
-                        else if(peqn->solverType == "PETSc")
-                        {
-                            // get connectivity
-                            PetscInt idx = (PetscInt)matID(i,j,k) - peqn->thisRankStart;
-
-                            // set the RHS value
-                            rhs[idx] += gsum;
-                        }
-                    }
-
-                }
-            }
-        }
-    }
-
 
     if(peqn->solverType == "HYPRE")
     {
@@ -2052,7 +2107,7 @@ PetscErrorCode AdjustIBMFlux(peqn_ *peqn)
                 if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
                 {
                     // i-left boundary
-                    if ((isIBMFluidCell(k, j, i+1, nvert) || isInterpolatedCell(k, j, i+1, meshTag)) && i < mx - 2)
+                    if (isIBMFluidCell(k, j, i+1, nvert) && i < mx - 2)
                     {
                         if (fabs(ucor[k][j][i].x) > epsilon)
                         {
@@ -2072,7 +2127,7 @@ PetscErrorCode AdjustIBMFlux(peqn_ *peqn)
                     }
 
                     // j-left boundary
-                    if ((isIBMFluidCell(k, j+1, i, nvert) || isInterpolatedCell(k, j+1, i, meshTag)) && j < my - 2)
+                    if (isIBMFluidCell(k, j+1, i, nvert) && j < my - 2)
                     {
                         if (fabs(ucor[k][j][i].y) > epsilon)
                         {
@@ -2092,7 +2147,7 @@ PetscErrorCode AdjustIBMFlux(peqn_ *peqn)
                     }
 
                     // k-left boundary
-                    if ((isIBMFluidCell(k+1, j, i, nvert) || isInterpolatedCell(k+1, j, i, meshTag)) && k < mz - 2)
+                    if (isIBMFluidCell(k+1, j, i, nvert) && k < mz - 2)
                     {
                         if (fabs(ucor[k][j][i].z) > epsilon)
                         {
@@ -2113,7 +2168,7 @@ PetscErrorCode AdjustIBMFlux(peqn_ *peqn)
                 }
 
                 // Right boundary (IBM at i,j,k; fluid at i+1,j+1,k+1)
-                if (isIBMFluidCell(k, j, i, nvert) || isInterpolatedCell(k, j, i, meshTag))
+                if (isIBMFluidCell(k, j, i, nvert))
                 {
                     // i-right boundary
                     if (isFluidCell(k, j, i+1, nvert) && isCalculatedCell(k, j, i+1, meshTag) && i < mx - 2)
@@ -2195,7 +2250,7 @@ PetscErrorCode AdjustIBMFlux(peqn_ *peqn)
                 if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
                 {
                     // i-left boundary
-                    if ((isIBMFluidCell(k, j, i+1, nvert) || isInterpolatedCell(k, j, i+1, meshTag)) && i < mx - 2)
+                    if (isIBMFluidCell(k, j, i+1, nvert) && i < mx - 2)
                     {
                         if (fabs(ucor[k][j][i].x) > epsilon)
                         {
@@ -2213,7 +2268,7 @@ PetscErrorCode AdjustIBMFlux(peqn_ *peqn)
                     }
 
                     // j-left boundary
-                    if ((isIBMFluidCell(k, j+1, i, nvert) || isInterpolatedCell(k, j+1, i, meshTag)) && j < my - 2)
+                    if (isIBMFluidCell(k, j+1, i, nvert) && j < my - 2)
                     {
                         if (fabs(ucor[k][j][i].y) > epsilon)
                         {
@@ -2231,7 +2286,7 @@ PetscErrorCode AdjustIBMFlux(peqn_ *peqn)
                     }
 
                     // k-left boundary
-                    if ((isIBMFluidCell(k+1, j, i, nvert) || isInterpolatedCell(k+1, j, i, meshTag)) && k < mz - 2)
+                    if (isIBMFluidCell(k+1, j, i, nvert) && k < mz - 2)
                     {
                         if (fabs(ucor[k][j][i].z) > epsilon)
                         {
@@ -2250,7 +2305,7 @@ PetscErrorCode AdjustIBMFlux(peqn_ *peqn)
                 }
 
                 // Right boundary (IBM at i,j,k; fluid at i+1,j+1,k+1)
-                if (isIBMFluidCell(k, j, i, nvert) || isInterpolatedCell(k, j, i, meshTag))
+                if (isIBMFluidCell(k, j, i, nvert))
                 {
                     // i-right boundary
                     if (isFluidCell(k, j, i+1, nvert) && isCalculatedCell(k, j, i+1, meshTag) && i < mx - 2)
@@ -2334,7 +2389,7 @@ PetscErrorCode AdjustIBMFlux(peqn_ *peqn)
                 if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
                 {
                     // i-left boundary
-                    if ((isIBMFluidCell(k, j, i+1, nvert) || isInterpolatedCell(k, j, i+1, meshTag)) && i < mx - 2)
+                    if (isIBMFluidCell(k, j, i+1, nvert) && i < mx - 2)
                     {
                         if (ucor[k][j][i].x > 0) // Influx (to IBM)
                         {
@@ -2347,7 +2402,7 @@ PetscErrorCode AdjustIBMFlux(peqn_ *peqn)
                     }
 
                     // j-left boundary
-                    if ((isIBMFluidCell(k, j+1, i, nvert) || isInterpolatedCell(k, j+1, i, meshTag)) && j < my - 2)
+                    if (isIBMFluidCell(k, j+1, i, nvert) && j < my - 2)
                     {
                         if (ucor[k][j][i].y > 0) // Influx (to IBM)
                         {
@@ -2360,7 +2415,7 @@ PetscErrorCode AdjustIBMFlux(peqn_ *peqn)
                     }
 
                     // k-left boundary
-                    if ((isIBMFluidCell(k+1, j, i, nvert) || isInterpolatedCell(k+1, j, i, meshTag)) && k < mz - 2)
+                    if (isIBMFluidCell(k+1, j, i, nvert) && k < mz - 2)
                     {
                         if (ucor[k][j][i].z > 0) // Influx (to IBM)
                         {
@@ -2374,7 +2429,7 @@ PetscErrorCode AdjustIBMFlux(peqn_ *peqn)
                 }
 
                 // Right boundary
-                if (isIBMFluidCell(k, j, i, nvert) || isInterpolatedCell(k, j, i, meshTag))
+                if (isIBMFluidCell(k, j, i, nvert))
                 {
                     // i-right boundary
                     if (isFluidCell(k, j, i+1, nvert) && isCalculatedCell(k, j, i+1, meshTag) && i < mx - 2)
@@ -2560,31 +2615,47 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
 
                     if
                     (
-                        isFluidIFace(k, j, i, i+1, nvert) && isCalculatedIFace(k, j, i, i+1, meshTag)
+                        isFluidIFace(k, j, i, i+1, nvert)
                     )
                     {
-                        ucont[k][j][i].x
-                        -=
-                        (
+                        if (isCalculatedIFace(k, j, i, i+1, meshTag))
+                        {
+                            // full gradient correction for calculated face
+                            ucont[k][j][i].x
+                            -=
+                            (
+                                dpdc *
+                                (
+                                    icsi[k][j][i].x * icsi[k][j][i].x +
+                                    icsi[k][j][i].y * icsi[k][j][i].y +
+                                    icsi[k][j][i].z * icsi[k][j][i].z
+                                ) * iaj[k][j][i] +
+                                dpde *
+                                (
+                                    ieta[k][j][i].x * icsi[k][j][i].x +
+                                    ieta[k][j][i].y * icsi[k][j][i].y +
+                                    ieta[k][j][i].z * icsi[k][j][i].z
+                                ) * iaj[k][j][i] +
+                                dpdz *
+                                (
+                                    izet[k][j][i].x * icsi[k][j][i].x +
+                                    izet[k][j][i].y * icsi[k][j][i].y +
+                                    izet[k][j][i].z * icsi[k][j][i].z
+                                ) * iaj[k][j][i]
+                            ) * clock->dt;
+                        }
+                        else if (isInterpolatedIFace(k, j, i, i+1, meshTag))
+                        {
+                            // normal term only for fringe face - consistent with SetCoeffMatrix Dirichlet branch
+                            ucont[k][j][i].x
+                            -=
                             dpdc *
                             (
                                 icsi[k][j][i].x * icsi[k][j][i].x +
                                 icsi[k][j][i].y * icsi[k][j][i].y +
                                 icsi[k][j][i].z * icsi[k][j][i].z
-                            ) * iaj[k][j][i] +
-                            dpde *
-                            (
-                                ieta[k][j][i].x * icsi[k][j][i].x +
-                                ieta[k][j][i].y * icsi[k][j][i].y +
-                                ieta[k][j][i].z * icsi[k][j][i].z
-                            ) * iaj[k][j][i] +
-                            dpdz *
-                            (
-                                izet[k][j][i].x * icsi[k][j][i].x +
-                                izet[k][j][i].y * icsi[k][j][i].y +
-                                izet[k][j][i].z * icsi[k][j][i].z
-                            ) * iaj[k][j][i]
-                        ) * clock->dt;
+                            ) * iaj[k][j][i] * clock->dt;
+                        }
                     }
                 }
 
@@ -2653,31 +2724,47 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
 
                     if
                     (
-                            isFluidJFace(k, j, i, j+1, nvert) && isCalculatedJFace(k, j, i, j+1, meshTag)
+                        isFluidJFace(k, j, i, j+1, nvert)
                     )
                     {
-                        ucont[k][j][i].y
-                        -=
-                        (
-                            dpdc *
+                        if (isCalculatedJFace(k, j, i, j+1, meshTag))
+                        {
+                            // full gradient correction for calculated face
+                            ucont[k][j][i].y
+                            -=
                             (
-                                jcsi[k][j][i].x * jeta[k][j][i].x +
-                                jcsi[k][j][i].y * jeta[k][j][i].y +
-                                jcsi[k][j][i].z * jeta[k][j][i].z
-                            ) * jaj[k][j][i] +
+                                dpdc *
+                                (
+                                    jcsi[k][j][i].x * jeta[k][j][i].x +
+                                    jcsi[k][j][i].y * jeta[k][j][i].y +
+                                    jcsi[k][j][i].z * jeta[k][j][i].z
+                                ) * jaj[k][j][i] +
+                                dpde *
+                                (
+                                    jeta[k][j][i].x * jeta[k][j][i].x +
+                                    jeta[k][j][i].y * jeta[k][j][i].y +
+                                    jeta[k][j][i].z * jeta[k][j][i].z
+                                ) * jaj[k][j][i] +
+                                dpdz *
+                                (
+                                    jzet[k][j][i].x * jeta[k][j][i].x +
+                                    jzet[k][j][i].y * jeta[k][j][i].y +
+                                    jzet[k][j][i].z * jeta[k][j][i].z
+                                ) * jaj[k][j][i]
+                            ) * clock->dt;
+                        }
+                        else if (isInterpolatedJFace(k, j, i, j+1, meshTag))
+                        {
+                            // normal term only for fringe face - consistent with SetCoeffMatrix Dirichlet branch
+                            ucont[k][j][i].y
+                            -=
                             dpde *
                             (
                                 jeta[k][j][i].x * jeta[k][j][i].x +
                                 jeta[k][j][i].y * jeta[k][j][i].y +
                                 jeta[k][j][i].z * jeta[k][j][i].z
-                            ) * jaj[k][j][i] +
-                            dpdz *
-                            (
-                                jzet[k][j][i].x * jeta[k][j][i].x +
-                                jzet[k][j][i].y * jeta[k][j][i].y +
-                                jzet[k][j][i].z * jeta[k][j][i].z
-                            ) * jaj[k][j][i]
-                        ) * clock->dt;
+                            ) * jaj[k][j][i] * clock->dt;
+                        }
                     }
                 }
 
@@ -2745,32 +2832,47 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
 
                     if
                     (
-                        isFluidKFace(k, j, i, k+1, nvert) && isCalculatedKFace(k, j, i, k+1, meshTag)
+                        isFluidKFace(k, j, i, k+1, nvert)
                     )
                     {
-                        ucont[k][j][i].z
-                        -=
-                        (
-                            dpdc *
+                        if (isCalculatedKFace(k, j, i, k+1, meshTag))
+                        {
+                            // full gradient correction for calculated face
+                            ucont[k][j][i].z
+                            -=
                             (
-                                kcsi[k][j][i].x * kzet[k][j][i].x +
-                                kcsi[k][j][i].y * kzet[k][j][i].y +
-                                kcsi[k][j][i].z * kzet[k][j][i].z
-                            ) * kaj[k][j][i] +
-                            dpde *
-                            (
-                                keta[k][j][i].x * kzet[k][j][i].x +
-                                keta[k][j][i].y * kzet[k][j][i].y +
-                                keta[k][j][i].z * kzet[k][j][i].z
-                            ) * kaj[k][j][i] +
+                                dpdc *
+                                (
+                                    kcsi[k][j][i].x * kzet[k][j][i].x +
+                                    kcsi[k][j][i].y * kzet[k][j][i].y +
+                                    kcsi[k][j][i].z * kzet[k][j][i].z
+                                ) * kaj[k][j][i] +
+                                dpde *
+                                (
+                                    keta[k][j][i].x * kzet[k][j][i].x +
+                                    keta[k][j][i].y * kzet[k][j][i].y +
+                                    keta[k][j][i].z * kzet[k][j][i].z
+                                ) * kaj[k][j][i] +
+                                dpdz *
+                                (
+                                    kzet[k][j][i].x * kzet[k][j][i].x +
+                                    kzet[k][j][i].y * kzet[k][j][i].y +
+                                    kzet[k][j][i].z * kzet[k][j][i].z
+                                ) * kaj[k][j][i]
+                            ) * clock->dt;
+                        }
+                        else if (isInterpolatedKFace(k, j, i, k+1, meshTag))
+                        {
+                            // normal term only for fringe face - consistent with SetCoeffMatrix Dirichlet branch
+                            ucont[k][j][i].z
+                            -=
                             dpdz *
                             (
                                 kzet[k][j][i].x * kzet[k][j][i].x +
                                 kzet[k][j][i].y * kzet[k][j][i].y +
                                 kzet[k][j][i].z * kzet[k][j][i].z
-                            ) * kaj[k][j][i]
-                        ) * clock->dt;
-
+                            ) * kaj[k][j][i] * clock->dt;
+                        }
                     }
                 }
             }
@@ -2824,66 +2926,26 @@ PetscErrorCode UpdatePressure(peqn_ *peqn)
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
 
-    PetscReal lPsum    = 0.0, gPsum  = 0.0;
-    PetscInt  lnPoints = 0, gnPoints = 0;
-
     DMDAVecGetArray(da, peqn->P, &p);
     DMDAVecGetArray(da, peqn->lPhi, &lphi);
     DMDAVecGetArray(da, mesh->lNvert, &nvert);
     DMDAVecGetArray(da, mesh->lmeshTag, &meshTag);
 
-    // update pressure and average
-
-    for (k=zs; k<ze; k++)
+    for (k=lzs; k<lze; k++)
     {
-        for (j=ys; j<ye; j++)
+        for (j=lys; j<lye; j++)
         {
-            for (i=xs; i<xe; i++)
+            for (i=lxs; i<lxe; i++)
             {
-              if (isIBMCell(k, j, i, nvert) || isOversetCell(k, j, i, meshTag)) 
-              {
-                      continue;
-              }
-
-              if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
-              {
-                  // p updated only for fluid cells. For ibm fluid cells it is interpolated from the fluid cells in IBM interpolation function
-
-                  p[k][j][i] += lphi[k][j][i];
-                  lPsum += p[k][j][i];
-                  lnPoints++;
-              }
-            }
-        }
-    }
-
-    // update boundary conditions
-    UpdatePressureBCs(peqn);
-
-    MPI_Allreduce(&lPsum,    &gPsum,    1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-    MPI_Allreduce(&lnPoints, &gnPoints, 1, MPIU_INT,    MPI_SUM, mesh->MESH_COMM);
-
-    gPsum = gPsum / gnPoints;
-
-    // subtract average
-    for (k=zs; k<ze; k++)
-    {
-        for (j=ys; j<ye; j++)
-        {
-            for (i=xs; i<xe; i++)
-            {
-              if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
-              {
-                  p[k][j][i] -= gPsum;
-              }
-              else if(isIBMFluidCell(k, j, i, nvert))
-              {
-                 //do nothing. will be updated in ibm interpolation
-              }
-              else
-              {
-                   p[k][j][i] = 0.0;
-              }
+                if (isIBMCell(k, j, i, nvert) || isOversetCell(k, j, i, meshTag)) 
+                {
+                    p[k][j][i] = 0.0;
+                }
+                else
+                {
+                    // p updated only at fluid cells
+                    p[k][j][i] += lphi[k][j][i];
+                }
             }
         }
     }
@@ -2970,7 +3032,7 @@ PetscErrorCode GradP4thOrder(peqn_ *peqn)
                 PetscReal g32_k = (keta[k][j][i].x * kzet[k][j][i].x + keta[k][j][i].y * kzet[k][j][i].y + keta[k][j][i].z * kzet[k][j][i].z);
                 PetscReal g33_k = (kzet[k][j][i].x * kzet[k][j][i].x + kzet[k][j][i].y * kzet[k][j][i].y + kzet[k][j][i].z * kzet[k][j][i].z);
 
-                /*****************  i direction  ****************/
+                // i direction
 
                 //dpdc
                 if (i == mx-2 && mesh->ii_periodic) 
@@ -3091,7 +3153,7 @@ PetscErrorCode GradP4thOrder(peqn_ *peqn)
 
                 dp[k][j][i].x = (dpdc * g11_i + dpde * g12_i + dpdz * g13_i) * iaj[k][j][i];
 
-                /*****************  j direction  ****************/
+                // j direction
 
                 // dpdc  
                 if (j == my-2) 
@@ -3212,7 +3274,7 @@ PetscErrorCode GradP4thOrder(peqn_ *peqn)
 
                 dp[k][j][i].y = (dpdc * g21_j + dpde * g22_j + dpdz * g23_j) * jaj[k][j][i];
 
-                /*****************  k direction  ****************/
+                // k direction
 
                 // dpdc  
                 if (k == mz-2) 
@@ -3334,16 +3396,15 @@ PetscErrorCode GradP4thOrder(peqn_ *peqn)
                 dp[k][j][i].z = (dpdc * g31_k + dpde * g32_k + dpdz * g33_k) * kaj[k][j][i];
 
                 // Set to zero at boundaries where contravariant velocity is not solved
-                // only solved faces need to be considered, for unsolved faces rhs will be set to 0 so no effect even if not considered here
-                if (i==0 || (!mesh->i_periodic && !mesh->ii_periodic && i==mx-2)) 
+                if (i==0 || (!mesh->i_periodic && !mesh->ii_periodic && i==mx-2) || isOversetIFace(k, j, i, i+1, meshTag)) 
                 {
                     dp[k][j][i].x = 0;
                 }
-                if (j==0 || (!mesh->j_periodic && !mesh->jj_periodic && j==my-2)) 
+                if (j==0 || (!mesh->j_periodic && !mesh->jj_periodic && j==my-2) || isOversetJFace(k, j, i, j+1, meshTag)) 
                 {
                     dp[k][j][i].y = 0;
                 }
-                if (k==0 || (!mesh->k_periodic && !mesh->kk_periodic && k==mz-2)) 
+                if (k==0 || (!mesh->k_periodic && !mesh->kk_periodic && k==mz-2) || isOversetKFace(k, j, i, k+1, meshTag)) 
                 {
                     dp[k][j][i].z = 0;
                 }
@@ -3728,7 +3789,7 @@ PetscErrorCode SolvePEqn(peqn_ *peqn)
     PetscTime(&ts);
 
     // add flux correction
-    if(flags->isIBMActive || flags->isOversetActive)
+    if(flags->isIBMActive)
     {
         AdjustIBMFlux(peqn);
         MPI_Barrier(mesh->MESH_COMM);
@@ -3740,12 +3801,26 @@ PetscErrorCode SolvePEqn(peqn_ *peqn)
         {
             if(peqn->solverType == "HYPRE")
             {
+                // Both the matrix AND the solver/preconditioner must be
+                // destroyed and recreated together. HYPRE_BoomerAMGSetup
+                // (called internally by HYPRE_ParCSRGMRESSetup) caches the
+                // fine-level ParCSR pointer from the previous Setup call. If
+                // only the matrix is recreated, BoomerAMG still holds the old
+                // (now freed) pointer and dereferences it during hierarchy
+                // cleanup at the start of the next Setup — causing the hang.
+                // Destroying BoomerAMG and the GMRES/PCG solver first ensures
+                // no stale internal references survive into the new Setup.
+                DestroyHypreSolver(peqn);
                 DestroyHypreMatrix(peqn);
-                DestroyHypreVector(peqn);
 
+                CreateHypreMatrix(peqn);   // refreshes hypreParA via GetObject
+                CreateHypreSolver(peqn);   // fresh BoomerAMG + GMRES/PCG
 
-                CreateHypreMatrix(peqn);
-                CreateHypreVector(peqn);
+                // Vectors are always fully overwritten by SetRHS and
+                // Petsc2HypreVector, so in-place re-initialisation is safe
+                // and avoids the collective IJVectorCreate MPI overhead.
+                HYPRE_IJVectorInitialize(peqn->hypreP);
+                HYPRE_IJVectorInitialize(peqn->hypreRhs);
 
                 MPI_Barrier(mesh->MESH_COMM);
             }
@@ -3757,16 +3832,17 @@ PetscErrorCode SolvePEqn(peqn_ *peqn)
 
             if(peqn->solverType == "PETSc")
             {
-                // destroy rhs framework
+                // The matrix object (petscA) is never destroyed: SetCoeffMatrix
+                // already called MatZeroEntries + MatAssemblyEnd, incrementing
+                // PETSc's internal version counter. Re-registering the operator
+                // marks the preconditioner as stale so PCGAMG rebuilds its
+                // hierarchy on the next KSPSolve. This avoids tearing down and
+                // recreating the entire KSP context (which discards the
+                // warm-start state and monitor registration).
+                KSPSetOperators(peqn->ksp, peqn->petscA, peqn->petscA);
+
+                // reset RHS vector
                 VecSet(peqn->petscRhs, 0.0);
-
-                // create solver framework
-                if(clock->it > clock->itStart)
-                {
-                    DestroyPETScSolver(peqn);
-                }
-
-                CreatePETScSolver(peqn);
             }
         }
     }
@@ -3804,6 +3880,9 @@ PetscErrorCode SolvePEqn(peqn_ *peqn)
         }
 
         MPI_Barrier(mesh->MESH_COMM);
+
+        // remove the null space from the initial guess before the solve and sets blanked points to zero 
+        SubtractAverageHypre(peqn, peqn->hypreP);
 
         // compute initial residual
         peqn->initialPoissonRes = L2NormHypre(peqn, peqn->hypreA, peqn->hypreP, peqn->hypreRhs);
@@ -3846,14 +3925,14 @@ PetscErrorCode SolvePEqn(peqn_ *peqn)
             PetscPrintf(mesh->MESH_COMM, "Initial residual = %e, Final residual = %e, Iterations = %ld, Elapsed Time = ", peqn->initialPoissonRes, peqn->finalPoissonRes, peqn->poissonIterations);
         }
 
-        // subtract the mean from the solution vector
-        SubtractAverageHypre(peqn, peqn->hypreP);
-
         // transform the HYPRE solution to the Phi2 petsc vector
         Hypre2PetscVector(peqn->hypreP, peqn->phi, peqn->thisRankStart);
     }
     else if(peqn->solverType == "PETSc")
     {
+        // remove the null space from the initial guess before the solve and set blanked points to zero (might be redundant for PETSc)
+        SubtractAveragePETSc(peqn, peqn->phi);
+
         // compute initial residual
         KSPSolve(peqn->ksp, peqn->petscRhs, peqn->phi);
 
@@ -3864,18 +3943,6 @@ PetscErrorCode SolvePEqn(peqn_ *peqn)
         peqn->poissonIterations = (HYPRE_Int)numIter;
 
         PetscPrintf(mesh->MESH_COMM, "MGGMRES: Solving for p, Initial residual = %e, Final residual = %e, Iterations = %ld, Elapsed Time = ",peqn->initialPoissonRes, peqn->finalPoissonRes, peqn->poissonIterations);
-
-        if(flags->isIBMActive)
-        {
-            if( peqn->access->ibm->dynamic )
-            {
-                MatMPIAIJSetPreallocation(peqn->petscA, 27, PETSC_NULL, 27, PETSC_NULL);
-
-                MatSetOption(peqn->petscA, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE);
-            }
-        }
-
-        SubtractAveragePETSc(peqn, peqn->phi);
     }
 
     // wait until al processes reach this point
@@ -3890,76 +3957,15 @@ PetscErrorCode SolvePEqn(peqn_ *peqn)
     // update pressure
     UpdatePressure(peqn);
 
-    // set pressure reference
-    SetPressureReference(peqn);
+    // update boundary conditions (required to update ghost and interpolated cells which are NOT updated from the solve)
+    UpdatePressureBCs(peqn);
 
-    // update velocity
+    // update velocity (also project at interpolated faces when overset is actve - might want to do that also for IBM)
     ProjectVelocity(peqn);
 
     PetscTime(&te);
 
     PetscPrintf(mesh->MESH_COMM, "%lf\n", te-ts);
-
-    return(0);
-}
-
-//***************************************************************************************************************//
-
-PetscErrorCode SetPressureReference(peqn_ *peqn)
-{
-    mesh_         *mesh = peqn->access->mesh;
-    DM            da   = mesh->da, fda = mesh->fda;
-    DMDALocalInfo info = mesh->info;
-    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
-    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
-    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
-    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
-
-    PetscInt      lxs, lxe, lys, lye, lzs, lze;
-    PetscInt      i, j, k;
-
-    PetscReal     ***p, ***lp, ***nvert, ***meshTag;
-
-    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
-    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
-    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
-
-    DMDAVecGetArray(da, peqn->lP, &lp);
-    DMDAVecGetArray(da, peqn->P, &p);
-    DMDAVecGetArray(da, mesh->lNvert, &nvert);
-    DMDAVecGetArray(da, mesh->lmeshTag, &meshTag);
-
-    // test if this processor contains the 0,0,0 cell
-    PetscReal lscale = 0.0, gscale = 0.0;
-    if(xs==0 && ys == 0 && zs==0)
-    {
-        lscale = p[1][1][1];
-    }
-
-    MPI_Allreduce(&lscale, &gscale, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-
-    for (k=zs; k<ze; k++)
-    {
-        for (j=ys; j<ye; j++)
-        {
-            for (i=xs; i<xe; i++)
-            {
-                if((!isIBMSolidCell(k, j, i, nvert)) && (!isZeroedCell(k, j, i, meshTag)))
-                {
-                    p[k][j][i] -= gscale;
-                }
-            }
-        }
-    }
-
-    DMDAVecRestoreArray(da, peqn->lP, &lp);
-    DMDAVecRestoreArray(da, peqn->P, &p);
-    DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
-    DMDAVecRestoreArray(da, mesh->lmeshTag, &meshTag);
-
-    // scatter Phi from global to local
-    DMGlobalToLocalBegin(da, peqn->P, INSERT_VALUES, peqn->lP);
-    DMGlobalToLocalEnd  (da, peqn->P, INSERT_VALUES, peqn->lP);
 
     return(0);
 }
@@ -4033,20 +4039,6 @@ PetscErrorCode ContinuityErrors(peqn_ *peqn)
                     lmaxu = nMag(ucat[k][j][i]);
                 }
 
-                // if
-                // (
-                //     nvert[k  ][j  ][i  ] +
-                //     nvert[k+1][j  ][i  ] +
-                //     nvert[k-1][j  ][i  ] +
-                //     nvert[k  ][j+1][i  ] +
-                //     nvert[k  ][j-1][i  ] +
-                //     nvert[k  ][j  ][i+1] +
-                //     nvert[k  ][j  ][i-1] > 0.1
-                // )
-                // {
-                //     maxdiv = 0.;
-                // }
-
                 if(isIBMCell(k, j, i, nvert) || isOversetCell(k, j, i, meshTag))
                 {
                     maxdiv = 0;
@@ -4101,7 +4093,7 @@ PetscErrorCode ContinuityErrors(peqn_ *peqn)
         }
     }
 
-    if(rank==maxrank) printf("Time step continuity error: %e (at cell %ld, %ld, %ld). uMax = %lf\n", maxdiv, maxDivIds.i, maxDivIds.j, maxDivIds.k, gmaxu);
+    if(rank==maxrank) printf("Time step continuity error: %e (at cell k,j,i = %ld, %ld, %ld). uMax = %lf\n", maxdiv, maxDivIds.k, maxDivIds.j, maxDivIds.i, gmaxu);
 
     DMDAVecRestoreArray(fda, ueqn->lUcont, &ucont);
     DMDAVecRestoreArray(fda, ueqn->lUcat,  &ucat);
@@ -4163,11 +4155,6 @@ PetscErrorCode ContinuityErrorsOptimized(peqn_ *peqn)
                         ucont[k][j][i].z - ucont[k-1][j][i].z
                     )*aj[k][j][i]
                 );
-
-                // if(isBoxIBMCell(k, j, i, nvert) || isBoxOversetCell(k, j, i, meshTag))
-                // {
-                //     div = 0;
-                // }
 
                 if(isIBMCell(k, j, i, nvert) || isOversetCell(k, j, i, meshTag))
                 {

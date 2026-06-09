@@ -1,0 +1,67 @@
+\doxysection{probe\+Rake Struct Reference}
+\hypertarget{structprobeRake}{}\label{structprobeRake}\index{probeRake@{probeRake}}
+
+
+Struct defining a probe rake.  
+
+
+
+
+{\ttfamily \#include $<$probes\+Acquisition.\+h$>$}
+
+\doxysubsubsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{structprobeRake_a59c8a269ae15728dd516e1e34bcc1f88}\label{structprobeRake_a59c8a269ae15728dd516e1e34bcc1f88} 
+word {\bfseries rake\+Name}
+\begin{DoxyCompactList}\small\item\em name of the probes rake \end{DoxyCompactList}\item 
+\Hypertarget{structprobeRake_adbe869c77cfeecab25b48d01e0dbfabc}\label{structprobeRake_adbe869c77cfeecab25b48d01e0dbfabc} 
+word {\bfseries time\+Name}
+\begin{DoxyCompactList}\small\item\em name of the time directory where rake data are written \end{DoxyCompactList}\item 
+\Hypertarget{structprobeRake_ada3d63d288b33b8fd3f6696650b350c9}\label{structprobeRake_ada3d63d288b33b8fd3f6696650b350c9} 
+Petsc\+Int {\bfseries probes\+Number}
+\begin{DoxyCompactList}\small\item\em number of probes in this rake \end{DoxyCompactList}\item 
+\Hypertarget{structprobeRake_ab926af428da9cc3a72e424387af851a7}\label{structprobeRake_ab926af428da9cc3a72e424387af851a7} 
+word {\bfseries interval\+Type}
+\begin{DoxyCompactList}\small\item\em can be time\+Step or adjustable\+Time \end{DoxyCompactList}\item 
+\Hypertarget{structprobeRake_ad630414432baafbb5b26e22bf41e4f2a}\label{structprobeRake_ad630414432baafbb5b26e22bf41e4f2a} 
+Petsc\+Real {\bfseries time\+Start}
+\begin{DoxyCompactList}\small\item\em start time of acquisition system \end{DoxyCompactList}\item 
+\Hypertarget{structprobeRake_a280075e6f9046b616bbe2a524846edcc}\label{structprobeRake_a280075e6f9046b616bbe2a524846edcc} 
+Petsc\+Real {\bfseries time\+Interval}
+\begin{DoxyCompactList}\small\item\em acquisition time interval (overrides simulation time step if smaller) \end{DoxyCompactList}\item 
+\Hypertarget{structprobeRake_a7b2e0a3b28ea105ea4a21a6cc600fc3a}\label{structprobeRake_a7b2e0a3b28ea105ea4a21a6cc600fc3a} 
+Petsc\+Int {\bfseries Uflag}
+\begin{DoxyCompactList}\small\item\em flag telling if velocity field must be acquired \end{DoxyCompactList}\item 
+\Hypertarget{structprobeRake_a6eb654ac14f81b27229422966474b16f}\label{structprobeRake_a6eb654ac14f81b27229422966474b16f} 
+Petsc\+Int {\bfseries Tflag}
+\begin{DoxyCompactList}\small\item\em flag telling if fempearature field must be acquired \end{DoxyCompactList}\item 
+\Hypertarget{structprobeRake_a1cce4d02f1b80e3eb0da932f780d4ced}\label{structprobeRake_a1cce4d02f1b80e3eb0da932f780d4ced} 
+Petsc\+Int {\bfseries Pflag}
+\begin{DoxyCompactList}\small\item\em flag telling if pressure field must be acquired \end{DoxyCompactList}\item 
+\Hypertarget{structprobeRake_a6de3151e14f839d3d86c810ccac1ae83}\label{structprobeRake_a6de3151e14f839d3d86c810ccac1ae83} 
+Petsc\+Real \texorpdfstring{$\ast$}{*}\texorpdfstring{$\ast$}{*} {\bfseries locations}
+\begin{DoxyCompactList}\small\item\em array of \mbox{[}n, 3\mbox{]} where n is the number of probes in the rake and 3 are the probe coords \end{DoxyCompactList}\item 
+\Hypertarget{structprobeRake_a93e405dbb2f461e143fba2b5c38b2df9}\label{structprobeRake_a93e405dbb2f461e143fba2b5c38b2df9} 
+Petsc\+Int \texorpdfstring{$\ast$}{*}\texorpdfstring{$\ast$}{*} {\bfseries cells}
+\begin{DoxyCompactList}\small\item\em array of \mbox{[}n, 3\mbox{]} where n is the number of probes in the rake and 3 are cell indices of the computational pt closes to the probe \end{DoxyCompactList}\item 
+\Hypertarget{structprobeRake_a251ec85b324f6da5f288ffb0507aaa68}\label{structprobeRake_a251ec85b324f6da5f288ffb0507aaa68} 
+Petsc\+Int \texorpdfstring{$\ast$}{*} {\bfseries owner}
+\begin{DoxyCompactList}\small\item\em array of \mbox{[}n\mbox{]} where n is the number of probes in the rake and every element is the rank owning the probe \end{DoxyCompactList}\item 
+\Hypertarget{structprobeRake_af82fef00adf9d1c9242b4038183ca8c8}\label{structprobeRake_af82fef00adf9d1c9242b4038183ca8c8} 
+Petsc\+Int \texorpdfstring{$\ast$}{*} {\bfseries domain\+ID}
+\begin{DoxyCompactList}\small\item\em number of the domain which controls this probe \end{DoxyCompactList}\item 
+\Hypertarget{structprobeRake_a113aee0070e441371efe29d3e4d3268b}\label{structprobeRake_a113aee0070e441371efe29d3e4d3268b} 
+Petsc\+Int {\bfseries this\+Rake\+Controlled}
+\begin{DoxyCompactList}\small\item\em this processor controls this rake (totally or partially) \end{DoxyCompactList}\item 
+\Hypertarget{structprobeRake_a71b41132a933987cab584f9e8bcaebcc}\label{structprobeRake_a71b41132a933987cab584f9e8bcaebcc} 
+MPI\+\_\+\+Comm {\bfseries RAKE\+\_\+\+COMM}
+\begin{DoxyCompactList}\small\item\em communicator for this probe rake \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Struct defining a probe rake. 
+
+The documentation for this struct was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+/zfs60/nobackup/stipa/software/\+TOSCA/src/include/acquisition/\mbox{\hyperlink{probesAcquisition_8h}{probes\+Acquisition.\+h}}\end{DoxyCompactItemize}

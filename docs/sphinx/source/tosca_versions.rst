@@ -12,9 +12,20 @@ The documentation for the **master** branch, which is updated alongside the intr
 `TOSCA Stable Development Documentation <https://sebastipa.github.io/TOSCA/index.html>`_. We save snapshots of the documentation for each release, which can 
 be found below.     
 
-New working features since release (V1.2.0):  
- - OpenFAST coupling support 
+New working features since release (V1.2.0):
+ - Added TOSCA theory guide to sphynx documentation.
+ - Added new time integration schemes for U and T, detailed in the theory guide of the documentation (new faster and more stable IMEX schemes)
+ - OpenFAST coupling support. 
+ - When compiled with OpenFAST, each turbine can be either coupled with OpenFAST or modeled using the existing actuator disk/line/method models.
  - Added additional test case NREL5MWOpenFastTest to demonstrate OpenFAST coupling.
+ - Added height-varying reference state for kRight/kLeft Rayleigh damping layers.
+ - Major overset code refactoring to reduce memory usage by exploiting PETSc Star Forest data structure.
+ - Enhanced p solver for better compatibility with overset. Added p shift to maintain p stable across iterations.
+ - Added pTildeBuoyancy formulation for the buoyancy term (should be used with overset, especially under stable flow).
+ - Removed upstream velocity sampling for all actuator models. Currently always sampling at point location.
+ - Added STL file read for IBM bodies.
+
+Note: the current master branch will become TOSCA v2.0.0. 
 
 V1.2.0
 ------

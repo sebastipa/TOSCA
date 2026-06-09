@@ -7,29 +7,43 @@
 //! \brief structure storing momentum equation
 struct ueqn_
 {
-    // Implicit time stepping
+    // solver name 
+    word          solverType;                 //!< solver type (kept for logging)
+
+    // implicit time stepping
     SNES          snesU;                      //!< non linear matrix free context for momentum equation
     Mat           JU;                         //!< non linear matrix free preconditioner
     Mat           A, C;
-    KSP           ksp;                        //!< linear krylov-subspace context
+    KSP           ksp;                        //!< linear krylov-subspace context (crankNicholson SNES inner KSP)
     PC            pc;
+    KSP           kspIMEX;                    //!< standalone direct KSP for IMEX scheme (no SNES wrapper)
+    Mat           JvIMEX;                     //!< MatShell for IMEX operator A*v = v - dt*scale*Visc(v)
+    PetscInt      snesMaxIter;                //!< max SNES outer iterations (-snesMaxItersU in control.dat)
+    word          kspType;                    //!< KSP solver type: BiCGStab or GMRES (-kspTypeU in control.dat)
+    PetscInt      gmresRestart;               //!< GMRES restart parameter (-kspGMRESRestartU in control.dat, default 30)
 
     // momentum variables
-    Vec           Utmp;                             //!< temporary solution passed to the SNES evaluation function or used for RK4
+    Vec           Utmp;                             //!< temporary solution passed to the SNES/KSP evaluation function
     Vec           Rhs;                              //!< rhs of the momentum equation (stores transport and viscous fluxes), low level use in FormU
-    Vec           Rhs_o;                            //!< rhs of the momentum equation at previous time step
+    Vec           Rhs_o;                            //!< rhs of the momentum equation at previous time step (used by many time schemes)
     Vec           lFp;                              //!< rhs of the momentum equation prior to dotting with curv. coords basis (becomes Rhs)
     Vec           lDiv1, lDiv2, lDiv3;              //!< Components of the convective term in momentum equation
     Vec           lVisc1, lVisc2, lVisc3;           //!< Components of the viscous term in the momentum equation
     Vec           lViscIBM1, lViscIBM2, lViscIBM3;  //!< Components of the viscous term in the momentum equation for IBM faces
     Vec           dP;                               //!< pressure term of the momentum equation
 	Vec           dPAGW;                            //!< pressure term of the momentum equation as calculated from provided atmopsheric gravity waves pressure
-    Vec           bTheta;                           //!< buoyancy field
+    Vec           bTheta;                           //!< buoyancy field at current time (used for AB2 buoyancy term extrapolation)
+    Vec           bTheta_o;                         //!< buoyancy field at previous time (used for AB2 buoyancy term extrapolation)
     Vec           sourceU;                          //!< source term to drive Uref at Zref with periodic BCs
     Vec           gCont;                            //!< gravity vector in cuvilinear coordinates
     Vec           Ucont, lUcont;                    //!< contravariant fluxes (contravariant velocity / J)
     Vec           Ucat, lUcat;                      //!< cartesian velocity
-    Vec           Ucont_o;                          //!< contravariant fluxes at the previous time step
+    Vec           Ucont_o;                          //!< contravariant fluxes at the previous time step (old solution, contains BCs)
+    Vec           bU;                               //!< precomputed constant-RHS contributions for CN, RHS of the linear system for IMEX schemes
+    Vec           RhsVisc;                          //!< viscous-part of the RHS at current step (used in IMEX schemes)
+    Vec           RhsConv;                          //!< convective-only RHS at current step (used by ABCN IMEX scheme to build AB2 explicit part)
+    Vec           RhsConv_o;                        //!< convective-only RHS at previous step (used by ABCN IMEX scheme to build AB2 explicit part)
+
     Vec           lUstar;
     Cmpnts        meanGradP;
     Cmpnts        uBulk;
@@ -37,9 +51,9 @@ struct ueqn_
     // momentum settings
     word          ddtScheme;                  //!< time derivative scheme
     word          divScheme;                  //!< divergence scheme
-    word          viscScheme;
-    PetscReal     relExitTol;                 //!< relative exit tolerance
-    PetscReal     absExitTol;                 //!< absolute exit tolerance
+    word          viscScheme;                 //<! viscous gradient scheme
+    PetscReal     relExitTol;                 //!< relative exit tolerance for SNES/KSP solvers
+    PetscReal     absExitTol;                 //!< absolute exit tolerance for SNES/KSP solvers
     PetscInt      inviscid;                   //!< inviscid run
     PetscInt      buoyancy;                   //!< buoyancy term
     PetscInt      coriolis;                   //!< coriolis term
@@ -54,6 +68,9 @@ struct ueqn_
     PetscInt      weno3Div;                   //!< 3rd order WENO scheme
 
     PetscReal     hyperVisc;                  //!< hyperviscocity parameter to add artificial diffusion - (b = 0 is blend between 3rd order upwind and 4th order, b = 1 is central 4th order, b = 0.8 is hybrid 3-4 scheme)
+    PetscReal     hyperVisc4i;                //!< biharmonic hyperviscosity along csi direction 
+    PetscReal     hyperVisc4j;                //!< biharmonic hyperviscosity along eta direction 
+    PetscReal     hyperVisc4k;                //!< biharmonic hyperviscosity along zeta direction
                                               
     // wall model patch
     wallModel     *iLWM;                      //!< wall model on the i-left patch
@@ -77,15 +94,6 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn);
 //! \brief Updates flux limiter
 PetscErrorCode UpdateFluxLimiter(ueqn_ *ueqn);
 
-//! \brief Update driving source terms
-PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print);
-
-//! \brief Correct damping source terms
-PetscErrorCode correctDampingSources(ueqn_ *ueqn);
-
-//! \brief finish the mapping of the ydamping source
-PetscErrorCode mapYDamping(ueqn_ *ueqn);
-
 //! \brief Transform velocity from contravariant to cartesian
 PetscErrorCode contravariantToCartesian(ueqn_ *ueqn);
 
@@ -95,38 +103,5 @@ PetscErrorCode contravariantToCartesianGeneric(mesh_ *mesh, Vec &lCont, Vec &lCa
 //! \brief Adjust fluxes to obey mass conservation (on a per-cell basis)
 PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn);
 
-//! \brief Compute driving source term
-PetscErrorCode sourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale);
-
-//! \brief Compute damping source terms (x and z)
-PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale);
-
-//! \brief Compute Coriolis source term
-PetscErrorCode Coriolis(ueqn_ *ueqn, Vec &Rhs, PetscReal scale);
-
-//! \brief Compute Side Force source term
-PetscErrorCode CanopyForce(ueqn_ *ueqn, Vec &Rhs, PetscReal scale);
-
-//! \brief Compute buoyancy term
-PetscErrorCode Buoyancy(ueqn_ *ueqn, PetscReal scale);
-
-//! \brief Compute mean pressure gradient force
-PetscErrorCode meanGradPForcing(ueqn_ *ueqn, Vec &Rhs, PetscReal scale);
-
-//! Viscous and divergence terms
-PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale);
-
 //! \brief Solve the momentum equation
 PetscErrorCode SolveUEqn(ueqn_ *ueqn);
-
-//! \brief SNES evaluation function
-PetscErrorCode UeqnSNES(SNES snes, Vec Ucont, Vec Rhs, void *ptr);
-
-//! \brief Solves ueqn using 4 stages runge kutta
-PetscErrorCode UeqnRK4(ueqn_ *ueqn);
-
-//! \brief Solves ueqn using explicit euler
-PetscErrorCode UeqnEuler(ueqn_ *ueqn);
-
-//! \brief Computed RHS of momentum equation using current lUcont (updates Rhs), data put in ueqn->Rhs
-PetscErrorCode FormExplicitRhsU(ueqn_ *ueqn);

@@ -1,0 +1,368 @@
+\doxysection{ibm.\+h}
+\hypertarget{ibm_8h_source}{}\label{ibm_8h_source}\index{/zfs60/nobackup/stipa/software/TOSCA/src/include/ibm.h@{/zfs60/nobackup/stipa/software/TOSCA/src/include/ibm.h}}
+\mbox{\hyperlink{ibm_8h}{Go to the documentation of this file.}}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ }
+\DoxyCodeLine{00003\ }
+\DoxyCodeLine{00004\ \textcolor{preprocessor}{\#ifndef\ IBM\_H}}
+\DoxyCodeLine{00005\ \textcolor{preprocessor}{\#define\ IBM\_H}}
+\DoxyCodeLine{00006\ }
+\DoxyCodeLine{00007\ \textcolor{preprocessor}{\#define\ MAX\_ELEMENTS\_PER\_NODE\ 20}}
+\DoxyCodeLine{00008\ }
+\DoxyCodeLine{00010\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structnode}{node}}}
+\DoxyCodeLine{00011\ \{}
+\DoxyCodeLine{00012\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ \ \ \ Node;\ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00013\ \ \ \ \ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structnode}{node}}\ \ \ \ \ \ \ \ \ \ \ *\mbox{\hyperlink{structnode_aa3e8aa83f864292b5a01210f4453fcc0}{next}};\ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00014\ \}\ \mbox{\hyperlink{structnode}{node}};}
+\DoxyCodeLine{00015\ }
+\DoxyCodeLine{00016\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structcellNode}{cellNode}}}
+\DoxyCodeLine{00017\ \{}
+\DoxyCodeLine{00018\ \ \ \ \ \mbox{\hyperlink{structcellIds}{cellIds}}\ \ \ \ \ \ \ \ \ Node;\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00019\ \ \ \ \ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structcellNode}{cellNode}}\ *\mbox{\hyperlink{structcellNode_a513494a7ccefe970f526c89283cbc9c2}{next}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00020\ \}\ \mbox{\hyperlink{structcellNode}{cellNode}};}
+\DoxyCodeLine{00021\ }
+\DoxyCodeLine{00023\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structlist}{list}}}
+\DoxyCodeLine{00024\ \{}
+\DoxyCodeLine{00025\ \ \ \ \ \mbox{\hyperlink{structnode}{node}}\ \ \ \ \ \ \ \ \ *head;\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00026\ \}\ \mbox{\hyperlink{structlist}{list}};}
+\DoxyCodeLine{00027\ }
+\DoxyCodeLine{00029\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structcellList}{cellList}}}
+\DoxyCodeLine{00030\ \{}
+\DoxyCodeLine{00031\ \ \ \ \ \mbox{\hyperlink{structcellNode}{cellNode}}\ \ \ \ \ *head;\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00032\ \}\ \mbox{\hyperlink{structcellList}{cellList}};}
+\DoxyCodeLine{00033\ }
+\DoxyCodeLine{00034\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{struct}}
+\DoxyCodeLine{00035\ \{}
+\DoxyCodeLine{00036\ \ \ \ \ PetscInt\ \ \ \ \ ncx,\ ncy,\ \mbox{\hyperlink{structsearchBox_a42f2def3591a7ef96c120abde9bf8740}{ncz}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00037\ \ \ \ \ PetscReal\ \ \ \ dcx,\ dcy,\ \mbox{\hyperlink{structsearchBox_a1a8220a14c5d0e92fe409eb1d762cd1c}{dcz}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00038\ \}\ \mbox{\hyperlink{structsearchBox}{searchBox}};}
+\DoxyCodeLine{00039\ }
+\DoxyCodeLine{00040\ }
+\DoxyCodeLine{00041\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{struct}}
+\DoxyCodeLine{00042\ \{}
+\DoxyCodeLine{00043\ \ \ \ \ PetscInt\ \ \ \ \ \mbox{\hyperlink{structibmMesh_a63711fb0811a5f81b38731065312f9db}{nodes}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00044\ \ \ \ \ PetscInt\ \ \ \ \ \mbox{\hyperlink{structibmMesh_a147ef6723f196e400e096a396a1318d2}{elems}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00045\ }
+\DoxyCodeLine{00046\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ *\mbox{\hyperlink{structibmMesh_a454f42bc713ceea12285aad13f860668}{nCoor}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00047\ \ \ \ \ PetscInt\ \ \ \ \ *nID1\ ,\ *nID2\ ,\ *\mbox{\hyperlink{structibmMesh_aa1308b7880bc9a767909fc532f938b68}{nID3}}\ ;\ \ \ \ \ \ \ }
+\DoxyCodeLine{00048\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \ *\mbox{\hyperlink{structibmMesh_a4947f66bbfba33ff51eb358bf7957112}{eN}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00049\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ *\mbox{\hyperlink{structibmMesh_aaa613aee38f21f829357ed5522008349}{eT1}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00050\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ *\mbox{\hyperlink{structibmMesh_a5e96053806f47d7af2a9bb06b0e5b699}{eT2}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00051\ }
+\DoxyCodeLine{00052\ \ \ \ \ PetscInt\ \ \ \ \ *\mbox{\hyperlink{structibmMesh_a7f3e0eb8d8a29b409bc41144ea0613fd}{eSurface}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00053\ \ \ \ \ PetscReal\ \ \ \ *\mbox{\hyperlink{structibmMesh_a4a9ce4283b55c18fd7fb22835910c97a}{eA}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00054\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ *\mbox{\hyperlink{structibmMesh_a2e7ed7fbd98152373f6f996defbdca36}{eCent}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00055\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ *\mbox{\hyperlink{structibmMesh_a13b530a7735a43b30075266fd59baca7}{nU}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00056\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ *\mbox{\hyperlink{structibmMesh_a25df16c6acaabd75010a3e5310cb6c6e}{nUPrev}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00057\ }
+\DoxyCodeLine{00058\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ *\mbox{\hyperlink{structibmMesh_aabc91bb79fa5700b5a0b1378c42d26c9}{eQVec}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00059\ \ \ \ \ PetscReal\ \ \ \ *\mbox{\hyperlink{structibmMesh_a1e02c1284833e1caaec47d1b46a067f9}{eRVec}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00060\ }
+\DoxyCodeLine{00061\ }
+\DoxyCodeLine{00062\ \}\mbox{\hyperlink{structibmMesh}{ibmMesh}};}
+\DoxyCodeLine{00063\ }
+\DoxyCodeLine{00064\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{struct}}
+\DoxyCodeLine{00065\ \{}
+\DoxyCodeLine{00066\ \ \ \ \ PetscReal\ \ \ \ \ angSpeed;}
+\DoxyCodeLine{00067\ \ \ \ \ PetscReal\ \ \ \ \ angAcc;}
+\DoxyCodeLine{00068\ \ \ \ \ PetscReal\ \ \ \ \ rotAngle;}
+\DoxyCodeLine{00069\ \ \ \ \ PetscReal\ \ \ \ \ maxR;}
+\DoxyCodeLine{00070\ }
+\DoxyCodeLine{00071\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ rotAxis;}
+\DoxyCodeLine{00072\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ rotCenter;}
+\DoxyCodeLine{00073\ }
+\DoxyCodeLine{00074\ \}\mbox{\hyperlink{structibmRotation}{ibmRotation}};}
+\DoxyCodeLine{00075\ }
+\DoxyCodeLine{00076\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{struct}}
+\DoxyCodeLine{00077\ \{}
+\DoxyCodeLine{00078\ \ \ \ \ PetscReal\ \ \ \ \ amplitude;}
+\DoxyCodeLine{00079\ \ \ \ \ PetscReal\ \ \ \ \ frequency;}
+\DoxyCodeLine{00080\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ motionDir;}
+\DoxyCodeLine{00081\ \ \ \ \ PetscReal\ \ \ \ \ tPrev;}
+\DoxyCodeLine{00082\ }
+\DoxyCodeLine{00083\ \}\mbox{\hyperlink{structibmSineMotion}{ibmSineMotion}};}
+\DoxyCodeLine{00084\ }
+\DoxyCodeLine{00085\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{struct}}
+\DoxyCodeLine{00086\ \{}
+\DoxyCodeLine{00087\ \ \ \ \ PetscReal\ \ \ \ \ amplitude;}
+\DoxyCodeLine{00088\ \ \ \ \ PetscReal\ \ \ \ \ frequency;}
+\DoxyCodeLine{00089\ \ \ \ \ PetscReal\ \ \ \ \ initAngPosition;}
+\DoxyCodeLine{00090\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ pitchAxis;}
+\DoxyCodeLine{00091\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ pitchCenter;}
+\DoxyCodeLine{00092\ \ \ \ \ PetscReal\ \ \ \ \ tPrev;}
+\DoxyCodeLine{00093\ }
+\DoxyCodeLine{00094\ \}\mbox{\hyperlink{structibmPitchMotion}{ibmPitchMotion}};}
+\DoxyCodeLine{00095\ }
+\DoxyCodeLine{00096\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{struct}}
+\DoxyCodeLine{00097\ \{}
+\DoxyCodeLine{00098\ \ \ \ \ word\ \ \ \ \ surfaceName;}
+\DoxyCodeLine{00099\ }
+\DoxyCodeLine{00100\ \ \ \ \ word\ \ \ \ \ surfaceFileType;}
+\DoxyCodeLine{00101\ }
+\DoxyCodeLine{00102\ \ \ \ \ PetscInt\ surfaceId;}
+\DoxyCodeLine{00103\ }
+\DoxyCodeLine{00104\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ baseLocation;}
+\DoxyCodeLine{00105\ }
+\DoxyCodeLine{00106\ \ \ \ \ word\ \ \ \ \ elementSet;}
+\DoxyCodeLine{00107\ }
+\DoxyCodeLine{00108\ \ \ \ \ \textcolor{comment}{//\ element\ localToGlobalMapping}}
+\DoxyCodeLine{00109\ \ \ \ \ PetscInt\ \ \ \ \ \ *elementMapping;}
+\DoxyCodeLine{00110\ }
+\DoxyCodeLine{00111\ \ \ \ \ \mbox{\hyperlink{structibmMesh}{ibmMesh}}\ \ *ibMsh;}
+\DoxyCodeLine{00112\ \}\mbox{\hyperlink{structsurface}{surface}};}
+\DoxyCodeLine{00113\ }
+\DoxyCodeLine{00114\ \textcolor{comment}{//\ struct\ to\ define\ the\ bounding\ boxes\ around\ each\ process\ that\ define\ the\ local\ ibm\ mesh\ elements\ within\ each\ processor}}
+\DoxyCodeLine{00115\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{struct}}
+\DoxyCodeLine{00116\ \{}
+\DoxyCodeLine{00117\ \ \ \ \ PetscInt\ \ \ \ \ \ *\mbox{\hyperlink{structelementBox_a8d8c7217568941db4d7edf5b3d4727d9}{thisElemControlled}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00118\ \ \ \ \ PetscInt\ \ \ \ \ \ *\mbox{\hyperlink{structelementBox_a9ba517029d2261b0ef5db56724b46984}{thisElemTransfered}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00119\ }
+\DoxyCodeLine{00120\ \ \ \ \ \mbox{\hyperlink{structboundingBox}{boundingBox}}\ \ \ innerZone;}
+\DoxyCodeLine{00121\ \ \ \ \ \mbox{\hyperlink{structboundingBox}{boundingBox}}\ \ \ outerZone;}
+\DoxyCodeLine{00122\ }
+\DoxyCodeLine{00123\ \}\mbox{\hyperlink{structelementBox}{elementBox}};}
+\DoxyCodeLine{00124\ }
+\DoxyCodeLine{00125\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{struct}}
+\DoxyCodeLine{00126\ \{}
+\DoxyCodeLine{00127\ \ \ \ \ \textcolor{comment}{//ibm\ body\ parameters}}
+\DoxyCodeLine{00128\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ bodyName;}
+\DoxyCodeLine{00129\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ bodyType;}
+\DoxyCodeLine{00130\ }
+\DoxyCodeLine{00131\ \ \ \ \ PetscInt\ \ \ \ \ \ numSurfaces;}
+\DoxyCodeLine{00132\ \ \ \ \ PetscInt\ \ \ \ \ \ bodyID;}
+\DoxyCodeLine{00133\ \ \ \ \ PetscInt\ \ \ \ \ \ thinBody;}
+\DoxyCodeLine{00134\ }
+\DoxyCodeLine{00135\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ elementSet;}
+\DoxyCodeLine{00136\ \ \ \ \ PetscInt\ \ \ \ \ \ addSideFaces;}
+\DoxyCodeLine{00137\ \ \ \ \ }
+\DoxyCodeLine{00138\ \ \ \ \ \mbox{\hyperlink{structibmMesh}{ibmMesh}}\ \ \ \ \ \ \ *ibMsh;}
+\DoxyCodeLine{00139\ \ \ \ \ \mbox{\hyperlink{structsurface}{surface}}\ \ \ \ \ \ \ **ibmSurface;}
+\DoxyCodeLine{00140\ }
+\DoxyCodeLine{00141\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ fileType;}
+\DoxyCodeLine{00142\ }
+\DoxyCodeLine{00143\ \ \ \ \ \textcolor{comment}{//ibm\ wall\ model\ properties}}
+\DoxyCodeLine{00144\ \ \ \ \ \mbox{\hyperlink{structwallModel}{wallModel}}\ \ \ \ \ *ibmWallModelU;}
+\DoxyCodeLine{00145\ \ \ \ \ \mbox{\hyperlink{structwallModel}{wallModel}}\ \ \ \ \ *ibmWallModelT;}
+\DoxyCodeLine{00146\ \ \ \ \ }
+\DoxyCodeLine{00147\ \ \ \ \ \textcolor{comment}{//ibm\ velocity\ bc}}
+\DoxyCodeLine{00148\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ velocityBC;}
+\DoxyCodeLine{00149\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ uBCSetType;}
+\DoxyCodeLine{00150\ \ \ \ \ PetscInt\ \ \ \ \ \ wallFunctionTypeU;}
+\DoxyCodeLine{00151\ }
+\DoxyCodeLine{00152\ \ \ \ \ \textcolor{comment}{//ibm\ temp\ bc}}
+\DoxyCodeLine{00153\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ tempBC;}
+\DoxyCodeLine{00154\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ tBCSetType;}
+\DoxyCodeLine{00155\ \ \ \ \ PetscInt\ \ \ \ \ \ wallFunctionTypeT;}
+\DoxyCodeLine{00156\ \ \ \ \ PetscReal\ \ \ \ \ fixedTemp;}
+\DoxyCodeLine{00157\ }
+\DoxyCodeLine{00158\ }
+\DoxyCodeLine{00159\ \ \ \ \ \textcolor{comment}{//ibm\ motion\ variables}}
+\DoxyCodeLine{00160\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \ baseLocation;}
+\DoxyCodeLine{00161\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ \ bodyMotion;}
+\DoxyCodeLine{00162\ \ \ \ \ \mbox{\hyperlink{structibmRotation}{ibmRotation}}\ \ \ \ *ibmRot;}
+\DoxyCodeLine{00163\ \ \ \ \ \mbox{\hyperlink{structibmSineMotion}{ibmSineMotion}}\ \ *ibmSine;}
+\DoxyCodeLine{00164\ \ \ \ \ \mbox{\hyperlink{structibmPitchMotion}{ibmPitchMotion}}\ *ibmPitch;}
+\DoxyCodeLine{00165\ }
+\DoxyCodeLine{00166\ \ \ \ \ \textcolor{comment}{//ibm\ search\ parameters}}
+\DoxyCodeLine{00167\ \ \ \ \ PetscReal\ \ \ \ \ searchCellRatio;}
+\DoxyCodeLine{00168\ \ \ \ \ \mbox{\hyperlink{structboundingBox}{boundingBox}}\ \ \ *bound;}
+\DoxyCodeLine{00169\ \ \ \ \ \mbox{\hyperlink{structlist}{list}}\ \ \ \ \ \ \ \ \ \ *searchCellList;}
+\DoxyCodeLine{00170\ }
+\DoxyCodeLine{00171\ \ \ \ \ \textcolor{comment}{//ibm\ force\ parameters}}
+\DoxyCodeLine{00172\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ *\mbox{\hyperlink{structibmObject_abe672af67c2c1487495a82c0e39895b0}{ibmPForce}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00173\ }
+\DoxyCodeLine{00174\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \mbox{\hyperlink{structibmObject_a4dbd2401e332b12e89b5ad2711f71481}{procBoundCenter}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00175\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \mbox{\hyperlink{structibmObject_aa53968261ebcc320c7cb1cafa4862644}{procBoundSize}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00176\ }
+\DoxyCodeLine{00177\ \ \ \ \ \textcolor{comment}{//element\ processor\ mapping\ for\ element\ normal\ projection\ -\/\ used\ in\ force\ calculation}}
+\DoxyCodeLine{00178\ \ \ \ \ PetscInt\ \ \ \ \ \ *\mbox{\hyperlink{structibmObject_aac8f510f18c95cd64bc82212c87decf9}{thisPtControlled}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00179\ \ \ \ \ PetscInt\ \ \ \ \ \ *\mbox{\hyperlink{structibmObject_a71df2b23ebfaf1668cee5e74cd63f69d}{thisPtControlTransfer}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00180\ \ \ \ \ \mbox{\hyperlink{structcellIds}{cellIds}}\ \ \ \ \ \ \ *\mbox{\hyperlink{structibmObject_a8c1aa02d5f5ad97f800f050da9c293e9}{closestCells}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00181\ }
+\DoxyCodeLine{00182\ \ \ \ \ \textcolor{comment}{//flags}}
+\DoxyCodeLine{00183\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \mbox{\hyperlink{structibmObject_a2bbcd3133f938e46166ffbc9796a87ad}{ibmControlled}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00184\ }
+\DoxyCodeLine{00185\ \ \ \ \ \textcolor{comment}{//\ communication\ color}}
+\DoxyCodeLine{00186\ \ \ \ \ MPI\_Comm\ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structibmObject_a90f21b1e75e913fccb72b53a4b15dffa}{IBM\_COMM}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00187\ }
+\DoxyCodeLine{00188\ \ \ \ \ \textcolor{comment}{//\ element\ localToGlobalMapping}}
+\DoxyCodeLine{00189\ \ \ \ \ PetscInt\ \ \ \ \ \ *elementMapping;}
+\DoxyCodeLine{00190\ }
+\DoxyCodeLine{00191\ \ \ \ \ \textcolor{comment}{//local\ ibm\ elements\ box}}
+\DoxyCodeLine{00192\ \ \ \ \ \mbox{\hyperlink{structelementBox}{elementBox}}\ \ \ \ *eBox;}
+\DoxyCodeLine{00193\ }
+\DoxyCodeLine{00194\ \}\mbox{\hyperlink{structibmObject}{ibmObject}};}
+\DoxyCodeLine{00195\ }
+\DoxyCodeLine{00196\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{struct}}
+\DoxyCodeLine{00197\ \{}
+\DoxyCodeLine{00198\ \ \ \mbox{\hyperlink{structcellIds}{cellIds}}\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structibmFluidCell_a54e4199879159b9e07bdf8be0550bf27}{cellId}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00199\ \ \ \mbox{\hyperlink{structcellList}{cellList}}\ \ \ \ \ \ \ \ \mbox{\hyperlink{structibmFluidCell_a179eaa7525eb715d457f0c818966ac16}{flNodes}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00200\ \ \ \mbox{\hyperlink{structlist}{list}}\ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structibmFluidCell_a3c744c12be5bfcfd9cdc33937c91415a}{slNodes}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00201\ \ \ \mbox{\hyperlink{structlist}{list}}\ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structibmFluidCell_a5f946a3ae17ec3bff954b72a879d8c2d}{bID}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00202\ }
+\DoxyCodeLine{00203\ \ \ PetscInt\ \ \ \ \ \ \ \ \mbox{\hyperlink{structibmFluidCell_afa402d229b0d3c0139a7111cad3fe1bf}{numFl}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00204\ \ \ PetscInt\ \ \ \ \ \ \ \ \mbox{\hyperlink{structibmFluidCell_a970f2eea6bc74db6511ef6b3066b59b0}{numSl}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00205\ }
+\DoxyCodeLine{00206\ \ \ PetscReal\ \ \ \ \ \ \ \mbox{\hyperlink{structibmFluidCell_ab2bd8c59d89ebd67d16d9e1bf226f47e}{rad}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00207\ }
+\DoxyCodeLine{00208\ \ \ PetscInt\ \ \ \ \ \ \ \ \mbox{\hyperlink{structibmFluidCell_af41ee108899d8915930824752ff0d112}{closestElem}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00209\ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structibmFluidCell_a6dd4b33323b14382bd03f98bbc6b8161}{pMin}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00210\ \ \ PetscReal\ \ \ \ \ \ \ \mbox{\hyperlink{structibmFluidCell_ab07afb7ea0344808dc817d1b51d82895}{minDist}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00211\ \ \ PetscInt\ \ \ \ \ \ \ \ bodyID;}
+\DoxyCodeLine{00212\ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \ \ normal;}
+\DoxyCodeLine{00213\ }
+\DoxyCodeLine{00214\ \ \ PetscReal\ \ \ \ \ \ \ cs1,\ cs2,\ \mbox{\hyperlink{structibmFluidCell_acf790e34b5d703e9f18e0e95defb6026}{cs3}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00215\ \ \ PetscReal\ \ \ \ \ \ \ cr1,\ cr2,\ \mbox{\hyperlink{structibmFluidCell_a12f3d138341a06096289cf2a4397a0c6}{cr3}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00216\ \ \ PetscInt\ \ \ \ \ \ \ \ i1,\ j1,\ \mbox{\hyperlink{structibmFluidCell_a0a60f5709e5b5a4886831f328f9cd21b}{k1}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00217\ \ \ PetscInt\ \ \ \ \ \ \ \ i2,\ j2,\ \mbox{\hyperlink{structibmFluidCell_a3ad0a33233bfb1e538c35b6f3e0c3104}{k2}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00218\ \ \ PetscInt\ \ \ \ \ \ \ \ i3,\ j3,\ \mbox{\hyperlink{structibmFluidCell_a2fdcdba9c78363ffaff2f065cd7834b7}{k3}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00219\ \ \ PetscInt\ \ \ \ \ \ \ \ \mbox{\hyperlink{structibmFluidCell_a4117ee6f6dc48b25a373d2c5137488ae}{imode}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00220\ }
+\DoxyCodeLine{00221\ \ \ PetscReal\ \ \ \ \ \ \ \mbox{\hyperlink{structibmFluidCell_a81c0b03a5d524db1b2e89700d208b2b0}{dB}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00222\ \}\ \mbox{\hyperlink{structibmFluidCell}{ibmFluidCell}};}
+\DoxyCodeLine{00223\ }
+\DoxyCodeLine{00224\ }
+\DoxyCodeLine{00226\ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structibm__}{ibm\_}}}
+\DoxyCodeLine{00227\ \{}
+\DoxyCodeLine{00228\ \ \ \ \ Vec\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ lNvertFixed;}
+\DoxyCodeLine{00229\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structibm___a7e5b2d18ede0c77edefbe2c1a11b85bc}{numBodies}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00230\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structibm___ad5158afcc83cf8937946f45da9fd15e1}{IBInterpolationModel}};\ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00231\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ curvibType;}
+\DoxyCodeLine{00232\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ curvibOrder;}
+\DoxyCodeLine{00233\ \ \ \ \ \mbox{\hyperlink{structibmObject}{ibmObject}}\ \ \ \ \ \ \ \ \ \ **\mbox{\hyperlink{structibm___a9db4c0691b8ea8e82a2adcd4d1a0126f}{ibmBody}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00234\ }
+\DoxyCodeLine{00235\ \ \ \ \ \mbox{\hyperlink{structsearchBox}{searchBox}}\ \ \ \ \ \ \ \ \ \ *\mbox{\hyperlink{structibm___ac02bdee327b6634904d5cde6c50a79da}{sBox}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00236\ }
+\DoxyCodeLine{00237\ \ \ \ \ \mbox{\hyperlink{structibmFluidCell}{ibmFluidCell}}\ \ \ \ \ \ \ *\mbox{\hyperlink{structibm___afa028ac00ffea179ec8029b0b0bfe64f}{ibmFCells}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00238\ }
+\DoxyCodeLine{00239\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structibm___ab98888e4019f88a3366d87d5ffb42f7b}{numIBMFluid}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00240\ }
+\DoxyCodeLine{00241\ \ \ \ \ \textcolor{comment}{//\ access\ database}}
+\DoxyCodeLine{00242\ \ \ \ \ \mbox{\hyperlink{structaccess__}{access\_}}\ \ \ \ \ \ \ \ \ \ \ \ \ \ *access;}
+\DoxyCodeLine{00243\ }
+\DoxyCodeLine{00244\ \ \ \ \ \textcolor{comment}{//\ flags}}
+\DoxyCodeLine{00245\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ dbg;}
+\DoxyCodeLine{00246\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ \ \ dynamic;}
+\DoxyCodeLine{00247\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ computeForce;}
+\DoxyCodeLine{00248\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ checkNormal;}
+\DoxyCodeLine{00249\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ wallShearOn;}
+\DoxyCodeLine{00250\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ \ writeSTL;}
+\DoxyCodeLine{00251\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ \ \ \ ibmABL;}
+\DoxyCodeLine{00252\ }
+\DoxyCodeLine{00253\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ interpDist;}
+\DoxyCodeLine{00254\ \ \ \ \ \textcolor{comment}{//\ output\ parameters}}
+\DoxyCodeLine{00255\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structibm___a0ac57fca8c0b7cd2f96f033487cd1945}{timeStart}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00256\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structibm___aef112e538ebf303d7e9b1b2820d89e1d}{intervalType}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00257\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \mbox{\hyperlink{structibm___af609a1063678cb597285b156636981f9}{timeInterval}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00258\ \};}
+\DoxyCodeLine{00259\ }
+\DoxyCodeLine{00260\ \textcolor{preprocessor}{\#endif}}
+\DoxyCodeLine{00261\ }
+\DoxyCodeLine{00262\ \textcolor{comment}{//\ =============================================================================}}
+\DoxyCodeLine{00263\ \textcolor{comment}{//\ FUNCTIONS}}
+\DoxyCodeLine{00264\ \textcolor{comment}{//\ =============================================================================}}
+\DoxyCodeLine{00265\ }
+\DoxyCodeLine{00267\ PetscErrorCode\ \mbox{\hyperlink{ibm_8h_a27dffc4d2f498f7dae7d9bd34594b2fd}{InitializeIBM}}(\mbox{\hyperlink{structibm__}{ibm\_}}\ *ibm);}
+\DoxyCodeLine{00268\ }
+\DoxyCodeLine{00270\ PetscErrorCode\ \mbox{\hyperlink{ibm_8h_a980ea403eaa390bd1d60a702c55e63fb}{UpdateIBM}}(\mbox{\hyperlink{structibm__}{ibm\_}}\ *ibm);}
+\DoxyCodeLine{00271\ }
+\DoxyCodeLine{00273\ PetscErrorCode\ \mbox{\hyperlink{ibm_8h_a0a2a67029381cb8ac4691c1c5202db02}{writeIBMData}}(\mbox{\hyperlink{structibm__}{ibm\_}}\ *ibm,\ PetscInt\ b);}
+\DoxyCodeLine{00274\ }
+\DoxyCodeLine{00276\ PetscErrorCode\ \ \mbox{\hyperlink{ibm_8h_ad6dcc4b2f715325743875a1c56e70918}{writeIBMForceData}}(\mbox{\hyperlink{structibm__}{ibm\_}}\ *ibm,\ PetscInt\ b,\ PetscReal\ *gElemPressure,\ PetscReal\ netMoment,\ PetscReal\ ibmPower,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ PresForce,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ ViscForce,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ momentVector);}
+\DoxyCodeLine{00277\ }
+\DoxyCodeLine{00279\ PetscErrorCode\ \mbox{\hyperlink{ibm_8h_a9c978ae9d3e0e7fd31ca9be4b6503151}{findIBMControlledProcs}}(\mbox{\hyperlink{structibm__}{ibm\_}}\ *ibm);}
+\DoxyCodeLine{00280\ }
+\DoxyCodeLine{00282\ PetscErrorCode\ \mbox{\hyperlink{ibm_8h_a3f671cb828aba8285c6e49b205ad2d21}{initElementProjectionProcs}}(\mbox{\hyperlink{structibm__}{ibm\_}}\ *ibm);}
+\DoxyCodeLine{00283\ }
+\DoxyCodeLine{00285\ PetscErrorCode\ \mbox{\hyperlink{ibm_8h_ab5aee507680c3a7c2654d33a96830fdc}{IBMProjectionProcessorTransfer}}(\mbox{\hyperlink{structibm__}{ibm\_}}\ *ibm);}
+\DoxyCodeLine{00286\ }
+\DoxyCodeLine{00288\ PetscErrorCode\ \mbox{\hyperlink{ibm_8h_a5b30173a04c821ef5d59917a8939976e}{createProcessorBufferZones}}(\mbox{\hyperlink{structibm__}{ibm\_}}\ *ibm);}
+\DoxyCodeLine{00289\ }
+\DoxyCodeLine{00291\ PetscErrorCode\ \mbox{\hyperlink{ibm_8h_a147ef292bbfee4ed4c8bc36bddee7e5c}{initElementProcs}}(\mbox{\hyperlink{structibm__}{ibm\_}}\ *ibm);}
+\DoxyCodeLine{00292\ }
+\DoxyCodeLine{00294\ PetscErrorCode\ \mbox{\hyperlink{ibm_8h_a7bd12895748628f618047701a1545621}{IBMElementProcessorTransfer}}(\mbox{\hyperlink{structibm__}{ibm\_}}\ *ibm);}
+\DoxyCodeLine{00295\ }
+\DoxyCodeLine{00297\ PetscErrorCode\ \mbox{\hyperlink{ibm_8h_aef4d1a87a909b82473aeb921ab050402}{UpdateIBMesh}}(\mbox{\hyperlink{structibm__}{ibm\_}}\ *ibm);}
+\DoxyCodeLine{00298\ }
+\DoxyCodeLine{00300\ PetscErrorCode\ \mbox{\hyperlink{ibm_8h_adbe8008b3b8d8e7ed3ab8053368a7752}{rotateIBMesh}}(\mbox{\hyperlink{structibm__}{ibm\_}}\ *ibm,\ PetscInt\ b);}
+\DoxyCodeLine{00301\ }
+\DoxyCodeLine{00303\ PetscErrorCode\ \mbox{\hyperlink{ibm_8h_ae6a4177abd8f8635d189aa420362b3a3}{sineMotion}}(\mbox{\hyperlink{structibm__}{ibm\_}}\ *ibm,\ PetscInt\ b);}
+\DoxyCodeLine{00304\ }
+\DoxyCodeLine{00306\ PetscErrorCode\ \mbox{\hyperlink{ibm_8h_a7a73bd79127407d432259afe801c58f2}{pitchingMotion}}(\mbox{\hyperlink{structibm__}{ibm\_}}\ *ibm,\ PetscInt\ b);}
+\DoxyCodeLine{00307\ }
+\DoxyCodeLine{00309\ PetscErrorCode\ \mbox{\hyperlink{ibm_8h_a1f82afe6598ab4c9e337ace22dc64d03}{setIBMWallModels}}(\mbox{\hyperlink{structibm__}{ibm\_}}\ *ibm);}
+\DoxyCodeLine{00310\ }
+\DoxyCodeLine{00312\ PetscErrorCode\ \mbox{\hyperlink{ibm_8h_a7b72f5a5ac4a157bbdc8393525100e4b}{findBodyBoundingBox}}(\mbox{\hyperlink{structibm__}{ibm\_}}\ *ibm);}
+\DoxyCodeLine{00313\ }
+\DoxyCodeLine{00315\ PetscErrorCode\ \mbox{\hyperlink{ibm_8h_a7e7ffc1d9aadd2e8d20f621cdbd12219}{findSearchCellDim}}(\mbox{\hyperlink{structibm__}{ibm\_}}\ *ibm);}
+\DoxyCodeLine{00316\ }
+\DoxyCodeLine{00318\ PetscErrorCode\ \mbox{\hyperlink{ibm_8h_a22fe6d564940c2fa1ae407eab8a9d1c2}{ibmSearch}}(\mbox{\hyperlink{structibm__}{ibm\_}}\ *ibm);}
+\DoxyCodeLine{00319\ }
+\DoxyCodeLine{00321\ PetscErrorCode\ \mbox{\hyperlink{ibm_8h_a5bc4cb3cf5176f6384e6e75a7fbfc891}{findClosestIBMElement}}(\mbox{\hyperlink{structibm__}{ibm\_}}\ *ibm);}
+\DoxyCodeLine{00322\ }
+\DoxyCodeLine{00323\ PetscErrorCode\ findClosestIBMElement2Solid(\mbox{\hyperlink{structibm__}{ibm\_}}\ *ibm);}
+\DoxyCodeLine{00324\ }
+\DoxyCodeLine{00326\ PetscErrorCode\ \mbox{\hyperlink{ibm_8h_ad9ff06f35bd8b87c5564386509d4abee}{findInterceptionPoint}}(\mbox{\hyperlink{structibm__}{ibm\_}}\ *ibm);}
+\DoxyCodeLine{00327\ }
+\DoxyCodeLine{00329\ PetscErrorCode\ \mbox{\hyperlink{ibm_8h_ac02fe36932ca84186dab9ace8dbb8c69}{interceptionPt}}(\mbox{\hyperlink{structCmpnts}{Cmpnts}}\ pCoor,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ pc[9],\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ eNorm,\ \mbox{\hyperlink{structibmFluidCell}{ibmFluidCell}}\ *ibF);}
+\DoxyCodeLine{00330\ }
+\DoxyCodeLine{00332\ PetscErrorCode\ \mbox{\hyperlink{ibm_8h_a87fc7402b0753220ecb773fa936f9a40}{findIBMFluidCells}}(\mbox{\hyperlink{structibm__}{ibm\_}}\ *ibm);}
+\DoxyCodeLine{00333\ }
+\DoxyCodeLine{00335\ PetscErrorCode\ \mbox{\hyperlink{ibm_8h_a90e60f76a23b242199ecc703b89e761d}{findFluidSupportNodes}}(\mbox{\hyperlink{structibm__}{ibm\_}}\ *ibm);}
+\DoxyCodeLine{00336\ }
+\DoxyCodeLine{00338\ PetscErrorCode\ \mbox{\hyperlink{ibm_8h_affa113a10fce9e7aeea2efb4f0446902}{findIBMMeshSupportNodes}}(\mbox{\hyperlink{structibm__}{ibm\_}}\ *ibm);}
+\DoxyCodeLine{00339\ }
+\DoxyCodeLine{00341\ PetscErrorCode\ \mbox{\hyperlink{ibm_8h_a30f648d428bc38794f33bd95e379f1be}{MLSInterpolation}}(\mbox{\hyperlink{structibm__}{ibm\_}}\ *ibm);}
+\DoxyCodeLine{00342\ }
+\DoxyCodeLine{00344\ PetscErrorCode\ \mbox{\hyperlink{ibm_8h_a48ccba69df886b4d75ad9ab3c5c76545}{CurvibInterpolation}}(\mbox{\hyperlink{structibm__}{ibm\_}}\ *ibm);}
+\DoxyCodeLine{00345\ }
+\DoxyCodeLine{00346\ PetscErrorCode\ CurvibInterpolationTriangular(\mbox{\hyperlink{structibm__}{ibm\_}}\ *ibm);}
+\DoxyCodeLine{00347\ }
+\DoxyCodeLine{00348\ PetscErrorCode\ CurvibInterpolationQuadratic(\mbox{\hyperlink{structibm__}{ibm\_}}\ *ibm);}
+\DoxyCodeLine{00349\ }
+\DoxyCodeLine{00350\ PetscErrorCode\ CurvibInterpolationInternalCell(\mbox{\hyperlink{structibm__}{ibm\_}}\ *ibm);}
+\DoxyCodeLine{00351\ }
+\DoxyCodeLine{00352\ PetscErrorCode\ ComputeForceMoment(\mbox{\hyperlink{structibm__}{ibm\_}}\ *ibm);}
+\DoxyCodeLine{00353\ }
+\DoxyCodeLine{00355\ PetscErrorCode\ \mbox{\hyperlink{ibm_8h_a14686f921852499d065420f312e5c25e}{findIBMWallShear}}(\mbox{\hyperlink{structibm__}{ibm\_}}\ *ibm);}
+\DoxyCodeLine{00356\ }
+\DoxyCodeLine{00358\ PetscErrorCode\ \mbox{\hyperlink{ibm_8h_a36736a607d2b97d7d25405b0effc6f89}{findIBMWallShearChester}}(\mbox{\hyperlink{structibm__}{ibm\_}}\ *ibm);}
+\DoxyCodeLine{00359\ }
+\DoxyCodeLine{00360\ \textcolor{comment}{//\ check\ if\ a\ given\ body\ exists\ in\ the\ mesh\ based\ on\ the\ IBMProperties.dat\ file}}
+\DoxyCodeLine{00361\ PetscErrorCode\ checkIBMexists(\mbox{\hyperlink{structibm__}{ibm\_}}\ *ibm);}
+\DoxyCodeLine{00362\ }
+\DoxyCodeLine{00364\ PetscErrorCode\ \mbox{\hyperlink{ibm_8h_a89d7ff186ba17634484885a512f28d37}{createSearchCellList}}(\mbox{\hyperlink{structibm__}{ibm\_}}\ *ibm);}
+\DoxyCodeLine{00365\ }
+\DoxyCodeLine{00367\ PetscErrorCode\ \mbox{\hyperlink{ibm_8h_ad9f008b01686202b1c82c4c3dd65ef69}{destroyLists}}(\mbox{\hyperlink{structibm__}{ibm\_}}\ *ibm);}
+\DoxyCodeLine{00368\ }
+\DoxyCodeLine{00369\ PetscErrorCode\ computeIBMElementNormal(\mbox{\hyperlink{structibm__}{ibm\_}}\ *ibm);}
+\DoxyCodeLine{00370\ }
+\DoxyCodeLine{00371\ PetscErrorCode\ recomputeIBMeshProperties(\mbox{\hyperlink{structibm__}{ibm\_}}\ *ibm,\ PetscInt\ b);}
+\DoxyCodeLine{00372\ }
+\DoxyCodeLine{00374\ PetscReal\ \mbox{\hyperlink{ibm_8h_a55eb0e0052299cf764dad8c71ae873a8}{rayCastingTest}}(\mbox{\hyperlink{structCmpnts}{Cmpnts}}\ p,\ \mbox{\hyperlink{structibmMesh}{ibmMesh}}\ *ibMsh,\ \mbox{\hyperlink{structcellIds}{cellIds}}\ sCell,\ \mbox{\hyperlink{structsearchBox}{searchBox}}\ *sBox,\ \mbox{\hyperlink{structboundingBox}{boundingBox}}\ *ibBox,\ \mbox{\hyperlink{structlist}{list}}\ *searchCellList);}
+\DoxyCodeLine{00375\ }
+\DoxyCodeLine{00377\ PetscErrorCode\ \mbox{\hyperlink{ibm_8h_ad5498c3f877d30b55e996929a281daa3}{rayCastLocal}}(\mbox{\hyperlink{structCmpnts}{Cmpnts}}\ p,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ p1,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ p2,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ p3,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ p4,\ \mbox{\hyperlink{structibmMesh}{ibmMesh}}\ *ibMsh,\ \mbox{\hyperlink{structcellIds}{cellIds}}\ sCell,\ \mbox{\hyperlink{structsearchBox}{searchBox}}\ *sBox,\ \mbox{\hyperlink{structboundingBox}{boundingBox}}\ *ibBox,\ \mbox{\hyperlink{structlist}{list}}\ *searchCellList,\ PetscInt\ \&intersect);}
+\DoxyCodeLine{00379\ PetscErrorCode\ \mbox{\hyperlink{ibm_8h_accba6ab47e789e78f8c65a3acfd8785a}{elementBoundingSphere}}(\mbox{\hyperlink{structibmObject}{ibmObject}}\ *ibmBody);}
+\DoxyCodeLine{00380\ }
+\DoxyCodeLine{00382\ \textcolor{keyword}{inline}\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \mbox{\hyperlink{ibm_8h_a1efbf48eda7859feed3fc0ac3d1a05ef}{randomdirection}}(\mbox{\hyperlink{structCmpnts}{Cmpnts}}\ p,\ \mbox{\hyperlink{structcellIds}{cellIds}}\ sCell,\ \mbox{\hyperlink{structboundingBox}{boundingBox}}\ *ibBox,\ \mbox{\hyperlink{structsearchBox}{searchBox}}\ *sBox,\ PetscInt\ seed);}
+\DoxyCodeLine{00383\ }
+\DoxyCodeLine{00385\ \textcolor{keyword}{inline}\ PetscInt\ \mbox{\hyperlink{ibm_8h_a225ea650c1f5e0a6e89fbe1e5b9c9ca6}{intsectElement}}(\mbox{\hyperlink{structCmpnts}{Cmpnts}}\ p,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ dir,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ node1,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ node2,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ node3,\ PetscReal\ *t,\ PetscReal\ *u,\ PetscReal\ *v);}
+\DoxyCodeLine{00386\ }
+\DoxyCodeLine{00388\ \textcolor{keyword}{inline}\ PetscBool\ \mbox{\hyperlink{ibm_8h_a4163457cd2faa612b882432264758b98}{isLineTriangleInt}}(\mbox{\hyperlink{structCmpnts}{Cmpnts}}\ p1,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ p2,\ \mbox{\hyperlink{structibmMesh}{ibmMesh}}\ *ibMsh,\ PetscInt\ e);}
+\DoxyCodeLine{00389\ }
+\DoxyCodeLine{00391\ \textcolor{keyword}{inline}\ \textcolor{keywordtype}{bool}\ \mbox{\hyperlink{ibm_8h_aa665ba7f2d24a676e56ba9f026ac9cfd}{isSearchCellSupport}}(PetscReal\ rad,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ pt,\ \mbox{\hyperlink{structcellIds}{cellIds}}\ cID,\ \mbox{\hyperlink{structboundingBox}{boundingBox}}\ *ibBox,\ \mbox{\hyperlink{structsearchBox}{searchBox}}\ *sBox);}
+\DoxyCodeLine{00392\ }
+\DoxyCodeLine{00394\ \textcolor{keyword}{inline}\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{ibm_8h_a0fabc589698fb5e266287a1d9a9a968b}{insertIBMSupportNodes}}(\mbox{\hyperlink{structCmpnts}{Cmpnts}}\ pt,\ \mbox{\hyperlink{structcellIds}{cellIds}}\ sCell,\ \mbox{\hyperlink{structibmFluidCell}{ibmFluidCell}}\ *ibF,\ \mbox{\hyperlink{structibmObject}{ibmObject}}\ *ibBody,\ \mbox{\hyperlink{structsearchBox}{searchBox}}\ *sBox);}
+\DoxyCodeLine{00395\ }
+\DoxyCodeLine{00397\ \textcolor{keyword}{inline}\ PetscInt\ \mbox{\hyperlink{ibm_8h_aa7076cdb89c42f86b92221e477af8e1a}{ISSameSide2D}}(\mbox{\hyperlink{structCpt2D}{Cpt2D}}\ p,\ \mbox{\hyperlink{structCpt2D}{Cpt2D}}\ p1,\ \mbox{\hyperlink{structCpt2D}{Cpt2D}}\ p2,\ \mbox{\hyperlink{structCpt2D}{Cpt2D}}\ p3);}
+\DoxyCodeLine{00398\ }
+\DoxyCodeLine{00400\ \textcolor{keyword}{inline}\ PetscInt\ \mbox{\hyperlink{ibm_8h_a65a12b9220bf4d302a8067fd742f0673}{ISInsideTriangle2D}}(\mbox{\hyperlink{structCpt2D}{Cpt2D}}\ p,\ \mbox{\hyperlink{structCpt2D}{Cpt2D}}\ pa,\ \mbox{\hyperlink{structCpt2D}{Cpt2D}}\ pb,\ \mbox{\hyperlink{structCpt2D}{Cpt2D}}\ pc);}
+\DoxyCodeLine{00401\ }
+\DoxyCodeLine{00403\ \textcolor{keyword}{inline}\ PetscInt\ \mbox{\hyperlink{ibm_8h_a61ee5019514dd4f8a95db6ec38e1adf1}{isPointInTriangle}}(\mbox{\hyperlink{structCmpnts}{Cmpnts}}\ p,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ p1,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ p2,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ p3,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ norm);}
+\DoxyCodeLine{00404\ }
+\DoxyCodeLine{00406\ \textcolor{keyword}{inline}\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{ibm_8h_a55ac4fe2c634c3e1079b2ddad3032350}{disP2Line}}(\mbox{\hyperlink{structCmpnts}{Cmpnts}}\ p,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ p1,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ p2,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ *po,\ PetscReal\ *d,\ PetscReal\ *t);}
+\DoxyCodeLine{00408\ \textcolor{keyword}{inline}\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{ibm_8h_ac82c224251e6d94f1bc3d415db2ad928}{triangleIntp}}(\mbox{\hyperlink{structCpt2D}{Cpt2D}}\ p,\ \mbox{\hyperlink{structCpt2D}{Cpt2D}}\ p1,\ \mbox{\hyperlink{structCpt2D}{Cpt2D}}\ p2,\ \mbox{\hyperlink{structCpt2D}{Cpt2D}}\ p3,\ \mbox{\hyperlink{structibmFluidCell}{ibmFluidCell}}\ *ibF);}
+\DoxyCodeLine{00409\ }
+\DoxyCodeLine{00411\ \textcolor{keyword}{inline}\ \textcolor{keywordtype}{void}\ \mbox{\hyperlink{ibm_8h_a40cbf5311141e00bf27379fd85a748be}{triangleIntpBg}}(\mbox{\hyperlink{structCpt2D}{Cpt2D}}\ p,\ \mbox{\hyperlink{structCpt2D}{Cpt2D}}\ p1,\ \mbox{\hyperlink{structCpt2D}{Cpt2D}}\ p2,\ \mbox{\hyperlink{structCpt2D}{Cpt2D}}\ p3,\ \mbox{\hyperlink{structibmFluidCell}{ibmFluidCell}}\ *ibF);}
+
+\end{DoxyCode}

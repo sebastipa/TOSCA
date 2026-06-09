@@ -1,0 +1,52 @@
+\doxysection{precursor.\+h}
+\hypertarget{precursor_8h_source}{}\label{precursor_8h_source}\index{/zfs60/nobackup/stipa/software/TOSCA/src/include/precursor.h@{/zfs60/nobackup/stipa/software/TOSCA/src/include/precursor.h}}
+\mbox{\hyperlink{precursor_8h}{Go to the documentation of this file.}}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ }
+\DoxyCodeLine{00003\ }
+\DoxyCodeLine{00004\ \textcolor{preprocessor}{\#ifndef\ \_PRECURSOR\_H\_}}
+\DoxyCodeLine{00005\ \textcolor{preprocessor}{\#define\ \_PRECURSOR\_H\_}}
+\DoxyCodeLine{00006\ }
+\DoxyCodeLine{00008\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{struct}}
+\DoxyCodeLine{00009\ \{}
+\DoxyCodeLine{00010\ \ \ \ \ PetscInt\ kFringeStart,\ \mbox{\hyperlink{structmapInfo_a4b9b70e4c352297ec6681118ad404676}{kFringeEnd}};\ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00011\ \ \ \ \ PetscInt\ kStart,\ \mbox{\hyperlink{structmapInfo_a13b521c135a453c710d46e2ce9116f26}{kEnd}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00012\ \}\ \mbox{\hyperlink{structmapInfo}{mapInfo}};}
+\DoxyCodeLine{00013\ }
+\DoxyCodeLine{00015\ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structprecursor__}{precursor\_}}}
+\DoxyCodeLine{00016\ \{}
+\DoxyCodeLine{00017\ \ \ \ \ PetscInt\ \ \ \ \ \ \mbox{\hyperlink{structprecursor___a085662082ce9f1cfac75c5cf0c23462c}{thisProcessorInFringe}};\ \ \ \ \ \ }
+\DoxyCodeLine{00018\ \ \ \ \ \mbox{\hyperlink{structmapInfo}{mapInfo}}\ \ \ \ \ \ \ \mbox{\hyperlink{structprecursor___a1e03951708b821bc123e4b26d911fb48}{map}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00019\ }
+\DoxyCodeLine{00020\ \ \ \ \ \mbox{\hyperlink{structdomain__}{domain\_}}\ \ \ \ \ \ \ *domain;}
+\DoxyCodeLine{00021\ \};}
+\DoxyCodeLine{00022\ }
+\DoxyCodeLine{00023\ \textcolor{preprocessor}{\#endif}}
+\DoxyCodeLine{00024\ }
+\DoxyCodeLine{00026\ PetscErrorCode\ \mbox{\hyperlink{precursor_8h_ad866651341e465aa5919cdd9bb429c93}{concurrentPrecursorInitialize}}(\mbox{\hyperlink{structabl__}{abl\_}}\ *abl);}
+\DoxyCodeLine{00027\ }
+\DoxyCodeLine{00029\ PetscErrorCode\ \mbox{\hyperlink{precursor_8h_aa859f9bac2360b2293979f0f8359e6e0}{SetSolutionFlagsPrecursor}}(\mbox{\hyperlink{structdomain__}{domain\_}}\ *domain);}
+\DoxyCodeLine{00030\ }
+\DoxyCodeLine{00032\ PetscErrorCode\ \mbox{\hyperlink{precursor_8h_aa14bc7fa71c3a5bceed8af466732974e}{SetStartTimePrecursor}}(\mbox{\hyperlink{structdomain__}{domain\_}}\ *domain,\ \mbox{\hyperlink{structabl__}{abl\_}}\ *abl);}
+\DoxyCodeLine{00033\ }
+\DoxyCodeLine{00035\ PetscErrorCode\ \mbox{\hyperlink{precursor_8h_ad82c60678ecfa62a5c631937b4ba8f15}{InitializeMeshPrecursor}}(\mbox{\hyperlink{structabl__}{abl\_}}\ *abl);}
+\DoxyCodeLine{00036\ }
+\DoxyCodeLine{00038\ PetscErrorCode\ \mbox{\hyperlink{precursor_8h_a78760997140b4d4723fa9deb4bfb6839}{SetBoundaryConditionsPrecursor}}(\mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh);}
+\DoxyCodeLine{00039\ }
+\DoxyCodeLine{00041\ PetscErrorCode\ \mbox{\hyperlink{precursor_8h_a0aa138a378b2d886d7014715112fde6b}{SetInflowFunctionsPrecursor}}(\mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh);}
+\DoxyCodeLine{00042\ }
+\DoxyCodeLine{00044\ PetscErrorCode\ \mbox{\hyperlink{precursor_8h_af3c6f2be652f4965679073f4d07ced62}{MapInitialConditionPrecursor}}(\mbox{\hyperlink{structabl__}{abl\_}}\ *abl);}
+\DoxyCodeLine{00045\ }
+\DoxyCodeLine{00047\ PetscErrorCode\ \mbox{\hyperlink{precursor_8h_af6212df0bb2c422e40700fa08b37fc13}{successorPrecursorMapVectorField}}(\mbox{\hyperlink{structabl__}{abl\_}}\ *abl,\ Vec\ \&Source,\ Vec\ \&Target,\ Vec\ \&lTarget);}
+\DoxyCodeLine{00048\ }
+\DoxyCodeLine{00050\ PetscErrorCode\ \mbox{\hyperlink{precursor_8h_abf2b1a5812e59b837220336a4516e817}{successorPrecursorMapScalarField}}(\mbox{\hyperlink{structabl__}{abl\_}}\ *abl,\ Vec\ \&Source,\ Vec\ \&Target,\ Vec\ \&lTarget);}
+\DoxyCodeLine{00051\ }
+\DoxyCodeLine{00053\ PetscErrorCode\ \mbox{\hyperlink{precursor_8h_ade55e77a027c358c5be69660bc152cb2}{ABLInitializePrecursor}}(\mbox{\hyperlink{structdomain__}{domain\_}}\ *domain);}
+\DoxyCodeLine{00054\ }
+\DoxyCodeLine{00056\ PetscErrorCode\ \mbox{\hyperlink{precursor_8h_a735697ec69fed10f3151d3c73f26fb6e}{concurrentPrecursorSolve}}(\mbox{\hyperlink{structabl__}{abl\_}}\ *abl);}
+\DoxyCodeLine{00057\ }
+\DoxyCodeLine{00058\ PetscErrorCode\ saveSourcePrecursor2Successor(\mbox{\hyperlink{structabl__}{abl\_}}\ *precursorABL,\ \mbox{\hyperlink{structabl__}{abl\_}}\ *successorABL);}
+\DoxyCodeLine{00059\ }
+\DoxyCodeLine{00060\ PetscErrorCode\ InitializePrecursorIBM(\mbox{\hyperlink{structibm__}{ibm\_}}\ *ibm,\ \mbox{\hyperlink{structibm__}{ibm\_}}\ *succIbm);}
+
+\end{DoxyCode}

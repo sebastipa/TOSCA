@@ -1,0 +1,186 @@
+\doxysection{overset.\+h}
+\hypertarget{overset_8h_source}{}\label{overset_8h_source}\index{/zfs60/nobackup/stipa/software/TOSCA/src/include/overset.h@{/zfs60/nobackup/stipa/software/TOSCA/src/include/overset.h}}
+\mbox{\hyperlink{overset_8h}{Go to the documentation of this file.}}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ }
+\DoxyCodeLine{00003\ }
+\DoxyCodeLine{00004\ \textcolor{preprocessor}{\#ifndef\ \_OVERSET\_H\_}}
+\DoxyCodeLine{00005\ \textcolor{preprocessor}{\#define\ \_OVERSET\_H\_}}
+\DoxyCodeLine{00006\ }
+\DoxyCodeLine{00007\ \textcolor{preprocessor}{\#include\ <unordered\_map>}}
+\DoxyCodeLine{00008\ \textcolor{preprocessor}{\#include\ <map>}}
+\DoxyCodeLine{00009\ \textcolor{comment}{//\ Structure\ to\ hold\ hole\ object\ data}}
+\DoxyCodeLine{00010\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{struct\ }\{}
+\DoxyCodeLine{00011\ \ \ \ \ word\ bodyName;}
+\DoxyCodeLine{00012\ \ \ \ \ PetscInt\ ownerMesh;}
+\DoxyCodeLine{00013\ \ \ \ \ PetscInt\ donorMesh;}
+\DoxyCodeLine{00014\ \ \ \ \ word\ fileType;}
+\DoxyCodeLine{00015\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ baseLocation;}
+\DoxyCodeLine{00016\ \ \ \ \ PetscInt\ searchCellRatio;}
+\DoxyCodeLine{00017\ \}\ \mbox{\hyperlink{structHoleObject}{HoleObject}};}
+\DoxyCodeLine{00018\ }
+\DoxyCodeLine{00020\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{struct\ }\{}
+\DoxyCodeLine{00021\ \ \ \ \ PetscInt\ \ \ \ \ \ indi,\ indj,\ \mbox{\hyperlink{structAcell_aa6ea48d9c480a9a993a707a8c1a83bc2}{indk}};\ \ }
+\DoxyCodeLine{00022\ \ \ \ \ PetscReal\ \ \ \ \ coorx,\ coory,\ \mbox{\hyperlink{structAcell_a0aa7865b95897b5dc8b28c17080c3d40}{coorz}};\ }
+\DoxyCodeLine{00023\ \ \ \ \ PetscMPIInt\ \ \ \mbox{\hyperlink{structAcell_a64e36c1040004bd2a59a02a80b68d20c}{rank}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00024\ \ \ \ \ PetscReal\ \ \ \ \ \mbox{\hyperlink{structAcell_ad2a37e28ac54eedf55bf9674aa8486cd}{cell\_size}};\ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00025\ \ \ \ \ PetscInt\ \ \ \ \ \ \mbox{\hyperlink{structAcell_acacaae23b3e841cfb1f3461de0a12eed}{face}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00026\ \ \ \ \ PetscInt\ \ \ \ \ \ donorId;}
+\DoxyCodeLine{00027\ \ \ \ \ PetscInt\ \ \ \ \ \ parentCellId;}
+\DoxyCodeLine{00028\ \}\ \mbox{\hyperlink{structAcell}{Acell}};}
+\DoxyCodeLine{00029\ }
+\DoxyCodeLine{00031\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{struct\ }}
+\DoxyCodeLine{00032\ \{}
+\DoxyCodeLine{00033\ \ \ \ \ PetscInt\ \ \ \ \ \ indi,\ indj,\ \mbox{\hyperlink{structDcell_ac8eaf6d8d5208c7ac8c6850bfddb5219}{indk}};\ \ }
+\DoxyCodeLine{00034\ \ \ \ \ PetscMPIInt\ \ \ \mbox{\hyperlink{structDcell_aa9c6e76c40a9fbad56e4e5241e8d5f37}{rank}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00035\ \ \ \ \ PetscReal\ \ \ \ \ \mbox{\hyperlink{structDcell_ac71fd89a0c58593efe4d697775905772}{dist2p}};\ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00036\ \}\ \mbox{\hyperlink{structDcell}{Dcell}};}
+\DoxyCodeLine{00037\ }
+\DoxyCodeLine{00039\ \textcolor{keyword}{typedef}\ \textcolor{keyword}{struct\ }}
+\DoxyCodeLine{00040\ \{}
+\DoxyCodeLine{00041\ \ \ \ \ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \ \ \ \ \ \ \ \mbox{\hyperlink{structoversetMotion_a9380646528a781de9ada3a6b7ecea5fb}{prescribedVel}};\ }
+\DoxyCodeLine{00042\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structoversetMotion_a39cfdc9731419654dfa774dbc1f4a057}{motionType}};\ \ \ \ }
+\DoxyCodeLine{00043\ \ \ \ \ PetscInt\ \ \ \ \ \ \mbox{\hyperlink{structoversetMotion_a79b64450866184ffe6119b4f8f265daa}{setMotion}};\ \ \ \ \ }
+\DoxyCodeLine{00044\ \ \ \ \ PetscInt\ \ \ \ \ \ \mbox{\hyperlink{structoversetMotion_ae1dc3f9e3375699049660a336c4ece98}{ibmAttached}};\ \ \ }
+\DoxyCodeLine{00045\ \}\ \mbox{\hyperlink{structoversetMotion}{oversetMotion}};}
+\DoxyCodeLine{00046\ }
+\DoxyCodeLine{00050\ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structoverset__}{overset\_}}\ }
+\DoxyCodeLine{00051\ \{}
+\DoxyCodeLine{00052\ \ \ \ \ \textcolor{comment}{//\ Mesh\ connectivity\ information}}
+\DoxyCodeLine{00053\ \ \ \ \ labelList\ \ \ \ \mbox{\hyperlink{structoverset___a2fdb73fb6008e358fee285cf457a43e6}{parentMeshId}};\ }
+\DoxyCodeLine{00054\ \ \ \ \ labelList\ \ \ \ \mbox{\hyperlink{structoverset___ae1fa78568c7d5db456552a664606ad0c}{childMeshId}};\ \ }
+\DoxyCodeLine{00055\ }
+\DoxyCodeLine{00056\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structoverset___a7ec3ede91baefa23485505f800a6243b}{interpolationType}};\ }
+\DoxyCodeLine{00057\ }
+\DoxyCodeLine{00058\ \ \ \ \ \textcolor{comment}{//\ Dynamic\ overset\ parameters}}
+\DoxyCodeLine{00059\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structoverset___ade3e2342b4cf0b3aa02cbcf7c806a6b3}{dynamicOverset}};\ }
+\DoxyCodeLine{00060\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structoverset___a586d248402446da66aacd74362db8a11}{procChange}};\ \ \ \ \ }
+\DoxyCodeLine{00061\ \ \ \ \ \mbox{\hyperlink{structoversetMotion}{oversetMotion}}\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ *\mbox{\hyperlink{structoverset___a51dbcb8cb309881bdd2992076b21a056}{oMotion}};\ \ \ \ \ \ \ }
+\DoxyCodeLine{00062\ }
+\DoxyCodeLine{00063\ \ \ \ \ \textcolor{comment}{//\ In\ general\ there\ are\ 2\ sets\ of\ acceptor\ cells,\ acceptor\ cell\ at\ domain\ boundary(aCellDb)\ and\ acceptor\ cell\ at\ holeCut\ boundary(aCellHc)}}
+\DoxyCodeLine{00064\ \ \ \ \ \textcolor{comment}{//\ All\ variables\ need\ to\ be\ created\ for\ both\ sets\ of\ acceptors\ }}
+\DoxyCodeLine{00065\ }
+\DoxyCodeLine{00066\ \ \ \ \ std::vector<std::vector<PetscInt>>\ \ \ \ \ \ \mbox{\hyperlink{structoverset___a2d664a864a66bf0fa5dce07197faf377}{AcellProcMatDb}};\ \ \ \ }
+\DoxyCodeLine{00067\ \ \ \ \ std::vector<std::vector<PetscInt>>\ \ \ \ \ \ \mbox{\hyperlink{structoverset___a5f92f3f5730cf9aa257942c9c0af6aa7}{AcellProcMatHc}};\ \ \ \ }
+\DoxyCodeLine{00068\ }
+\DoxyCodeLine{00069\ \ \ \ \ std::vector<PetscInt>\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structoverset___aa7ed7766bda129a3dafc26888cbcfa6d}{NumAcellPerProcDb}};\ }
+\DoxyCodeLine{00070\ \ \ \ \ std::vector<PetscInt>\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structoverset___a41b7c2b5373a2645db238007e57a9dca}{NumAcellPerProcHc}};\ }
+\DoxyCodeLine{00071\ }
+\DoxyCodeLine{00072\ \ \ \ \ std::vector<Acell>\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structoverset___ab7439ba12e4e27f7178f4a1a1a5d8a8f}{aCellDb}};\ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00073\ \ \ \ \ std::vector<Acell>\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structoverset___afdc719dcf922b322d64135c35d10866e}{aCellHc}};\ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00074\ \ }
+\DoxyCodeLine{00075\ \ \ \ \ std::vector<Dcell>\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structoverset___a1cf5f074d6e1478eb452c1f0f9e53b51}{closestDonorDb}};\ \ \ \ }
+\DoxyCodeLine{00076\ \ \ \ \ std::vector<Dcell>\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structoverset___a751d163eff11c26e21606f85aee4df82}{closestDonorHc}};\ \ \ \ }
+\DoxyCodeLine{00077\ }
+\DoxyCodeLine{00078\ \ \ \ \ \textcolor{comment}{//for\ other\ interpolation\ methods}}
+\DoxyCodeLine{00079\ \ \ \ \ std::vector<std::vector<PetscReal>>\ \ \ \ \ \mbox{\hyperlink{structoverset___a452a3128ee798fbe1340028d002a9437}{DWeights}};\ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00080\ \ \ \ \ std::vector<std::vector<Dcell>>\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structoverset___af58542eaafbeb17670eaad48e9d9ddbb}{dCell}};\ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00081\ }
+\DoxyCodeLine{00082\ \ \ \ \ \textcolor{comment}{//\ Communication-\/related\ arrays\ for\ processor\ connectivity\ (for\ donor/acceptor\ mapping)}}
+\DoxyCodeLine{00083\ \ \ \ \ std::vector<MPI\_Comm>\ \ \ \ \ \ \ oset\_comm;\ \ }
+\DoxyCodeLine{00084\ }
+\DoxyCodeLine{00085\ \ \ \ \ \textcolor{comment}{//\ MLS\ (Least–Squares)\ interpolation\ parameters}}
+\DoxyCodeLine{00086\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structoverset___af22d524f63481b0e3e53f46707e725d9}{cellAvg}};\ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00087\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structoverset___a519e8f2f0939b41dc7491dc7c8abc9eb}{cellFactor}};\ \ \ \ \ }
+\DoxyCodeLine{00088\ \ \ \ \ }
+\DoxyCodeLine{00089\ \ \ \ \ \mbox{\hyperlink{structibm__}{ibm\_}}\ \ \ \ *oibm;}
+\DoxyCodeLine{00090\ \ \ \ \ \mbox{\hyperlink{structaccess__}{access\_}}\ *access;}
+\DoxyCodeLine{00091\ \};}
+\DoxyCodeLine{00092\ }
+\DoxyCodeLine{00093\ \textcolor{comment}{//structs\ for\ 3D\ binning\ }}
+\DoxyCodeLine{00094\ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structBinIndex}{BinIndex}}\ \{}
+\DoxyCodeLine{00095\ \ \ \ \ \textcolor{keywordtype}{int}\ ix,\ iy,\ iz;}
+\DoxyCodeLine{00096\ \ \ \ \ \textcolor{keywordtype}{bool}\ operator==(\textcolor{keyword}{const}\ \mbox{\hyperlink{structBinIndex}{BinIndex}}\&\ other)\textcolor{keyword}{\ const\ }\{}
+\DoxyCodeLine{00097\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ ix\ ==\ other.ix\ \&\&\ iy\ ==\ other.iy\ \&\&\ iz\ ==\ other.iz;}
+\DoxyCodeLine{00098\ \ \ \ \ \}}
+\DoxyCodeLine{00099\ \};}
+\DoxyCodeLine{00100\ }
+\DoxyCodeLine{00101\ \textcolor{keyword}{namespace\ }std\ \{}
+\DoxyCodeLine{00102\ \ \ \ \ \textcolor{keyword}{template}\ <>}
+\DoxyCodeLine{00103\ \ \ \ \ \textcolor{keyword}{struct\ }hash<\mbox{\hyperlink{structBinIndex}{BinIndex}}>\ \{}
+\DoxyCodeLine{00104\ \ \ \ \ \ \ \ \ std::size\_t\ operator()(\textcolor{keyword}{const}\ \mbox{\hyperlink{structBinIndex}{BinIndex}}\&\ b)\textcolor{keyword}{\ const\ }\{}
+\DoxyCodeLine{00105\ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ ((std::hash<int>()(b.ix)\ \string^\ (std::hash<int>()(b.iy)\ <<\ 1))\ >>\ 1)\ \string^\ (std::hash<int>()(b.iz)\ <<\ 1);}
+\DoxyCodeLine{00106\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00107\ \ \ \ \ \};}
+\DoxyCodeLine{00108\ \}}
+\DoxyCodeLine{00109\ }
+\DoxyCodeLine{00110\ \textcolor{preprocessor}{\#endif}}
+\DoxyCodeLine{00111\ }
+\DoxyCodeLine{00112\ }
+\DoxyCodeLine{00113\ \textcolor{comment}{//\ Initialization\ and\ update}}
+\DoxyCodeLine{00114\ PetscErrorCode\ \mbox{\hyperlink{overset_8h_aff3ca6c4a4ea1ca2fc65979a72587ddb}{InitializeOverset}}(\mbox{\hyperlink{structdomain__}{domain\_}}\ *dm);}
+\DoxyCodeLine{00115\ }
+\DoxyCodeLine{00116\ PetscErrorCode\ SetInitialFieldsOverset(PetscInt\ d,\ \mbox{\hyperlink{structdomain__}{domain\_}}\ *domain);}
+\DoxyCodeLine{00117\ }
+\DoxyCodeLine{00118\ PetscErrorCode\ UpdateOversetInterpolation(\mbox{\hyperlink{structdomain__}{domain\_}}\ *domain);}
+\DoxyCodeLine{00119\ }
+\DoxyCodeLine{00120\ PetscErrorCode\ \mbox{\hyperlink{overset_8h_a896b6aed7729515b7b1bf30d69084fa9}{UpdateDomainInterpolation}}(PetscInt\ d,\ \mbox{\hyperlink{structdomain__}{domain\_}}\ *domain,\ PetscInt\ level);}
+\DoxyCodeLine{00121\ }
+\DoxyCodeLine{00122\ PetscErrorCode\ findClosestDomainDonors(PetscInt\ d,\ \mbox{\hyperlink{structdomain__}{domain\_}}\ *domain,\ PetscInt\ level,\ \textcolor{keyword}{const}\ std::vector<HoleObject>\ \&holeObjects);\ }
+\DoxyCodeLine{00123\ }
+\DoxyCodeLine{00124\ PetscErrorCode\ findAcceptorCells(PetscInt\ d,\ \mbox{\hyperlink{structdomain__}{domain\_}}\ *domain,\ PetscInt\ level,\ }
+\DoxyCodeLine{00125\ \ \ \ \ \textcolor{keyword}{const}\ std::vector<HoleObject>\ \&holeObjects);}
+\DoxyCodeLine{00126\ }
+\DoxyCodeLine{00127\ PetscErrorCode\ readOversetProperties(\mbox{\hyperlink{structoverset__}{overset\_}}\ *os);}
+\DoxyCodeLine{00128\ }
+\DoxyCodeLine{00129\ PetscErrorCode\ readBlankingIBMObject(\mbox{\hyperlink{structoverset__}{overset\_}}\ *os,\ \mbox{\hyperlink{structdomain__}{domain\_}}\ *domain,\ \textcolor{keywordtype}{char}\ *holeObjectName,\ \textcolor{keyword}{const}\ std::vector<HoleObject>\ \&holeObjects);}
+\DoxyCodeLine{00130\ }
+\DoxyCodeLine{00131\ PetscErrorCode\ readHoleObjects(std::vector<HoleObject>\ \&holeObjects,\ PetscInt\ numHoleObjects);}
+\DoxyCodeLine{00132\ }
+\DoxyCodeLine{00133\ PetscErrorCode\ FindHoleObject(\textcolor{keyword}{const}\ std::vector<HoleObject>\ \&holeObjects,\ }
+\DoxyCodeLine{00134\ \ \ \ \ PetscInt\ parentId,\ PetscInt\ childId,\ }
+\DoxyCodeLine{00135\ \ \ \ \ \textcolor{keywordtype}{char}\ **holeObjectName);}
+\DoxyCodeLine{00136\ }
+\DoxyCodeLine{00137\ PetscErrorCode\ updateAcceptorCoordinates(\mbox{\hyperlink{structoverset__}{overset\_}}\ *os);}
+\DoxyCodeLine{00138\ }
+\DoxyCodeLine{00139\ PetscErrorCode\ createAcceptorCellOverset(\mbox{\hyperlink{structoverset__}{overset\_}}\ *os);}
+\DoxyCodeLine{00140\ }
+\DoxyCodeLine{00141\ PetscErrorCode\ \mbox{\hyperlink{overset_8h_a87ad301d84e41579cb5f3b165e3ee408}{createAcceptorCellBackground}}(\mbox{\hyperlink{structoverset__}{overset\_}}\ *os,\ PetscInt\ donorMeshId);}
+\DoxyCodeLine{00142\ }
+\DoxyCodeLine{00143\ PetscErrorCode\ findClosestDonorC2P(\mbox{\hyperlink{structmesh__}{mesh\_}}\ *meshDonor,\ \mbox{\hyperlink{structmesh__}{mesh\_}}\ *meshAcceptor,\ PetscInt\ donorId);}
+\DoxyCodeLine{00144\ }
+\DoxyCodeLine{00145\ PetscErrorCode\ findClosestDonorP2C(\mbox{\hyperlink{structmesh__}{mesh\_}}\ *meshDonor,\ \mbox{\hyperlink{structmesh__}{mesh\_}}\ *meshAcceptor);}
+\DoxyCodeLine{00146\ }
+\DoxyCodeLine{00147\ \textcolor{comment}{//\ Interpolation\ routines\ for\ overset\ (child)\ mesh}}
+\DoxyCodeLine{00148\ PetscErrorCode\ interpolateACellTrilinearP2C(\mbox{\hyperlink{structmesh__}{mesh\_}}\ *donorMesh,\ \mbox{\hyperlink{structmesh__}{mesh\_}}\ *acceptorMesh);}
+\DoxyCodeLine{00149\ }
+\DoxyCodeLine{00150\ PetscErrorCode\ interpolateACellTrilinearC2P(\mbox{\hyperlink{structmesh__}{mesh\_}}\ *meshD,\ \mbox{\hyperlink{structmesh__}{mesh\_}}\ *meshA,\ PetscInt\ donorId);}
+\DoxyCodeLine{00151\ }
+\DoxyCodeLine{00152\ PetscErrorCode\ oversetContravariantBC(\mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh,\ PetscInt\ i,\ PetscInt\ j,\ PetscInt\ k,\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ ucart,\ PetscInt\ face);}
+\DoxyCodeLine{00153\ }
+\DoxyCodeLine{00154\ PetscErrorCode\ setOversetBC(\mbox{\hyperlink{structmesh__}{mesh\_}}\ *meshA);}
+\DoxyCodeLine{00155\ }
+\DoxyCodeLine{00156\ PetscErrorCode\ setBackgroundBC(\mbox{\hyperlink{structmesh__}{mesh\_}}\ *meshA);}
+\DoxyCodeLine{00157\ }
+\DoxyCodeLine{00158\ PetscErrorCode\ acell1Dcell0Connectivity(\mbox{\hyperlink{structmesh__}{mesh\_}}\ *meshP,\ \mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh);\ \ }
+\DoxyCodeLine{00159\ }
+\DoxyCodeLine{00160\ \textcolor{comment}{//\ Least–Squares\ weights\ (for\ overset\ interpolation\ from\ base\ donor\ cells)}}
+\DoxyCodeLine{00161\ PetscErrorCode\ getLSWeights(\mbox{\hyperlink{structmesh__}{mesh\_}}\ *meshP,\ \mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh);}
+\DoxyCodeLine{00162\ }
+\DoxyCodeLine{00163\ PetscErrorCode\ getLSWeights\_2nd(\mbox{\hyperlink{structmesh__}{mesh\_}}\ *meshP,\ \mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh);}
+\DoxyCodeLine{00164\ }
+\DoxyCodeLine{00165\ PetscErrorCode\ getLSWeights\_3rd(\mbox{\hyperlink{structmesh__}{mesh\_}}\ *meshP,\ \mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh);}
+\DoxyCodeLine{00166\ }
+\DoxyCodeLine{00167\ PetscErrorCode\ interpolateACellInvD(\mbox{\hyperlink{structmesh__}{mesh\_}}\ *meshP,\ \mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh);}
+\DoxyCodeLine{00168\ }
+\DoxyCodeLine{00169\ PetscErrorCode\ interpolateACellLS(\mbox{\hyperlink{structmesh__}{mesh\_}}\ *meshP,\ \mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh);}
+\DoxyCodeLine{00170\ }
+\DoxyCodeLine{00171\ PetscErrorCode\ updateAcellCoordinates(\mbox{\hyperlink{structdomain__}{domain\_}}\ *domain);}
+\DoxyCodeLine{00172\ }
+\DoxyCodeLine{00173\ PetscErrorCode\ updateIntersectingProcessors(\mbox{\hyperlink{structdomain__}{domain\_}}\ *domain);}
+\DoxyCodeLine{00174\ }
+\DoxyCodeLine{00175\ PetscErrorCode\ updateDonorCells(\mbox{\hyperlink{structdomain__}{domain\_}}\ *domain);}
+\DoxyCodeLine{00176\ }
+\DoxyCodeLine{00177\ \textcolor{comment}{//\ Dynamic\ overset\ motion}}
+\DoxyCodeLine{00178\ PetscErrorCode\ oversetMeshTranslation(\mbox{\hyperlink{structoverset__}{overset\_}}\ *os);\ \ }
+\DoxyCodeLine{00179\ }
+\DoxyCodeLine{00180\ \textcolor{keywordtype}{void}\ sum\_struct\_Acell(\textcolor{keywordtype}{void}\ *in,\ \textcolor{keywordtype}{void}\ *inout,\ \textcolor{keywordtype}{int}\ *len,\ MPI\_Datatype\ *type);}
+\DoxyCodeLine{00181\ \textcolor{keywordtype}{void}\ defineStruct\_Acell(MPI\_Datatype\ *tstype);}
+\DoxyCodeLine{00182\ }
+\DoxyCodeLine{00183\ PetscErrorCode\ computeOversetIBMElementNormal(\mbox{\hyperlink{structibm__}{ibm\_}}\ *ibm);}
+\DoxyCodeLine{00184\ }
+\DoxyCodeLine{00185\ PetscErrorCode\ oversetIbmSearch(\mbox{\hyperlink{structibm__}{ibm\_}}\ *ibm);}
+\DoxyCodeLine{00186\ }
+\DoxyCodeLine{00187\ }
+
+\end{DoxyCode}

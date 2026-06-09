@@ -251,6 +251,9 @@ struct ibm_
     PetscInt              ibmABL;
 
     PetscReal         interpDist;
+
+    PetscReal         procBuffOverlap;
+
     // output parameters
     PetscReal          timeStart;                    //!< start time of acquisition system
     word            intervalType;                    //!< timeStep: sample at every (timeInterval) iter, adjustableTime sample at every (timeInterval) seconds

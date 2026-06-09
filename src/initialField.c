@@ -80,6 +80,17 @@ PetscErrorCode SetInitialField(domain_ *domain)
     {
         PetscPrintf(mesh->MESH_COMM, "Setting initial field: %s\n\n", domain->ueqn->initFieldType.c_str());
         readFields(domain, domain->clock->startTime);
+
+        // readFields uses DMGlobalToLocal which fills MPI ghost cells but does NOT
+        // fill the physical-domain boundary ghost rows of lP / lTmprt.  Update
+        // pressure and temperature BCs here so that GradP and Tmprt_o are
+        // consistent before the first time step.
+        UpdatePressureBCs(domain->peqn);
+
+        if(flags->isTeqnActive)
+        {
+            UpdateTemperatureBCs(domain->teqn);
+        }
     }
 
     // save old fields
@@ -194,10 +205,6 @@ PetscErrorCode SetInitialFieldU(ueqn_ *ueqn)
             }
         }
 
-        if(ueqn->access->flags->isMeangradPForcingActive)
-        {
-            readSubDictVector(filename.c_str(), "readField", "uBulk", &(ueqn->uBulk));
-        }
         // all fields read together later
     }
     else if (ueqn->initFieldType == "uniform")
@@ -207,11 +214,6 @@ PetscErrorCode SetInitialFieldU(ueqn_ *ueqn)
 
         readSubDictVector(filename.c_str(), "uniform", "value",         &(uRef));
         readSubDictInt   (filename.c_str(), "uniform", "perturbations", &(addPerturbations));
-
-        if(ueqn->access->flags->isMeangradPForcingActive)
-        {
-            readSubDictVector(filename.c_str(), "uniform", "uBulk", &(ueqn->uBulk));
-        }
 
         PetscPrintf(mesh->MESH_COMM, "Setting initial field for U: %s\n\n", ueqn->initFieldType.c_str());
         SetUniformFieldU(ueqn, uRef, addPerturbations);
@@ -223,11 +225,6 @@ PetscErrorCode SetInitialFieldU(ueqn_ *ueqn)
             char error[512];
             sprintf(error, "activate ABL flag before setting the ABLFlow initial field\n");
             fatalErrorInFunction("SetInitialFieldU", error);
-        }
-
-        if(ueqn->access->flags->isMeangradPForcingActive)
-        {
-            readSubDictVector(filename.c_str(), "ABLFlow", "uBulk", &(ueqn->uBulk));
         }
 
         PetscPrintf(mesh->MESH_COMM, "Setting initial field for U: %s\n\n", ueqn->initFieldType.c_str());
@@ -249,11 +246,6 @@ PetscErrorCode SetInitialFieldU(ueqn_ *ueqn)
             fatalErrorInFunction("SetInitialFieldU", error);
         }
 
-        if(ueqn->access->flags->isMeangradPForcingActive)
-        {
-            readSubDictVector(filename.c_str(), "ABLFlowZilitinkevich", "uBulk", &(ueqn->uBulk));
-        }
-
         PetscPrintf(mesh->MESH_COMM, "Setting initial field for U: %s\n\n", ueqn->initFieldType.c_str());
         SetABLInitialFlowUZilitinkevich(ueqn);
     }
@@ -264,22 +256,12 @@ PetscErrorCode SetInitialFieldU(ueqn_ *ueqn)
         readSubDictDouble (filename.c_str(), "TGVFlow", "u0", &u0);
         readSubDictDouble (filename.c_str(), "TGVFlow", "freq",      &freq);
 
-        if(ueqn->access->flags->isMeangradPForcingActive)
-        {
-            readSubDictVector(filename.c_str(), "TGVFlow", "uBulk", &(ueqn->uBulk));
-        }
-
         PetscPrintf(mesh->MESH_COMM, "Setting initial field for U: %s\n\n", ueqn->initFieldType.c_str());
         SetTaylorGreenFieldU(ueqn, u0, freq);
     }
     else if (ueqn->initFieldType == "spreadInflow")
     {
         PetscPrintf(mesh->MESH_COMM, "Setting initial field for U: %s\n\n", ueqn->initFieldType.c_str());
-        
-        if(ueqn->access->flags->isMeangradPForcingActive)
-        {
-            readSubDictVector(filename.c_str(), "spreadInflow", "uBulk", &(ueqn->uBulk));
-        }
 
         SpreadInletFlowU(ueqn);
     }
@@ -461,8 +443,8 @@ PetscErrorCode SetUniformFieldU(ueqn_ *ueqn, Cmpnts &uRef, PetscInt &addPerturba
                     PetscReal zPeak    = 0.05;
                     PetscReal deltaV   = 0.1*nMag(uRef);
                     PetscReal deltaU   = 0.1*nMag(uRef);
-                    PetscReal Uperiods = 12;
-                    PetscReal Vperiods = 12;
+                    PetscReal Uperiods = 6;
+                    PetscReal Vperiods = 6;
 
                     // perturbations to trigger turbulence
                     ucat[k][j][i].x
@@ -678,8 +660,8 @@ PetscErrorCode SetABLInitialFlowU(ueqn_ *ueqn)
                     PetscReal zPeak    = 0.05;
                     PetscReal deltaV   = 0.1*uRef;
                     PetscReal deltaU   = 0.1*uRef;
-                    PetscReal Uperiods = 12;
-                    PetscReal Vperiods = 12;
+                    PetscReal Uperiods = 6;
+                    PetscReal Vperiods = 6;
 
                     // perturbations to trigger turbulence
                     uCell.z
@@ -923,8 +905,8 @@ PetscErrorCode SetABLInitialFlowUZilitinkevich(ueqn_ *ueqn)
                     PetscReal zPeak    = 0.05;
                     PetscReal deltaV   = 0.1*uRef;
                     PetscReal deltaU   = 0.1*uRef;
-                    PetscReal Uperiods = 12;
-                    PetscReal Vperiods = 12;
+                    PetscReal Uperiods = 6;
+                    PetscReal Vperiods = 6;
 
                     // perturbations to trigger turbulence
                     uCell.z

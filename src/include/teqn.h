@@ -7,27 +7,44 @@
 //! \brief struct storing temperature equation
 struct teqn_
 {
+    // solver name 
+    word          solverType;                 //!< solver type (kept for logging)
+    
     // temperature variables
     SNES          snesT;                      //!< non linear matrix free context
     Mat           JT;                         //!< non linear matrix free preconditioner
     Mat           AT, CT;
-    KSP           ksp;                        //!< linear krylov-subspace context
+    KSP           ksp;                        //!< linear krylov-subspace context (backwardEuler/BDF2 SNES inner KSP)
     PC            pc;
-    Vec           Rhs;
-    Vec           Rhs_o;
+    KSP           kspIMEX;                    //!< standalone direct KSP for IMEX schemes
+    Mat           JvIMEX;                     //!< MatShell for IMEX operator A*v 
+    word          kspType;                    //!< KSP solver type for SNES/IMEX
+    PetscInt      gmresRestart;               //!< GMRES restart parameter for SNES/IMEX
+    Vec           Rhs;                        //!< rhs of the temperature equation 
+    Vec           bT;                         //!< rhs of the linear system in IMEX schemes
+    Vec           RhsConv;                    //!< convective RHS at current time (for AB2 blending in ABBE)
+    Vec           RhsConv_o;                  //!< convective RHS at previous time (for AB2 blending in ABBE)
+
     Vec           TmprtTmp;                   //!< temporary solution
     Vec           Tmprt, lTmprt,
                   Tmprt_o, lTmprt_o;
-    Vec           lDivT, lViscT, lViscIBMT;              //!< viscous and divergence temperature equation fluxes
+    Vec           Tmprt_oo;                   //!< previous solution for BDF2
+
+    Vec           lDivT, lViscT, lViscIBMT;   //!< viscous and divergence temperature equation fluxes
     Vec           sourceT;                    //!< temperature sources
 
     Vec           lRhoK;                      //!< rhok / rho0 field
-    Vec           ghGradRhok;                 //!< buoyancy term for momentum equation
+    Vec           ghGradRhok;                 //!< buoyancy term for momentum equation (current step)
+    Vec           ghGradRhok_o;               //!< buoyancy term for momentum equation (previous step, for AB2)
 
     PetscReal     absExitTol;                 //!< absolute exit tolerance
     PetscReal     relExitTol;                 //!< relative exit tolerance
 
     word          ddtScheme;                  //!< time derivative scheme
+
+    PetscReal     hyperVisc4i;                //!< IMEX biharmonic hyperviscosity along i (ξ) index direction (-imexHyperVisc4U_i, default 0)
+    PetscReal     hyperVisc4j;                //!< IMEX biharmonic hyperviscosity along j (η) index direction (-imexHyperVisc4U_j, default 0)
+    PetscReal     hyperVisc4k;                //!< IMEX biharmonic hyperviscosity along k (ζ) index direction, typically vertical (-imexHyperVisc4U_k, default 0)
 
     // wall model patch
     wallModel     *iLWM;                      //!< wall model on the i-left patch
@@ -54,29 +71,5 @@ PetscErrorCode InitializeTEqn(teqn_ *teqn);
 //! \brief Solve T equation
 PetscErrorCode SolveTEqn(teqn_ *teqn);
 
-//! \brief SNES evaulation function
-PetscErrorCode TeqnSNES(SNES snes, Vec T, Vec Rhs, void *ptr);
-
 //! \brief Computes g*h times gradient of rho_k / rho_0
 PetscErrorCode ghGradRhoK(teqn_ *teqn);
-
-//! \brief Compute temperature control source term
-PetscErrorCode CorrectSourceTermsT(teqn_ *teqn, PetscInt print);
-
-//! \brief Apply fringe region damping
-PetscErrorCode dampingSourceT(teqn_ *teqn, Vec &Rhs, PetscReal scale);
-
-//! \brief Apply temperature control
-PetscErrorCode sourceT(teqn_ *teqn, Vec &Rhs, PetscReal scale);
-
-//! \brief RHS of the potential temperature transport equation
-PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale);
-
-//! \brief solve Teqn using RungeKutta 4
-PetscErrorCode TeqnRK4(teqn_ *teqn);
-
-//! \brief Computed RHS of temperature equation using current lTmprt (updates Rhs), data put in ueqn->Rhs
-PetscErrorCode FormExplicitRhsT(teqn_ *teqn);
-
-//! \brief Compute tBar state for lateral damping region
-PetscErrorCode correctDampingSourcesT(teqn_ *teqn);

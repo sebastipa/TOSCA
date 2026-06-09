@@ -1,0 +1,410 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Overset Algorithm &mdash; TOSCA dev documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=23c79765" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=3ce10a4d"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Sub-grid Scale Models" href="turbulence_models.html" />
+    <link rel="prev" title="Parallel Efficiency" href="parallel_efficiency.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            TOSCA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../tosca_getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tosca_installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tosca_user_guide.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tosca_examples.html">Example Cases</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tosca_applications.html">TOSCA Applications</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../tosca_theory_guide.html">Theory Guide</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="governing_equations.html">Governing Equations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="numerics.html">Numerical Method</a></li>
+<li class="toctree-l2"><a class="reference internal" href="time_integration.html">Time Integration Schemes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="advection_schemes.html">Advection Schemes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="parallel_efficiency.html">Parallel Efficiency</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Overset Algorithm</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#acceptor-cell-types">Acceptor Cell Types</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#initialization">Initialization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#per-step-interpolation">Per-Step Interpolation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#key-variables">Key Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#function-summary">Function Summary</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="turbulence_models.html">Sub-grid Scale Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="flow_controllers.html">Flow Controllers and Mesoscale Coupling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="precursor.html">Precursor, Fringe Regions &amp; Damping Layers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ibm.html">Immersed Boundary Method</a></li>
+<li class="toctree-l2"><a class="reference internal" href="turbine_models.html">Turbine Models</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tosca_versions.html">Versions</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">TOSCA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../tosca_theory_guide.html">Theory Guide</a></li>
+      <li class="breadcrumb-item active">Overset Algorithm</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/04_theory_guide/overset.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="overset-algorithm">
+<span id="overset-theory-section"></span><h1>Overset Algorithm<a class="headerlink" href="#overset-algorithm" title="Link to this heading"></a></h1>
+<p>Overset mesh (also known as grid nesting) allows to introduce refinement levels within TOSCA. In this technique, a finer mesh is immersed inside the original
+background mesh. Boundary conditions for the finer mesh are interpolated from the background mesh, while cells in the background mesh
+are blanked when they overlap with the finer mesh. This “hole” in the background mesh is treated as an IBM body (see <a class="reference internal" href="ibm.html#ibm-theory-section"><span class="std std-ref">Immersed Boundary Method</span></a>),
+where the solution at the IBM fluid cells is interpolated from the finer mesh. In order to understand how the overset mesh method works
+in TOSCA, it is worth mentioning some nomenclature used in relation to the following figure:</p>
+<a class="reference internal image-reference" href="../_images/overset-mesh-method1.png"><img alt="../_images/overset-mesh-method1.png" src="../_images/overset-mesh-method1.png" style="width: 100%;" />
+</a>
+<br><p>A parent domain is a domain that fully contains another domain, usually characterized by a finer mesh, referred to as the child domain.
+Since the parent encloses the child, a hole can be created, a few cells inwardly offset from the child, where parent domain cells are not
+solved. This is referred to as the parent hole, which is treated as an IBM body. Hole interface cells are IBM fluid cells where the solution is
+interpolated from the child domain. Vice versa, the solution is interpolated from the parent domain at the child boundary cells. The offset
+between the hole and the child domain is required in order to use centered interpolation stencils when interpolating from the parent to the child
+domain. Finally, donor and acceptor cells are those cells that provide and receive the interpolaton data, respectively. Parent and child domains
+have both donor and acceptor cells, depending if the interpolation is from parent to child or vice versa. Regarding the interpolation, when this
+goes from parent to child (coarse to fine), a tri-linear scheme is used. Conversely, when going from child to parent (fine to coarse), a tri-linear
+scheme would make the interpolated value too local if the parent to child grid ratio is too large. For this reason, TOSCA introduces a
+tri-linear averaged interpolation, where cell corners are first tri-linearly interpolated and then averaged to yield the cell value, as shown
+in the figure above.</p>
+<p>Within TOSCA’s overset method, there are two types of interpolation between the parent and the child domains:</p>
+<ul class="simple">
+<li><p><strong>P2C (Parent → Child):</strong> the child mesh boundary cells receive velocity, temperature, and pressure values
+interpolated from the parent mesh.</p></li>
+<li><p><strong>C2P (Child → Parent):</strong> the parent hole-interface mesh cells receive values interpolated from the child mesh.</p></li>
+</ul>
+<p>The hole in the parent mesh is treated as an IBM body (see <a class="reference internal" href="ibm.html#ibm-theory-section"><span class="std std-ref">Immersed Boundary Method</span></a>). Cells inside the hole are blanked and not solved;
+the IBM fluid cells at the hole boundary are the C2P acceptors.</p>
+<p>The PETSc-SF (Star Forest) implementation is used to encode the sparse donor-to-acceptor topology once at initialization, and uses
+<code class="docutils literal notranslate"><span class="pre">PetscSFBcastBegin/End</span></code> for efficient one-collective-per-step data scatter at run time.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The implementation does not handle intersecting domains at the same level. Domains must be either telescopic
+(one fully contained in the other) or non-overlapping at the same level.
+A buffer of at least 3 parent-mesh cells must separate the hole boundary from the child domain boundary.</p>
+</div>
+<section id="acceptor-cell-types">
+<h2>Acceptor Cell Types<a class="headerlink" href="#acceptor-cell-types" title="Link to this heading"></a></h2>
+<p>Each rank maintains two lists of <em>acceptor cells</em> — cells that receive interpolated data — stored in the <code class="docutils literal notranslate"><span class="pre">overset_</span></code> struct:</p>
+<dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">localAcceptorsDb</span></code></dt><dd><p><em>Domain Boundary</em> acceptors (P2C). These are the outermost layer of cells of the child mesh (index 0 or <code class="docutils literal notranslate"><span class="pre">mx-1</span></code>,
+<code class="docutils literal notranslate"><span class="pre">my-1</span></code>, <code class="docutils literal notranslate"><span class="pre">mz-1</span></code>). Each entry is a single <code class="docutils literal notranslate"><span class="pre">Acell</span></code> with the cell’s (i,j,k) indices and its physical centre
+coordinates. One entry per cell.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">localAcceptorsHc[donorId]</span></code></dt><dd><p><em>Hole-Cut</em> acceptors (C2P), stored in a <code class="docutils literal notranslate"><span class="pre">std::map</span></code> keyed by the child mesh identifier <code class="docutils literal notranslate"><span class="pre">donorId</span></code>.
+Because the C2P interpolation uses a tri-linear averaged scheme (parent cell value = average of 8 corner
+interpolations), each parent interface cell contributes <strong>8</strong> <code class="docutils literal notranslate"><span class="pre">Acell</span></code> entries — one per cell corner — all sharing
+the same <code class="docutils literal notranslate"><span class="pre">parentCellId</span></code>. The corner coordinates are the physical positions of the 8 vertices bounding the cell.</p>
+</dd>
+</dl>
+<p>The <code class="docutils literal notranslate"><span class="pre">Acell</span></code> structure:</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="k">typedef</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">PetscInt</span><span class="w">    </span><span class="n">indi</span><span class="p">,</span><span class="w"> </span><span class="n">indj</span><span class="p">,</span><span class="w"> </span><span class="n">indk</span><span class="p">;</span><span class="w">   </span><span class="c1">// cell (i,j,k) indices in the acceptor mesh</span>
+<span class="w">    </span><span class="n">PetscReal</span><span class="w">   </span><span class="n">coorx</span><span class="p">,</span><span class="w"> </span><span class="n">coory</span><span class="p">,</span><span class="w"> </span><span class="n">coorz</span><span class="p">;</span><span class="c1">// physical coords used as the query point</span>
+<span class="w">    </span><span class="n">PetscMPIInt</span><span class="w"> </span><span class="n">rank</span><span class="p">;</span><span class="w">               </span><span class="c1">// MPI rank that owns this acceptor</span>
+<span class="w">    </span><span class="n">PetscReal</span><span class="w">   </span><span class="n">cell_size</span><span class="p">;</span><span class="w">          </span><span class="c1">// currently unused in PETScSF</span>
+<span class="w">    </span><span class="n">PetscInt</span><span class="w">    </span><span class="n">face</span><span class="p">;</span><span class="w">               </span><span class="c1">// currently unused in PETScSF</span>
+<span class="w">    </span><span class="n">PetscInt</span><span class="w">    </span><span class="n">donorId</span><span class="p">;</span><span class="w">            </span><span class="c1">// donor mesh identifier</span>
+<span class="w">    </span><span class="n">PetscInt</span><span class="w">    </span><span class="n">parentCellId</span><span class="p">;</span><span class="w">       </span><span class="c1">// groups 8 vertices of same C2P parent cell</span>
+<span class="p">}</span><span class="w"> </span><span class="n">Acell</span><span class="p">;</span>
+</pre></div>
+</div>
+</section>
+<section id="initialization">
+<h2>Initialization<a class="headerlink" href="#initialization" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">BuildOversetSF</span></code> contains the main initialization part of the overset, and it is a <code class="docutils literal notranslate"><span class="pre">static</span></code> function,
+called once per donor/acceptor mesh pair during initialization.
+It takes the local acceptor list and returns a <code class="docutils literal notranslate"><span class="pre">PetscSF</span></code> graph and the root-slot metadata needed at every
+interpolation step. The algorithm proceeds in six stages.</p>
+<p><strong>Stage 1 — Octree construction</strong></p>
+<p>Each donor rank builds a local octree (<code class="docutils literal notranslate"><span class="pre">OctreeNode</span></code>) over its interior cell centroids, bounded by the rank’s
+physical domain expanded by one cell width on each side so that neighbouring ranks’ acceptors fall within the tree.
+The octree uses a maximum depth of 15 and a maximum of 1000 cells per leaf node.
+This reduces per-query search cost to O(log N).</p>
+<p><strong>Stage 2 — Bounding-box exchange</strong></p>
+<p>Each rank broadcasts its expanded bounding box (<code class="docutils literal notranslate"><span class="pre">OversetBbox</span></code>) to all other ranks via <code class="docutils literal notranslate"><span class="pre">MPI_Allgather</span></code>.
+As a result, every acceptor rank knows the physical extent of every donor rank.</p>
+<p><strong>Stage 3 — Query packing and send-count computation</strong></p>
+<p>For each local acceptor at position (x, y, z), the code tests every donor rank’s bounding box with <code class="docutils literal notranslate"><span class="pre">bboxContains()</span></code>.
+Candidate ranks are those whose bounding box contains the acceptor position (note that a zero tolerance is used).
+A <code class="docutils literal notranslate"><span class="pre">sCount[d]</span></code> counter is incremented for each candidate rank <code class="docutils literal notranslate"><span class="pre">d</span></code>, and the corresponding <code class="docutils literal notranslate"><span class="pre">OversetQuery</span></code>
+packet <code class="docutils literal notranslate"><span class="pre">{originIdx,</span> <span class="pre">x,</span> <span class="pre">y,</span> <span class="pre">z}</span></code> is packed into a flat <code class="docutils literal notranslate"><span class="pre">sendQ</span></code> buffer grouped by destination rank.
+<code class="docutils literal notranslate"><span class="pre">sDispl[d]</span></code> is the prefix-sum offset into <code class="docutils literal notranslate"><span class="pre">sendQ</span></code> for rank <code class="docutils literal notranslate"><span class="pre">d</span></code>’s queries.</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="k">struct</span><span class="w"> </span><span class="nc">OversetQuery</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">PetscInt</span><span class="w">  </span><span class="n">originIdx</span><span class="p">;</span><span class="w">  </span><span class="c1">// index into localAcceptors on the acceptor rank</span>
+<span class="w">    </span><span class="n">PetscReal</span><span class="w"> </span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">y</span><span class="p">,</span><span class="w"> </span><span class="n">z</span><span class="p">;</span><span class="w">    </span><span class="c1">// physical position of the acceptor cell / vertex</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+<p><strong>Stage 4 — All-to-all query exchange</strong></p>
+<p><code class="docutils literal notranslate"><span class="pre">MPI_Alltoall</span></code> exchanges the per-rank query counts so every rank knows how many queries it will receive.
+<code class="docutils literal notranslate"><span class="pre">MPI_Alltoallv</span></code> with a custom MPI struct type <code class="docutils literal notranslate"><span class="pre">qtype</span></code> then delivers the actual query packets. Each donor
+rank now holds a <code class="docutils literal notranslate"><span class="pre">recvQ[totalRecv]</span></code> buffer with all queries destined for it.</p>
+<p><strong>Stage 5 — Octree search and all-to-all reply exchange</strong></p>
+<p>For each received query the donor rank calls <code class="docutils literal notranslate"><span class="pre">searchOctree()</span></code> to find the nearest cell centroid.
+If a match is found, a <em>root slot</em> is allocated (<code class="docutils literal notranslate"><span class="pre">slotCounter++</span></code>) and the donor cell indices are appended
+to the output arrays <code class="docutils literal notranslate"><span class="pre">rootI/rootJ/rootK</span></code> and the acceptor query coordinates to <code class="docutils literal notranslate"><span class="pre">rootX/rootY/rootZ</span></code>.
+The slot index and Euclidean distance are packed into an <code class="docutils literal notranslate"><span class="pre">OversetReply</span></code> packet:</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="k">struct</span><span class="w"> </span><span class="nc">OversetReply</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">PetscInt</span><span class="w">  </span><span class="n">originIdx</span><span class="p">;</span><span class="w">  </span><span class="c1">// which acceptor this reply belongs to</span>
+<span class="w">    </span><span class="n">PetscInt</span><span class="w">  </span><span class="n">slotIdx</span><span class="p">;</span><span class="w">    </span><span class="c1">// root slot on this donor rank (-1 if no match)</span>
+<span class="w">    </span><span class="n">PetscReal</span><span class="w"> </span><span class="n">dist</span><span class="p">;</span><span class="w">       </span><span class="c1">// Euclidean dist. from acceptor to nearest donor centroid</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+<p>A second <code class="docutils literal notranslate"><span class="pre">MPI_Alltoallv</span></code> with type <code class="docutils literal notranslate"><span class="pre">rtype</span></code> returns the replies to the original acceptor ranks
+(send/recv count arrays are swapped for the return trip).</p>
+<p><strong>Stage 6 — Best-donor selection and PetscSF graph construction</strong></p>
+<p>Each acceptor rank scans all returned replies for each acceptor and picks the minimum-distance donor.
+The winning donor’s <code class="docutils literal notranslate"><span class="pre">{rank,</span> <span class="pre">slotIdx}</span></code> pair becomes the <code class="docutils literal notranslate"><span class="pre">iremote</span></code> entry for that acceptor leaf.
+The star-forest graph is then built using:</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="n">PetscSFCreate</span><span class="p">(</span><span class="n">comm</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">sf</span><span class="p">);</span>
+<span class="n">PetscSFSetGraph</span><span class="p">(</span><span class="n">sf</span><span class="p">,</span>
+<span class="w">    </span><span class="n">nRoots</span><span class="p">,</span><span class="w">         </span><span class="c1">// donor slots owned by this rank</span>
+<span class="w">    </span><span class="n">nLeaves</span><span class="p">,</span><span class="w">        </span><span class="c1">// local acceptors that found a donor</span>
+<span class="w">    </span><span class="n">ilocal</span><span class="p">,</span><span class="w">         </span><span class="c1">// leaf index = position in localAcceptors[]</span>
+<span class="w">    </span><span class="n">PETSC_COPY_VALUES</span><span class="p">,</span>
+<span class="w">    </span><span class="n">iremote</span><span class="p">,</span><span class="w">        </span><span class="c1">// {rank, slotIdx} of the remote donor root</span>
+<span class="w">    </span><span class="n">PETSC_COPY_VALUES</span><span class="p">);</span>
+<span class="n">PetscSFSetUp</span><span class="p">(</span><span class="n">sf</span><span class="p">);</span>
+</pre></div>
+</div>
+</section>
+<section id="per-step-interpolation">
+<h2>Per-Step Interpolation<a class="headerlink" href="#per-step-interpolation" title="Link to this heading"></a></h2>
+<p>Interpolation is performed by <code class="docutils literal notranslate"><span class="pre">interpolateACellTrilinearP2C</span></code> (P2C) and <code class="docutils literal notranslate"><span class="pre">interpolateACellTrilinearC2P</span></code> (C2P)
+at every time step. Both functions follow the same pattern:</p>
+<ol class="arabic simple">
+<li><p><strong>Root packing (donor side).</strong> For each root slot <code class="docutils literal notranslate"><span class="pre">s</span></code>, the donor rank reads the cached acceptor position
+from <code class="docutils literal notranslate"><span class="pre">rootSlotCoords[3*s</span> <span class="pre">:</span> <span class="pre">3*s+3]</span></code> and the donor cell index from <code class="docutils literal notranslate"><span class="pre">rootSlotIdx[3*s</span> <span class="pre">:</span> <span class="pre">3*s+3]</span></code>,
+then performs trilinear interpolation (<code class="docutils literal notranslate"><span class="pre">vectorPointLocalVolumeInterpolation</span></code> /
+<code class="docutils literal notranslate"><span class="pre">scalarPointLocalVolumeInterpolation</span></code>) to produce five values: Ux, Uy, Uz, T (if active), p.
+These are packed into <code class="docutils literal notranslate"><span class="pre">rootBuf</span></code> with stride 5.</p></li>
+<li><p><strong>PetscSF broadcast.</strong> A contiguous 5-double MPI datatype <code class="docutils literal notranslate"><span class="pre">t5</span></code> is registered and
+<code class="docutils literal notranslate"><span class="pre">PetscSFBcastBegin/End</span></code> scatters <code class="docutils literal notranslate"><span class="pre">rootBuf</span></code> from roots to <code class="docutils literal notranslate"><span class="pre">leafBuf</span></code> on acceptor ranks in a
+single non-blocking collective. <code class="docutils literal notranslate"><span class="pre">MPI_REPLACE</span></code> is used as the reduction operation.</p></li>
+<li><p><strong>Leaf scatter (acceptor side).</strong></p>
+<ul class="simple">
+<li><p><em>P2C:</em> each leaf maps directly to one <code class="docutils literal notranslate"><span class="pre">Acell</span></code> in <code class="docutils literal notranslate"><span class="pre">localAcceptorsDb</span></code>. The five received values
+are written to <code class="docutils literal notranslate"><span class="pre">ucatA[k][j][i]</span></code>, <code class="docutils literal notranslate"><span class="pre">tempA[k][j][i]</span></code>, <code class="docutils literal notranslate"><span class="pre">pressA[k][j][i]</span></code>.</p></li>
+<li><p><em>C2P:</em> acceptors are grouped by <code class="docutils literal notranslate"><span class="pre">parentCellId</span></code> (8 leaves per parent cell). The eight received
+velocity, temperature, and pressure values are averaged to obtain the single cell-centre value
+written to the parent mesh arrays.</p></li>
+</ul>
+</li>
+</ol>
+</section>
+<section id="key-variables">
+<h2>Key Variables<a class="headerlink" href="#key-variables" title="Link to this heading"></a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">overset_</span></code> struct (defined in <code class="docutils literal notranslate"><span class="pre">include/overset.h</span></code>) holds all persistent state for a domain’s
+overset coupling. The PetscSF-path members are listed below.</p>
+<p><strong>P2C (parent → child, domain boundary)</strong></p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 30.0%" />
+<col style="width: 70.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Member</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">localAcceptorsDb</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">std::vector&lt;Acell&gt;</span></code> — acceptor cells at the child mesh boundary, one entry per cell, rebuilt each time <code class="docutils literal notranslate"><span class="pre">findClosestDonorP2C</span></code> is called.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">localDonorMapDb</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">std::vector&lt;Dcell&gt;</span></code> — 1:1 with <code class="docutils literal notranslate"><span class="pre">localAcceptorsDb</span></code>; stores the winning donor rank and distance for each acceptor. <code class="docutils literal notranslate"><span class="pre">rank</span> <span class="pre">==</span> <span class="pre">-1</span></code> means no donor was found.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">nRootsDb</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">PetscInt</span></code> — number of donor root slots owned by this rank for P2C.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">rootSlotIdxDb</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">std::vector&lt;PetscInt&gt;</span></code> stride-3 flat array <code class="docutils literal notranslate"><span class="pre">[i,j,k,</span> <span class="pre">i,j,k,</span> <span class="pre">...]</span></code> — donor cell indices for each root slot.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">rootSlotCoordsDb</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">std::vector&lt;PetscReal&gt;</span></code> stride-3 flat array <code class="docutils literal notranslate"><span class="pre">[x,y,z,</span> <span class="pre">x,y,z,</span> <span class="pre">...]</span></code> — cached acceptor physical coordinates for each root slot; used as the interpolation point at every time step.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">sfP2C</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">PetscSF</span></code> — the star-forest graph for P2C. Roots are donor slots on donor ranks; leaves are acceptor indices on acceptor ranks.</p></td>
+</tr>
+</tbody>
+</table>
+<p><strong>C2P (child → parent, hole-cut boundary)</strong></p>
+<p>All C2P members are <code class="docutils literal notranslate"><span class="pre">std::map&lt;PetscInt,</span> <span class="pre">...&gt;</span></code> keyed by the child mesh identifier <code class="docutils literal notranslate"><span class="pre">donorId</span></code>,
+allowing a single parent domain to couple with multiple child domains simultaneously.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 30.0%" />
+<col style="width: 70.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Member</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">localAcceptorsHc[donorId]</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">std::vector&lt;Acell&gt;</span></code> — 8 acceptor vertex entries per hole-cut cell for child mesh <code class="docutils literal notranslate"><span class="pre">donorId</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">localDonorMapHc[donorId]</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">std::vector&lt;Dcell&gt;</span></code> — 1:1 with <code class="docutils literal notranslate"><span class="pre">localAcceptorsHc[donorId]</span></code>; winning donor per vertex.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">nRootsHc[donorId]</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">PetscInt</span></code> — number of donor root slots for C2P with child mesh <code class="docutils literal notranslate"><span class="pre">donorId</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">rootSlotIdxHc[donorId]</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">std::vector&lt;PetscInt&gt;</span></code> stride-3 — donor cell indices, same layout as <code class="docutils literal notranslate"><span class="pre">rootSlotIdxDb</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">rootSlotCoordsHc[donorId]</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">std::vector&lt;PetscReal&gt;</span></code> stride-3 — cached acceptor vertex coordinates per root slot.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">sfC2P[donorId]</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">PetscSF</span></code> — star-forest graph for C2P with child mesh <code class="docutils literal notranslate"><span class="pre">donorId</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="function-summary">
+<h2>Function Summary<a class="headerlink" href="#function-summary" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 35.0%" />
+<col style="width: 65.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Function</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">InitializeOverset</span></code></p></td>
+<td><p>Top-level entry point. Calls <code class="docutils literal notranslate"><span class="pre">findAcceptorCells</span></code> and <code class="docutils literal notranslate"><span class="pre">findClosestDomainDonors</span></code> recursively for all top-level domains, then runs one initial interpolation cycle and copies fields to the <code class="docutils literal notranslate"><span class="pre">*_o</span></code> (old-time) vectors.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">findAcceptorCells</span></code></p></td>
+<td><p>Recursive. Populates <code class="docutils literal notranslate"><span class="pre">localAcceptorsDb</span></code> (P2C) via <code class="docutils literal notranslate"><span class="pre">createAcceptorCellOverset</span></code> and <code class="docutils literal notranslate"><span class="pre">localAcceptorsHc</span></code> (C2P) via <code class="docutils literal notranslate"><span class="pre">createAcceptorCellBackground</span></code> for a domain and all its children.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">findClosestDomainDonors</span></code></p></td>
+<td><p>Recursive. Calls <code class="docutils literal notranslate"><span class="pre">findClosestDonorP2C</span></code> and <code class="docutils literal notranslate"><span class="pre">findClosestDonorC2P</span></code> to build the PetscSF graphs for a domain and all its children, then calls <code class="docutils literal notranslate"><span class="pre">SetInitialField</span></code> after P2C is established.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BuildOversetSF</span></code></p></td>
+<td><p>Static helper. Implements the 6-stage donor search and PetscSF construction described above. Called once per donor/acceptor mesh pair.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">findClosestDonorP2C</span></code></p></td>
+<td><p>Wrapper that calls <code class="docutils literal notranslate"><span class="pre">BuildOversetSF</span></code> for the P2C pair and stores the resulting SF and root metadata in <code class="docutils literal notranslate"><span class="pre">os-&gt;sfP2C</span></code>, <code class="docutils literal notranslate"><span class="pre">os-&gt;nRootsDb</span></code>, <code class="docutils literal notranslate"><span class="pre">os-&gt;rootSlotIdxDb</span></code>, <code class="docutils literal notranslate"><span class="pre">os-&gt;rootSlotCoordsDb</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">findClosestDonorC2P</span></code></p></td>
+<td><p>Wrapper that calls <code class="docutils literal notranslate"><span class="pre">BuildOversetSF</span></code> per child mesh (<code class="docutils literal notranslate"><span class="pre">donorId</span></code>) and stores results in the corresponding <code class="docutils literal notranslate"><span class="pre">os-&gt;sfC2P[donorId]</span></code> and <code class="docutils literal notranslate"><span class="pre">os-&gt;*Hc[donorId]</span></code> maps.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">interpolateACellTrilinearP2C</span></code></p></td>
+<td><p>Per-step P2C interpolation. Packs <code class="docutils literal notranslate"><span class="pre">rootBuf</span></code>, calls <code class="docutils literal notranslate"><span class="pre">PetscSFBcast</span></code>, writes <code class="docutils literal notranslate"><span class="pre">leafBuf</span></code> into child mesh arrays (<code class="docutils literal notranslate"><span class="pre">Ucat</span></code>, <code class="docutils literal notranslate"><span class="pre">Tmprt</span></code>, <code class="docutils literal notranslate"><span class="pre">P</span></code>).</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">interpolateACellTrilinearC2P</span></code></p></td>
+<td><p>Per-step C2P interpolation. Packs <code class="docutils literal notranslate"><span class="pre">rootBuf</span></code>, calls <code class="docutils literal notranslate"><span class="pre">PetscSFBcast</span></code>, averages 8-vertex groups into parent mesh arrays, then calls <code class="docutils literal notranslate"><span class="pre">setBackgroundBC</span></code> to enforce zero-flux at blanked faces.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">UpdateOversetInterpolation</span></code></p></td>
+<td><p>Called every time step. Iterates over top-level domains and calls <code class="docutils literal notranslate"><span class="pre">UpdateDomainInterpolation</span></code> recursively.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">UpdateDomainInterpolation</span></code></p></td>
+<td><p>Recursive per-domain update: (1) P2C from all parents, (2) standard BCs, (3) C2P from all children, then recurse into children.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">SyncPressureAcrossDomains</span></code></p></td>
+<td><p>Shifts pressure fields across all domains so that the gauge is consistent: root domain is shifted to <code class="docutils literal notranslate"><span class="pre">p[1][1][1]=0</span></code>, children are shifted to match the parent value at the closest cell to <code class="docutils literal notranslate"><span class="pre">cent[1][1][1]</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">setBackgroundBC</span></code></p></td>
+<td><p>Enforces zero contravariant flux at blanked (IBM-solid) faces and sets interpolated face fluxes from the updated Cartesian velocity in the parent mesh after C2P.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">buildOctree</span></code></p></td>
+<td><p>Recursive octree construction over donor cell centroids. Leaf condition: <code class="docutils literal notranslate"><span class="pre">cellCount</span> <span class="pre">≤</span> <span class="pre">1000</span></code> or <code class="docutils literal notranslate"><span class="pre">maxDepth</span> <span class="pre">==</span> <span class="pre">0</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">searchOctree</span></code></p></td>
+<td><p>Recursive nearest-neighbour search in the octree. Returns a <code class="docutils literal notranslate"><span class="pre">Dcell</span></code> with the closest donor cell indices and distance.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="parallel_efficiency.html" class="btn btn-neutral float-left" title="Parallel Efficiency" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="turbulence_models.html" class="btn btn-neutral float-right" title="Sub-grid Scale Models" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Sebastiano Stipa, Arjun Ajay, Joshua Brinkerhoff.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

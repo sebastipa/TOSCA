@@ -117,21 +117,21 @@ heavily based on PETSc, a state of the art library for the parallel solution of 
 National Laboratory. The choiche was made to solve the Navier-Stokes equations in curvilinear coordinates, which offer some degree
 of flexibility (grid stretching and terrain-following meshes can be used) but still ensure simpler numerics with respect to an
 unstructured solver. Grid nesting has also been introduced after a major refactoring of the code in January 2022, which allows to
-introduce refined regions within the main background domain, and in the latest release the coupling has been made two-way. TOSCA features a dynamic
+introduce refined regions which are two-way coupled to main background domain. TOSCA features a dynamic
 sharp-interface immersed boundary method (IBM), meaning that any type of 3D object can be introduced and moved arbitrarily in the domain. The actual motion
 of the object is currently implemented through motion functions, but the introduction of additional types of motions, or even
 arbitrary motion time series, is straightforward as the IBM method is general by construction and does not assume any specific
 type of motion. TOSCA also features the state-of-the art turbine actuator models, such as
 actuator line, actuator disk (uniform and non-uniform), actuator farm, as well as simpler canopy models.
 Depending on the selected model, turbines can be controlled in pitch, angular frequency and nacelle yaw.</p>
-<p>We are currently introducing in TOSCA a handful of data assimilation techniques, which allow to nudge the atmospheric boundary layer
+<p>A handful of data assimilation techniques has been recently introduced in TOSCA, which allow to nudge the atmospheric boundary layer
 variables, making them follow observational data or data from weather prediction codes such as the Weather Research and Forecasting (WRF)
 model. New turbulence models have been recently introduced, as well as integration with python in order
 to potentially conduct Machine Learning applications within the code.</p>
-<p>In the future, we plan on coupling TOSCA with the OpenFAST library, hence introducing blade flexibility, as well as introducing
-boundary coupling with WRF (this is already underway). There are ongoing efforts to port parts of the TOSCA code to GPUs and to also include multiphase
+<p>Recently, TOSCA has also been coupled with the OpenFAST library, introducing blade flexibility. At this time, boundary coupling with the WRF
+model is under construction, and there are ongoing efforts to port parts of the TOSCA code to GPUs, as well as including multiphase
 capabilities to model ABL-wave interaction and floating wind turbines.</p>
-<p>Currently, TOSCA can be used to simulate atmopsheric boundary layers and wind farms over sea or complex terrain, including thermal
+<p>Currently, TOSCA can be used to simulate atmospheric boundary layers and wind farms over sea or complex terrain, including thermal
 stratification. The code can also be used to study urban environments and wind engineering problems (such as flow around ships,
 bridges and buildings). Furthermore, TOSCA can be (and it has been) used to simulate the flow around vertical axis wind turbines
 in a fully resolved manner, by leveraging the dynamic IBM method.</p>

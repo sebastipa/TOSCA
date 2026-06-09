@@ -1,0 +1,62 @@
+\doxysection{wallmodel.\+h}
+\hypertarget{wallmodel_8h_source}{}\label{wallmodel_8h_source}\index{/zfs60/nobackup/stipa/software/TOSCA/src/include/wallmodel.h@{/zfs60/nobackup/stipa/software/TOSCA/src/include/wallmodel.h}}
+\mbox{\hyperlink{wallmodel_8h}{Go to the documentation of this file.}}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ }
+\DoxyCodeLine{00003\ }
+\DoxyCodeLine{00005\ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structShumann}{Shumann}}}
+\DoxyCodeLine{00006\ \{}
+\DoxyCodeLine{00007\ \ \ \ \ word\ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structShumann_a8841bfd1cb2c5b538169c871a1091ef8}{wfEvalType}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00008\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \mbox{\hyperlink{structShumann_af6f0ced1be1e8201c94672ae47008b08}{kappa}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00009\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \mbox{\hyperlink{structShumann_a668de4640a1387eb867f523f74c07465}{thetaRef}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00010\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \mbox{\hyperlink{structShumann_a85ba4d4e81ad2b38c3b752f6ac264809}{roughness}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00011\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \mbox{\hyperlink{structShumann_ac966769d1be99825ab41504ef009c7ca}{gammaM}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00012\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \mbox{\hyperlink{structShumann_a4a2de2842f524177447c5c88fca1261b}{betaM}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00013\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \mbox{\hyperlink{structShumann_a88fccc418c73c7090c40a43e2ab2a0b9}{gammaH}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00014\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \mbox{\hyperlink{structShumann_a02350a4c88aa8dfb6f5b20801c5bcb46}{betaH}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00015\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \mbox{\hyperlink{structShumann_a85e684feb4efa30270c9b3b750767cca}{alphaH}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00016\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \mbox{\hyperlink{structShumann_a27bfe23acf172558413a3f808525f1de}{tLast}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00017\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \mbox{\hyperlink{structShumann_a90b005ea57af1988ec0106d6be689007}{heatingRate}};\ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00018\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ **\mbox{\hyperlink{structShumann_ad7bd1e4eadb75b1e9c06033e26188294}{surfaceTheta}};\ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00019\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structShumann_a52ee92b3777d1effffd40a207f13931e}{surfaceThetaSet}};\ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00020\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \mbox{\hyperlink{structShumann_aeb92c9fc24b79470c31af10b8a33c1d1}{qWall}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00021\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ *surfTemp;}
+\DoxyCodeLine{00022\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ *surfL;}
+\DoxyCodeLine{00023\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ *timeVec;}
+\DoxyCodeLine{00024\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ numT;}
+\DoxyCodeLine{00025\ \};}
+\DoxyCodeLine{00026\ }
+\DoxyCodeLine{00028\ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structCabot}{Cabot}}}
+\DoxyCodeLine{00029\ \{}
+\DoxyCodeLine{00030\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ roughness;}
+\DoxyCodeLine{00031\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \mbox{\hyperlink{structCabot_afac56b026c80f96351b69381c218a71f}{kappa}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00032\ \};}
+\DoxyCodeLine{00033\ }
+\DoxyCodeLine{00035\ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structPowerLawAPG}{PowerLawAPG}}}
+\DoxyCodeLine{00036\ \{}
+\DoxyCodeLine{00037\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ roughness;}
+\DoxyCodeLine{00038\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \mbox{\hyperlink{structPowerLawAPG_a8088789b4bfb5a026aa6451d8fbc2604}{kappa}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00039\ \};}
+\DoxyCodeLine{00040\ }
+\DoxyCodeLine{00041\ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structLogLawAPG}{LogLawAPG}}}
+\DoxyCodeLine{00042\ \{}
+\DoxyCodeLine{00043\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ roughness;}
+\DoxyCodeLine{00044\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ \mbox{\hyperlink{structLogLawAPG_af756a10c9930558c61075e8ad9094cea}{kappa}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00045\ \};}
+\DoxyCodeLine{00046\ }
+\DoxyCodeLine{00048\ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structwallModel}{wallModel}}}
+\DoxyCodeLine{00049\ \{}
+\DoxyCodeLine{00050\ \ \ \ \ \mbox{\hyperlink{structShumann}{Shumann}}\ \ \ \ \ \ \ \ \ \ *wmShumann;}
+\DoxyCodeLine{00051\ \ \ \ \ \mbox{\hyperlink{structCabot}{Cabot}}\ \ \ \ \ \ \ \ \ \ \ \ *wmCabot;}
+\DoxyCodeLine{00052\ \ \ \ \ \mbox{\hyperlink{structPowerLawAPG}{PowerLawAPG}}\ \ \ \ \ \ *wmPowerLawAPG;}
+\DoxyCodeLine{00053\ \ \ \ \ \mbox{\hyperlink{structLogLawAPG}{LogLawAPG}}\ \ \ \ \ \ \ \ *wmLogLawAPG;}
+\DoxyCodeLine{00054\ }
+\DoxyCodeLine{00055\ \ \ \ \ \mbox{\hyperlink{structpatchVectorField}{patchVectorField}}\ tauWall;}
+\DoxyCodeLine{00056\ \ \ \ \ \mbox{\hyperlink{structpatchVectorField}{patchVectorField}}\ qWall;}
+\DoxyCodeLine{00057\ \ \ \ \ \mbox{\hyperlink{structpatchVectorField}{patchVectorField}}\ uFilt;}
+\DoxyCodeLine{00058\ }
+\DoxyCodeLine{00059\ \ \ \ \ PetscReal\ \ \ \ \ \ \ \ **\mbox{\hyperlink{structwallModel_a5d595c3c6c4fa34ec88d4ce8a01941f8}{uMeanMag}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00060\ \ \ \ \ PetscInt\ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structwallModel_a9f734721f8917436e4f9627f00552be4}{uFiltSet}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00061\ \};}
+
+\end{DoxyCode}

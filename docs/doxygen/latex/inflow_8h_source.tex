@@ -1,0 +1,33 @@
+\doxysection{inflow.\+h}
+\hypertarget{inflow_8h_source}{}\label{inflow_8h_source}\index{/zfs60/nobackup/stipa/software/TOSCA/src/include/inflow.h@{/zfs60/nobackup/stipa/software/TOSCA/src/include/inflow.h}}
+\mbox{\hyperlink{inflow_8h}{Go to the documentation of this file.}}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ }
+\DoxyCodeLine{00003\ }
+\DoxyCodeLine{00004\ \textcolor{comment}{//\ =============================================================================}}
+\DoxyCodeLine{00005\ \textcolor{comment}{//\ FUNCTIONS}}
+\DoxyCodeLine{00006\ \textcolor{comment}{//\ =============================================================================}}
+\DoxyCodeLine{00007\ }
+\DoxyCodeLine{00009\ PetscErrorCode\ \mbox{\hyperlink{inflow_8h_ad893429a3f221b07240528b6d7bd23ee}{SetInflowFunctions}}(\mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh);}
+\DoxyCodeLine{00010\ }
+\DoxyCodeLine{00012\ PetscErrorCode\ \mbox{\hyperlink{inflow_8h_a12cc0340001c48dcaf7e4d55a6defa07}{printInflowMappingAction}}(\mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh,\ \mbox{\hyperlink{structinletFunctionTypes}{inletFunctionTypes}}\ *ifPtr);}
+\DoxyCodeLine{00013\ }
+\DoxyCodeLine{00015\ PetscErrorCode\ \mbox{\hyperlink{inflow_8h_a1d5ffb2cde2bb35b5886889d196942c3}{mappedInflowInitialize}}(\mbox{\hyperlink{structinletFunctionTypes}{inletFunctionTypes}}\ *ifPtr);}
+\DoxyCodeLine{00016\ }
+\DoxyCodeLine{00018\ PetscErrorCode\ \mbox{\hyperlink{inflow_8h_ac1f881b7afde1e36bbe6e097a50ee77e}{SetInflowWeights}}(\mbox{\hyperlink{structmesh__}{mesh\_}}\ *mesh,\ \mbox{\hyperlink{structinletFunctionTypes}{inletFunctionTypes}}\ *ifPtr);}
+\DoxyCodeLine{00019\ }
+\DoxyCodeLine{00021\ PetscErrorCode\ \mbox{\hyperlink{inflow_8h_a41c63e5fe6a3298c46018563b5c0db52}{readInflowU}}(\mbox{\hyperlink{structinletFunctionTypes}{inletFunctionTypes}}\ *ifPtr,\ \mbox{\hyperlink{structclock__}{clock\_}}\ *clock);}
+\DoxyCodeLine{00022\ }
+\DoxyCodeLine{00024\ PetscErrorCode\ \mbox{\hyperlink{inflow_8h_a0837d0a34b62bee1c93402bd95934f89}{readInflowT}}(\mbox{\hyperlink{structinletFunctionTypes}{inletFunctionTypes}}\ *ifPtr,\ \mbox{\hyperlink{structclock__}{clock\_}}\ *clock);}
+\DoxyCodeLine{00025\ }
+\DoxyCodeLine{00027\ PetscErrorCode\ \mbox{\hyperlink{inflow_8h_a076de702bea8a8e60398175f2ce34173}{readInflowNut}}(\mbox{\hyperlink{structinletFunctionTypes}{inletFunctionTypes}}\ *ifPtr,\ \mbox{\hyperlink{structclock__}{clock\_}}\ *clock);}
+\DoxyCodeLine{00028\ }
+\DoxyCodeLine{00030\ PetscErrorCode\ \mbox{\hyperlink{inflow_8h_a007e8192037b615f8e581f67da7b530f}{setShiftedInflowU}}(\mbox{\hyperlink{structinletFunctionTypes}{inletFunctionTypes}}\ *ifPtr,\ \mbox{\hyperlink{structueqn__}{ueqn\_}}\ *ueqn);}
+\DoxyCodeLine{00031\ }
+\DoxyCodeLine{00033\ PetscErrorCode\ \mbox{\hyperlink{inflow_8h_a545594be0446a928f32f65782c79b06b}{setShiftedInflowT}}(\mbox{\hyperlink{structinletFunctionTypes}{inletFunctionTypes}}\ *ifPtr,\ \mbox{\hyperlink{structteqn__}{teqn\_}}\ *teqn);}
+\DoxyCodeLine{00034\ }
+\DoxyCodeLine{00036\ PetscErrorCode\ \mbox{\hyperlink{inflow_8h_abc80e4d30dd39c909337ff52036d2484}{setShiftedInflowNut}}(\mbox{\hyperlink{structinletFunctionTypes}{inletFunctionTypes}}\ *ifPtr,\ \mbox{\hyperlink{structles__}{les\_}}\ *les);}
+\DoxyCodeLine{00037\ }
+\DoxyCodeLine{00039\ \mbox{\hyperlink{structCmpnts}{Cmpnts}}\ \mbox{\hyperlink{inflow_8h_a1fcd77e40f69b0301e3842bdebd37882}{NieuwstadtInflowEvaluate}}(\mbox{\hyperlink{structinletFunctionTypes}{inletFunctionTypes}}\ *ifPtr,\ PetscReal\ h);}
+
+\end{DoxyCode}

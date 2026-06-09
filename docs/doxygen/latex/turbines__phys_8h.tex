@@ -1,0 +1,37 @@
+\doxysection{/zfs60/nobackup/stipa/software/\+TOSCA/src/turbines/turbines\+\_\+phys.h File Reference}
+\hypertarget{turbines__phys_8h}{}\label{turbines__phys_8h}\index{/zfs60/nobackup/stipa/software/TOSCA/src/turbines/turbines\_phys.h@{/zfs60/nobackup/stipa/software/TOSCA/src/turbines/turbines\_phys.h}}
+
+
+Turbine physics module and control (substituted by Open\+FAST if the latter is used)  
+
+
+{\ttfamily \#include "{}../include/base.\+h"{}}\newline
+{\ttfamily \#include "{}../include/domain.\+h"{}}\newline
+{\ttfamily \#include "{}../include/inline.\+h"{}}\newline
+{\ttfamily \#include "{}../include/turbines.\+h"{}}\newline
+\doxysubsubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{turbines__phys_8h_a2ce4bbf94f65a2b4398759cb640cc37d}\label{turbines__phys_8h_a2ce4bbf94f65a2b4398759cb640cc37d} 
+Petsc\+Error\+Code {\bfseries compute\+Rot\+Speed} (farm\+\_\+ \texorpdfstring{$\ast$}{*}farm)
+\begin{DoxyCompactList}\small\item\em Solve rotor dynamics and compute filtered rot speed. \end{DoxyCompactList}\item 
+\Hypertarget{turbines__phys_8h_a103ec66cbf7d50dd440708102e3d893e}\label{turbines__phys_8h_a103ec66cbf7d50dd440708102e3d893e} 
+Petsc\+Error\+Code {\bfseries rotate\+Blades} (wind\+Turbine \texorpdfstring{$\ast$}{*}wt, Petsc\+Real angle, Petsc\+Int update\+Azimuth)
+\begin{DoxyCompactList}\small\item\em Rotate blades (only for ALM) \end{DoxyCompactList}\item 
+\Hypertarget{turbines__phys_8h_aa13b38ab3e25d3e8f136013e4dad9d82}\label{turbines__phys_8h_aa13b38ab3e25d3e8f136013e4dad9d82} 
+Petsc\+Error\+Code {\bfseries control\+Gen\+Speed} (farm\+\_\+ \texorpdfstring{$\ast$}{*}farm)
+\begin{DoxyCompactList}\small\item\em Compute generator torque with 5-\/regions control system model. \end{DoxyCompactList}\item 
+\Hypertarget{turbines__phys_8h_aff99431bfb7e71efad66eb30db44a988}\label{turbines__phys_8h_aff99431bfb7e71efad66eb30db44a988} 
+Petsc\+Error\+Code {\bfseries control\+Bld\+Pitch} (farm\+\_\+ \texorpdfstring{$\ast$}{*}farm)
+\begin{DoxyCompactList}\small\item\em Compute blade pitch using the PID control. \end{DoxyCompactList}\item 
+\Hypertarget{turbines__phys_8h_af8d67709ace88629174c605a3450c435}\label{turbines__phys_8h_af8d67709ace88629174c605a3450c435} 
+Petsc\+Error\+Code {\bfseries control\+Nac\+Yaw} (farm\+\_\+ \texorpdfstring{$\ast$}{*}farm)
+\begin{DoxyCompactList}\small\item\em Compute nacelle yaw. \end{DoxyCompactList}\item 
+\Hypertarget{turbines__phys_8h_aba2fbd25d7e12ba315e02f1e4500ddc0}\label{turbines__phys_8h_aba2fbd25d7e12ba315e02f1e4500ddc0} 
+Petsc\+Error\+Code {\bfseries wind\+Farm\+Control} (farm\+\_\+ \texorpdfstring{$\ast$}{*}farm)
+\begin{DoxyCompactList}\small\item\em Compute wind turbine control based on wind farm controller. \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Turbine physics module and control (substituted by Open\+FAST if the latter is used) 
+

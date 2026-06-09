@@ -1,0 +1,182 @@
+\doxysection{/zfs60/nobackup/stipa/software/\+TOSCA/src/io.c File Reference}
+\hypertarget{io_8c}{}\label{io_8c}\index{/zfs60/nobackup/stipa/software/TOSCA/src/io.c@{/zfs60/nobackup/stipa/software/TOSCA/src/io.c}}
+
+
+Contains i/o operations function definitions.  
+
+
+{\ttfamily \#include "{}include/base.\+h"{}}\newline
+{\ttfamily \#include "{}include/domain.\+h"{}}\newline
+{\ttfamily \#include "{}include/io.\+h"{}}\newline
+{\ttfamily \#include "{}include/inline.\+h"{}}\newline
+\doxysubsubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{io_8c_a24f88a2dc2894813377d8c3c8ebd92a7}\label{io_8c_a24f88a2dc2894813377d8c3c8ebd92a7} 
+Petsc\+Error\+Code {\bfseries Initialize\+IO} (\mbox{\hyperlink{structio__}{io\+\_\+}} \texorpdfstring{$\ast$}{*}io)
+\begin{DoxyCompactList}\small\item\em Initializes io data structure. \end{DoxyCompactList}\item 
+\Hypertarget{io_8c_ac928bac288d47df64ad361765ce346d0}\label{io_8c_ac928bac288d47df64ad361765ce346d0} 
+Petsc\+Error\+Code {\bfseries Reread\+IO} (\mbox{\hyperlink{structdomain__}{domain\+\_\+}} \texorpdfstring{$\ast$}{*}domain)
+\begin{DoxyCompactList}\small\item\em Re-\/read IO write parameters. \end{DoxyCompactList}\item 
+\Hypertarget{io_8c_abc05c134a7d7cd8450beb5d68cef7a6f}\label{io_8c_abc05c134a7d7cd8450beb5d68cef7a6f} 
+Petsc\+Error\+Code {\bfseries Update\+Input} (\mbox{\hyperlink{structio__}{io\+\_\+}} \texorpdfstring{$\ast$}{*}io, word \&modified)
+\begin{DoxyCompactList}\small\item\em Called by Reread\+IO, triggers updates in each domain. \end{DoxyCompactList}\item 
+\Hypertarget{io_8c_a12060383ddd0234f9bdce3763bc218d5}\label{io_8c_a12060383ddd0234f9bdce3763bc218d5} 
+Petsc\+Error\+Code {\bfseries read\+Fields} (\mbox{\hyperlink{structdomain__}{domain\+\_\+}} \texorpdfstring{$\ast$}{*}domain, Petsc\+Real time\+Value)
+\begin{DoxyCompactList}\small\item\em read and save the different fields stored in the fields/mesh\+Name/time folder \end{DoxyCompactList}\item 
+\Hypertarget{io_8c_a57a408ada5e6696ea966a0df6e1845e7}\label{io_8c_a57a408ada5e6696ea966a0df6e1845e7} 
+void {\bfseries write\+Binary\+Field} (MPI\+\_\+\+Comm comm, Vec V, const char \texorpdfstring{$\ast$}{*}file)
+\item 
+\Hypertarget{io_8c_af3c9181e635f57410345c31a45fbc1d9}\label{io_8c_af3c9181e635f57410345c31a45fbc1d9} 
+Petsc\+Error\+Code {\bfseries Vec\+Scalar\+Local\+To\+Global\+Copy} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} \texorpdfstring{$\ast$}{*}mesh, Vec \&lV, Vec \&V)
+\item 
+\Hypertarget{io_8c_ab74c751b184d8c98f3ac5031a524fc59}\label{io_8c_ab74c751b184d8c98f3ac5031a524fc59} 
+Petsc\+Error\+Code {\bfseries Vec\+Vector\+Local\+To\+Global\+Copy} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} \texorpdfstring{$\ast$}{*}mesh, Vec \&lV, Vec \&V)
+\item 
+\Hypertarget{io_8c_af45ffa70aa2d596bacaddd5ddde62067}\label{io_8c_af45ffa70aa2d596bacaddd5ddde62067} 
+Petsc\+Error\+Code {\bfseries Vec\+Symm\+Tensor\+Local\+To\+Global\+Copy} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} \texorpdfstring{$\ast$}{*}mesh, Vec \&lV, Vec \&V)
+\item 
+\Hypertarget{io_8c_a50c0d180d2045791d7fe03417fa2ccd2}\label{io_8c_a50c0d180d2045791d7fe03417fa2ccd2} 
+Petsc\+Error\+Code {\bfseries Vec\+Tensor\+Local\+To\+Global\+Copy} (\mbox{\hyperlink{structmesh__}{mesh\+\_\+}} \texorpdfstring{$\ast$}{*}mesh, Vec \&lV, Vec \&V)
+\item 
+\Hypertarget{io_8c_ad3f8d9d64294edb5d4f37cc38eb8af34}\label{io_8c_ad3f8d9d64294edb5d4f37cc38eb8af34} 
+Petsc\+Error\+Code {\bfseries initialize\+Time\+Dir} (\mbox{\hyperlink{structio__}{io\+\_\+}} \texorpdfstring{$\ast$}{*}io)
+\begin{DoxyCompactList}\small\item\em Creates the checkpoint directory with a trailing \+\_\+tmp (indicates that it is not finalized) \end{DoxyCompactList}\item 
+\Hypertarget{io_8c_a2ae558c8b2c4e0b6ca0626180f42d2dc}\label{io_8c_a2ae558c8b2c4e0b6ca0626180f42d2dc} 
+Petsc\+Error\+Code {\bfseries finalize\+Time\+Dir} (\mbox{\hyperlink{structio__}{io\+\_\+}} \texorpdfstring{$\ast$}{*}io)
+\begin{DoxyCompactList}\small\item\em Renames the temporary time directory to the final name (without \+\_\+tmp) and deletes prev chekpoints if purge is active. \end{DoxyCompactList}\item 
+\Hypertarget{io_8c_a653c14b73746089b529ecc70ad62fb6d}\label{io_8c_a653c14b73746089b529ecc70ad62fb6d} 
+Petsc\+Error\+Code {\bfseries write\+Fields} (\mbox{\hyperlink{structio__}{io\+\_\+}} \texorpdfstring{$\ast$}{*}io)
+\begin{DoxyCompactList}\small\item\em Write output fields. \end{DoxyCompactList}\item 
+\Hypertarget{io_8c_a68cb6557f006e2a0740834acd0d4e4db}\label{io_8c_a68cb6557f006e2a0740834acd0d4e4db} 
+void {\bfseries fatal\+Error\+In\+Function} (const char \texorpdfstring{$\ast$}{*}function\+Name, const char \texorpdfstring{$\ast$}{*}error\+Msg)
+\begin{DoxyCompactList}\small\item\em Calls fatal error and exits. \end{DoxyCompactList}\item 
+\Hypertarget{io_8c_ad22a6eea8f275f40823f32355beb2bbc}\label{io_8c_ad22a6eea8f275f40823f32355beb2bbc} 
+void {\bfseries warning\+In\+Function} (const char \texorpdfstring{$\ast$}{*}function\+Name, const char \texorpdfstring{$\ast$}{*}wrng\+Msg)
+\begin{DoxyCompactList}\small\item\em Calls warning. \end{DoxyCompactList}\item 
+\Hypertarget{io_8c_aff1d2ad6bef5bf436bf02e48adfef35c}\label{io_8c_aff1d2ad6bef5bf436bf02e48adfef35c} 
+void {\bfseries create\+Dir} (MPI\+\_\+\+Comm comm, const char \texorpdfstring{$\ast$}{*}path)
+\begin{DoxyCompactList}\small\item\em Creat directory (remove stuff it exists) \end{DoxyCompactList}\item 
+\Hypertarget{io_8c_a2a7d4060c90481ce7ac9d6f81835ce66}\label{io_8c_a2a7d4060c90481ce7ac9d6f81835ce66} 
+void {\bfseries create\+Dir\+No\+Remove} (MPI\+\_\+\+Comm comm, const char \texorpdfstring{$\ast$}{*}path)
+\begin{DoxyCompactList}\small\item\em Creat directory (leave stuff it exists) \end{DoxyCompactList}\item 
+\Hypertarget{io_8c_ae57bcde696d8ccf1bd34ecc100b07fba}\label{io_8c_ae57bcde696d8ccf1bd34ecc100b07fba} 
+word {\bfseries this\+Case\+Name} ()
+\begin{DoxyCompactList}\small\item\em Retrieves this case name. \end{DoxyCompactList}\item 
+\Hypertarget{io_8c_aedfb9d6612941b3f6c1331c8bb6b226f}\label{io_8c_aedfb9d6612941b3f6c1331c8bb6b226f} 
+Petsc\+Error\+Code {\bfseries get\+File\+List} (const char \texorpdfstring{$\ast$}{*}data\+Loc, std\+::vector$<$ word $>$ \&file\+Series, Petsc\+Int \&nfiles)
+\begin{DoxyCompactList}\small\item\em Returns the file list (from folder names) and number of files contained in a folder. \end{DoxyCompactList}\item 
+Petsc\+Error\+Code \mbox{\hyperlink{io_8c_aa8386d069befb8e442596f0829dd54d9}{get\+Time\+List}} (const char \texorpdfstring{$\ast$}{*}data\+Loc, std\+::vector$<$ Petsc\+Real $>$ \&time\+Series, Petsc\+Int \&ntimes)
+\begin{DoxyCompactList}\small\item\em Returns the time list (from folder names) and size contained in a folder. \end{DoxyCompactList}\item 
+\Hypertarget{io_8c_a66788a88f4cf4b5e1736f22145f5c5f7}\label{io_8c_a66788a88f4cf4b5e1736f22145f5c5f7} 
+Petsc\+Int {\bfseries found\+In\+String} (const char \texorpdfstring{$\ast$}{*}str, word keyword)
+\begin{DoxyCompactList}\small\item\em Finds a word inside a string. \end{DoxyCompactList}\item 
+\Hypertarget{io_8c_a5aaeaa932a6981f3782117d3d346c0fc}\label{io_8c_a5aaeaa932a6981f3782117d3d346c0fc} 
+Petsc\+Int {\bfseries file\+\_\+exist} (const char \texorpdfstring{$\ast$}{*}str)
+\begin{DoxyCompactList}\small\item\em Checks if file exists. \end{DoxyCompactList}\item 
+\Hypertarget{io_8c_ab010bb297a9d7297532582459454ea4b}\label{io_8c_ab010bb297a9d7297532582459454ea4b} 
+Petsc\+Int {\bfseries dir\+\_\+exist} (const char \texorpdfstring{$\ast$}{*}str)
+\begin{DoxyCompactList}\small\item\em Checks if directory exists. \end{DoxyCompactList}\item 
+\Hypertarget{io_8c_a9286943b493f9ad1888637d9af54d01a}\label{io_8c_a9286943b493f9ad1888637d9af54d01a} 
+Petsc\+Int {\bfseries count\+\_\+files} (const char \texorpdfstring{$\ast$}{*}path)
+\begin{DoxyCompactList}\small\item\em Count number of files. \end{DoxyCompactList}\item 
+\Hypertarget{io_8c_a5921410df8275bc10192a334c4e4906c}\label{io_8c_a5921410df8275bc10192a334c4e4906c} 
+void {\bfseries remove\+\_\+dir} (MPI\+\_\+\+Comm comm, const char \texorpdfstring{$\ast$}{*}path2dir)
+\begin{DoxyCompactList}\small\item\em Removes directory. \end{DoxyCompactList}\item 
+\Hypertarget{io_8c_a53420ce24429b7403771e6cada87332e}\label{io_8c_a53420ce24429b7403771e6cada87332e} 
+void {\bfseries remove\+\_\+subdirs} (MPI\+\_\+\+Comm comm, const char \texorpdfstring{$\ast$}{*}path2dir)
+\begin{DoxyCompactList}\small\item\em Removes all subdirectory of a given directory. \end{DoxyCompactList}\item 
+\Hypertarget{io_8c_a597872b8208652663a2d178927a0943b}\label{io_8c_a597872b8208652663a2d178927a0943b} 
+void {\bfseries remove\+\_\+subdirs\+\_\+except} (MPI\+\_\+\+Comm comm, const char \texorpdfstring{$\ast$}{*}path2dir, const word name)
+\begin{DoxyCompactList}\small\item\em Removes all subdirectory of a given directory except the name provided. \end{DoxyCompactList}\item 
+\Hypertarget{io_8c_a9a4a732a373e20205637cdc6822dc584}\label{io_8c_a9a4a732a373e20205637cdc6822dc584} 
+void {\bfseries remove\+\_\+subdirs\+\_\+except\+\_\+keep\+\_\+n} (MPI\+\_\+\+Comm comm, const char \texorpdfstring{$\ast$}{*}path2dir, const word name, Petsc\+Int n\+Keep)
+\begin{DoxyCompactList}\small\item\em Removes all subdirectory except the latest n times inside a given directory and the name provided. \end{DoxyCompactList}\item 
+\Hypertarget{io_8c_a7fc6972aaa70be99c519498611701db6}\label{io_8c_a7fc6972aaa70be99c519498611701db6} 
+void {\bfseries remove\+\_\+subdirs\+\_\+except2} (MPI\+\_\+\+Comm comm, const char \texorpdfstring{$\ast$}{*}path2dir, const word name1, const word name2)
+\begin{DoxyCompactList}\small\item\em Removes all subdirectory of a given directory except the 2 names provided. \end{DoxyCompactList}\item 
+\Hypertarget{io_8c_ac52f5887f76318a2318d4721802f3403}\label{io_8c_ac52f5887f76318a2318d4721802f3403} 
+void {\bfseries remove\+\_\+subdirs\+\_\+except3} (MPI\+\_\+\+Comm comm, const char \texorpdfstring{$\ast$}{*}path2dir, const word name1, const word name2, const word name3)
+\begin{DoxyCompactList}\small\item\em Removes all subdirectory of a given directory except the 3 names provided. \end{DoxyCompactList}\item 
+\Hypertarget{io_8c_a53dac50624de3ed052ba33311ccc3c0a}\label{io_8c_a53dac50624de3ed052ba33311ccc3c0a} 
+void {\bfseries remove\+\_\+subdirs\+\_\+except4} (MPI\+\_\+\+Comm comm, const char \texorpdfstring{$\ast$}{*}path2dir, const word name1, const word name2, const word name3, const word name4)
+\begin{DoxyCompactList}\small\item\em Removes all subdirectory of a given directory except the 4 names provided. \end{DoxyCompactList}\item 
+\Hypertarget{io_8c_aa097d8eeb8c68619419ac7c6da7131dd}\label{io_8c_aa097d8eeb8c68619419ac7c6da7131dd} 
+void {\bfseries remove\+\_\+subdirs\+\_\+except4\+\_\+keep\+\_\+n} (MPI\+\_\+\+Comm comm, const char \texorpdfstring{$\ast$}{*}path2dir, const word name1, const word name2, const word name3, const word name4, Petsc\+Int n\+Keep)
+\begin{DoxyCompactList}\small\item\em Removes all subdirectory except the latest n times inside a given directory and the 4 names provided. \end{DoxyCompactList}\item 
+\Hypertarget{io_8c_ac90ef1148793012e47b2e2a99c631748}\label{io_8c_ac90ef1148793012e47b2e2a99c631748} 
+word {\bfseries get\+Time\+Name} (\mbox{\hyperlink{structclock__}{clock\+\_\+}} \texorpdfstring{$\ast$}{*}clock)
+\begin{DoxyCompactList}\small\item\em Get time name in string format with required digits. \end{DoxyCompactList}\item 
+\Hypertarget{io_8c_a21b72fad893d59e1b4f5483dfcf66eeb}\label{io_8c_a21b72fad893d59e1b4f5483dfcf66eeb} 
+word {\bfseries get\+Arbitrary\+Time\+Name} (\mbox{\hyperlink{structclock__}{clock\+\_\+}} \texorpdfstring{$\ast$}{*}clock, double time\+Value)
+\begin{DoxyCompactList}\small\item\em Get time value in string format with required digits. \end{DoxyCompactList}\item 
+\Hypertarget{io_8c_a8df22decbcbea05a16bd4a7fbf7037fe}\label{io_8c_a8df22decbcbea05a16bd4a7fbf7037fe} 
+word {\bfseries get\+Start\+Time\+Name} (\mbox{\hyperlink{structclock__}{clock\+\_\+}} \texorpdfstring{$\ast$}{*}clock)
+\begin{DoxyCompactList}\small\item\em Get start time name in string format with required digits. \end{DoxyCompactList}\item 
+\Hypertarget{io_8c_ab1c2034549386da53eb15c67c7fa703d}\label{io_8c_ab1c2034549386da53eb15c67c7fa703d} 
+Petsc\+Error\+Code {\bfseries set\+Run\+Time\+Write} (\mbox{\hyperlink{structdomain__}{domain\+\_\+}} \texorpdfstring{$\ast$}{*}domain)
+\begin{DoxyCompactList}\small\item\em Sets the run\+Time\+Write flag and creates initial output directory. \end{DoxyCompactList}\item 
+\Hypertarget{io_8c_a5f8fc88b35d47c8350c91248852ce4a3}\label{io_8c_a5f8fc88b35d47c8350c91248852ce4a3} 
+Petsc\+Error\+Code {\bfseries read\+Dict\+Double} (const char \texorpdfstring{$\ast$}{*}dict\+Name, const char \texorpdfstring{$\ast$}{*}keyword, Petsc\+Real \texorpdfstring{$\ast$}{*}value)
+\begin{DoxyCompactList}\small\item\em Read mandatory Petsc\+Real from dictionary. \end{DoxyCompactList}\item 
+\Hypertarget{io_8c_afd40ee45196e78edaf0e6996e0682d70}\label{io_8c_afd40ee45196e78edaf0e6996e0682d70} 
+Petsc\+Error\+Code {\bfseries read\+Dict\+Vector2D} (const char \texorpdfstring{$\ast$}{*}dict\+Name, const char \texorpdfstring{$\ast$}{*}keyword, \mbox{\hyperlink{structCpt2D}{Cpt2D}} \texorpdfstring{$\ast$}{*}value)
+\begin{DoxyCompactList}\small\item\em Read mandatory 2D vector from dictionary. \end{DoxyCompactList}\item 
+\Hypertarget{io_8c_a57804e3341077d959aff915fdcbd7fd7}\label{io_8c_a57804e3341077d959aff915fdcbd7fd7} 
+Petsc\+Error\+Code {\bfseries read\+Dict\+Vector} (const char \texorpdfstring{$\ast$}{*}dict\+Name, const char \texorpdfstring{$\ast$}{*}keyword, \mbox{\hyperlink{structCmpnts}{Cmpnts}} \texorpdfstring{$\ast$}{*}value)
+\begin{DoxyCompactList}\small\item\em Read mandatory vector from dictionary. \end{DoxyCompactList}\item 
+\Hypertarget{io_8c_a3c7c280a68596390486d409da1854301}\label{io_8c_a3c7c280a68596390486d409da1854301} 
+Petsc\+Error\+Code {\bfseries read\+Dict\+Int} (const char \texorpdfstring{$\ast$}{*}dict\+Name, const char \texorpdfstring{$\ast$}{*}keyword, Petsc\+Int \texorpdfstring{$\ast$}{*}value)
+\begin{DoxyCompactList}\small\item\em Read mandatory Petsc\+Int from dictionary. \end{DoxyCompactList}\item 
+\Hypertarget{io_8c_a7a0754926617aa39a1011c902f168e2e}\label{io_8c_a7a0754926617aa39a1011c902f168e2e} 
+Petsc\+Error\+Code {\bfseries read\+Dict\+Word} (const char \texorpdfstring{$\ast$}{*}dict\+Name, const char \texorpdfstring{$\ast$}{*}keyword, word \texorpdfstring{$\ast$}{*}value)
+\begin{DoxyCompactList}\small\item\em Read mandatory word from dictionary. \end{DoxyCompactList}\item 
+\Hypertarget{io_8c_adb7a767202b3166576b9bff356c1a4ac}\label{io_8c_adb7a767202b3166576b9bff356c1a4ac} 
+Petsc\+Error\+Code {\bfseries read\+Dict\+Word\+And\+Double} (const char \texorpdfstring{$\ast$}{*}dict\+Name, const char \texorpdfstring{$\ast$}{*}keyword, word \texorpdfstring{$\ast$}{*}value1, Petsc\+Real \texorpdfstring{$\ast$}{*}value2)
+\begin{DoxyCompactList}\small\item\em Read mandatory word and Petsc\+Real from dictionary. \end{DoxyCompactList}\item 
+\Hypertarget{io_8c_a4e4f4e4dbf243726d33507af00789416}\label{io_8c_a4e4f4e4dbf243726d33507af00789416} 
+Petsc\+Error\+Code {\bfseries read\+Dict\+Word\+And\+Vector} (const char \texorpdfstring{$\ast$}{*}dict\+Name, const char \texorpdfstring{$\ast$}{*}keyword, word \texorpdfstring{$\ast$}{*}value1, \mbox{\hyperlink{structCmpnts}{Cmpnts}} \texorpdfstring{$\ast$}{*}value2)
+\begin{DoxyCompactList}\small\item\em Read mandatory word and vector from dictionary. \end{DoxyCompactList}\item 
+\Hypertarget{io_8c_a0f06639e16884fdfb0deb36a1cdf401f}\label{io_8c_a0f06639e16884fdfb0deb36a1cdf401f} 
+Petsc\+Error\+Code {\bfseries read\+Sub\+Dict\+Double} (const char \texorpdfstring{$\ast$}{*}dict\+Name, const char \texorpdfstring{$\ast$}{*}subdict, const char \texorpdfstring{$\ast$}{*}keyword, Petsc\+Real \texorpdfstring{$\ast$}{*}value)
+\begin{DoxyCompactList}\small\item\em Read mandatory Petsc\+Real from sub-\/dictionary. \end{DoxyCompactList}\item 
+\Hypertarget{io_8c_a12f01fd87a2b6d41ba0dfb5da941989f}\label{io_8c_a12f01fd87a2b6d41ba0dfb5da941989f} 
+Petsc\+Error\+Code {\bfseries read\+Sub\+Dict\+Int} (const char \texorpdfstring{$\ast$}{*}dict\+Name, const char \texorpdfstring{$\ast$}{*}subdict, const char \texorpdfstring{$\ast$}{*}keyword, Petsc\+Int \texorpdfstring{$\ast$}{*}value)
+\begin{DoxyCompactList}\small\item\em Read mandatory Petsc\+Int from sub-\/dictionary. \end{DoxyCompactList}\item 
+\Hypertarget{io_8c_a7e2d89b88bea0471c1b6775e37e3ac16}\label{io_8c_a7e2d89b88bea0471c1b6775e37e3ac16} 
+Petsc\+Error\+Code {\bfseries read\+Sub\+Dict\+Word} (const char \texorpdfstring{$\ast$}{*}dict\+Name, const char \texorpdfstring{$\ast$}{*}subdict, const char \texorpdfstring{$\ast$}{*}keyword, word \texorpdfstring{$\ast$}{*}value)
+\begin{DoxyCompactList}\small\item\em Read mandatory word from sub-\/dictionary. \end{DoxyCompactList}\item 
+\Hypertarget{io_8c_ae37cac98e304a4bd87528a88e4c5686b}\label{io_8c_ae37cac98e304a4bd87528a88e4c5686b} 
+Petsc\+Error\+Code {\bfseries read\+Sub\+Dict\+Vector} (const char \texorpdfstring{$\ast$}{*}dict\+Name, const char \texorpdfstring{$\ast$}{*}subdict, const char \texorpdfstring{$\ast$}{*}keyword, \mbox{\hyperlink{structCmpnts}{Cmpnts}} \texorpdfstring{$\ast$}{*}value)
+\begin{DoxyCompactList}\small\item\em Read mandatory vector from sub-\/dictionary. \end{DoxyCompactList}\item 
+\Hypertarget{io_8c_a63cd3b8f9f5efa4ce05adad15cf2a39d}\label{io_8c_a63cd3b8f9f5efa4ce05adad15cf2a39d} 
+Petsc\+Error\+Code {\bfseries read\+Sub\+Dict\+Int\+Array} (const char \texorpdfstring{$\ast$}{*}dict\+Name, const char \texorpdfstring{$\ast$}{*}subdict, const char \texorpdfstring{$\ast$}{*}keyword, label\+List \&value)
+\begin{DoxyCompactList}\small\item\em Read mandatory array of Petsc\+Int from sub-\/dictionary. \end{DoxyCompactList}\item 
+\Hypertarget{io_8c_ac3abd05fdf5543d6f6f02a4342902445}\label{io_8c_ac3abd05fdf5543d6f6f02a4342902445} 
+std\+::string \texorpdfstring{$\ast$}{*} {\bfseries read\+Sub\+Dict\+Word\+Array} (const char \texorpdfstring{$\ast$}{*}dict\+Name, const char \texorpdfstring{$\ast$}{*}subdict, const char \texorpdfstring{$\ast$}{*}keyword, Petsc\+Int numW)
+\item 
+\Hypertarget{io_8c_ab73941600644a5529434bf0e0749e160}\label{io_8c_ab73941600644a5529434bf0e0749e160} 
+word {\bfseries trim} (const word \&str)
+\begin{DoxyCompactList}\small\item\em Trims a string removing pre and trail spaces. \end{DoxyCompactList}\item 
+\Hypertarget{io_8c_acfc85dd88a488639367b2d643ec9a789}\label{io_8c_acfc85dd88a488639367b2d643ec9a789} 
+bool {\bfseries is\+Number} (const word \&str)
+\begin{DoxyCompactList}\small\item\em Check if is a number. \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Contains i/o operations function definitions. 
+
+
+
+\doxysubsection{Function Documentation}
+\Hypertarget{io_8c_aa8386d069befb8e442596f0829dd54d9}\index{io.c@{io.c}!getTimeList@{getTimeList}}
+\index{getTimeList@{getTimeList}!io.c@{io.c}}
+\doxysubsubsection{\texorpdfstring{getTimeList()}{getTimeList()}}
+{\footnotesize\ttfamily \label{io_8c_aa8386d069befb8e442596f0829dd54d9} 
+Petsc\+Error\+Code get\+Time\+List (\begin{DoxyParamCaption}\item[{const char \texorpdfstring{$\ast$}{*}}]{data\+Loc}{, }\item[{std\+::vector$<$ Petsc\+Real $>$ \&}]{time\+Series}{, }\item[{Petsc\+Int \&}]{ntimes}{}\end{DoxyParamCaption})}
+
+
+
+Returns the time list (from folder names) and size contained in a folder. 
+
+gets list of time folders contained in a directory 

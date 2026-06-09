@@ -38,8 +38,8 @@
 -amd_cs			   0.1
 # Numerical Schemes
 # ---------------------------------
--dUdtScheme                rungeKutta4
--dTdtScheme                backwardEuler
+-dUdtScheme                RK4
+-dTdtScheme                BE
 -divScheme                 central4
 -hyperVisc		   0.8
 # Wind Turbine

@@ -39,7 +39,7 @@
 
 # Numerical Schemes
 # ---------------------------------
--dUdtScheme                 rungeKutta4
+-dUdtScheme                 RK4
 -divScheme                  central4
 -hyperVisc                  1.0
 
