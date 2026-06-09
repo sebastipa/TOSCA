@@ -1,0 +1,22 @@
+# TOSCA Input file - T boundary conditions 
+# -------------------------------------------
+
+#internal field 
+
+internalField    spreadInflow
+
+# boundary patches
+
+iLeft        periodic
+
+iRight       periodic
+
+jLeft        oversetInterpolate
+
+jRight       oversetInterpolate
+
+kLeft        oversetInterpolate
+
+kRight       oversetInterpolate
+
+

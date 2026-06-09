@@ -1,0 +1,22 @@
+# TOSCA Input file - T boundary conditions 
+# -------------------------------------------
+
+#internal field 
+
+internalField    spreadInflow
+
+# boundary patches
+
+iLeft        periodic
+
+iRight       periodic
+
+jLeft        zeroGradient
+
+jRight       zeroGradient
+
+kLeft        fixedValue 300.0
+
+kRight       zeroGradient
+
+
