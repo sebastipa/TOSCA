@@ -16,6 +16,7 @@ struct access_
     ueqn_        *ueqn;
     peqn_        *peqn;
     teqn_        *teqn;
+    aeqn_        *aeqn;
     les_         *les;
     farm_        *farm;
     overset_     *os;

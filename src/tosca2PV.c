@@ -589,6 +589,21 @@ PetscErrorCode writeFieldsToXMF(domain_ *domain, const char* filexmf, PetscReal 
         );
     }
 
+    if(domain->flags.isAeqnActive)
+    {
+        writeScalarToXMF
+        (
+            domain,
+            filexmf,
+            hdfileName.c_str(),
+            &file_id,
+            &dataspace_id,
+            time,
+            "AlphaWater",
+            domain->aeqn->Alpha
+        );
+    }
+
     if(io->qCrit)
     {
         writeScalarToXMF
@@ -5571,10 +5586,12 @@ PetscErrorCode binaryKSectionsToXMF(domain_ *domain)
             ueqn_  *ueqn  = domain[d].ueqn;
             peqn_  *peqn  = domain[d].peqn;
             teqn_  *teqn;
+            aeqn_  *aeqn;
             les_   *les;
 
             if(flags.isTeqnActive) teqn = domain[d].teqn;
             if(flags.isLesActive)  les  = domain[d].les;
+            if(flags.isAeqnActive) aeqn = domain[d].aeqn;
 
             DMDALocalInfo info = mesh->info;
             PetscInt           mx = info.mx, my = info.my, mz = info.mz;
@@ -5804,7 +5821,35 @@ PetscErrorCode binaryKSectionsToXMF(domain_ *domain)
 
                         }
 
-                        // load temperature
+                        // load alpha 
+                        if(flags.isAeqnActive)
+                        {
+                            kSectionLoadScalar(mesh, kSections, kplane, "AlphaWater", timeSeries[ti]);
+
+                            if(!rank)
+                            {
+                            file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                            dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                            writeKSectionScalarToXMF
+                            (
+                                mesh,
+                                fieldsFileName.c_str(),
+                                hdfileName.c_str(),
+                                &file_id,
+                                &dataspace_id,
+                                timeSeries[ti],
+                                "AlphaWater",
+                                kSections->scalarSec
+                            );
+
+                            status = H5Sclose(dataspace_id);
+                            status = H5Fclose(file_id);
+                            }
+
+                        }
+
+                        // load nvertex
                         if(flags.isIBMActive)
                         {
                             kSectionLoadScalar(mesh, kSections, kplane, "nv", timeSeries[ti]);
@@ -5884,10 +5929,12 @@ PetscErrorCode binaryUserSectionsToXMF(domain_ *domain)
             ueqn_  *ueqn  = domain[d].ueqn;
             peqn_  *peqn  = domain[d].peqn;
             teqn_  *teqn;
+            aeqn_  *aeqn;
             les_   *les;
 
             if(flags.isTeqnActive) teqn = domain[d].teqn;
             if(flags.isLesActive)  les  = domain[d].les;
+            if(flags.isAeqnActive) aeqn = domain[d].aeqn;
 
             DMDALocalInfo info = mesh->info;
             PetscInt           mx = info.mx, my = info.my, mz = info.mz;
@@ -6077,7 +6124,30 @@ PetscErrorCode binaryUserSectionsToXMF(domain_ *domain)
                             status = H5Sclose(dataspace_id);
                             status = H5Fclose(file_id);
                             }
+                        }
 
+                        // load alpha
+                        if(flags.isAeqnActive)
+                        {
+                            userSectionLoadScalar(mesh, uSection, "AlphaWater", timeSeries[ti]);
+                            if(!rank)
+                            {
+                            file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                            dataspace_id = H5Screate_simple(3, dims, NULL);
+                            writeUserSectionScalarToXMF
+                            (
+                                mesh,
+                                fieldsFileName.c_str(),
+                                hdfileName.c_str(),
+                                &file_id,
+                                &dataspace_id,
+                                timeSeries[ti],
+                                "AlphaWater",
+                                uSection
+                            );
+                            status = H5Sclose(dataspace_id);
+                            status = H5Fclose(file_id);
+                            }
                         }
 
                         // close this time section in the XMF file
@@ -6134,10 +6204,12 @@ PetscErrorCode fieldUserDefinedPlaneToXMF(domain_ *domain)
             ueqn_  *ueqn  = domain[d].ueqn;
             peqn_  *peqn  = domain[d].peqn;
             teqn_  *teqn;
+            aeqn_  *aeqn;
             les_   *les;
 
             if(flags.isTeqnActive) teqn = domain[d].teqn;
             if(flags.isLesActive)  les  = domain[d].les;
+            if(flags.isAeqnActive) aeqn = domain[d].aeqn;
 
             DMDALocalInfo info = mesh->info;
             PetscInt      mx = info.mx, my = info.my, mz = info.mz;
@@ -6352,6 +6424,12 @@ PetscErrorCode fieldUserDefinedPlaneToXMF(domain_ *domain)
                         {
                             // no fields for now
                         }
+
+                        // load alpha
+                        if(flags.isAeqnActive)
+                        {
+                            // no fields for now
+                        }
                     }
 
                     if(io->phaseAveraging)
@@ -6461,7 +6539,14 @@ PetscErrorCode fieldUserDefinedPlaneToXMF(domain_ *domain)
                         {
                             // no fields for now
                         }
-                    }                    
+
+                        // load alpha
+                        if(flags.isAeqnActive)
+                        {
+                            // no fields for now
+                        }
+                    }
+
                     // close this time section in the XMF file
                     if(!rank) xmfWriteFileEndTimeSection(xmf, fieldsFileName.c_str());
 
@@ -6514,10 +6599,12 @@ PetscErrorCode fieldKSectionsToXMF(domain_ *domain)
             ueqn_  *ueqn  = domain[d].ueqn;
             peqn_  *peqn  = domain[d].peqn;
             teqn_  *teqn;
+            aeqn_  *aeqn;
             les_   *les;
 
             if(flags.isTeqnActive) teqn = domain[d].teqn;
             if(flags.isLesActive)  les  = domain[d].les;
+            if(flags.isAeqnActive) aeqn = domain[d].aeqn;
 
             DMDALocalInfo info = mesh->info;
             PetscInt      mx = info.mx, my = info.my, mz = info.mz;
@@ -6761,6 +6848,12 @@ PetscErrorCode fieldKSectionsToXMF(domain_ *domain)
                       {
                           // no fields for now
                       }
+
+                      // load alpha
+                      if(flags.isAeqnActive)
+                      {
+                          // no fields for now
+                      }
                   }
 
                   if(io->phaseAveraging)
@@ -6894,6 +6987,12 @@ PetscErrorCode fieldKSectionsToXMF(domain_ *domain)
                       {
                           // no fields for now
                       }
+
+                      // load alpha
+                      if(flags.isAeqnActive)
+                      {
+                          // no fields for now
+                      }
                   }
 
                   // close this time section in the XMF file
@@ -6942,10 +7041,12 @@ PetscErrorCode binaryJSectionsToXMF(domain_ *domain, postProcess *pp)
             ueqn_  *ueqn  = domain[d].ueqn;
             peqn_  *peqn  = domain[d].peqn;
             teqn_  *teqn;
+            aeqn_  *aeqn;
             les_   *les;
 
             if(flags.isTeqnActive) teqn = domain[d].teqn;
             if(flags.isLesActive)  les  = domain[d].les;
+            if(flags.isAeqnActive) aeqn = domain[d].aeqn;
 
             DMDALocalInfo info = mesh->info;
             PetscInt           mx = info.mx, my = info.my, mz = info.mz;
@@ -7174,6 +7275,33 @@ PetscErrorCode binaryJSectionsToXMF(domain_ *domain, postProcess *pp)
                                 }
                             }
 
+                            // load alpha
+                            if(flags.isAeqnActive)
+                            {
+                                jSectionLoadScalar(mesh, jSections, jplane, "AlphaWater", timeSeries[ti]);
+
+                                if(!rank)
+                                {
+                                    file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                                    dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                                    writeJSectionScalarToXMF
+                                    (
+                                        mesh,
+                                        fieldsFileName.c_str(),
+                                        hdfileName.c_str(),
+                                        &file_id,
+                                        &dataspace_id,
+                                        timeSeries[ti],
+                                        "AlphaWater",
+                                        jSections->scalarSec
+                                    );
+
+                                    status = H5Sclose(dataspace_id);
+                                    status = H5Fclose(file_id);
+                                }
+                            }
+
                             // load nut
                             if(flags.isIBMActive)
                             {
@@ -7267,10 +7395,12 @@ PetscErrorCode fieldJSectionsToXMF(domain_ *domain)
             ueqn_  *ueqn  = domain[d].ueqn;
             peqn_  *peqn  = domain[d].peqn;
             teqn_  *teqn;
+            aeqn_  *aeqn;
             les_   *les;
 
             if(flags.isTeqnActive) teqn = domain[d].teqn;
             if(flags.isLesActive)  les  = domain[d].les;
+            if(flags.isAeqnActive) aeqn = domain[d].aeqn;
 
             DMDALocalInfo info = mesh->info;
             PetscInt           mx = info.mx, my = info.my, mz = info.mz;
@@ -7514,6 +7644,12 @@ PetscErrorCode fieldJSectionsToXMF(domain_ *domain)
                         {
                             // no fields for now
                         }
+
+                        // load alpha
+                        if(flags.isAeqnActive)
+                        {
+                            // no fields for now
+                        }
                     }
 
                     if(io->phaseAveraging)
@@ -7646,6 +7782,12 @@ PetscErrorCode fieldJSectionsToXMF(domain_ *domain)
                         {
                             // no fields for now
                         }
+
+                        // load alpha
+                        if(flags.isAeqnActive)
+                        {
+                            // no fields for now
+                        }
                     }
 
                     // close this time section in the XMF file
@@ -7696,10 +7838,12 @@ PetscErrorCode binaryISectionsToXMF(domain_ *domain)
             ueqn_  *ueqn  = domain[d].ueqn;
             peqn_  *peqn  = domain[d].peqn;
             teqn_  *teqn;
+            aeqn_  *aeqn;
             les_   *les;
 
             if(flags.isTeqnActive) teqn = domain[d].teqn;
             if(flags.isLesActive)  les  = domain[d].les;
+            if(flags.isAeqnActive) aeqn = domain[d].aeqn;
 
             DMDALocalInfo info = mesh->info;
             PetscInt           mx = info.mx, my = info.my, mz = info.mz;
@@ -7930,6 +8074,34 @@ PetscErrorCode binaryISectionsToXMF(domain_ *domain)
 
                     }
 
+                    // load alpha
+                    if(flags.isAeqnActive)
+                    {
+                        iSectionLoadScalar(mesh, iSections, iplane, "AlphaWater", timeSeries[ti]);
+
+                        if(!rank)
+                        {
+                        file_id      = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                        dataspace_id = H5Screate_simple(3, dims, NULL);
+
+                        writeISectionScalarToXMF
+                        (
+                            mesh,
+                            fieldsFileName.c_str(),
+                            hdfileName.c_str(),
+                            &file_id,
+                            &dataspace_id,
+                            timeSeries[ti],
+                            "AlphaWater",
+                            iSections->scalarSec
+                        );
+
+                        status = H5Sclose(dataspace_id);
+                        status = H5Fclose(file_id);
+                        }
+
+                    }
+
                     // load nut
                     if(flags.isIBMActive)
                     {
@@ -8015,10 +8187,12 @@ PetscErrorCode fieldISectionsToXMF(domain_ *domain)
             ueqn_  *ueqn  = domain[d].ueqn;
             peqn_  *peqn  = domain[d].peqn;
             teqn_  *teqn;
+            aeqn_  *aeqn;
             les_   *les;
 
             if(flags.isTeqnActive) teqn = domain[d].teqn;
             if(flags.isLesActive)  les  = domain[d].les;
+            if(flags.isAeqnActive) aeqn = domain[d].aeqn;
 
             DMDALocalInfo info = mesh->info;
             PetscInt           mx = info.mx, my = info.my, mz = info.mz;
@@ -8261,6 +8435,12 @@ PetscErrorCode fieldISectionsToXMF(domain_ *domain)
                         {
                             // no fields for now
                         }
+
+                        // load alpha
+                        if(flags.isAeqnActive)
+                        {
+                            // no fields for now
+                        }
                     }
 
                     if(io->phaseAveraging)
@@ -8393,6 +8573,12 @@ PetscErrorCode fieldISectionsToXMF(domain_ *domain)
                         {
                             // no fields for now
                         }
+
+                        // load alpha
+                        if(flags.isAeqnActive)
+                        {
+                            // no fields for now
+                        }
                     }
 
                     // close this time section in the XMF file
@@ -8441,10 +8627,12 @@ PetscErrorCode binaryKSectionsPerturbToXMF(domain_ *domain)
             ueqn_  *ueqn  = domain[d].ueqn;
             peqn_  *peqn  = domain[d].peqn;
             teqn_  *teqn;
+            aeqn_  *aeqn;
             les_   *les;
 
             if(flags.isTeqnActive) teqn = domain[d].teqn;
             if(flags.isLesActive)  les  = domain[d].les;
+            if(flags.isAeqnActive) aeqn = domain[d].aeqn;
 
             DMDALocalInfo info = mesh->info;
             PetscInt           mx = info.mx, my = info.my, mz = info.mz;
@@ -8683,10 +8871,12 @@ PetscErrorCode binaryJSectionsPerturbToXMF(domain_ *domain, postProcess *pp)
             ueqn_  *ueqn  = domain[d].ueqn;
             peqn_  *peqn  = domain[d].peqn;
             teqn_  *teqn;
+            aeqn_  *aeqn;
             les_   *les;
 
             if(flags.isTeqnActive) teqn = domain[d].teqn;
             if(flags.isLesActive)  les  = domain[d].les;
+            if(flags.isAeqnActive) aeqn = domain[d].aeqn;
 
             DMDALocalInfo info = mesh->info;
             PetscInt           mx = info.mx, my = info.my, mz = info.mz;
@@ -8934,10 +9124,12 @@ PetscErrorCode binaryISectionsPerturbToXMF(domain_ *domain)
             ueqn_  *ueqn  = domain[d].ueqn;
             peqn_  *peqn  = domain[d].peqn;
             teqn_  *teqn;
+            aeqn_  *aeqn;
             les_   *les;
 
             if(flags.isTeqnActive) teqn = domain[d].teqn;
             if(flags.isLesActive)  les  = domain[d].les;
+            if(flags.isAeqnActive) aeqn = domain[d].aeqn;
 
             DMDALocalInfo info = mesh->info;
             PetscInt           mx = info.mx, my = info.my, mz = info.mz;
@@ -9385,6 +9577,7 @@ PetscErrorCode sectionsReadAndAllocate(domain_ *domain)
 
                 atLeastOneVector++;
                 if(flags.isTeqnActive) atLeastOneScalar++;
+                if(flags.isAeqnActive) atLeastOneScalar++;
                 if(flags.isLesActive)  atLeastOneScalar++;
                 if(acquisition->isPerturbABLActive) {atLeastOneScalar++; atLeastOneVector++;}
                 if(io->averaging || io->phaseAveraging) atLeastOneSymmTensor++;
@@ -9573,6 +9766,7 @@ PetscErrorCode sectionsReadAndAllocate(domain_ *domain)
 
                 atLeastOneVector++;
                 if(flags.isTeqnActive) atLeastOneScalar++;
+                if(flags.isAeqnActive) atLeastOneScalar++;
                 if(flags.isLesActive)  atLeastOneScalar++;
                 if(acquisition->isPerturbABLActive) {atLeastOneScalar++; atLeastOneVector++;}
                 if(io->averaging || io->phaseAveraging) atLeastOneSymmTensor++;
@@ -9760,6 +9954,7 @@ PetscErrorCode sectionsReadAndAllocate(domain_ *domain)
 
                 atLeastOneVector++;
                 if(flags.isTeqnActive) atLeastOneScalar++;
+                if(flags.isAeqnActive) atLeastOneScalar++;
                 if(flags.isLesActive)  atLeastOneScalar++;
                 if(acquisition->isPerturbABLActive) {atLeastOneScalar++; atLeastOneVector++;}
                 if(io->averaging || io->phaseAveraging) atLeastOneSymmTensor++;
@@ -10021,6 +10216,7 @@ PetscErrorCode sectionsReadAndAllocate(domain_ *domain)
 
                     atLeastOneVector++;
                     if(flags.isTeqnActive) atLeastOneScalar++;
+                    if(flags.isAeqnActive) atLeastOneScalar++;
                     if(flags.isLesActive)  atLeastOneScalar++;
                     if(acquisition->isPerturbABLActive) {atLeastOneScalar++; atLeastOneVector++;}
 

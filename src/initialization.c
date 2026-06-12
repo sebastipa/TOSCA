@@ -211,6 +211,7 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     flags->isOversetActive               = 0;
     flags->isLesActive                   = 1;
     flags->isTeqnActive                  = 0;
+    flags->isAeqnActive                  = 0;
     flags->isWindFarmActive              = 0;
     flags->isAquisitionActive            = 0;
     flags->isAblActive                   = 0;
@@ -233,6 +234,7 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-overset",          &(flags->isOversetActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-les",              &(flags->isLesActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-potentialT",       &(flags->isTeqnActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-multiphase",       &(flags->isAeqnActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-abl",              &(flags->isAblActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-windplant",        &(flags->isWindFarmActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-ibm",              &(flags->isIBMActive), PETSC_NULL);
@@ -554,6 +556,7 @@ PetscErrorCode SetDomainMemory(domain_ *domain)
     domain->ueqn        = NULL;
     domain->peqn        = NULL;
     domain->teqn        = NULL;
+    domain->aeqn        = NULL;
     domain->les         = NULL;
     domain->ibm         = NULL;
     domain->abl         = NULL;
@@ -568,6 +571,7 @@ PetscErrorCode SetDomainMemory(domain_ *domain)
     domain->peqn = new peqn_;
 
     if(domain->flags.isTeqnActive)       domain->teqn        = new teqn_;
+    if(domain->flags.isAeqnActive)       domain->aeqn        = new aeqn_;
     if(domain->flags.isLesActive)        domain->les         = new les_;
     if(domain->flags.isAblActive)        domain->abl         = new abl_;
     if(domain->flags.isWindFarmActive)   domain->farm        = new farm_;
@@ -617,6 +621,13 @@ PetscErrorCode SetAccessPointers(domain_ *domain)
         // t equation two way access
         domain->access.teqn  = domain->teqn;
         domain->teqn->access = &(domain->access);
+    }
+
+    if(domain->flags.isAeqnActive)
+    {
+        // AlphaWater equation two way access
+        domain->access.aeqn  = domain->aeqn;
+        domain->aeqn->access = &(domain->access);
     }
 
     if(domain->flags.isLesActive)

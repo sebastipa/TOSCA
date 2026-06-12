@@ -22,8 +22,11 @@ struct ueqn_;
 //! \brief Defined in peqn.h: pressure equation context
 struct peqn_;
 
-//! \biref Defined in teqn.h: potential temperature transport equation context
+//! \brief Defined in teqn.h: potential temperature transport equation context
 struct teqn_;
+
+//! \brief Defined in aeqn.h: alpha water transport equation context
+struct aeqn_;
 
 //! \brief Defined in lesmdl.h: LES turbulence model context
 struct les_;

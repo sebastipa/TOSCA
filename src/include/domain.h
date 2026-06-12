@@ -43,6 +43,7 @@ struct domain_
     ueqn_         *ueqn;             //!< momentum equation data structure
     peqn_         *peqn;             //!< pressure equation data structure
     teqn_         *teqn;             //!< potential temperature transport equation
+    aeqn_         *aeqn;             //!< alpha water transport equation
     les_          *les;              //!< LES model data structure
 
     overset_      *os;               //!< overset data structure

@@ -10,6 +10,7 @@ struct flags_
     PetscInt isAdjustableTime;
     PetscInt isLesActive;
     PetscInt isTeqnActive;
+    PetscInt isAeqnActive;
     PetscInt isAquisitionActive;
     PetscInt isWindFarmActive;
     PetscInt isAblActive;

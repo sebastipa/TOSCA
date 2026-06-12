@@ -26,6 +26,7 @@ PetscErrorCode SetSolutionFlagsPrecursor(domain_ *domain)
     flags->isOversetActive               = 0;
     flags->isLesActive                   = 1;
     flags->isTeqnActive                  = 0;
+    flags->isAeqnActive                  = 0;
     flags->isWindFarmActive              = 0;
     flags->isAquisitionActive            = 0;
     flags->isAblActive                   = 0;
@@ -48,6 +49,7 @@ PetscErrorCode SetSolutionFlagsPrecursor(domain_ *domain)
 
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-les",            &(flags->isLesActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-potentialT",     &(flags->isTeqnActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-multiphase",     &(flags->isAeqnActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-abl",            &(flags->isAblActive), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-adjustTimeStep", &(flags->isAdjustableTime), PETSC_NULL);
     PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-precursorSpinUp",&(flags->isPrecursorSpinUp), PETSC_NULL);
