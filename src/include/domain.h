@@ -15,6 +15,7 @@
 #include "ueqn.h"
 #include "peqn.h"
 #include "teqn.h"
+#include "aeqn.h"
 #include "les.h"
 #include "lesScalar.h"
 #include "precursor.h"
@@ -24,6 +25,7 @@
 #include "../sources/teqn_sources.h"
 #include "../solvers/ueqn_solvers.h"
 #include "../solvers/teqn_solvers.h"
+#include "../solvers/aeqn_solvers.h"
 
 //! \brief Domain data structure definition
 struct domain_
