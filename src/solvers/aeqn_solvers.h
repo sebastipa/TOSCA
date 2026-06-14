@@ -9,19 +9,31 @@
 #ifndef AEQN_SOLVERS_H
 #define AEQN_SOLVERS_H
 
-//! \brief Viscous and divergence terms
-PetscErrorCode FormA(aeqn_ *aeqn, Vec &Rhs, PetscReal scale, PetscInt formMode = 0);
+//! \brief low-order (upwind) face fluxes into lDivA
+PetscErrorCode FormALowOrder(aeqn_ *aeqn);
 
-//! \brief Implicit SNES solver for Alpha-Water equation
+//! \brief high-order (central4) face fluxes into lDivAHO
+PetscErrorCode FormAHighOrder(aeqn_ *aeqn);
+
+//! \brief compute low-order provisional cell update alpha^{LO} into lAlphaLO
+PetscErrorCode ComputeLowOrderUpdate(aeqn_ *aeqn);
+
+//! \brief apply compression flux for interface sharpening
+PetscErrorCode AddCompressionFlux(aeqn_ *aeqn);
+
+//! \brief apply mules limiter: compute lambda_f and accumulate limited rhs into Rhs
+PetscErrorCode ApplyMULESLimiter(aeqn_ *aeqn);
+
+//! \brief implicit snes solver for alpha-water equation
 PetscErrorCode AeqnSNES(aeqn_ *aeqn);
 
-//! \brief SNES evaluation function
+//! \brief snes evaluation function
 PetscErrorCode SNESFuncEvalA(SNES snes, Vec Alpha, Vec Rhs, void *ptr);
 
-//! \brief Compute RHS of Alpha-Water equation using current lAlpha
+//! \brief compute rhs of alpha-water equation using current lAlpha
 PetscErrorCode FormExplicitRhsA(aeqn_ *aeqn);
 
-//! \brief Solve Alpha-Water equation using RungeKutta 4
+//! \brief solve alpha-water equation using runge-kutta 4
 PetscErrorCode AeqnRK4(aeqn_ *aeqn);
 
 #endif

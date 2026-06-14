@@ -60,9 +60,10 @@ struct mesh_
     PetscInt       k_periodic, kk_periodic;
 
     // boundary conditions
-    scalarBC       boundaryNut;
-    scalarBC       boundaryT;
-    vectorBC       boundaryU;
+    scalarBC       boundaryA;                 //!< alpha water boundary conditions   
+    scalarBC       boundaryNut;               //!< eddy viscosity boundary conditions
+    scalarBC       boundaryT;                 //!< temperature boundary conditions
+    vectorBC       boundaryU;                 //!< velocity boundary conditions
 
     // special inflow boundary conditions
     inletFunctions inletF;

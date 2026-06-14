@@ -25,7 +25,6 @@ struct scalarBC
 };
 
 //! \brief Structure dafining the type of boundary conditions for a vector
-
 struct  vectorBC
 {
     word     iLeft, iRight,  //!< type of boundary condition
@@ -168,6 +167,9 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn);
 
 //! \brief Update temperature boundary conditions
 PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn);
+
+//! \brief Update alpha water boundary conditions
+PetscErrorCode UpdateAlphaWaterBCs(aeqn_ *aeqn);
 
 //! \brief Update effective viscosity boundary conditions
 PetscErrorCode UpdateNutBCs(les_ *les);

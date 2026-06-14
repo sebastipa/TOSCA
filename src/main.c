@@ -99,6 +99,20 @@ int main(int argc, char **argv)
                 }
             }
 
+            if(flags.isAeqnActive)
+            {
+                // save alpha at old time step for BDF2
+                if(domain[d].aeqn->ddtScheme == "BDF2")
+                {
+                    VecCopy(domain[d].aeqn->Alpha_o, domain[d].aeqn->Alpha_oo);
+                    VecCopy(domain[d].aeqn->Alpha, domain[d].aeqn->Alpha_o);
+                }
+                else
+                {
+                    VecCopy(domain[d].aeqn->Alpha, domain[d].aeqn->Alpha_o);
+                }
+            }
+
             // update flux limiter
             if(domain[d].ueqn->centralUpwindDiv || domain[d].ueqn->centralUpwindWDiv)
             {
@@ -204,6 +218,12 @@ int main(int argc, char **argv)
                 SolveTEqn(domain[d].teqn);
             }
 
+            // alpha water step 
+            if(flags.isAeqnActive)
+            {
+                SolveAEqn(domain[d].aeqn);
+            }
+
             MPI_Barrier(domain[d].mesh->MESH_COMM);
 
             // print time step continuity errors (slower)
@@ -275,6 +295,12 @@ int main(int argc, char **argv)
             {
                 // update temperature BC
                 UpdateTemperatureBCs(domain[d].teqn);
+            }
+
+            if(flags.isAeqnActive)
+            {
+                // update alpha water BC
+                UpdateAlphaWaterBCs(domain[d].aeqn);
             }
 
             // update cartesian BC

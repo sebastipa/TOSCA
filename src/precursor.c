@@ -165,6 +165,12 @@ PetscErrorCode concurrentPrecursorInitialize(abl_ *abl)
         {
             InitializeTEqn(domain->teqn);
         }
+
+        if(domain->flags.isAeqnActive)
+        {
+            InitializeAEqn(domain->aeqn);
+        }
+
         if(domain->flags.isLesActive)
         {
             InitializeLES(domain->les);

@@ -41,8 +41,6 @@ int main(int argc, char **argv)
     PetscMPIInt rank;   MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
     PetscMPIInt nProcs; MPI_Comm_size(PETSC_COMM_WORLD, &nProcs);
 
-
-
     // initialize the flags
     pp.postProcessFields    = 0;
     pp.writeRaster          = 0;
@@ -201,6 +199,9 @@ PetscErrorCode postProcessInitialize(domain_ **domainAddr, clock_ *clock, simInf
         // temperature equation initialize
         InitializeTEqn(domain[d].teqn);
 
+        // alpha water equation initialize
+        InitializeAEqn(domain[d].aeqn);
+
         // LES model initialize
         InitializeLES(domain[d].les);
 
@@ -312,6 +313,7 @@ PetscErrorCode postProcessInitializePrecursor(postProcess *pp, clock_ *clock)
     InitializeUEqn(domain->ueqn);
     InitializePEqn(domain->peqn);
     InitializeTEqn(domain->teqn);
+    InitializeAEqn(domain->aeqn);
     InitializeLES(domain->les);
 
     // initialize acquisition

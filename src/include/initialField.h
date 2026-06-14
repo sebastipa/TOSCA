@@ -32,6 +32,9 @@ PetscErrorCode SetInitialFieldU(ueqn_ *ueqn);
 //!< \brief set the initial temperature field
 PetscErrorCode SetInitialFieldT(teqn_ *teqn);
 
+//!< \brief set the initial alpha water field
+PetscErrorCode SetInitialFieldA(aeqn_ *aeqn);
+
 //!< \brief set the initial pressure field
 PetscErrorCode SetInitialFieldP(peqn_ *peqn);
 
@@ -44,6 +47,7 @@ PetscErrorCode SetUniformFieldU(ueqn_ *ueqn, Cmpnts &uRef, PetscInt &addPerturba
 //!< \brief set initial ABL flow U
 PetscErrorCode SetABLInitialFlowU(ueqn_ *ueqn);
 
+//!< \brief set initial ABL flow U with Zilitinkevich profile
 PetscErrorCode SetABLInitialFlowUZilitinkevich(ueqn_ *ueqn);
 
 //!< \brief set initial field Taylor green vortex problem
@@ -69,3 +73,12 @@ PetscErrorCode SpreadInletFlowT(teqn_ *teqn);
 
 //!< \brief set the internal pressure field as the TGV flow
 PetscErrorCode SetTaylorGreenFieldP(peqn_ *peqn);
+
+//!< \brief set the initial alpha water field as a cube of water in the domain
+PetscErrorCode SetCubeFieldA(aeqn_ *aeqn, PetscReal &length, Cmpnts &center);
+
+//!< \brief set the initial alpha water field as the water height defined by the free surface elevation 
+PetscErrorCode SetWaterHeightFieldA(aeqn_ *aeqn, PetscReal &heightRef);
+
+//!< \brief set the initial alpha water field as the spreaded inlet flow condition
+PetscErrorCode SpreadInletFlowA(aeqn_ *aeqn);

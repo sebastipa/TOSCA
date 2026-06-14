@@ -24,8 +24,15 @@ struct aeqn_
     Vec           Alpha, lAlpha,
                   Alpha_o, lAlpha_o, Alpha_oo; 
 
-    Vec           lDivA, lViscA, lViscIBMA;   //!< viscous and divergence alpha water equation fluxes
-    Vec           sourceA;                    //!< alpha water sources
+    Vec           lDivA;                      //!< low-order (upwind) face fluxes
+    Vec           lDivAHO;                    //!< high-order (central4) face fluxes
+    Vec           lDivACor;                   //!< correction face fluxes: lDivAHO - lDivA
+    Vec           lLambdaA;                   //!< mules face limiter coefficients lambda_f in [0,1]
+    Vec           lAlphaLO;                   //!< low-order provisional cell update alpha^{LO}
+    Vec           lRplusA;                    //!< per-cell R_plus  (max allowable incoming correction fraction)
+    Vec           lRminusA;                   //!< per-cell R_minus (max allowable outgoing correction fraction)
+
+    PetscInt      mulesIter;                  //!< number of mules limiter sweeps (default 3)
 
     PetscReal     absExitTol;                 //!< absolute exit tolerance
     PetscReal     relExitTol;                 //!< relative exit tolerance
@@ -47,3 +54,6 @@ PetscErrorCode InitializeAEqn(aeqn_ *aeqn);
 
 //! \brief Solve alpha equation
 PetscErrorCode SolveAEqn(aeqn_ *aeqn);
+
+//! rief Update alpha water boundary conditions
+PetscErrorCode UpdateAlphaWaterBCs(aeqn_ *aeqn);

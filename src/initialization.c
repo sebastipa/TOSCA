@@ -131,6 +131,9 @@ PetscErrorCode simulationInitialize(domain_ **domainAddr, clock_ *clock, simInfo
         // temperature equation initialize
         InitializeTEqn(domain[d].teqn);
 
+        // alpha water equation initialize
+        InitializeAEqn(domain[d].aeqn);
+
         // LES model initialize
         InitializeLES(domain[d].les);
 

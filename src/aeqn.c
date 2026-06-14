@@ -41,13 +41,16 @@ PetscErrorCode InitializeAEqn(aeqn_ *aeqn)
         VecDuplicate(mesh->lAj,   &(aeqn->lAlpha_o));    VecSet(aeqn->lAlpha_o, 0.0);
 
         VecDuplicate(mesh->lCent, &(aeqn->lDivA));       VecSet(aeqn->lDivA,    0.0);
-        VecDuplicate(mesh->lCent, &(aeqn->lViscA));      VecSet(aeqn->lViscA,   0.0);
-        VecDuplicate(mesh->Nvert, &(aeqn->sourceA));     VecSet(aeqn->sourceA,  0.0);
+        VecDuplicate(mesh->lCent, &(aeqn->lDivAHO));     VecSet(aeqn->lDivAHO,  0.0);
+        VecDuplicate(mesh->lCent, &(aeqn->lDivACor));    VecSet(aeqn->lDivACor, 0.0);
+        VecDuplicate(mesh->lCent, &(aeqn->lLambdaA));    VecSet(aeqn->lLambdaA, 1.0);
+        VecDuplicate(mesh->lAj,   &(aeqn->lAlphaLO));    VecSet(aeqn->lAlphaLO, 0.0);
+        VecDuplicate(mesh->lAj,   &(aeqn->lRplusA));     VecSet(aeqn->lRplusA,  1.0);
+        VecDuplicate(mesh->lAj,   &(aeqn->lRminusA));    VecSet(aeqn->lRminusA, 1.0);
 
-        if(flags->isIBMActive)
-        {
-            VecDuplicate(mesh->lCent, &(aeqn->lViscIBMA));   VecSet(aeqn->lViscIBMA,  0.0);
-        }
+        // mules: always active, 3 limiter sweeps by default
+        aeqn->mulesIter = 3;
+        PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-mulesIter", &(aeqn->mulesIter), PETSC_NULL);
 
         // read time discretization scheme
         readDictWord("control.dat", "-dAdtScheme", &(aeqn->ddtScheme));
@@ -156,6 +159,12 @@ PetscErrorCode SolveAEqn(aeqn_ *aeqn)
         AeqnRK4(aeqn);
 
     resetCellPeriodicFluxes(mesh, aeqn->Alpha, aeqn->lAlpha, "scalar", "globalToLocal");
+
+    // compute min max of alpha water for logging
+    PetscReal alphaMin, alphaMax;
+    VecMin(aeqn->Alpha, NULL, &alphaMin);
+    VecMax(aeqn->Alpha, NULL, &alphaMax);
+    PetscPrintf(mesh->MESH_COMM, "Alpha-Water min = %e, max = %e\n", alphaMin, alphaMax);
 
     return(0);
 }

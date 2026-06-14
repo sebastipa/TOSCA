@@ -15,6 +15,7 @@ PetscErrorCode SetInitialField(domain_ *domain)
     mesh_  *mesh       = domain->mesh;
     word   filenameU   = "./boundary/" + mesh->meshName + "/U";
     word   filenameT   = "./boundary/" + mesh->meshName + "/T";
+    word   filenameA   = "./boundary/" + mesh->meshName + "/AlphaWater";
     word   filenameNut = "./boundary/" + mesh->meshName + "/nut";
 
     // read the internal field U
@@ -24,6 +25,12 @@ PetscErrorCode SetInitialField(domain_ *domain)
     if(flags->isTeqnActive)
     {
         readDictWord(filenameT.c_str(), "internalField", &(domain->teqn->initFieldType));
+    }
+
+    // read the internal field for alpha water    
+    if(flags->isAeqnActive)
+    {
+        readDictWord(filenameA.c_str(), "internalField", &(domain->aeqn->initFieldType));
     }
 
     // read the internal field nut
@@ -52,6 +59,14 @@ PetscErrorCode SetInitialField(domain_ *domain)
             fatalErrorInFunction("SetInitialField", error);
         }
 
+        if(flags->isAeqnActive)
+        if(domain->aeqn->initFieldType != "readField")
+        {
+            char error[512];
+            sprintf(error, "-startFrom latestTime only available with readField option in boundary/AlphaWater");
+            fatalErrorInFunction("SetInitialField", error);
+        }
+
         if(flags->isLesActive)
         if(domain->les->initFieldType != "readField")
         {
@@ -62,13 +77,17 @@ PetscErrorCode SetInitialField(domain_ *domain)
     }
 
     SetInitialFieldU(domain->ueqn);
+    SetInitialFieldP(domain->peqn);
 
     if(flags->isTeqnActive)
     {
         SetInitialFieldT(domain->teqn);
     }
 
-    SetInitialFieldP(domain->peqn);
+    if(flags->isAeqnActive)
+    {
+        SetInitialFieldA(domain->aeqn);
+    }
 
     if(flags->isLesActive)
     {
@@ -91,6 +110,11 @@ PetscErrorCode SetInitialField(domain_ *domain)
         {
             UpdateTemperatureBCs(domain->teqn);
         }
+
+        if(flags->isAeqnActive)
+        {
+            UpdateAlphaWaterBCs(domain->aeqn);
+        }
     }
 
     // save old fields
@@ -99,6 +123,11 @@ PetscErrorCode SetInitialField(domain_ *domain)
     if(flags->isTeqnActive)
     {
         VecCopy(domain->teqn->Tmprt, domain->teqn->Tmprt_o);
+    }
+
+    if(flags->isAeqnActive)
+    {
+        VecCopy(domain->aeqn->Alpha, domain->aeqn->Alpha_o);
     }
 
     return(0);
@@ -363,6 +392,70 @@ PetscErrorCode SetInitialFieldT(teqn_ *teqn)
 
 //***************************************************************************************************************//
 
+PetscErrorCode SetInitialFieldA(aeqn_ *aeqn)
+{
+    clock_ *clock     = aeqn->access->clock;
+    mesh_  *mesh      = aeqn->access->mesh;
+    word   filename  = "./boundary/" + mesh->meshName + "/AlphaWater";
+
+    if(aeqn->initFieldType == "readField")
+    {
+        if(clock->time == 0)
+        {
+            char error[512];
+            sprintf(error, "readField option not available at startTime 0. Use uniform field or spread the inflow\n");
+            fatalErrorInFunction("SetInitialFieldA", error);
+        }
+
+        if(aeqn->access->flags->isAeqnActive)
+        {
+            if(aeqn->access->ueqn->initFieldType != "readField")
+            {
+                char error[512];
+                sprintf(error, "readField requires all fields to be set to this keyword. Velocity not set as readField\n");
+                fatalErrorInFunction("SetInitialFieldA", error);
+            }
+        }
+
+        // all fields read together later
+    }
+    else if (aeqn->initFieldType == "waterHeight")
+    {
+        PetscReal heightRef;
+
+        readSubDictDouble(filename.c_str(), "waterHeight", "value", &(heightRef));
+
+        PetscPrintf(mesh->MESH_COMM, "Setting initial field for AlphaWater: %s\n\n", aeqn->initFieldType.c_str());
+        SetWaterHeightFieldA(aeqn, heightRef);
+    }
+    else if (aeqn->initFieldType == "cube")
+    {
+        PetscReal length;
+        Cmpnts    center;
+
+        readSubDictVector(filename.c_str(), "cube", "center", &(center));
+        readSubDictDouble(filename.c_str(), "cube", "length", &(length));
+
+        PetscPrintf(mesh->MESH_COMM, "Setting initial field for AlphaWater: %s\n\n", aeqn->initFieldType.c_str());
+        SetCubeFieldA(aeqn, length, center);
+    }
+    else if (aeqn->initFieldType == "spreadInflow")
+    {
+        PetscPrintf(mesh->MESH_COMM, "Setting initial field for AlphaWater: %s\n\n", aeqn->initFieldType.c_str());
+        SpreadInletFlowA(aeqn);
+    }
+    else
+    {
+        char error[512];
+        sprintf(error, "Invalid initial field keyword. Available initial fields at time=0 are:\n\n        1. uniform\n        2. waterHeight\n        3. cube\n        4. spreadInflow\n");
+        fatalErrorInFunction("SetInitialFieldA", error);
+    }
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
 PetscErrorCode SetInitialFieldP(peqn_ *peqn)
 {
     
@@ -371,8 +464,6 @@ PetscErrorCode SetInitialFieldP(peqn_ *peqn)
         // set TGV initial pressure
         SetTaylorGreenFieldP(peqn);
     }
-
-    
     else
     {
 
@@ -1954,7 +2045,170 @@ PetscErrorCode SpreadInletFlowT(teqn_ *teqn)
 
     return(0);
 }
-//*******************************************************************************//
+
+//***************************************************************************************************************//
+
+PetscErrorCode SetWaterHeightFieldA(aeqn_ *aeqn, PetscReal &heightRef)
+{
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode SetCubeFieldA(aeqn_ *aeqn, PetscReal &length, Cmpnts &center)
+{
+    mesh_         *mesh = aeqn->access->mesh;
+    DM            da    = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info  = mesh->info;
+    PetscInt      xs    = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys    = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs    = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx    = info.mx, my = info.my, mz = info.mz;
+
+    PetscReal     ***a;
+    Cmpnts        ***cent;
+
+    PetscInt      i, j, k;
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    DMDAVecGetArray(da, aeqn->Alpha, &a);
+    DMDAVecGetArray(fda, mesh->lCent, &cent);
+
+    // loop on the internal cells and set the alpha
+    for(k=lzs; k<lze; k++)
+    {
+        for(j=lys; j<lye; j++)
+        {
+            for(i=lxs; i<lxe; i++)
+            {
+                if
+                (
+                    std::abs(cent[k][j][i].x - center.x) <= length/2 &&
+                    std::abs(cent[k][j][i].y - center.y) <= length/2 &&
+                    std::abs(cent[k][j][i].z - center.z) <= length/2
+                )
+                {
+                    a[k][j][i] = 1.0;
+                }
+                else
+                {
+                    a[k][j][i] = 0.0;
+                }
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(da, aeqn->Alpha, &a);
+    DMDAVecRestoreArray(fda, mesh->lCent, &cent);
+
+    // scatter data to local values
+    DMGlobalToLocalBegin(da, aeqn->Alpha, INSERT_VALUES, aeqn->lAlpha);
+    DMGlobalToLocalEnd(da, aeqn->Alpha, INSERT_VALUES, aeqn->lAlpha);
+        
+    // update BC so that have field on ghost nodes
+    UpdateAlphaWaterBCs(aeqn);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode SpreadInletFlowA(aeqn_ *aeqn)
+{
+    mesh_         *mesh = aeqn->access->mesh;
+    DM            da    = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info  = mesh->info;
+    PetscInt      xs    = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys    = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs    = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx    = info.mx, my = info.my, mz = info.mz;
+
+    PetscReal     ***a;
+
+    PetscInt      i, j, k;
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    // first update BC so that have field on ghost nodes
+    UpdateAlphaWaterBCs(aeqn);
+
+    DMDAVecGetArray(da, aeqn->Alpha, &a);
+
+    // allocate patch field
+    std::vector<std::vector<PetscReal>> lpatchField(my);
+    std::vector<std::vector<PetscReal>> gpatchField(my);
+
+    for( j=0; j<my; j++)
+    {
+        lpatchField[j].resize(mx);
+        gpatchField[j].resize(mx);
+    }
+
+    // set to zero in every processor
+    for( j=0; j<my; j++)
+    {
+        for( i=0; i<mx; i++)
+        {
+            lpatchField[j][i] = 0.0;
+
+            gpatchField[j][i] = 0.0;
+        }
+    }
+
+    // store the temperature field
+    if(zs==0)
+    {
+        for( j=lys; j<lye; j++)
+        {
+            for( i=lxs; i<lxe; i++)
+            {
+                lpatchField[j][i] = a[0][j][i];
+            }
+        }
+    }
+
+    // store the inflow data by scattering the information on all nodes
+    for(j=0; j<my; j++)
+    {
+        MPI_Allreduce(&lpatchField[j][0], &gpatchField[j][0], mx, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    }
+
+    // loop on the internal cells and set the alpha
+    for(k=lzs; k<lze; k++)
+    {
+        for(j=lys; j<lye; j++)
+        {
+            for(i=lxs; i<lxe; i++)
+            {
+                a[k][j][i] = gpatchField[j][i];
+            }
+        }
+    }
+
+    // clear the vector indices
+    std::vector<std::vector<PetscReal>> ().swap(lpatchField);
+    std::vector<std::vector<PetscReal>> ().swap(gpatchField);
+
+    DMDAVecRestoreArray(da, aeqn->Alpha,  &a);
+
+    // scatter data to local values
+    DMGlobalToLocalBegin(da, aeqn->Alpha, INSERT_VALUES, aeqn->lAlpha);
+    DMGlobalToLocalEnd(da, aeqn->Alpha, INSERT_VALUES, aeqn->lAlpha);
+
+    // update cartesian BCs again (sets cartesian velocity on ghost nodes)
+    UpdateAlphaWaterBCs(aeqn);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
 
 PetscErrorCode SetTaylorGreenFieldP(peqn_ *peqn)
 {

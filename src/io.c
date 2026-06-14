@@ -252,6 +252,7 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
     mesh_        *mesh  = domain->mesh;
     peqn_        *peqn  = domain->peqn;
     teqn_        *teqn  = domain->teqn;
+    aeqn_        *aeqn  = domain->aeqn;
     les_         *les   = domain->les;
     clock_       *clock = domain->clock;
     io_          *io    = domain->io;
@@ -314,6 +315,16 @@ PetscErrorCode readFields(domain_ *domain, PetscReal timeValue)
         fileName = location + field;
         PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
         VecLoad(teqn->Tmprt, viewer);
+        PetscViewerDestroy(&viewer);
+    }
+
+    if(domain->flags.isAeqnActive)
+    {
+        PetscPrintf(mesh->MESH_COMM, "Reading AlphaWater...\n");
+        field = "/AlphaWater";
+        fileName = location + field;
+        PetscViewerBinaryOpen(mesh->MESH_COMM, fileName.c_str(), FILE_MODE_READ, &viewer);
+        VecLoad(aeqn->Alpha, viewer);
         PetscViewerDestroy(&viewer);
     }
 
@@ -2265,6 +2276,7 @@ PetscErrorCode writeFields(io_ *io)
     ueqn_       *ueqn  = io->access->ueqn;
     peqn_       *peqn  = io->access->peqn;
     teqn_       *teqn  = io->access->teqn;
+    aeqn_       *aeqn  = io->access->aeqn;
     les_        *les   = io->access->les;
     clock_      *clock = io->access->clock;
     flags_      *flags = io->access->flags;
@@ -2317,6 +2329,13 @@ PetscErrorCode writeFields(io_ *io)
         {
             fieldName = timeName + "/T";
             writeBinaryField(mesh->MESH_COMM, teqn->Tmprt, fieldName.c_str());
+            MPI_Barrier(mesh->MESH_COMM);
+        }
+
+        if(flags->isAeqnActive)
+        {
+            fieldName = timeName + "/AlphaWater";
+            writeBinaryField(mesh->MESH_COMM, aeqn->Alpha, fieldName.c_str());
             MPI_Barrier(mesh->MESH_COMM);
         }
 

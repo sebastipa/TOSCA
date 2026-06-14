@@ -86,6 +86,12 @@ PetscErrorCode SetBoundaryConditions(mesh_ *mesh)
         readScalarBC(location, "T", &(mesh->boundaryT));
     }
 
+    // read alpha water boundary conditions
+    if (mesh->access->flags->isAeqnActive)
+    {
+        readScalarBC(location, "AlphaWater", &(mesh->boundaryA));
+    }
+
     // check boundary conditions
     checkBCsAndSetPatchTypes(mesh);
 
@@ -103,7 +109,7 @@ PetscErrorCode checkBCsAndSetPatchTypes(mesh_ *mesh)
 
     vectorBC boundaryU   = mesh->boundaryU;
 
-    std::vector<PetscInt> flagU(6,0), flagT(6,0), flagNut(6,0), patchType(6,0);
+    std::vector<PetscInt> flagU(6,0), flagT(6,0), flagA(6,0), flagNut(6,0), patchType(6,0);
 
     std::vector<word> UAvailableBC   = {"inletFunction","inletFunctionkLeft", "inletFunctionkRight", "inletFunctionjLeft","inletFunctionjRight",
                                         "inletFunctioniLeft", "inletFunctioniRight", "noSlip", "slip", "velocityWallFunction",
@@ -112,6 +118,8 @@ PetscErrorCode checkBCsAndSetPatchTypes(mesh_ *mesh)
     std::vector<word> TAvailableBC   = {"inletFunction","inletFunctionkLeft", "inletFunctionkRight", "inletFunctionjLeft","inletFunctionjRight",
                                         "inletFunctioniLeft", "inletFunctioniRight", "zeroGradient", "fixedValue", "thetaWallFunction",
                                         "fixedGradient", "periodic", "oversetInterpolate"};
+
+    std::vector<word> alphaAvailableBC = {"periodic", "zeroGradient", "oversetInterpolate"};
 
     std::vector<word> nutAvailableBC = {"inletFunction","inletFunctionkLeft", "inletFunctionkRight", "inletFunctionjLeft","inletFunctionjRight",
                                         "inletFunctioniLeft", "inletFunctioniRight", "zeroGradient", "fixedValue",
@@ -250,6 +258,69 @@ PetscErrorCode checkBCsAndSetPatchTypes(mesh_ *mesh)
         }
     }
 
+    if(mesh->access->flags->isAeqnActive)
+    {
+        scalarBC boundaryA   = mesh->boundaryA;
+
+        for(PetscInt i = 0; i < alphaAvailableBC.size(); i++)
+        {
+            if( boundaryA.kLeft  == alphaAvailableBC[i])
+                flagA[0] = 1;
+            if( boundaryA.kRight == alphaAvailableBC[i])
+                flagA[1] = 1;
+            if( boundaryA.jLeft  == alphaAvailableBC[i])
+                flagA[2] = 1;
+            if( boundaryA.jRight == alphaAvailableBC[i])
+                flagA[3] = 1;
+            if( boundaryA.iLeft  == alphaAvailableBC[i])
+                flagA[4] = 1;
+            if( boundaryA.iRight == alphaAvailableBC[i])
+                flagA[5] = 1;
+        }
+
+        if(flagA[0] == 0)
+        {
+            char error[512];
+            sprintf(error, "In %s/AlphaWater, alpha water boundary condition at kLeft = '%s' does not match with available BCs.\n", location.c_str(), boundaryA.kLeft.c_str());
+            fatalErrorInFunction("checkBCsAndSetPatchTypes", error);
+        }
+
+        if(flagA[1] == 0)
+        {
+            char error[512];
+            sprintf(error, "In %s/AlphaWater, alpha water boundary condition at kRight = '%s' does not match with available BCs.\n", location.c_str(), boundaryA.kRight.c_str());
+            fatalErrorInFunction("checkBCsAndSetPatchTypes", error);
+        }
+
+        if(flagA[2] == 0)
+        {
+            char error[512];
+            sprintf(error, "In %s/AlphaWater, alpha water boundary condition at jLeft = '%s' does not match with available BCs.\n", location.c_str(), boundaryA.jLeft.c_str());
+            fatalErrorInFunction("checkBCsAndSetPatchTypes", error);
+        }
+
+        if(flagA[3] == 0)
+        {
+            char error[512];
+            sprintf(error, "In %s/AlphaWater, alpha water boundary condition at jRight = '%s' does not match with available BC\n", location.c_str(), boundaryA.jRight.c_str());
+            fatalErrorInFunction("checkBCsAndSetPatchTypes", error);
+        }
+
+        if(flagA[4] == 0)
+        {
+            char error[512];
+            sprintf(error, "In %s/AlphaWater, alpha water boundary condition at iLeft = '%s' does not match with available BCs.\n", location.c_str(), boundaryA.iLeft.c_str());
+            fatalErrorInFunction("checkBCsAndSetPatchTypes", error);
+        }
+
+        if(flagA[5] == 0)
+        {
+            char error[512];
+            sprintf(error, "In %s/AlphaWater, alpha water boundary condition at iRight = '%s' does not match with available BCs.\n", location.c_str(), boundaryA.iRight.c_str());
+            fatalErrorInFunction("checkBCsAndSetPatchTypes", error);
+        }
+    }
+
     if(mesh->access->flags->isLesActive)
     {
         scalarBC boundaryNut = mesh->boundaryNut;
@@ -367,13 +438,12 @@ PetscErrorCode SetPeriodicConnectivity(mesh_ *mesh, word &meshFileName)
     {
         if(mesh->boundaryU.iRight!="periodic")
         {
-           char error[512];
+            char error[512];
             sprintf(error, "i-left patch is periodic but opposite patch is not. Try setting periodic in boundary/U");
             fatalErrorInFunction("SetPeriodicConnectivity",  error);
         }
         else
         {
-
             readDictInt(meshFileName.c_str(), "-iPeriodicType", &iType);
 
             if(iType == 1)
@@ -386,7 +456,7 @@ PetscErrorCode SetPeriodicConnectivity(mesh_ *mesh, word &meshFileName)
             }
             else
             {
-               char error[512];
+                char error[512];
                 sprintf(error, "unknown periodic i connectivity type. Known types are 1, 2");
                 fatalErrorInFunction("SetPeriodicConnectivity", error);
             }
@@ -397,7 +467,7 @@ PetscErrorCode SetPeriodicConnectivity(mesh_ *mesh, word &meshFileName)
     {
         if(mesh->boundaryU.iLeft!="periodic")
         {
-           char error[512];
+            char error[512];
             sprintf(error, "i-right patch is periodic but opposite patch is not. Try setting periodic in boundary/U");
             fatalErrorInFunction("SetPeriodicConnectivity",  error);
         }
@@ -407,7 +477,7 @@ PetscErrorCode SetPeriodicConnectivity(mesh_ *mesh, word &meshFileName)
     {
         if(mesh->boundaryU.jRight!="periodic")
         {
-           char error[512];
+            char error[512];
             sprintf(error, "j-left patch is periodic but opposite patch is not. Try setting periodic in boundary/U");
             fatalErrorInFunction("SetPeriodicConnectivity",  error);
         }
@@ -425,7 +495,7 @@ PetscErrorCode SetPeriodicConnectivity(mesh_ *mesh, word &meshFileName)
             }
             else
             {
-               char error[512];
+                char error[512];
                 sprintf(error, "unknown periodic j connectivity type. Known types are 1, 2");
                 fatalErrorInFunction("SetPeriodicConnectivity", error);
             }
@@ -435,7 +505,7 @@ PetscErrorCode SetPeriodicConnectivity(mesh_ *mesh, word &meshFileName)
     {
         if(mesh->boundaryU.jLeft!="periodic")
         {
-           char error[512];
+            char error[512];
             sprintf(error, "i-right patch is periodic but opposite patch is not. Try setting periodic in boundary/U");
             fatalErrorInFunction("SetPeriodicConnectivity",  error);
         }
@@ -445,7 +515,7 @@ PetscErrorCode SetPeriodicConnectivity(mesh_ *mesh, word &meshFileName)
     {
         if(mesh->boundaryU.kRight!="periodic")
         {
-           char error[512];
+            char error[512];
             sprintf(error, "k-left patch is periodic but opposite patch is not. Try setting periodic in boundary/U");
             fatalErrorInFunction("SetPeriodicConnectivity",  error);
         }
@@ -463,7 +533,7 @@ PetscErrorCode SetPeriodicConnectivity(mesh_ *mesh, word &meshFileName)
             }
             else
             {
-               char error[512];
+                char error[512];
                 sprintf(error, "unknown periodic k connectivity type. Known types are 1, 2");
                 fatalErrorInFunction("SetPeriodicConnectivity", error);
             }
@@ -473,7 +543,7 @@ PetscErrorCode SetPeriodicConnectivity(mesh_ *mesh, word &meshFileName)
     {
         if(mesh->boundaryU.kLeft!="periodic")
         {
-           char error[512];
+            char error[512];
             sprintf(error, "k-right patch is periodic but opposite patch is not. Try setting periodic in in boundary/U");
             fatalErrorInFunction("SetPeriodicConnectivity",  error);
         }
@@ -486,7 +556,7 @@ PetscErrorCode SetPeriodicConnectivity(mesh_ *mesh, word &meshFileName)
         {
             if(mesh->boundaryNut.iRight!="periodic")
             {
-               char error[512];
+                char error[512];
                 sprintf(error, "i-left patch is periodic but opposite patch is not. Try setting periodic in boundary/Nut");
                 fatalErrorInFunction("SetPeriodicConnectivity",  error);
             }
@@ -495,7 +565,7 @@ PetscErrorCode SetPeriodicConnectivity(mesh_ *mesh, word &meshFileName)
         {
             if(mesh->boundaryNut.iLeft!="periodic")
             {
-               char error[512];
+                char error[512];
                 sprintf(error, "i-right patch is periodic but opposite patch is not. Try setting periodic in boundary/Nut");
                 fatalErrorInFunction("SetPeriodicConnectivity",  error);
             }
@@ -505,7 +575,7 @@ PetscErrorCode SetPeriodicConnectivity(mesh_ *mesh, word &meshFileName)
         {
             if(mesh->boundaryNut.jRight!="periodic")
             {
-               char error[512];
+                char error[512];
                 sprintf(error, "j-left patch is periodic but opposite patch is not. Try setting periodic in boundary/Nut");
                 fatalErrorInFunction("SetPeriodicConnectivity",  error);
             }
@@ -514,7 +584,7 @@ PetscErrorCode SetPeriodicConnectivity(mesh_ *mesh, word &meshFileName)
         {
             if(mesh->boundaryNut.jLeft!="periodic")
             {
-               char error[512];
+                char error[512];
                 sprintf(error, "i-right patch is periodic but opposite patch is not. Try setting periodic in boundary/Nut");
                 fatalErrorInFunction("SetPeriodicConnectivity",  error);
             }
@@ -524,7 +594,7 @@ PetscErrorCode SetPeriodicConnectivity(mesh_ *mesh, word &meshFileName)
         {
             if(mesh->boundaryNut.kRight!="periodic")
             {
-               char error[512];
+                char error[512];
                 sprintf(error, "k-left patch is periodic but opposite patch is not. Try setting periodic in boundary/Nut");
                 fatalErrorInFunction("SetPeriodicConnectivity",  error);
             }
@@ -533,7 +603,7 @@ PetscErrorCode SetPeriodicConnectivity(mesh_ *mesh, word &meshFileName)
         {
             if(mesh->boundaryNut.kLeft!="periodic")
             {
-               char error[512];
+                char error[512];
                 sprintf(error, "k-right patch is periodic but opposite patch is not. Try setting periodic in boundary/Nut");
                 fatalErrorInFunction("SetPeriodicConnectivity",  error);
             }
@@ -547,7 +617,7 @@ PetscErrorCode SetPeriodicConnectivity(mesh_ *mesh, word &meshFileName)
         {
             if(mesh->boundaryT.iRight!="periodic")
             {
-               char error[512];
+                char error[512];
                 sprintf(error, "i-left patch is periodic but opposite patch is not. Try setting periodic in boundary/T");
                 fatalErrorInFunction("SetPeriodicConnectivity",  error);
             }
@@ -556,7 +626,7 @@ PetscErrorCode SetPeriodicConnectivity(mesh_ *mesh, word &meshFileName)
         {
             if(mesh->boundaryT.iLeft!="periodic")
             {
-               char error[512];
+                char error[512];
                 sprintf(error, "i-right patch is periodic but opposite patch is not. Try setting periodic in boundary/T");
                 fatalErrorInFunction("SetPeriodicConnectivity",  error);
             }
@@ -566,7 +636,7 @@ PetscErrorCode SetPeriodicConnectivity(mesh_ *mesh, word &meshFileName)
         {
             if(mesh->boundaryT.jRight!="periodic")
             {
-               char error[512];
+                char error[512];
                 sprintf(error, "j-left patch is periodic but opposite patch is not. Try setting periodic in boundary/T");
                 fatalErrorInFunction("SetPeriodicConnectivity",  error);
             }
@@ -575,7 +645,7 @@ PetscErrorCode SetPeriodicConnectivity(mesh_ *mesh, word &meshFileName)
         {
             if(mesh->boundaryT.jLeft!="periodic")
             {
-               char error[512];
+                char error[512];
                 sprintf(error, "i-right patch is periodic but opposite patch is not. Try setting periodic in boundary/T");
                 fatalErrorInFunction("SetPeriodicConnectivity",  error);
             }
@@ -585,7 +655,7 @@ PetscErrorCode SetPeriodicConnectivity(mesh_ *mesh, word &meshFileName)
         {
             if(mesh->boundaryT.kRight!="periodic")
             {
-               char error[512];
+                char error[512];
                 sprintf(error, "k-left patch is periodic but opposite patch is not. Try setting periodic in boundary/T");
                 fatalErrorInFunction("SetPeriodicConnectivity",  error);
             }
@@ -594,8 +664,69 @@ PetscErrorCode SetPeriodicConnectivity(mesh_ *mesh, word &meshFileName)
         {
             if(mesh->boundaryT.kLeft!="periodic")
             {
-               char error[512];
+                char error[512];
                 sprintf(error, "k-right patch is periodic but opposite patch is not. Try setting periodic in boundary/T");
+                fatalErrorInFunction("SetPeriodicConnectivity",  error);
+            }
+        }
+    }
+
+    // check on alpha water
+    if(mesh->access->flags->isAeqnActive)
+    {
+        if(mesh->boundaryA.iLeft == "periodic")
+        {
+            if(mesh->boundaryA.iRight!="periodic")
+            {
+                char error[512];
+                sprintf(error, "i-left patch is periodic but opposite patch is not. Try setting periodic in boundary/AlphaWater");
+                fatalErrorInFunction("SetPeriodicConnectivity",  error);
+            }
+        }
+        if (mesh->boundaryA.iRight=="periodic")
+        {
+            if(mesh->boundaryA.iLeft!="periodic")
+            {
+                char error[512];
+                sprintf(error, "i-right patch is periodic but opposite patch is not. Try setting periodic in boundary/AlphaWater");
+                fatalErrorInFunction("SetPeriodicConnectivity",  error);
+            }
+        }   
+
+        if(mesh->boundaryA.jLeft == "periodic")
+        {
+            if(mesh->boundaryA.jRight!="periodic")
+            {
+                char error[512];
+                sprintf(error, "j-left patch is periodic but opposite patch is not. Try setting periodic in boundary/AlphaWater");
+                fatalErrorInFunction("SetPeriodicConnectivity",  error);
+            }
+        }
+        if (mesh->boundaryA.jRight=="periodic")
+        {
+            if(mesh->boundaryA.jLeft!="periodic")
+            {
+                char error[512];
+                sprintf(error, "i-right patch is periodic but opposite patch is not. Try setting periodic in boundary/AlphaWater");
+                fatalErrorInFunction("SetPeriodicConnectivity",  error);
+            }
+        }
+
+        if(mesh->boundaryA.kLeft == "periodic")
+        {
+            if(mesh->boundaryA.kRight!="periodic")
+            {
+                char error[512];
+                sprintf(error, "k-left patch is periodic but opposite patch is not. Try setting periodic in boundary/AlphaWater");
+                fatalErrorInFunction("SetPeriodicConnectivity",  error);
+            }
+        }
+        if (mesh->boundaryA.kRight=="periodic")
+        {
+            if(mesh->boundaryA.kLeft!="periodic")
+            {
+                char error[512];
+                sprintf(error, "k-right patch is periodic but opposite patch is not. Try setting periodic in boundary/AlphaWater");
                 fatalErrorInFunction("SetPeriodicConnectivity",  error);
             }
         }
@@ -2621,6 +2752,149 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
     // scatter global to local
     DMGlobalToLocalBegin(da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
     DMGlobalToLocalEnd  (da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode UpdateAlphaWaterBCs(aeqn_ *aeqn)
+{
+    mesh_         *mesh = aeqn->access->mesh;
+    DM            da   = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
+
+    word          typeName = "boundary/AlphaWater";
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k;
+
+    PetscReal     ***a, ***la, ***nvert, ***meshTag;
+    PetscReal     ***aj, ***iaj;
+    Cmpnts        ***csi, ***eta, ***zet, ***icsi, ***cent;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    DMDAVecGetArray(fda, mesh->lCent,  &cent);
+
+    DMDAVecGetArray(fda, mesh->lCsi,   &csi);
+    DMDAVecGetArray(fda, mesh->lEta,   &eta);
+    DMDAVecGetArray(fda, mesh->lZet,   &zet);
+    DMDAVecGetArray(fda, mesh->lICsi,  &icsi);
+    DMDAVecGetArray(da,  mesh->lAj,    &aj);
+    DMDAVecGetArray(da,  mesh->lIAj,   &iaj);
+    DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+    DMDAVecGetArray(da,  mesh->lmeshTag, &meshTag);
+
+    DMDAVecGetArray(da, aeqn->lAlpha, &la);
+    DMDAVecGetArray(da, aeqn->Alpha,  &a);
+
+    for (k=lzs; k<lze; k++)
+    {
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+                // set to zero if solid
+                if(isIBMSolidCell(k, j, i, nvert) || isZeroedCell(k, j, i, meshTag))
+                {
+                    a[k][j][i] = 0.0;
+                    continue;
+                }
+
+                // zeroGradient boundary condition on i-left patch
+                if (mesh->boundaryA.iLeft=="zeroGradient" && i==1)
+                {
+                    a[k][j][i-1] = la[k][j][i];
+                }
+                // zeroGradient boundary condition on i-right patch
+                if (mesh->boundaryA.iRight=="zeroGradient" && i==mx-2)
+                {
+                    a[k][j][i+1] = la[k][j][i];
+                }
+                // zeroGradient boundary condition on j-left patch
+                if (mesh->boundaryA.jLeft=="zeroGradient" && j==1)
+                {
+                    a[k][j-1][i] = la[k][j][i];
+                }
+                // zeroGradient boundary condition on j-right patch
+                if (mesh->boundaryA.jRight=="zeroGradient" && j==my-2)
+                {
+                    a[k][j+1][i] = la[k][j][i];
+                }
+                // zeroGradient boundary condition on k-left patch
+                if (mesh->boundaryA.kLeft=="zeroGradient"  && k==1)
+                {
+                    a[k-1][j][i] = la[k][j][i];
+                }
+                // zeroGradient boundary condition on k-right patch
+                if (mesh->boundaryA.kRight=="zeroGradient" && k==mz-2)
+                {
+                    a[k+1][j][i] = la[k][j][i];
+                }
+
+                // periodic boundary condition on i-left patch
+                if (mesh->boundaryA.iLeft=="periodic" && i==1)
+                {
+                    if(mesh->i_periodic)       a[k][j][i-1] = la[k][j][mx-2];
+                    else if(mesh->ii_periodic) a[k][j][i-1] = la[k][j][-2];
+                }
+                // periodic boundary condition on i-right patch
+                if (mesh->boundaryA.iRight=="periodic" && i==mx-2)
+                {
+                    if(mesh->i_periodic)        a[k][j][i+1] = la[k][j][1];
+                    else if (mesh->ii_periodic) a[k][j][i+1] = la[k][j][mx+1];
+                }
+                // periodic boundary condition on j-left patch
+                if (mesh->boundaryA.jLeft=="periodic" && j==1)
+                {
+                    if(mesh->j_periodic)       a[k][j-1][i] = la[k][my-2][i];
+                    else if(mesh->jj_periodic) a[k][j-1][i] = la[k][-2][i];
+                }
+                // periodic boundary condition on j-right patch
+                if (mesh->boundaryA.jRight=="periodic" && j==my-2)
+                {
+                    if(mesh->j_periodic)       a[k][j+1][i] = la[k][1][i];
+                    else if(mesh->jj_periodic) a[k][j+1][i] = la[k][my+1][i];
+                }
+                // periodic boundary condition on k-left patch
+                if (mesh->boundaryA.kLeft=="periodic" && k==1)
+                {
+                    if(mesh->k_periodic)       a[k-1][j][i] = la[mz-2][j][i];
+                    else if(mesh->kk_periodic) a[k-1][j][i] = la[-2][j][i];
+                }
+                // periodic boundary condition on k-right patch
+                if (mesh->boundaryA.kRight=="periodic" && k==mz-2)
+                {
+                    if(mesh->k_periodic)       a[k+1][j][i] = la[1][j][i];
+                    else if(mesh->kk_periodic) a[k+1][j][i] = la[mz+1][j][i];
+                }
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(fda, mesh->lCsi,   &csi);
+    DMDAVecRestoreArray(fda, mesh->lEta,   &eta);
+    DMDAVecRestoreArray(fda, mesh->lZet,   &zet);
+    DMDAVecRestoreArray(fda, mesh->lICsi,  &icsi);
+    DMDAVecRestoreArray(fda, mesh->lCent,  &cent);
+    DMDAVecRestoreArray(da,  mesh->lAj,    &aj);
+    DMDAVecRestoreArray(da,  mesh->lIAj,   &iaj);
+    DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da,  mesh->lmeshTag, &meshTag);
+
+    DMDAVecRestoreArray(da, aeqn->lAlpha, &la);
+    DMDAVecRestoreArray(da, aeqn->Alpha,  &a);
+
+    // scatter global to local
+    DMGlobalToLocalBegin(da, aeqn->Alpha, INSERT_VALUES, aeqn->lAlpha);
+    DMGlobalToLocalEnd  (da, aeqn->Alpha, INSERT_VALUES, aeqn->lAlpha);
 
     return(0);
 }
