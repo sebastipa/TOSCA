@@ -62,9 +62,6 @@ PetscErrorCode InitializeAEqn(aeqn_ *aeqn);
 //! \brief Solve alpha equation
 PetscErrorCode SolveAEqn(aeqn_ *aeqn);
 
-//! \brief Update alpha water boundary conditions
-PetscErrorCode UpdateAlphaWaterBCs(aeqn_ *aeqn);
-
 //! \brief clip alpha water to [0,1] and sync ghosts
 PetscErrorCode boundAlpha(aeqn_ *aeqn);
 
