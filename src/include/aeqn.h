@@ -21,10 +21,11 @@ struct aeqn_
     Vec           Rhs;                        //!< rhs of the alpha water equation 
 
     Vec           AlphaTmp;                   //!< temporary solution
-    Vec           Alpha, lAlpha,
-                  Alpha_o, lAlpha_o, Alpha_oo; 
+    Vec           Alpha, lAlpha,              //!< volume fraction fields
+                  Alpha_o, Alpha_oo; 
 
-    Vec           lDivA;                      //!< low-order (upwind) face fluxes
+    Vec           lDivA;                      //!< combined face fluxes
+    Vec           lDivALO;                    //!< low-order (upwind) face fluxes
     Vec           lDivAHO;                    //!< high-order (central4) face fluxes
     Vec           lDivACor;                   //!< correction face fluxes: lDivAHO - lDivA
     Vec           lLambdaA;                   //!< mules face limiter coefficients lambda_f in [0,1]
@@ -32,7 +33,13 @@ struct aeqn_
     Vec           lRplusA;                    //!< per-cell R_plus  (max allowable incoming correction fraction)
     Vec           lRminusA;                   //!< per-cell R_minus (max allowable outgoing correction fraction)
 
+    Vec           dRho;                       //!< density gradient (for multiphase flows)
+    Vec           lRho;                       //!< density at cell centers (for multiphase flows)
+    Vec           lRhoFace;                   //!< density at faces (for multiphase flows)
+    Vec           lRhoFace_o;                 //!< density at faces at previous time step (for multiphase flows)
+
     PetscInt      mulesIter;                  //!< number of mules limiter sweeps (default 3)
+    PetscReal     compCoeff;                  //!< numerical compression term coefficient
 
     PetscReal     absExitTol;                 //!< absolute exit tolerance
     PetscReal     relExitTol;                 //!< relative exit tolerance
@@ -55,5 +62,11 @@ PetscErrorCode InitializeAEqn(aeqn_ *aeqn);
 //! \brief Solve alpha equation
 PetscErrorCode SolveAEqn(aeqn_ *aeqn);
 
-//! rief Update alpha water boundary conditions
+//! \brief Update alpha water boundary conditions
 PetscErrorCode UpdateAlphaWaterBCs(aeqn_ *aeqn);
+
+//! \brief clip alpha water to [0,1] and sync ghosts
+PetscErrorCode boundAlpha(aeqn_ *aeqn);
+
+//! \brief compute density gradient for momentum right hand side 
+PetscErrorCode GradRho(aeqn_ *aeqn);

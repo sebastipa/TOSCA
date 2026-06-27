@@ -39,9 +39,7 @@ PetscErrorCode SetInitialField(domain_ *domain)
         readDictWord(filenameNut.c_str(), "internalField", &(domain->les->initFieldType));
     }
 
-    // if the startFrom is set to latestTime in control.dat and internalField is not set to readField
-    // give error: the user forgot to switch it
-
+    // if startFrom is latestTime and internalField is not readField throw error (user forgot to switch it)
     if(domain->clock->startFrom == "latestTime")
     {
         if(domain->ueqn->initFieldType != "readField")
@@ -76,45 +74,24 @@ PetscErrorCode SetInitialField(domain_ *domain)
         }
     }
 
-    SetInitialFieldU(domain->ueqn);
-    SetInitialFieldP(domain->peqn);
+    // initialize fields (if applicable, BCs updated in each function)
+    if(flags->isAeqnActive) SetInitialFieldA(domain->aeqn);
+                            SetInitialFieldU(domain->ueqn);
+                            SetInitialFieldP(domain->peqn);
+    if(flags->isTeqnActive) SetInitialFieldT(domain->teqn);
+    if(flags->isLesActive)  SetInitialFieldLES(domain->les);
 
-    if(flags->isTeqnActive)
-    {
-        SetInitialFieldT(domain->teqn);
-    }
-
-    if(flags->isAeqnActive)
-    {
-        SetInitialFieldA(domain->aeqn);
-    }
-
-    if(flags->isLesActive)
-    {
-        SetInitialFieldLES(domain->les);
-    }
-
-    // if readFields is on, read all the fields
+    // read fields (if applicable, BCs updated after reading)
     if(domain->ueqn->initFieldType == "readField")
     {
         PetscPrintf(mesh->MESH_COMM, "Setting initial field: %s\n\n", domain->ueqn->initFieldType.c_str());
         readFields(domain, domain->clock->startTime);
 
-        // readFields uses DMGlobalToLocal which fills MPI ghost cells but does NOT
-        // fill the physical-domain boundary ghost rows of lP / lTmprt.  Update
-        // pressure and temperature BCs here so that GradP and Tmprt_o are
-        // consistent before the first time step.
-        UpdatePressureBCs(domain->peqn);
-
-        if(flags->isTeqnActive)
-        {
-            UpdateTemperatureBCs(domain->teqn);
-        }
-
-        if(flags->isAeqnActive)
-        {
-            UpdateAlphaWaterBCs(domain->aeqn);
-        }
+        if(flags->isAeqnActive) {UpdateAlphaWaterBCs(domain->aeqn); UpdateRho(domain->aeqn);}
+                                 UpdateCartesianBCs(domain->ueqn);
+                                 UpdateContravariantBCs(domain->ueqn);
+                                 UpdatePressureBCs(domain->peqn);
+        if(flags->isTeqnActive)  UpdateTemperatureBCs(domain->teqn);
     }
 
     // save old fields
@@ -151,12 +128,15 @@ PetscErrorCode SetInitialFieldPrecursor(abl_ *abl)
     if(flags->isPrecursorSpinUp==1)
     {
         domain->ueqn->initFieldType = "spreadInflow";
-        if(flags->isTeqnActive) domain->teqn->initFieldType = "spreadInflow";
-        if(flags->isLesActive)  domain->les->initFieldType  = "spreadInflow";
+        if(flags->isTeqnActive) domain->teqn->initFieldType  = "spreadInflow";
+        if(flags->isLesActive)  domain->les->initFieldType   = "spreadInflow";
+        if(flags->isAeqnActive) domain->aeqn->initFieldType  = "spreadInflow";
 
         PetscPrintf(domain->mesh->MESH_COMM, "Setting precursor initial field: spreadInflow\n");
-        SpreadInletFlowU(domain->ueqn);
-        SpreadInletFlowT(domain->teqn);
+
+        if(flags->isAeqnActive) SpreadInletFlowA(domain->aeqn);
+                                SpreadInletFlowU(domain->ueqn);
+                                SpreadInletFlowT(domain->teqn);
     }
     // set initial fields: read field still using inflow functions as precursorSpinUp is still active
     else if (flags->isPrecursorSpinUp==2)
@@ -164,6 +144,7 @@ PetscErrorCode SetInitialFieldPrecursor(abl_ *abl)
         domain->ueqn->initFieldType = "readField";
         if(flags->isTeqnActive) domain->teqn->initFieldType = "readField";
         if(flags->isLesActive)  domain->les->initFieldType  = "readField";
+        if(flags->isAeqnActive) domain->aeqn->initFieldType = "readField";
 
         PetscPrintf(domain->mesh->MESH_COMM, "Setting precursor initial field: readField\n");
         readFields(domain, clock->startTime);
@@ -175,6 +156,7 @@ PetscErrorCode SetInitialFieldPrecursor(abl_ *abl)
         domain->ueqn->initFieldType = "readField";
         if(flags->isTeqnActive) domain->teqn->initFieldType = "readField";
         if(flags->isLesActive)  domain->les->initFieldType  = "readField";
+        if(flags->isAeqnActive) domain->aeqn->initFieldType = "readField";
 
         PetscPrintf(domain->mesh->MESH_COMM, "Setting precursor initial field: readField\n");
         readFields(domain, clock->startTime);
@@ -184,15 +166,11 @@ PetscErrorCode SetInitialFieldPrecursor(abl_ *abl)
     resetNoPenetrationFluxes(domain->ueqn);
     resetFacePeriodicFluxesVector(mesh, domain->ueqn->Ucont, domain->ueqn->lUcont, "globalToLocal");
 
-    // update boundary conditions
-    UpdateCartesianBCs(domain->ueqn);
-    UpdateContravariantBCs(domain->ueqn);
-    UpdatePressureBCs(domain->peqn);
-
-    if(domain->flags.isTeqnActive)
-    {
-        UpdateTemperatureBCs(domain->teqn);
-    }
+    if(flags->isAeqnActive) {UpdateAlphaWaterBCs(domain->aeqn); UpdateRho(domain->aeqn);}
+                             UpdateCartesianBCs(domain->ueqn);
+                             UpdateContravariantBCs(domain->ueqn);
+                             UpdatePressureBCs(domain->peqn);
+    if(flags->isTeqnActive)  UpdateTemperatureBCs(domain->teqn);
 
     return(0);
 }
@@ -204,6 +182,8 @@ PetscErrorCode SetInitialFieldU(ueqn_ *ueqn)
     clock_ *clock     = ueqn->access->clock;
     mesh_  *mesh      = ueqn->access->mesh;
     word   filename  = "./boundary/" + mesh->meshName + "/U";
+
+    PetscInt zeroAlphaOne = 0;
 
     if(ueqn->initFieldType == "readField")
     {
@@ -246,6 +226,12 @@ PetscErrorCode SetInitialFieldU(ueqn_ *ueqn)
 
         PetscPrintf(mesh->MESH_COMM, "Setting initial field for U: %s\n\n", ueqn->initFieldType.c_str());
         SetUniformFieldU(ueqn, uRef, addPerturbations);
+
+        // read if need to zero the velocity in alpha = 1 phase 
+        if(ueqn->access->flags->isAeqnActive)
+        {
+            readSubDictInt(filename.c_str(), "uniform", "zeroAlphaOne", &zeroAlphaOne);
+        }
     }
     else if (ueqn->initFieldType == "ABLFlow")
     {
@@ -299,6 +285,12 @@ PetscErrorCode SetInitialFieldU(ueqn_ *ueqn)
         char error[512];
         sprintf(error, "Invalid initial field keyword. Available initial fields are:\n        1. uniform\n        2. ABLFlow\n        3. spreadInflow\n        4. readField\n");
         fatalErrorInFunction("SetInitialFieldU", error);
+    }
+
+    if(ueqn->access->flags->isAeqnActive && zeroAlphaOne)
+    {
+        PetscPrintf(mesh->MESH_COMM, "Zeroing velocity in alpha = 1 phase\n");
+        ZeroVelocityInAlphaOne(ueqn);
     }
 
     return(0);
@@ -2050,6 +2042,59 @@ PetscErrorCode SpreadInletFlowT(teqn_ *teqn)
 
 PetscErrorCode SetWaterHeightFieldA(aeqn_ *aeqn, PetscReal &heightRef)
 {
+    mesh_         *mesh = aeqn->access->mesh;
+    DM            da    = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info  = mesh->info;
+    PetscInt      xs    = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys    = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs    = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx    = info.mx, my = info.my, mz = info.mz;
+
+    PetscReal     ***a;
+    Cmpnts        ***cent;
+
+    PetscInt      i, j, k;
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    DMDAVecGetArray(da, aeqn->Alpha, &a);
+    DMDAVecGetArray(fda, mesh->lCent, &cent);
+
+    // loop on the internal cells and set the alpha
+    for(k=lzs; k<lze; k++)
+    {
+        for(j=lys; j<lye; j++)
+        {
+            for(i=lxs; i<lxe; i++)
+            {
+                if(cent[k][j][i].z <= heightRef)
+                {
+                    a[k][j][i] = 1.0;
+                }
+                else
+                {
+                    a[k][j][i] = 0.0;
+                }
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(da, aeqn->Alpha, &a);
+    DMDAVecRestoreArray(fda, mesh->lCent, &cent);
+
+    // scatter data to local values
+    DMGlobalToLocalBegin(da, aeqn->Alpha, INSERT_VALUES, aeqn->lAlpha);
+    DMGlobalToLocalEnd(da, aeqn->Alpha, INSERT_VALUES, aeqn->lAlpha);
+
+    // update BC so that have field on ghost nodes
+    UpdateAlphaWaterBCs(aeqn);
+
+    // update the density field based on the new alpha field
+    UpdateRho(aeqn);
+
     return(0);
 }
 
@@ -2111,6 +2156,9 @@ PetscErrorCode SetCubeFieldA(aeqn_ *aeqn, PetscReal &length, Cmpnts &center)
         
     // update BC so that have field on ghost nodes
     UpdateAlphaWaterBCs(aeqn);
+
+    // update the density field based on the new alpha field
+    UpdateRho(aeqn);
 
     return(0);
 }
@@ -2205,6 +2253,9 @@ PetscErrorCode SpreadInletFlowA(aeqn_ *aeqn)
     // update cartesian BCs again (sets cartesian velocity on ghost nodes)
     UpdateAlphaWaterBCs(aeqn);
 
+    // update the density field based on the new alpha field
+    UpdateRho(aeqn);
+
     return(0);
 }
 
@@ -2281,5 +2332,151 @@ PetscErrorCode SetTaylorGreenFieldP(peqn_ *peqn)
 
     UpdatePhiBCs(peqn);
     PetscPrintf(mesh->MESH_COMM, "Initial pressure set to Taylor–Green Vortex field.\n");
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode ZeroVelocityInAlphaOne(ueqn_ *ueqn)
+{
+    mesh_ *mesh = ueqn->access->mesh;
+    aeqn_ *aeqn = ueqn->access->aeqn;
+    DM            da   = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
+
+    Cmpnts        ***ucont, ***ucat, ***cent;
+    Cmpnts        ***icsi, ***jeta, ***kzet;
+    Cmpnts        uFaceI, uFaceJ, uFaceK;
+
+    PetscReal     ***alpha;
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    DMDAVecGetArray(fda, ueqn->Ucat,  &ucat);
+    DMDAVecGetArray(fda, mesh->lCent, &cent);
+    DMDAVecGetArray(da,  aeqn->lAlpha, &alpha);
+
+    // loop on the internal cells and set the reference cartesian velocity
+    for(k=lzs; k<lze; k++)
+    {
+        for(j=lys; j<lye; j++)
+        {
+            for(i=lxs; i<lxe; i++)
+            {
+                if(alpha[k][j][i] > 0.9)
+                {
+                    ucat[k][j][i].x = 0.0;
+                    ucat[k][j][i].y = 0.0;
+                    ucat[k][j][i].z = 0.0;
+                }
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(fda, ueqn->Ucat,  &ucat);
+    DMDAVecRestoreArray(fda, mesh->lCent, &cent);
+    DMDAVecRestoreArray(da,  aeqn->lAlpha, &alpha);
+
+    // scatter data to local values
+    DMGlobalToLocalBegin(fda, ueqn->Ucat, INSERT_VALUES, ueqn->lUcat);
+    DMGlobalToLocalEnd(fda, ueqn->Ucat, INSERT_VALUES, ueqn->lUcat);
+
+    UpdateCartesianBCs(ueqn);
+
+    DMDAVecGetArray(fda, mesh->lICsi,  &icsi);
+    DMDAVecGetArray(fda, mesh->lJEta,  &jeta);
+    DMDAVecGetArray(fda, mesh->lKZet,  &kzet);
+    DMDAVecGetArray(fda, ueqn->Ucont, &ucont);
+    DMDAVecGetArray(fda, ueqn->lUcat,  &ucat);
+
+    // interpolate contravariant velocity at internal faces
+    for(k=lzs; k<lze; k++)
+    {
+        for(j=lys; j<lye; j++)
+        {
+            for(i=xs; i<lxe; i++)
+            {
+                // interpolate cartesian velocity at the i,j,k th face
+                uFaceI.x = 0.5 * (ucat[k][j][i].x + ucat[k][j][i+1].x);
+                uFaceI.y = 0.5 * (ucat[k][j][i].y + ucat[k][j][i+1].y);
+                uFaceI.z = 0.5 * (ucat[k][j][i].z + ucat[k][j][i+1].z);
+
+                ucont[k][j][i].x
+                =
+                (
+                    uFaceI.x * icsi[k][j][i].x +
+                    uFaceI.y * icsi[k][j][i].y +
+                    uFaceI.z * icsi[k][j][i].z
+                );
+            }
+        }
+    }
+
+    // loop over j-face centers
+    for(k=lzs; k<lze; k++)
+    {
+        for(j=ys; j<lye; j++)
+        {
+            for(i=lxs; i<lxe; i++)
+            {
+                uFaceJ.x = 0.5 * (ucat[k][j][i].x + ucat[k][j+1][i].x);
+                uFaceJ.y = 0.5 * (ucat[k][j][i].y + ucat[k][j+1][i].y);
+                uFaceJ.z = 0.5 * (ucat[k][j][i].z + ucat[k][j+1][i].z);
+
+                ucont[k][j][i].y
+                =
+                (
+                    uFaceJ.x * jeta[k][j][i].x +
+                    uFaceJ.y * jeta[k][j][i].y +
+                    uFaceJ.z * jeta[k][j][i].z
+                );
+            }
+        }
+    }
+
+    // loop over k-face centers
+    for(k=zs; k<lze; k++)
+    {
+        for(j=lys; j<lye; j++)
+        {
+            for(i=lxs; i<lxe; i++)
+            {
+                uFaceK.x = 0.5 * (ucat[k][j][i].x + ucat[k+1][j][i].x);
+                uFaceK.y = 0.5 * (ucat[k][j][i].y + ucat[k+1][j][i].y);
+                uFaceK.z = 0.5 * (ucat[k][j][i].z + ucat[k+1][j][i].z);
+
+                ucont[k][j][i].z
+                =
+                (
+                    uFaceK.x * kzet[k][j][i].x +
+                    uFaceK.y * kzet[k][j][i].y +
+                    uFaceK.z * kzet[k][j][i].z
+                );
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(fda, mesh->lICsi,  &icsi);
+    DMDAVecRestoreArray(fda, mesh->lJEta,  &jeta);
+    DMDAVecRestoreArray(fda, mesh->lKZet,  &kzet);
+    DMDAVecRestoreArray(fda, ueqn->Ucont, &ucont);
+    DMDAVecRestoreArray(fda, ueqn->lUcat,  &ucat);
+
+    // scatter data to local values
+    DMGlobalToLocalBegin(fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
+    DMGlobalToLocalEnd(fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
+
+    // update contravariant velocity at the boundaries
+    UpdateContravariantBCs(ueqn);
+
     return(0);
 }

@@ -122,6 +122,9 @@ PetscErrorCode simulationInitialize(domain_ **domainAddr, clock_ *clock, simInfo
         // initialize ABL parameters
         InitializeABL(domain[d].abl);
 
+        // alpha water equation initialize
+        InitializeAEqn(domain[d].aeqn);
+
         // momentum equation initialize
         InitializeUEqn(domain[d].ueqn);
 
@@ -130,9 +133,6 @@ PetscErrorCode simulationInitialize(domain_ **domainAddr, clock_ *clock, simInfo
 
         // temperature equation initialize
         InitializeTEqn(domain[d].teqn);
-
-        // alpha water equation initialize
-        InitializeAEqn(domain[d].aeqn);
 
         // LES model initialize
         InitializeLES(domain[d].les);
@@ -296,6 +296,14 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
             sprintf(warning, "advection damping is suggested with inlet/outlet fringe layers and it is currently deactivated");
             warningInFunction("SetSimulationFlags", warning);
         }
+    }
+
+    // multiphase is currently not tested with potential temperature 
+    if(flags->isAeqnActive && flags->isTeqnActive)
+    {
+        char error[512];
+        sprintf(error, "potentialT and multiphase flags cannot be active at the same time");
+        fatalErrorInFunction("SetSimulationFlags", error);
     }
 
     // read acquisition flags
@@ -516,13 +524,34 @@ PetscErrorCode ReadPhysicalConstants(domain_ *domain)
 {
     PetscOptionsInsertFile(PETSC_COMM_WORLD, PETSC_NULL, "control.dat", PETSC_TRUE);
 
+    // initialize gravity 
+    domain->constants.gravity = {0.0, 0.0, -9.81};
+
+    // initialize reference height 
+    domain->constants.Href = 0.0;
+
     // read kinematic viscosity
-    readDictDouble("control.dat", "-nu", &(domain->constants.nu));
+    if(!domain->flags.isAeqnActive)
+    {
+        readDictDouble("control.dat", "-nu", &(domain->constants.nu));
+    }
+    else
+    {
+        readDictDouble("control.dat", "-nuAir",   &(domain->constants.nu));
+        readDictDouble("control.dat", "-nuWater", &(domain->constants.nuWater));
+    }
 
     // read flow density
     if(domain->flags.isWindFarmActive || domain->flags.isIBMActive)
     {
       readDictDouble("control.dat", "-rho", &(domain->constants.rho));
+    }
+    else if(domain->flags.isAeqnActive)
+    {
+        readDictDouble("control.dat", "-rhoAir",   &(domain->constants.rho));
+        readDictDouble("control.dat", "-rhoWater", &(domain->constants.rhoWater));
+        //readDictVector("control.dat", "-gravity",  &(domain->constants.gravity));
+        readDictDouble("control.dat", "-Href",     &(domain->constants.Href));
     }
     else
     {

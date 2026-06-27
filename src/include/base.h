@@ -57,20 +57,6 @@ struct simInfo_
     PetscInt nHoleRegions;
 };
 
-struct constants_
-{
-    // dimensionless numbers
-    PetscReal        Pr;                         //!< Prantl number
-
-    // physical constants
-    PetscReal        nu;                         //!< kinematic viscosity
-    PetscReal        rho;                        //!< flow density [Kg/m3]
-
-    // reference temperature
-    PetscReal        tRef;                       //!< reference T, required when ABL is not active
-
-};
-
 //! \brief Cell indices
 typedef struct
 {
@@ -127,5 +113,23 @@ typedef struct
     PetscReal **y;
     PetscReal **z;
 } patchVectorField;
+
+struct constants_
+{
+    // dimensionless numbers
+    PetscReal        Pr;                         //!< Prantl number
+
+    // physical constants
+    PetscReal        nu;                         //!< kinematic viscosity
+    PetscReal        nuWater;                    //!< kinematic viscosity of water
+    PetscReal        rho;                        //!< flow density [Kg/m3]
+    PetscReal        rhoWater;                   //!< water density [Kg/m3]
+    PetscReal        Href;                       //!< reference height for multiphase simulations [m]
+    Cmpnts           gravity;                    //!< gravity acceleration vector [m/s2]
+
+    // reference temperature
+    PetscReal        tRef;                       //!< reference T, required when ABL is not active
+
+};
 
 #endif

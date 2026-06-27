@@ -3413,6 +3413,177 @@ PetscErrorCode UpdatePressureBCs(peqn_ *peqn)
 
 //***************************************************************************************************************//
 
+PetscErrorCode UpdateRhoBCs(aeqn_ *aeqn)
+{
+    mesh_        *mesh = aeqn->access->mesh;
+    DM            da   = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k;
+
+    PetscReal     ***lr, ***meshTag;
+    Cmpnts        ***rhoFace;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    DMDAVecGetArray(da, mesh->lmeshTag, &meshTag);
+    DMDAVecGetArray(da, aeqn->lRho, &lr);
+
+    for (k=zs; k<ze; k++)
+    {
+        for (j=ys; j<ye; j++)
+        {
+            for (i=xs; i<xe; i++)
+            {
+                PetscInt a=i, b=j, c=k, flag=0;
+
+                if(i==0)
+                {
+                    if(mesh->i_periodic)       a=mx-2, flag=1;
+                    else if(mesh->ii_periodic) a=-2, flag=1;
+                    else                       a=1, flag=1;
+                }
+                if(i==mx-1)
+                {
+                    if(mesh->i_periodic)       a=1, flag=1;
+                    else if(mesh->ii_periodic) a=mx+1, flag=1;
+                    else                       a=mx-2, flag=1;
+                }
+                if(j==0)
+                {
+                    if(mesh->j_periodic)       b=my-2, flag=1;
+                    else if(mesh->jj_periodic) b=-2, flag=1;
+                    else                       b=1, flag=1;
+                }
+                if(j==my-1)
+                {
+                    if(mesh->j_periodic)       b=1, flag=1;
+                    else if(mesh->jj_periodic) b=my+1, flag=1;
+                    else                       b=my-2, flag=1;
+                }
+                if(k==0)
+                {
+                    if(mesh->k_periodic)       c=mz-2, flag=1;
+                    else if(mesh->kk_periodic) c=-2, flag=1;
+                    else                       c=1, flag=1;
+                }
+                if(k==mz-1)
+                {
+                    if(mesh->k_periodic)       c=1, flag=1;
+                    else if(mesh->kk_periodic) c=mz+1, flag=1;
+                    else                       c=mz-2, flag=1;
+                }
+
+                if(flag)
+                {
+                    lr[k][j][i] = lr[c][b][a];
+                }
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(da, mesh->lmeshTag, &meshTag);
+    DMDAVecRestoreArray(da, aeqn->lRho, &lr);
+
+    // scatter from global to local
+    DMLocalToLocalBegin(da, aeqn->lRho, INSERT_VALUES, aeqn->lRho);
+    DMLocalToLocalEnd  (da, aeqn->lRho, INSERT_VALUES, aeqn->lRho);
+
+    // re-interpolate at the faces
+    DMDAVecGetArray(fda, aeqn->lRhoFace, &rhoFace);
+    DMDAVecGetArray(da, aeqn->lRho, &lr);
+
+    for (k=zs; k<ze; k++)
+    {
+        for (j=ys; j<ye; j++)
+        {
+            for (i=xs; i<xe; i++)
+            {
+                // i,j,k  or ii, jj, kk periodic type: the right
+                // boundary velocity has been solved in this case: put it on the
+                // left boundary
+                if
+                (
+                    i==0
+                )
+                {
+                    if(mesh->i_periodic) rhoFace[k][j][i].x = rhoFace[k][j][mx-2].x;
+                    else if(mesh->ii_periodic) rhoFace[k][j][i].x = rhoFace[k][j][-2].x;
+                    else rhoFace[k][j][i].x = 0.5*(lr[k][j][i] + lr[k][j][i+1]);
+                }
+
+                if
+                (
+                    i==mx-2
+                )
+                {
+                    if(mesh->i_periodic) {}       // do nothing, already have the fluxes
+                    else if(mesh->ii_periodic) {} // do nothing, already have the fluxes
+                    else rhoFace[k][j][i].x = 0.5*(lr[k][j][i] + lr[k][j][i+1]);
+                }
+
+                if
+                (
+                    j==0
+                )
+                {
+                    if(mesh->j_periodic) rhoFace[k][j][i].y = rhoFace[k][my-2][i].y;
+                    else if(mesh->jj_periodic) rhoFace[k][j][i].y = rhoFace[k][-2][i].y;
+                    else rhoFace[k][j][i].y = 0.5*(lr[k][j][i] + lr[k][j+1][i]);
+                }
+
+                if
+                (
+                    j==my-2
+                )
+                {
+                    if(mesh->j_periodic) {}       // do nothing, already have the fluxes
+                    else if(mesh->jj_periodic) {} // do nothing, already have the fluxes
+                    else rhoFace[k][j][i].y = 0.5*(lr[k][j][i] + lr[k][j+1][i]);
+                }
+
+                if
+                (
+                    k==0
+                )
+                {
+                    if(mesh->k_periodic)       rhoFace[k][j][i].z = rhoFace[mz-2][j][i].z;
+                    else if(mesh->kk_periodic) rhoFace[k][j][i].z = rhoFace[-2][j][i].z;
+                    else rhoFace[k][j][i].z = 0.5*(lr[k][j][i] + lr[k+1][j][i]);
+                }
+
+                if
+                (
+                    k==mz-2
+                )
+                {
+                    if(mesh->k_periodic) {}       // do nothing, already have the fluxes
+                    else if(mesh->kk_periodic) {} // do nothing, already have the fluxes
+                    else rhoFace[k][j][i].z = 0.5*(lr[k][j][i] + lr[k+1][j][i]);
+                }
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(fda, aeqn->lRhoFace, &rhoFace);
+    DMDAVecRestoreArray(da, aeqn->lRho, &lr);
+
+    // scatter from global to local
+    DMLocalToLocalBegin(fda, aeqn->lRhoFace, INSERT_VALUES, aeqn->lRhoFace);
+    DMLocalToLocalEnd  (fda, aeqn->lRhoFace, INSERT_VALUES, aeqn->lRhoFace);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
 PetscErrorCode UpdatePhiBCs(peqn_ *peqn)
 {
     mesh_          *mesh = peqn->access->mesh;

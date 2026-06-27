@@ -171,6 +171,9 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn);
 //! \brief Update alpha water boundary conditions
 PetscErrorCode UpdateAlphaWaterBCs(aeqn_ *aeqn);
 
+//! \brief Update density boundary conditions
+PetscErrorCode UpdateRhoBCs(aeqn_ *aeqn);
+
 //! \brief Update effective viscosity boundary conditions
 PetscErrorCode UpdateNutBCs(les_ *les);
 

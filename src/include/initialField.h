@@ -82,3 +82,6 @@ PetscErrorCode SetWaterHeightFieldA(aeqn_ *aeqn, PetscReal &heightRef);
 
 //!< \brief set the initial alpha water field as the spreaded inlet flow condition
 PetscErrorCode SpreadInletFlowA(aeqn_ *aeqn);
+
+//!< \brief set velocity to zero in the cells where alpha water is one (water)
+PetscErrorCode ZeroVelocityInAlphaOne(ueqn_ *ueqn);

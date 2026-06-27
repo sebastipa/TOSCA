@@ -9,6 +9,9 @@
 #ifndef AEQN_SOLVERS_H
 #define AEQN_SOLVERS_H
 
+//! \brief Form the alpha-water equation rhs with custom divergence fluxes
+PetscErrorCode FormA(aeqn_ *aeqn, Vec Div, Vec Rhs);
+
 //! \brief low-order (upwind) face fluxes into lDivA
 PetscErrorCode FormALowOrder(aeqn_ *aeqn);
 
@@ -35,5 +38,8 @@ PetscErrorCode FormExplicitRhsA(aeqn_ *aeqn);
 
 //! \brief solve alpha-water equation using runge-kutta 4
 PetscErrorCode AeqnRK4(aeqn_ *aeqn);
+
+//! \brief compute density-weighted contravariant velocity and face density for multiphase flows
+PetscErrorCode UpdateRho(aeqn_ *aeqn);
 
 #endif

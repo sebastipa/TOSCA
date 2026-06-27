@@ -14,6 +14,9 @@
 //! \brief Viscous and divergence terms
 PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode = 0);
 
+//! \brief Time derivative term for momentum equation using rho * U (multiphase)
+PetscErrorCode ddtRhoRhs(ueqn_ *ueqn, Vec &Rhs);
+
 //! \brief SNES implicit time step for momentum equation
 PetscErrorCode UeqnSNES(ueqn_ *ueqn);
 
@@ -38,5 +41,8 @@ PetscErrorCode UeqnRK3CN_W(ueqn_ *ueqn);
 
 //! \brief MatShell operator for ABCN linear system
 PetscErrorCode IMEXMatVec(Mat A, Vec v, Vec Av);
+
+//! \brief construct momentum fluxes
+PetscErrorCode AddMultRhoUcont(ueqn_ *ueqn, Vec Rho, Vec Ucont, Vec Result);
 
 #endif

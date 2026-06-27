@@ -4925,6 +4925,31 @@ inline PetscReal upwind
 
 //***************************************************************************************************************//
 
+inline Cmpnts upwindVec
+(
+    Cmpnts f1, Cmpnts f2,
+    PetscReal wavespeed
+)
+{
+    Cmpnts fU, fD;
+
+    if(wavespeed>0)
+    {
+        fU  = f1;
+	}
+	else
+    {
+        fU  = f2;
+	}
+
+	return
+    (
+       fU
+    );
+}
+
+//***************************************************************************************************************//
+
 inline Cmpnts centralUpwindVec
 (
     Cmpnts f0, Cmpnts f1, Cmpnts f2, Cmpnts f3,

@@ -101,7 +101,7 @@ int main(int argc, char **argv)
 
             if(flags.isAeqnActive)
             {
-                // save alpha at old time step for BDF2
+                // save alpha and rho at old time step for BDF2
                 if(domain[d].aeqn->ddtScheme == "BDF2")
                 {
                     VecCopy(domain[d].aeqn->Alpha_o, domain[d].aeqn->Alpha_oo);
@@ -111,6 +111,17 @@ int main(int argc, char **argv)
                 {
                     VecCopy(domain[d].aeqn->Alpha, domain[d].aeqn->Alpha_o);
                 }
+
+                VecCopy(domain[d].aeqn->lRhoFace, domain[d].aeqn->lRhoFace_o);
+
+                // alpha water step 
+                SolveAEqn(domain[d].aeqn);
+
+                // calculate rho 
+                UpdateRho(domain[d].aeqn);
+
+                // compute density gradient for multiphase
+                GradRho(domain[d].aeqn);
             }
 
             // update flux limiter
@@ -216,12 +227,6 @@ int main(int argc, char **argv)
                 
                 // advance temperature to n+1
                 SolveTEqn(domain[d].teqn);
-            }
-
-            // alpha water step 
-            if(flags.isAeqnActive)
-            {
-                SolveAEqn(domain[d].aeqn);
             }
 
             MPI_Barrier(domain[d].mesh->MESH_COMM);

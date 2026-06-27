@@ -84,6 +84,7 @@ PetscErrorCode InitializeTEqn(teqn_ *teqn)
 
             // create jacobian matrix
             MatCreateSNESMF(teqn->snesT, &(teqn->JT));
+            MatMFFDSetType (teqn->JT, MATMFFD_WP);
             SNESSetJacobian(teqn->snesT, teqn->JT, teqn->JT, MatMFFDComputeJacobian, (void *)teqn);
 
             // set SNES solver type

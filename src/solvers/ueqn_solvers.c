@@ -42,12 +42,12 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
     Cmpnts           ***kcsi, ***keta, ***kzet;
     Cmpnts           ***cent;
 
-    PetscReal        ***nvert, ***lnu_t, ***meshTag;
+    PetscReal        ***nvert, ***lnu_t, ***rho, ***alpha, ***meshTag;
 
     Cmpnts           ***div1,  ***div2,  ***div3;
     Cmpnts           ***visc1, ***visc2, ***visc3;
     Cmpnts           ***viscIBM1, ***viscIBM2, ***viscIBM3;
-    Cmpnts           ***rhs,   ***fp,    ***limiter;
+    Cmpnts           ***rhs,   ***fp,    ***limiter, ***lambda, ***rhoFace;
     PetscReal        ***aj,    ***iaj,   ***jaj, ***kaj;
 
     PetscReal        dudc, dude, dudz, dvdc, dvde, dvdz, dwdc, dwde, dwdz;
@@ -57,7 +57,8 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
                      r12, r22, r32,
                      r13, r23, r33;
 
-    PetscScalar      solid = 0.5;
+    PetscScalar      solid = 0.5, 
+                     rho_f = 1.0;
 
     // indices for internal cells
     lxs = xs; if (lxs==0) lxs++; lxe = xe; if (lxe==mx) lxe--;
@@ -94,7 +95,6 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
 
     DMDAVecGetArray(da,  mesh->lNvert, &nvert);
     DMDAVecGetArray(da,  mesh->lmeshTag, &meshTag);
-
     DMDAVecGetArray(fda, mesh->fluxLimiter, &limiter);
 
     // ---------------------------------------------------------------------- //
@@ -124,6 +124,13 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
     if(ueqn->access->flags->isLesActive)
     {
         DMDAVecGetArray(da, les->lNu_t, &lnu_t);
+    }
+
+    if(flags->isAeqnActive)
+    {
+        DMDAVecGetArray(da,  ueqn->access->aeqn->lAlpha, &alpha);
+        DMDAVecGetArray(fda, ueqn->access->aeqn->lLambdaA, &lambda);
+        DMDAVecGetArray(fda, ueqn->access->aeqn->lRhoFace, &rhoFace);
     }
 
     // damping viscosity for fringe region advection damping
@@ -183,6 +190,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
                 {
                     // viscous setup (skip when conv-only: fields only needed for visc)
                     PetscReal ajc = 0.0;
+                    
                     if(formMode != 1)
                     {
                         ajc = iaj[k][j][i];
@@ -215,6 +223,8 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
                         r33 = dwdc * csi2 + dwde * eta2 + dwdz * zet2;
                     }
 
+                    if(flags->isAeqnActive) rho_f = rhoFace[k][j][i].x;
+
                     // divergence (skip when visc-only)
                     if(formMode != 2)
                     {
@@ -227,7 +237,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
                         {
                             div1[k][j][i] = nScale
                             (
-                                - ucont[k][j][i].x,
+                                - ucont[k][j][i].x * rho_f,
                                 centralVec
                                 (
                                     ucat[k][j][i], ucat[k][j][i+1]
@@ -239,7 +249,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
                         {
                             div1[k][j][i] = nScale
                             (
-                                - ucont[k][j][i].x,
+                                - ucont[k][j][i].x * rho_f,
                                 weno3Vec
                                 (
                                     ucat[k][j][iL], ucat[k][j][i], ucat[k][j][i+1], ucat[k][j][iR],
@@ -255,7 +265,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
                                 // ucat is interpolated at the face
                                 div1[k][j][i] = nScale
                                 (
-                                    - ucont[k][j][i].x,
+                                    - ucont[k][j][i].x * rho_f,
                                     centralVec
                                     (
                                         ucat[k][j][i], ucat[k][j][i+1]
@@ -267,7 +277,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
                                 
                                 div1[k][j][i] = nScale
                                 (
-                                    - ucont[k][j][i].x,
+                                    - ucont[k][j][i].x * rho_f,
                                     centralVec4thCsi(mesh, k, j, i, mx, nvert, meshTag, ucat, ucont[k][j][i].x, ueqn->hyperVisc)
                                 );
                             }
@@ -275,7 +285,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
                             {
                                 div1[k][j][i] = nScale
                                 (
-                                    - ucont[k][j][i].x,
+                                    - ucont[k][j][i].x * rho_f,
                                     centralUpwindVec
                                     (
                                         ucat[k][j][iL], ucat[k][j][i], ucat[k][j][i+1], ucat[k][j][iR],
@@ -293,7 +303,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
 
                                 div1[k][j][i] = nScale
                                 (
-                                    - ucont[k][j][i].x,
+                                    - ucont[k][j][i].x * rho_f,
                                     wCentralUpwindVec
                                     (
                                         ucat[k][j][iL], ucat[k][j][i], ucat[k][j][i+1], ucat[k][j][iR],
@@ -307,7 +317,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
                             {
                                 div1[k][j][i] = nScale
                                 (
-                                    - ucont[k][j][i].x,
+                                    - ucont[k][j][i].x * rho_f,
                                     quadraticUpwindVec
                                     (
                                         ucat[k][j][iL], ucat[k][j][i], ucat[k][j][i+1], ucat[k][j][iR],
@@ -321,7 +331,16 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
                     // viscous accumulation (skip when conv-only)
                     if(formMode != 1)
                     {
-                        PetscReal nuEff, nu = cst->nu, nut;
+                        PetscReal nuEff, nut, nu;
+                        if(flags->isAeqnActive)
+                        {
+                            PetscReal alpha_face = central(alpha[k][j][i], alpha[k][j][i+1]);
+                            nu                   = alpha_face * cst->nuWater + (1.0 - alpha_face) * cst->nu;
+                        }
+                        else
+                        {
+                            nu = cst->nu;
+                        }
 
                         // viscous terms
                         if
@@ -330,7 +349,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
                         )
                         {
 
-                            nut = 0.5 * (lnu_t[k][j][i] + lnu_t[k][j][i+1]);
+                            nut   = 0.5 * (lnu_t[k][j][i] + lnu_t[k][j][i+1]);
 
                             // wall model i-left patch
                             if
@@ -387,9 +406,9 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
                         }
 
                         // note: 1/J is the original term, here terms arrive already with a factor of 1/J^2 so actually we multiply for J (ajc)
-                        visc1[k][j][i].x += (g11 * dudc + g21 * dude + g31 * dudz + r11 * csi0 + r21 * csi1 + r31 * csi2) * ajc * (nuEff);
-                        visc1[k][j][i].y += (g11 * dvdc + g21 * dvde + g31 * dvdz + r12 * csi0 + r22 * csi1 + r32 * csi2) * ajc * (nuEff);
-                        visc1[k][j][i].z += (g11 * dwdc + g21 * dwde + g31 * dwdz + r13 * csi0 + r23 * csi1 + r33 * csi2) * ajc * (nuEff);
+                        visc1[k][j][i].x += (g11 * dudc + g21 * dude + g31 * dudz + r11 * csi0 + r21 * csi1 + r31 * csi2) * ajc * (nuEff*rho_f);
+                        visc1[k][j][i].y += (g11 * dvdc + g21 * dvde + g31 * dvdz + r12 * csi0 + r22 * csi1 + r32 * csi2) * ajc * (nuEff*rho_f);
+                        visc1[k][j][i].z += (g11 * dwdc + g21 * dwde + g31 * dwdz + r13 * csi0 + r23 * csi1 + r33 * csi2) * ajc * (nuEff*rho_f);
                     }
                 }
 
@@ -429,6 +448,8 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
                         r33 = dwdc * csi2 + dwde * eta2 + dwdz * zet2;
                     }
 
+                    if(flags->isAeqnActive) rho_f = rhoFace[k][j][i].y;
+
                     // divergence (skip when visc-only)
                     if(formMode != 2)
                     {
@@ -441,7 +462,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
                         {
                             div2[k][j][i] = nScale
                             (
-                                - ucont[k][j][i].y,
+                                - ucont[k][j][i].y * rho_f,
                                 centralVec
                                 (
                                     ucat[k][j][i], ucat[k][j+1][i]
@@ -453,7 +474,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
                         {
                             div2[k][j][i] = nScale
                             (
-                                - ucont[k][j][i].y,
+                                - ucont[k][j][i].y * rho_f,
                                 weno3Vec
                                 (
                                     ucat[k][jL][i], ucat[k][j][i], ucat[k][j+1][i], ucat[k][jR][i],
@@ -468,7 +489,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
                             {
                                 div2[k][j][i] = nScale
                                 (
-                                    - ucont[k][j][i].y,
+                                    - ucont[k][j][i].y * rho_f,
                                     centralVec
                                     (
                                         ucat[k][j][i], ucat[k][j+1][i]
@@ -480,7 +501,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
                                 
                                 div2[k][j][i] = nScale
                                 (
-                                    - ucont[k][j][i].y,
+                                    - ucont[k][j][i].y * rho_f,
                                     centralVec4thEta(mesh, k, j, i, my, nvert, meshTag, ucat, ucont[k][j][i].y, ueqn->hyperVisc)
                                 );
                             }
@@ -488,7 +509,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
                             {
                                 div2[k][j][i] = nScale
                                 (
-                                    - ucont[k][j][i].y,
+                                    - ucont[k][j][i].y * rho_f,
                                     centralUpwindVec
                                     (
                                         ucat[k][jL][i], ucat[k][j][i], ucat[k][j+1][i], ucat[k][jR][i],
@@ -506,7 +527,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
 
                                 div2[k][j][i] = nScale
                                 (
-                                    - ucont[k][j][i].y,
+                                    - ucont[k][j][i].y * rho_f,
                                     wCentralUpwindVec
                                     (
                                         ucat[k][jL][i], ucat[k][j][i], ucat[k][j+1][i], ucat[k][jR][i],
@@ -520,7 +541,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
                             {
                                 div2[k][j][i] = nScale
                                 (
-                                    - ucont[k][j][i].y,
+                                    - ucont[k][j][i].y * rho_f,
                                     quadraticUpwindVec
                                     (
                                         ucat[k][jL][i], ucat[k][j][i], ucat[k][j+1][i], ucat[k][jR][i],
@@ -534,8 +555,17 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
                     // viscous accumulation (skip when conv-only)
                     if(formMode != 1)
                     {
-                        PetscReal nuEff, nu = cst->nu, nut;
-
+                        PetscReal nuEff, nut, nu;
+                        if(flags->isAeqnActive)
+                        {
+                            PetscReal alpha_face = 0.5 * (alpha[k][j][i] + alpha[k][j+1][i]);
+                            nu                   = alpha_face * cst->nuWater + (1.0 - alpha_face) * cst->nu;
+                        }
+                        else
+                        {
+                            nu = cst->nu;
+                        }
+                        
                         if
                         (
                             ueqn->access->flags->isLesActive
@@ -600,9 +630,9 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
                         }
 
                         // note: 1/J is the original term, here terms arrive already with a factor of 1/J^2 so actually we multiply for J (ajc)
-                        visc2[k][j][i].x += (g11 * dudc + g21 * dude + g31 * dudz + r11 * eta0 + r21 * eta1 + r31 * eta2) * ajc * (nuEff);
-                        visc2[k][j][i].y += (g11 * dvdc + g21 * dvde + g31 * dvdz + r12 * eta0 + r22 * eta1 + r32 * eta2) * ajc * (nuEff);
-                        visc2[k][j][i].z += (g11 * dwdc + g21 * dwde + g31 * dwdz + r13 * eta0 + r23 * eta1 + r33 * eta2) * ajc * (nuEff);
+                        visc2[k][j][i].x += (g11 * dudc + g21 * dude + g31 * dudz + r11 * eta0 + r21 * eta1 + r31 * eta2) * ajc * (nuEff*rho_f);
+                        visc2[k][j][i].y += (g11 * dvdc + g21 * dvde + g31 * dvdz + r12 * eta0 + r22 * eta1 + r32 * eta2) * ajc * (nuEff*rho_f);
+                        visc2[k][j][i].z += (g11 * dwdc + g21 * dwde + g31 * dwdz + r13 * eta0 + r23 * eta1 + r33 * eta2) * ajc * (nuEff*rho_f);
                     } 
                 }
 
@@ -642,6 +672,8 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
                         r33 = dwdc * csi2 + dwde * eta2 + dwdz * zet2;
                     }
 
+                    if(flags->isAeqnActive) rho_f = rhoFace[k][j][i].z;
+
                     // divergence (skip when visc-only)
                     if(formMode != 2)
                     {
@@ -654,7 +686,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
                         {
                             div3[k][j][i] = nScale
                             (
-                                - ucont[k][j][i].z,
+                                - ucont[k][j][i].z * rho_f,
                                 centralVec
                                 (
                                     ucat[k][j][i], ucat[k+1][j][i]
@@ -666,7 +698,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
                         {
                             div3[k][j][i] = nScale
                             (
-                                - ucont[k][j][i].z,
+                                - ucont[k][j][i].z * rho_f,
                                 weno3Vec
                                 (
                                     ucat[kL][j][i], ucat[k][j][i], ucat[k+1][j][i], ucat[kR][j][i],
@@ -682,7 +714,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
                                 // ucat is interpolated at the face
                                 div3[k][j][i] = nScale
                                 (
-                                    - ucont[k][j][i].z,
+                                    - ucont[k][j][i].z * rho_f,
                                     centralVec
                                     (
                                         ucat[k][j][i], ucat[k+1][j][i]
@@ -694,7 +726,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
                                 
                                 div3[k][j][i] = nScale
                                 (
-                                    - ucont[k][j][i].z,
+                                    - ucont[k][j][i].z * rho_f,
                                     centralVec4thZet(mesh, k, j, i, mz, nvert, meshTag, ucat, ucont[k][j][i].z, ueqn->hyperVisc)
                                 );
                             }
@@ -702,7 +734,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
                             {
                                 div3[k][j][i] = nScale
                                 (
-                                    - ucont[k][j][i].z,
+                                    - ucont[k][j][i].z * rho_f,
                                     centralUpwindVec
                                     (
                                         ucat[kL][j][i], ucat[k][j][i], ucat[k+1][j][i], ucat[kR][j][i],
@@ -720,7 +752,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
 
                                 div3[k][j][i] = nScale
                                 (
-                                    - ucont[k][j][i].z,
+                                    - ucont[k][j][i].z * rho_f,
                                     wCentralUpwindVec
                                     (
                                         ucat[kL][j][i], ucat[k][j][i], ucat[k+1][j][i], ucat[kR][j][i],
@@ -734,7 +766,7 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
                             {
                                 div3[k][j][i] = nScale
                                 (
-                                    - ucont[k][j][i].z,
+                                    - ucont[k][j][i].z * rho_f,
                                     quadraticUpwindVec
                                     (
                                         ucat[kL][j][i], ucat[k][j][i], ucat[k+1][j][i], ucat[kR][j][i],
@@ -748,7 +780,16 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
                     // viscous accumulation (skip when conv-only)
                     if(formMode != 1)
                     {
-                        PetscReal nuEff, nu = cst->nu, nut;
+                        PetscReal nuEff, nut, nu;
+                        if(flags->isAeqnActive)
+                        {
+                            PetscReal alpha_face = 0.5 * (alpha[k][j][i] + alpha[k+1][j][i]);
+                            nu                   = alpha_face * cst->nuWater + (1.0 - alpha_face) * cst->nu;
+                        }
+                        else
+                        {
+                            nu = cst->nu;
+                        }
 
                         if
                         (
@@ -799,9 +840,9 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
                         }
 
                         // note: 1/J is the original term, here terms arrive already with a factor of 1/J^2 so actually we multiply for J (ajc)
-                        visc3[k][j][i].x += (g11 * dudc + g21 * dude + g31 * dudz + r11 * zet0 + r21 * zet1 + r31 * zet2) * ajc * (nuEff);
-                        visc3[k][j][i].y += (g11 * dvdc + g21 * dvde + g31 * dvdz + r12 * zet0 + r22 * zet1 + r32 * zet2) * ajc * (nuEff);
-                        visc3[k][j][i].z += (g11 * dwdc + g21 * dwde + g31 * dwdz + r13 * zet0 + r23 * zet1 + r33 * zet2) * ajc * (nuEff);
+                        visc3[k][j][i].x += (g11 * dudc + g21 * dude + g31 * dudz + r11 * zet0 + r21 * zet1 + r31 * zet2) * ajc * (nuEff*rho_f);
+                        visc3[k][j][i].y += (g11 * dvdc + g21 * dvde + g31 * dvdz + r12 * zet0 + r22 * zet1 + r32 * zet2) * ajc * (nuEff*rho_f);
+                        visc3[k][j][i].z += (g11 * dwdc + g21 * dwde + g31 * dwdz + r13 * zet0 + r23 * zet1 + r33 * zet2) * ajc * (nuEff*rho_f);
                     } 
                 }
             }
@@ -1034,18 +1075,11 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
         }
     }
 
-    if(ueqn->access->flags->isLesActive)
-    {
-        DMDAVecRestoreArray(da, les->lNu_t, &lnu_t);
-    }
+    DMDAVecRestoreArray(fda, ueqn->lUcont, &ucont);
+    DMDAVecRestoreArray(fda, ueqn->lUcat,  &ucat);
+    DMDAVecRestoreArray(fda, Rhs,  &rhs);
 
-    DMDAVecRestoreArray(fda, mesh->lCent,  &cent);
-
-    DMDAVecRestoreArray(da, mesh->lAj, &aj);
-    DMDAVecRestoreArray(da, mesh->lIAj, &iaj);
-    DMDAVecRestoreArray(da, mesh->lJAj, &jaj);
-    DMDAVecRestoreArray(da, mesh->lKAj, &kaj);
-
+    // restore fundamental distributed arrays
     DMDAVecRestoreArray(fda, mesh->lCsi, &csi);
     DMDAVecRestoreArray(fda, mesh->lEta, &eta);
     DMDAVecRestoreArray(fda, mesh->lZet, &zet);
@@ -1062,11 +1096,19 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
     DMDAVecRestoreArray(fda, mesh->lKEta, &keta);
     DMDAVecRestoreArray(fda, mesh->lKZet, &kzet);
 
+    DMDAVecRestoreArray(da, mesh->lAj, &aj);
+    DMDAVecRestoreArray(da, mesh->lIAj, &iaj);
+    DMDAVecRestoreArray(da, mesh->lJAj, &jaj);
+    DMDAVecRestoreArray(da, mesh->lKAj, &kaj);
+
+    DMDAVecRestoreArray(fda, mesh->lCent,  &cent);
+
     DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
     DMDAVecRestoreArray(da,  mesh->lmeshTag, &meshTag);
     DMDAVecRestoreArray(fda, mesh->fluxLimiter, &limiter);
 
     DMDAVecRestoreArray(fda, ueqn->lFp, &fp);
+
     DMDAVecRestoreArray(fda, ueqn->lDiv1, &div1);
     DMDAVecRestoreArray(fda, ueqn->lDiv2, &div2);
     DMDAVecRestoreArray(fda, ueqn->lDiv3, &div3);
@@ -1075,8 +1117,91 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
     DMDAVecRestoreArray(fda, ueqn->lVisc2, &visc2);
     DMDAVecRestoreArray(fda, ueqn->lVisc3, &visc3);
 
-    DMDAVecRestoreArray(fda, ueqn->lUcont, &ucont);
-    DMDAVecRestoreArray(fda, ueqn->lUcat,  &ucat);
+    if(ueqn->access->flags->isLesActive)
+    {
+        DMDAVecRestoreArray(da, les->lNu_t, &lnu_t);
+    }
+
+    if(flags->isAeqnActive)
+    {
+        DMDAVecRestoreArray(da,  ueqn->access->aeqn->lAlpha, &alpha);
+        DMDAVecRestoreArray(fda, ueqn->access->aeqn->lLambdaA, &lambda);
+        DMDAVecRestoreArray(fda, ueqn->access->aeqn->lRhoFace, &rhoFace);
+    }
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode ddtRhoRhs(ueqn_ *ueqn, Vec &Rhs)
+{
+    // computes 1/rho * RHS + rho_o/rho * ucont_o
+    abl_          *abl    = ueqn->access->abl;
+    mesh_         *mesh   = ueqn->access->mesh;
+    flags_        *flags  = ueqn->access->flags;
+    DM            da   = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
+
+    Cmpnts        ***rhs, ***ucont_o, ***rhoFace, ***rhoFace_o;
+
+    PetscInt      i, j, k;
+
+    // scatter old Ucont to local vector
+    DMGlobalToLocalBegin(fda, ueqn->Ucont_o, INSERT_VALUES, ueqn->lUcont_o);
+    DMGlobalToLocalEnd  (fda, ueqn->Ucont_o, INSERT_VALUES, ueqn->lUcont_o);
+
+    if(flags->isAeqnActive)
+    {
+        DMDAVecGetArray(fda, ueqn->access->aeqn->lRhoFace, &rhoFace);
+        DMDAVecGetArray(fda, ueqn->access->aeqn->lRhoFace_o, &rhoFace_o);
+    }
+
+    DMDAVecGetArray(fda, ueqn->lUcont_o, &ucont_o);
+    DMDAVecGetArray(fda, Rhs,  &rhs);
+
+    // loop over internal cell faces
+    for (k=zs; k<ze; k++)
+    {
+        for (j=ys; j<ye; j++)
+        {
+            for (i=xs; i<xe; i++)
+            {
+                if(i==mx-1 || j==my-1 || k==mz-1) continue;
+                
+                // i faces 
+                if(j!=0 && k!=0)
+                {
+                    rhs[k][j][i].x = (1.0/rhoFace[k][j][i].x) * rhs[k][j][i].x + (rhoFace_o[k][j][i].x/rhoFace[k][j][i].x) * ucont_o[k][j][i].x;
+
+                }
+                
+                // j faces
+                if(i!=0 && k!=0)
+                {
+                    rhs[k][j][i].y = (1.0/rhoFace[k][j][i].y) * rhs[k][j][i].y + (rhoFace_o[k][j][i].y/rhoFace[k][j][i].y) * ucont_o[k][j][i].y;
+                }
+
+                // k faces
+                if(i!=0 && j!=0)
+                {
+                    rhs[k][j][i].z = (1.0/rhoFace[k][j][i].z) * rhs[k][j][i].z + (rhoFace_o[k][j][i].z/rhoFace[k][j][i].z) * ucont_o[k][j][i].z;
+                }
+            }
+        }
+    }
+
+    if(flags->isAeqnActive)
+    {
+        DMDAVecRestoreArray(fda, ueqn->access->aeqn->lRhoFace, &rhoFace);
+        DMDAVecRestoreArray(fda, ueqn->access->aeqn->lRhoFace_o, &rhoFace_o);
+    }
+
+    DMDAVecRestoreArray(fda, ueqn->lUcont_o, &ucont_o);
     DMDAVecRestoreArray(fda, Rhs,  &rhs);
 
     return(0);
@@ -1100,6 +1225,13 @@ PetscErrorCode UeqnSNES(ueqn_ *ueqn)
 
     // 1. pressure gradient
     VecCopy(ueqn->dP, ueqn->bU);
+
+    // 1.1 density gradient for multiphase
+    if(ueqn->access->flags->isAeqnActive)
+    {
+        VecAXPY(ueqn->bU, -1.0, ueqn->access->aeqn->dRho);
+    }
+
     VecScale(ueqn->bU, -1.0);
 
     // 2. buoyancy (explicit for first step, AB2 for subsequent steps)
@@ -1264,10 +1396,18 @@ PetscErrorCode SNESFuncEval(SNES snes, Vec Ucont, Vec Rhs, void *ptr)
     // set the Rhs to zero at non-resolved cell faces (override numerical errors)
     resetNonResolvedCellFaces(mesh, Rhs);
 
-    // add time derivative term
-    VecAXPY(Rhs, -1.0, Ucont);
-    VecAXPY(Rhs,  1.0, ueqn->Ucont_o);
-
+    // add time derivative contribution
+    if(ueqn->access->flags->isAeqnActive)
+    {
+        ddtRhoRhs(ueqn, Rhs);
+        VecAXPY(Rhs, -1.0, Ucont);
+    }
+    else
+    {
+        VecAXPY(Rhs, -1.0, Ucont);
+        VecAXPY(Rhs,  1.0, ueqn->Ucont_o);
+    }
+    
     return(0);
 }
 
@@ -1306,6 +1446,18 @@ PetscErrorCode ExplicitRhsU(ueqn_ *ueqn, PetscInt formMode)
 
     // add pressure gradient term
     VecAXPY(ueqn->Rhs, -1.0, ueqn->dP);
+
+    // density gradient for multiphase
+    if(ueqn->access->flags->isAeqnActive)
+    {
+        VecAXPY(ueqn->Rhs, 1.0, ueqn->access->aeqn->dRho);
+    }
+
+    // density gravity for multiphase
+    if(ueqn->access->flags->isAeqnActive)
+    {
+        VecAXPY(ueqn->Rhs, 1.0, ueqn->access->aeqn->dRho);
+    }
 
     // add buoyancy gradient term
     if(ueqn->access->flags->isTeqnActive)
@@ -1425,7 +1577,14 @@ PetscErrorCode UeqnFE(ueqn_ *ueqn)
     VecScale(ueqn->Rhs, clock->dt);
 
     // add time derivative term
-    VecAXPY(ueqn->Rhs, 1, ueqn->Ucont_o);
+    if(ueqn->access->flags->isAeqnActive)
+    {
+        ddtRhoRhs(ueqn, ueqn->Rhs);
+    }
+    else
+    {
+        VecAXPY(ueqn->Rhs, 1, ueqn->Ucont_o);
+    }
 
     // store the solution
     VecCopy(ueqn->Rhs,  ueqn->Ucont);
@@ -1838,3 +1997,53 @@ PetscErrorCode IMEXMatGetDiagonal(Mat A, Vec diag)
 }
 
 //***************************************************************************************************************//
+
+PetscErrorCode AddMultRhoUcont(ueqn_ *ueqn, Vec Rho, Vec Ucont, Vec Result)
+{
+    mesh_            *mesh = ueqn->access->mesh;
+    DM               da = mesh->da, fda = mesh->fda;
+    DMDALocalInfo    info = mesh->info;
+    PetscInt         xs = info.xs, xe = info.xs + info.xm;
+    PetscInt         ys = info.ys, ye = info.ys + info.ym;
+    PetscInt         zs = info.zs, ze = info.zs + info.zm;
+    PetscInt         mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt         lxs, lxe, lys, lye, lzs, lze;
+    PetscInt         i, j, k;
+
+    Cmpnts           ***result, ***ucont, ***rho;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    DMDAVecGetArray(fda, Ucont,  &ucont);
+    DMDAVecGetArray(fda, Rho,    &rho);
+    DMDAVecGetArray(fda, Result, &result);
+
+    for (k=zs; k<ze; k++)
+    {
+        for (j=ys; j<ye; j++)
+        {
+            for (i=xs; i<xe; i++)
+            {
+                if(i==mx-1 || j==my-1 || k==mz-1) continue;
+
+                // i faces 
+                result[k][j][i].x += rho[k][j][i].x * ucont[k][j][i].x;
+                
+                // j faces
+                result[k][j][i].y += rho[k][j][i].y * ucont[k][j][i].y;
+                    
+                // k faces
+                result[k][j][i].z += rho[k][j][i].z * ucont[k][j][i].z;
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(fda, Result, &result);
+    DMDAVecRestoreArray(fda, Rho,    &rho);
+    DMDAVecRestoreArray(fda, Ucont,  &ucont);
+
+    return(0);
+}

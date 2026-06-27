@@ -49,7 +49,6 @@ struct peqn_
     // access
     access_            *access;                 //!< access database
     word               initFieldType;           //!< initial pressure field
-
 };
 
 #endif
@@ -107,6 +106,9 @@ PetscReal      L2NormPETSc(peqn_ *peqn, Mat &A, Vec &X, Vec &B);
 
 //! \brief Compute pressure gradient term
 PetscErrorCode GradP(peqn_ *peqn);
+
+//! \brief Compute density gradient term
+PetscErrorCode GradRho(peqn_ *peqn);
 
 //! \brief Compute 4th order pressure gradient term
 PetscErrorCode GradP4thOrder(peqn_ *peqn);

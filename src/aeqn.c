@@ -33,14 +33,22 @@ PetscErrorCode InitializeAEqn(aeqn_ *aeqn)
         // input file
         PetscOptionsInsertFile(mesh->MESH_COMM, PETSC_NULL, "control.dat", PETSC_TRUE);
 
+        // alpha fields
         VecDuplicate(mesh->Nvert, &(aeqn->AlphaTmp));    VecSet(aeqn->AlphaTmp, 0.0);
         VecDuplicate(mesh->Nvert, &(aeqn->Alpha));       VecSet(aeqn->Alpha,    0.0);
+        VecDuplicate(mesh->lAj,   &(aeqn->lAlpha));      VecSet(aeqn->lAlpha,   0.0);
         VecDuplicate(mesh->Nvert, &(aeqn->Alpha_o));     VecSet(aeqn->Alpha_o,  0.0);
         VecDuplicate(mesh->Nvert, &(aeqn->Rhs));         VecSet(aeqn->Rhs,      0.0);
-        VecDuplicate(mesh->lAj,   &(aeqn->lAlpha));      VecSet(aeqn->lAlpha,   0.0);
-        VecDuplicate(mesh->lAj,   &(aeqn->lAlpha_o));    VecSet(aeqn->lAlpha_o, 0.0);
+        
+        // density fields
+        VecDuplicate(mesh->lAj,   &(aeqn->lRho));        VecSet(aeqn->lRho,   0.0);
+        VecDuplicate(mesh->Cent,  &(aeqn->dRho));        VecSet(aeqn->dRho,      0.0);
+        VecDuplicate(mesh->lCent, &(aeqn->lRhoFace));    VecSet(aeqn->lRhoFace,0.0);
+        VecDuplicate(mesh->lCent, &(aeqn->lRhoFace_o));  VecSet(aeqn->lRhoFace_o,0.0);
 
+        // MULES fields
         VecDuplicate(mesh->lCent, &(aeqn->lDivA));       VecSet(aeqn->lDivA,    0.0);
+        VecDuplicate(mesh->lCent, &(aeqn->lDivALO));     VecSet(aeqn->lDivALO,  0.0);
         VecDuplicate(mesh->lCent, &(aeqn->lDivAHO));     VecSet(aeqn->lDivAHO,  0.0);
         VecDuplicate(mesh->lCent, &(aeqn->lDivACor));    VecSet(aeqn->lDivACor, 0.0);
         VecDuplicate(mesh->lCent, &(aeqn->lLambdaA));    VecSet(aeqn->lLambdaA, 1.0);
@@ -48,9 +56,13 @@ PetscErrorCode InitializeAEqn(aeqn_ *aeqn)
         VecDuplicate(mesh->lAj,   &(aeqn->lRplusA));     VecSet(aeqn->lRplusA,  1.0);
         VecDuplicate(mesh->lAj,   &(aeqn->lRminusA));    VecSet(aeqn->lRminusA, 1.0);
 
-        // mules: always active, 3 limiter sweeps by default
+        // MULES sweeps (currently only one sweep)
         aeqn->mulesIter = 3;
         PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-mulesIter", &(aeqn->mulesIter), PETSC_NULL);
+
+        // numerical compression coefficient
+        aeqn->compCoeff = 0.2;
+        PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, "-alphaCompCoeff",  &(aeqn->compCoeff), PETSC_NULL);
 
         // read time discretization scheme
         readDictWord("control.dat", "-dAdtScheme", &(aeqn->ddtScheme));
@@ -74,11 +86,12 @@ PetscErrorCode InitializeAEqn(aeqn_ *aeqn)
 
             // create jacobian matrix
             MatCreateSNESMF(aeqn->snesA, &(aeqn->JA));
+            MatMFFDSetType (aeqn->JA, MATMFFD_WP);
             SNESSetJacobian(aeqn->snesA, aeqn->JA, aeqn->JA, MatMFFDComputeJacobian, (void *)aeqn);
 
             // set SNES solver type
-            SNESSetType(aeqn->snesA, SNESNEWTONTR);           //SNESTR
-            //SNESSetType(aeqn->snesA, SNESNEWTONLS);         //SNESLS is better for stiff PDEs such as the one including IB but slower
+            SNESSetType(aeqn->snesA, SNESNEWTONTR);          // trust region: more robust when linear solve is imperfect
+            //SNESSetType(aeqn->snesA, SNESNEWTONLS);
 
             // set SNES solve and step failures
             SNESSetMaxLinearSolveFailures  (aeqn->snesA,10000);
@@ -96,20 +109,10 @@ PetscErrorCode InitializeAEqn(aeqn_ *aeqn)
             // 6th arg: maximum function evaluations
             SNESSetTolerances(aeqn->snesA, aeqn->absExitTol, aeqn->relExitTol, 1e-30, 20, 1000);
 
+            // KSP solver
             SNESGetKSP(aeqn->snesA, &(aeqn->ksp));
             KSPGetPC  (aeqn->ksp,&(aeqn->pc));
-
-            // set KSP solver type (default to GMRES)
             KSPSetType(aeqn->ksp, KSPGMRES);
-
-            //KSPSetInitialGuessNonzero(ksp, PETSC_TRUE);    //2009.09.22 poor performance
-            //KSPSetInitialGuessKnoll(ksp, PETSC_TRUE);      //2009.09.22
-
-            //KSPFischerGuess itg;
-            //KSPFischerGuessCreate(ksp,1,100,&itg);
-            //KSPSetFischerGuess(ksp, itg);                  //2009.09.22
-
-            //KSPGMRESSetPreAllocateVectors(ksp);            --> crazy thing consumes memory
 
             // maybe one day add a preconditioner (at least Jacobi)
             PCSetType(aeqn->pc, PCNONE);
@@ -158,15 +161,412 @@ PetscErrorCode SolveAEqn(aeqn_ *aeqn)
     else if (aeqn->ddtScheme=="RK4")
         AeqnRK4(aeqn);
 
+    boundAlpha(aeqn);
+
+    // reset periodic cell values
     resetCellPeriodicFluxes(mesh, aeqn->Alpha, aeqn->lAlpha, "scalar", "globalToLocal");
 
-    // compute min max of alpha water for logging
+    // print min max of alpha water for logging
     PetscReal alphaMin, alphaMax;
     VecMin(aeqn->Alpha, NULL, &alphaMin);
     VecMax(aeqn->Alpha, NULL, &alphaMax);
-    PetscPrintf(mesh->MESH_COMM, "Alpha-Water min = %e, max = %e\n", alphaMin, alphaMax);
+    PetscPrintf(mesh->MESH_COMM, "Alpha-Water min = %.5f, max = %.5f\n", alphaMin, alphaMax);
 
     return(0);
 }
 
 //***************************************************************************************************************//
+
+PetscErrorCode boundAlpha(aeqn_ *aeqn)
+{
+    mesh_         *mesh  = aeqn->access->mesh;
+    DM            da     = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info   = mesh->info;
+    PetscInt      xs     = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys     = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs     = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx     = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      i, j, k;
+
+    PetscReal     ***alpha;
+
+    DMDAVecGetArray(da,  aeqn->Alpha, &alpha);
+
+    for (k=zs; k<ze; k++)
+    {
+        for (j=ys; j<ye; j++)
+        {
+            for (i=xs; i<xe; i++)
+            {
+                alpha[k][j][i] = PetscMax(0.0, PetscMin(1.0, alpha[k][j][i]));
+            }
+        }
+    }
+
+    // scatter to global to local 
+    DMGlobalToLocalBegin(da, aeqn->Alpha, INSERT_VALUES, aeqn->lAlpha);
+    DMGlobalToLocalEnd  (da, aeqn->Alpha, INSERT_VALUES, aeqn->lAlpha);
+
+    DMDAVecRestoreArray(da,  aeqn->Alpha, &alpha);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode GradRho(aeqn_ *aeqn)
+{
+    mesh_         *mesh = aeqn->access->mesh;
+    ueqn_         *ueqn = aeqn->access->ueqn;
+    DM            da    = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info  = mesh->info;
+    PetscInt      xs    = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys    = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs    = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx    = info.mx, my = info.my, mz = info.mz;
+
+    Cmpnts        ***icsi, ***ieta, ***izet,
+                  ***jcsi, ***jeta, ***jzet,
+                  ***kcsi, ***keta, ***kzet,
+                  ***drho, ***cent;
+
+    PetscReal     ***rho, ***nvert, ***meshTag;
+    PetscReal     ***iaj, ***jaj, ***kaj;
+
+    Cmpnts        gravity  = nSet(aeqn->access->constants->gravity);
+    Cmpnts        vertical = nUnit(nScale(-1.0, gravity));
+    PetscReal     Href     = aeqn->access->constants->Href;
+
+    PetscInt      i, j, k;
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+
+    PetscReal     drdc, drde, drdz;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    PetscInt periodic_i = mesh->i_periodic + mesh->ii_periodic,
+             periodic_j = mesh->j_periodic + mesh->jj_periodic,
+             periodic_k = mesh->k_periodic + mesh->kk_periodic;
+
+    VecSet(aeqn->dRho, 0.0);
+
+    DMDAVecGetArray(fda, mesh->lICsi, &icsi);
+    DMDAVecGetArray(fda, mesh->lIEta, &ieta);
+    DMDAVecGetArray(fda, mesh->lIZet, &izet);
+    DMDAVecGetArray(fda, mesh->lJCsi, &jcsi);
+    DMDAVecGetArray(fda, mesh->lJEta, &jeta);
+    DMDAVecGetArray(fda, mesh->lJZet, &jzet);
+    DMDAVecGetArray(fda, mesh->lKCsi, &kcsi);
+    DMDAVecGetArray(fda, mesh->lKEta, &keta);
+    DMDAVecGetArray(fda, mesh->lKZet, &kzet);
+    DMDAVecGetArray(da,  mesh->lNvert,&nvert);
+    DMDAVecGetArray(da,  mesh->lmeshTag,&meshTag);
+    DMDAVecGetArray(da,  mesh->lIAj,  &iaj);
+    DMDAVecGetArray(da,  mesh->lJAj,  &jaj);
+    DMDAVecGetArray(da,  mesh->lKAj,  &kaj);
+    DMDAVecGetArray(fda, mesh->lCent, &cent);
+
+    DMDAVecGetArray(fda, aeqn->dRho, &drho);
+    DMDAVecGetArray(da,  aeqn->lRho, &rho);
+
+    PetscReal coeff_i, coeff_j, coeff_k;
+    Cmpnts    cent_f;
+
+    for (k=lzs; k<lze; k++)
+    {
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+                PetscReal g11_i = (icsi[k][j][i].x * icsi[k][j][i].x + icsi[k][j][i].y * icsi[k][j][i].y + icsi[k][j][i].z * icsi[k][j][i].z);
+                PetscReal g12_i = (ieta[k][j][i].x * icsi[k][j][i].x + ieta[k][j][i].y * icsi[k][j][i].y + ieta[k][j][i].z * icsi[k][j][i].z);
+                PetscReal g13_i = (izet[k][j][i].x * icsi[k][j][i].x + izet[k][j][i].y * icsi[k][j][i].y + izet[k][j][i].z * icsi[k][j][i].z);
+                PetscReal g21_j = (jcsi[k][j][i].x * jeta[k][j][i].x + jcsi[k][j][i].y * jeta[k][j][i].y + jcsi[k][j][i].z * jeta[k][j][i].z);
+                PetscReal g22_j = (jeta[k][j][i].x * jeta[k][j][i].x + jeta[k][j][i].y * jeta[k][j][i].y + jeta[k][j][i].z * jeta[k][j][i].z);
+                PetscReal g23_j = (jzet[k][j][i].x * jeta[k][j][i].x + jzet[k][j][i].y * jeta[k][j][i].y + jzet[k][j][i].z * jeta[k][j][i].z);
+                PetscReal g31_k = (kcsi[k][j][i].x * kzet[k][j][i].x + kcsi[k][j][i].y * kzet[k][j][i].y + kcsi[k][j][i].z * kzet[k][j][i].z);
+                PetscReal g32_k = (keta[k][j][i].x * kzet[k][j][i].x + keta[k][j][i].y * kzet[k][j][i].y + keta[k][j][i].z * kzet[k][j][i].z);
+                PetscReal g33_k = (kzet[k][j][i].x * kzet[k][j][i].x + kzet[k][j][i].y * kzet[k][j][i].y + kzet[k][j][i].z * kzet[k][j][i].z);
+
+                // density gradient in the i-direction
+                if( i==mx-2 && mesh->ii_periodic)
+                {
+                    drdc = rho[k][j][mx+1] - rho[k][j][i];
+                }
+                else
+                {
+                    drdc = rho[k][j][i+1] - rho[k][j][i];
+                }
+
+                if
+                (
+                    // j-right boundary -> use upwind only at the corner faces
+                    (
+                        j==my-2 &&
+                        (
+                            i==mx-2
+                        )
+                    ) || isOversetIFace(k, j+1, i, i+1, meshTag)
+                )
+                {
+                    drde = (rho[k][j  ][i  ] - rho[k][j-1][i  ] + rho[k][j  ][i+1] - rho[k][j-1][i+1]) * 0.5;
+                }
+                else if
+                (
+                    // j-left boundary -> use upwind  only at the corner faces
+                    (
+                        j == 1 &&
+                        (
+                            i == mx - 2
+                        )
+                     ) || isOversetIFace(k, j-1, i, i+1, meshTag)
+                )
+                {
+                    drde = (rho[k][j+1][i  ] - rho[k][j  ][i  ] + rho[k][j+1][i+1] - rho[k][j  ][i+1]) * 0.5;
+                }
+                else
+                {
+                    drde = (rho[k][j+1][i] - rho[k][j-1][i] + rho[k][j+1][i+1] - rho[k][j-1][i+1]) * 0.25;
+                }
+
+                if
+                (
+                    // k-right boundary -> use upwind  only at the corner faces
+                    (
+                        k == mz - 2 &&
+                        (
+                            i==mx-2
+                        )
+                    ) || isOversetIFace(k+1, j, i, i+1, meshTag)
+                )
+                {
+                    drdz = (rho[k][j][i  ] - rho[k-1][j][i  ] + rho[k][j][i+1] - rho[k-1][j][i+1]) * 0.5;
+                }
+                else if
+                (
+                    // k-left boundary  -> use upwind  only at the corner faces
+                    (
+                        k == 1 &&
+                        (
+                            i==mx-2
+                        )
+                    ) || isOversetIFace(k-1, j, i, i+1, meshTag)
+                )
+                {
+                    drdz = (rho[k+1][j][i  ] - rho[k][j][i  ] + rho[k+1][j][i+1] - rho[k][j][i+1]) * 0.5;
+                }
+                else
+                {
+                    drdz = (rho[k+1][j][i] - rho[k-1][j][i] + rho[k+1][j][i+1] - rho[k-1][j][i+1]) * 0.25;
+                }  
+
+                cent_f  = nScale(0.5, nSum(cent[k][j][i], cent[k][j][i+1]));
+                coeff_i = nMag(gravity)*(nDot(vertical, cent_f) - Href);
+
+                drho[k][j][i].x = (drdc * g11_i + drde *  g12_i + drdz * g13_i) * iaj[k][j][i] * coeff_i;
+
+                // pressure gradient in the j-direction
+                if
+                (
+                    // i-right boundary -> use upwind  only at the corner faces
+                    (
+                        i == mx-2 &&
+                        (
+                            j==my-2
+                        )
+                    ) || isOversetJFace(k, j, i+1, j+1, meshTag)
+                )
+                {
+                    drdc = (rho[k][j  ][i] - rho[k][j  ][i-1] + rho[k][j+1][i] - rho[k][j+1][i-1]) * 0.5;
+                }
+                else if
+                (
+                    // i-left boundary -> use upwind  only at the corner faces
+                    (
+                        i == 1 &&
+                        (
+                            j==my-2
+                        )
+                    ) || isOversetJFace(k, j, i-1, j+1, meshTag)
+                )
+                {
+                    drdc = (rho[k][j  ][i+1] - rho[k][j  ][i] + rho[k][j+1][i+1] - rho[k][j+1][i]) * 0.5;
+                }
+                else
+                {
+                    drdc = (rho[k][j  ][i+1] - rho[k][j  ][i-1] + rho[k][j+1][i+1] - rho[k][j+1][i-1]) * 0.25;
+                }
+
+                if( j==my-2 && mesh->jj_periodic)
+                {
+                    drde = rho[k][my+1][i] - rho[k][j][i];
+                }
+                else
+                {
+                    drde = rho[k][j+1][i] - rho[k][j][i];
+                }
+
+                if
+                (
+                    // k-right boundary -> use upwind  only at the corner faces
+                    (
+                        k == mz-2 &&
+                        (
+                            j== my-2
+                        )
+                    ) || isOversetJFace(k+1, j, i, j+1, meshTag)
+                )
+                {
+                    drdz = (rho[k][j  ][i] - rho[k-1][j  ][i] + rho[k][j+1][i] - rho[k-1][j+1][i]) * 0.5;
+                }
+                else if
+                (
+                    // k-left boundary -> use upwind  only at the corner faces
+                    (
+                        k == 1 &&
+                        (
+                            j== my-2
+                        )
+                    ) || isOversetJFace(k-1, j, i, j+1, meshTag)
+                )
+                {
+                    drdz = (rho[k+1][j  ][i] - rho[k][j  ][i] + rho[k+1][j+1][i] - rho[k][j+1][i]) * 0.5;
+                }
+                else
+                {
+                    drdz = (rho[k+1][j  ][i] - rho[k-1][j  ][i] + rho[k+1][j+1][i] - rho[k-1][j+1][i]) * 0.25;
+                }
+                
+                cent_f  = nScale(0.5, nSum(cent[k][j][i], cent[k][j+1][i]));
+                coeff_j = nMag(gravity)*(nDot(vertical, cent_f) - Href);
+
+                drho[k][j][i].y = (drdc * g21_j + drde * g22_j + drdz * g23_j) * jaj[k][j][i] * coeff_j;
+
+                // pressure gradient in the k-direction
+                if
+                (
+                    // i-right boundary -> use upwind  only at the corner faces
+                    (
+                        i == mx - 2 &&
+                        (
+                            k==mz-2
+                        )
+                    ) || isOversetKFace(k, j, i+1, k+1, meshTag)
+                )
+                {
+                    drdc = (rho[k  ][j][i] - rho[k  ][j][i-1] + rho[k+1][j][i] - rho[k+1][j][i-1]) * 0.5;
+                }
+                else if
+                (
+                    // i-left boundary -> use upwind  only at the corner faces
+                    (
+                        i == 1 &&
+                        (
+                            k == mz - 2
+                        )
+                    ) || isOversetKFace(k, j, i-1, k+1, meshTag)
+                )
+                {
+                    drdc = (rho[k  ][j][i+1] - rho[k  ][j][i] + rho[k+1][j][i+1] - rho[k+1][j][i]) * 0.5;
+                }
+                else
+                {
+                    drdc = (rho[k  ][j][i+1] - rho[k  ][j][i-1] + rho[k+1][j][i+1] - rho[k+1][j][i-1]) * 0.25;
+                }
+
+                if
+                (
+                    // j-right boundary -> use upwind  only at the corner faces
+                    (
+                        j == my - 2 &&
+                        (
+                            k==mz-2
+                        )
+                    ) || isOversetKFace(k, j+1, i, k+1, meshTag)
+                )
+                {
+                    drde = (rho[k  ][j][i] - rho[k  ][j-1][i] + rho[k+1][j][i] - rho[k+1][j-1][i]) * 0.5;
+                }
+                else if
+                (
+                    // j-left boundary -> use upwind  only at the corner faces
+                    (
+                        j == 1 &&
+                        (
+                            k==mz-2
+                        )
+                    )  || isOversetKFace(k, j-1, i, k+1, meshTag)
+                )
+                {
+                    drde = (rho[k  ][j+1][i] - rho[k  ][j][i] + rho[k+1][j+1][i] - rho[k+1][j][i]) * 0.5;
+                }
+                else
+                {
+                    drde = (rho[k  ][j+1][i] - rho[k  ][j-1][i] + rho[k+1][j+1][i] - rho[k+1][j-1][i]) * 0.25;
+                }
+
+                if( k==mz-2 && mesh->kk_periodic)
+                {
+                    drdz = rho[mz+1][j][i] - rho[k][j][i];
+                }
+                else
+                {
+                    drdz = (rho[k+1][j][i] - rho[k][j][i]);
+                }
+                   
+                cent_f  = nScale(0.5, nSum(cent[k][j][i], cent[k+1][j][i]));
+                coeff_k = nMag(gravity)*(nDot(vertical, cent_f) - Href);
+
+                drho[k][j][i].z = (drdc * g31_k + drde * g32_k + drdz * g33_k) * kaj[k][j][i] * coeff_k;
+
+                // periodic: set to zero only on left boundaries since the contrav. velocity is not solved there
+                // non-periodic: set to zero also on right boundaries since the contrav. velocity is not solved there
+                if
+                (
+                    i==0 || (!mesh->i_periodic && !mesh->ii_periodic && i==mx-2) || isOversetIFace(k, j, i, i+1, meshTag)
+                )
+                {
+                    drho[k][j][i].x = 0;
+                }
+                if
+                (
+                    j==0 || (!mesh->j_periodic && !mesh->jj_periodic && j==my-2) || isOversetJFace(k, j, i, j+1, meshTag)
+                )
+                {
+                    drho[k][j][i].y = 0;
+                }
+                if
+                (
+                    k==0 || (!mesh->k_periodic && !mesh->kk_periodic && k==mz-2) || isOversetKFace(k, j, i, k+1, meshTag)
+                )
+                {
+                    drho[k][j][i].z = 0;
+                }
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(fda, mesh->lICsi, &icsi);
+    DMDAVecRestoreArray(fda, mesh->lIEta, &ieta);
+    DMDAVecRestoreArray(fda, mesh->lIZet, &izet);
+    DMDAVecRestoreArray(fda, mesh->lJCsi, &jcsi);
+    DMDAVecRestoreArray(fda, mesh->lJEta, &jeta);
+    DMDAVecRestoreArray(fda, mesh->lJZet, &jzet);
+    DMDAVecRestoreArray(fda, mesh->lKCsi, &kcsi);
+    DMDAVecRestoreArray(fda, mesh->lKEta, &keta);
+    DMDAVecRestoreArray(fda, mesh->lKZet, &kzet);
+    DMDAVecRestoreArray(da,  mesh->lNvert,&nvert);
+    DMDAVecRestoreArray(da,  mesh->lmeshTag,&meshTag);
+    DMDAVecRestoreArray(da,  mesh->lIAj,  &iaj);
+    DMDAVecRestoreArray(da,  mesh->lJAj,  &jaj);
+    DMDAVecRestoreArray(da,  mesh->lKAj,  &kaj);
+    DMDAVecRestoreArray(fda, mesh->lCent, &cent);
+
+    DMDAVecRestoreArray(fda, aeqn->dRho, &drho);
+    DMDAVecRestoreArray(da,  aeqn->lRho, &rho);
+
+    return(0);
+}

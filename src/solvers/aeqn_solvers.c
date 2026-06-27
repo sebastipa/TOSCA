@@ -6,7 +6,6 @@
 PetscErrorCode FormALowOrder(aeqn_ *aeqn)
 {
     // compute first-order upwind face fluxes and store in lDivA
-    // divergence accumulation is done separately in ComputeLowOrderUpdate / ApplyMULESLimiter
 
     mesh_         *mesh  = aeqn->access->mesh;
     ueqn_         *ueqn  = aeqn->access->ueqn;
@@ -25,8 +24,8 @@ PetscErrorCode FormALowOrder(aeqn_ *aeqn)
     DMDAVecGetArray(da,  aeqn->lAlpha,  &alpha);
     DMDAVecGetArray(fda, ueqn->lUcont,  &ucont);
 
-    VecSet(aeqn->lDivA, 0.0);
-    DMDAVecGetArray(fda, aeqn->lDivA, &div);
+    VecSet(aeqn->lDivALO, 0.0);
+    DMDAVecGetArray(fda, aeqn->lDivALO, &div);
 
     // ---------------------------------------------------------------------- //
     //                  upwind face flux assembly (i, j, k)                   //
@@ -52,14 +51,14 @@ PetscErrorCode FormALowOrder(aeqn_ *aeqn)
         }
     }
 
-    DMDAVecRestoreArray(fda, aeqn->lDivA, &div);
+    DMDAVecRestoreArray(fda, aeqn->lDivALO, &div);
     DMDAVecRestoreArray(da,  aeqn->lAlpha, &alpha);
     DMDAVecRestoreArray(fda, ueqn->lUcont, &ucont);
 
-    DMLocalToLocalBegin(fda, aeqn->lDivA, INSERT_VALUES, aeqn->lDivA);
-    DMLocalToLocalEnd  (fda, aeqn->lDivA, INSERT_VALUES, aeqn->lDivA);
+    DMLocalToLocalBegin(fda, aeqn->lDivALO, INSERT_VALUES, aeqn->lDivALO);
+    DMLocalToLocalEnd  (fda, aeqn->lDivALO, INSERT_VALUES, aeqn->lDivALO);
 
-    resetFacePeriodicFluxesVector(mesh, aeqn->lDivA, aeqn->lDivA, "localToLocal");
+    resetFacePeriodicFluxesVector(mesh, aeqn->lDivALO, aeqn->lDivALO, "localToLocal");
 
     return(0);
 }
@@ -69,7 +68,6 @@ PetscErrorCode FormALowOrder(aeqn_ *aeqn)
 PetscErrorCode FormAHighOrder(aeqn_ *aeqn)
 {
     // compute fourth-order central face fluxes and store in lDivAHO
-    // falls back to second-order central at overset interpolated faces
 
     mesh_         *mesh  = aeqn->access->mesh;
     ueqn_         *ueqn  = aeqn->access->ueqn;
@@ -93,10 +91,6 @@ PetscErrorCode FormAHighOrder(aeqn_ *aeqn)
     VecSet(aeqn->lDivAHO, 0.0);
     DMDAVecGetArray(fda, aeqn->lDivAHO, &div);
 
-    // ---------------------------------------------------------------------- //
-    //               central4 face flux assembly (i, j, k)                   //
-    // ---------------------------------------------------------------------- //
-
     for (k=zs; k<ze; k++)
     {
         for (j=ys; j<ye; j++)
@@ -118,6 +112,7 @@ PetscErrorCode FormAHighOrder(aeqn_ *aeqn)
                         PetscReal denom;
                         getFace2Cell4StencilCsi(mesh, k, j, i, mx, &iL, &iR, &denom, nvert, meshTag);
                         div[k][j][i].x = -ucont[k][j][i].x * central4(alpha[k][j][iL], alpha[k][j][i], alpha[k][j][i+1], alpha[k][j][iR]);
+                        //div[k][j][i].x = -ucont[k][j][i].x * central(alpha[k][j][i], alpha[k][j][i+1]);
                     }
                 }
 
@@ -134,6 +129,7 @@ PetscErrorCode FormAHighOrder(aeqn_ *aeqn)
                         PetscReal denom;
                         getFace2Cell4StencilEta(mesh, k, j, i, my, &jL, &jR, &denom, nvert, meshTag);
                         div[k][j][i].y = -ucont[k][j][i].y * central4(alpha[k][jL][i], alpha[k][j][i], alpha[k][j+1][i], alpha[k][jR][i]);
+                        //div[k][j][i].y = -ucont[k][j][i].y * central(alpha[k][j][i], alpha[k][j+1][i]);
                     }
                 }
 
@@ -150,13 +146,14 @@ PetscErrorCode FormAHighOrder(aeqn_ *aeqn)
                         PetscReal denom;
                         getFace2Cell4StencilZet(mesh, k, j, i, mz, &kL, &kR, &denom, nvert, meshTag);
                         div[k][j][i].z = -ucont[k][j][i].z * central4(alpha[kL][j][i], alpha[k][j][i], alpha[k+1][j][i], alpha[kR][j][i]);
+                        //div[k][j][i].z = -ucont[k][j][i].z * central(alpha[k][j][i], alpha[k+1][j][i]);
                     }
                 }
             }
         }
     }
 
-    DMDAVecRestoreArray(fda, aeqn->lDivAHO,  &div);
+    DMDAVecRestoreArray(fda, aeqn->lDivAHO,   &div);
     DMDAVecRestoreArray(da,  aeqn->lAlpha,    &alpha);
     DMDAVecRestoreArray(fda, ueqn->lUcont,    &ucont);
     DMDAVecRestoreArray(da,  mesh->lNvert,    &nvert);
@@ -174,8 +171,9 @@ PetscErrorCode FormAHighOrder(aeqn_ *aeqn)
 
 PetscErrorCode ComputeLowOrderUpdate(aeqn_ *aeqn)
 {
-    // provisional low-order cell update: alpha_LO = alpha - dt * aj * divBudget_LO
-    // clips to [0,1] and syncs ghosts for use in the mules limiter
+    // provisional low-order cell update: alpha_LO = alpha + dt * aj * divBudget_LO
+    // divBudget is net inflow (positive) because FormALowOrder stores -u*alpha at each face
+    // clips to [0,1] and syncs ghosts for use in the mules limiter R+/R- bounds
 
     mesh_         *mesh  = aeqn->access->mesh;
     clock_        *clock = aeqn->access->clock;
@@ -201,7 +199,7 @@ PetscErrorCode ComputeLowOrderUpdate(aeqn_ *aeqn)
     DMDAVecGetArray(da,  aeqn->lAlpha,   &alpha);
     DMDAVecGetArray(da,  aeqn->lAlphaLO, &alphaLO);
     DMDAVecGetArray(da,  mesh->lAj,      &aj);
-    DMDAVecGetArray(fda, aeqn->lDivA,    &div);
+    DMDAVecGetArray(fda, aeqn->lDivALO,  &div);
 
     for (k=lzs; k<lze; k++)
     {
@@ -214,8 +212,8 @@ PetscErrorCode ComputeLowOrderUpdate(aeqn_ *aeqn)
                     div[k][j][i].y - div[k][j-1][i].y +
                     div[k][j][i].z - div[k-1][j][i].z;
 
-                // clip to [0,1] for the provisional estimate used by the limiter budgets
-                alphaLO[k][j][i] = PetscMax(0.0, PetscMin(1.0, alpha[k][j][i] - dt * aj[k][j][i] * divBudget));
+                // provisional low-order update: alpha + dt * inflow_rate
+                alphaLO[k][j][i] = PetscMax(0.0, PetscMin(1.0, alpha[k][j][i] + dt * aj[k][j][i] * divBudget));
             }
         }
     }
@@ -223,7 +221,7 @@ PetscErrorCode ComputeLowOrderUpdate(aeqn_ *aeqn)
     DMDAVecRestoreArray(da,  aeqn->lAlpha,   &alpha);
     DMDAVecRestoreArray(da,  aeqn->lAlphaLO, &alphaLO);
     DMDAVecRestoreArray(da,  mesh->lAj,      &aj);
-    DMDAVecRestoreArray(fda, aeqn->lDivA,    &div);
+    DMDAVecRestoreArray(fda, aeqn->lDivALO,  &div);
 
     // sync ghost cells so neighboring processors can read alpha_LO
     DMLocalToLocalBegin(da, aeqn->lAlphaLO, INSERT_VALUES, aeqn->lAlphaLO);
@@ -236,10 +234,275 @@ PetscErrorCode ComputeLowOrderUpdate(aeqn_ *aeqn)
 
 PetscErrorCode AddCompressionFlux(aeqn_ *aeqn)
 {
-    // compression flux is 
-    // div ( - uc_face dot face_normal) times alpha_face * (1 - alpha_face)
+    mesh_         *mesh  = aeqn->access->mesh;
+    ueqn_         *ueqn  = aeqn->access->ueqn;
+    DM            da     = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info   = mesh->info;
+    PetscInt      xs     = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys     = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs     = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx     = info.mx, my = info.my, mz = info.mz;
 
-    // where uc_face = c * mag_u_face * grad_alpha_face / mag_grad_alpha_face
+    Vec           GradA, AlphaSmooth;
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k;
+
+    PetscReal     dadcsi, dadeta, dadzet;                                        // alpha der. w.r.t. curvil. coords, 
+    PetscReal     dadx, dady, dadz;                                              // alpha der. w.r.t. cart. coords
+    PetscReal     csi0, csi1, csi2, eta0, eta1, eta2, zet0, zet1, zet2;          // surface area vectors components
+    PetscReal     g11, g21, g31;                                                 // metric tensor components
+    
+    PetscReal     ***aj  , ***iaj , ***jaj , ***kaj;
+    Cmpnts        ***csi , ***eta , ***zet ;
+    Cmpnts        ***icsi, ***ieta, ***izet;
+    Cmpnts        ***jcsi, ***jeta, ***jzet;
+    Cmpnts        ***kcsi, ***keta, ***kzet;
+
+    PetscReal     ***alpha, ***alpha_smooth, ***nvert, ***meshTag;
+    Cmpnts        ***ucont, ***ucatc, ***div, ***gradAlpha;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    // get numerical compression coefficient
+    PetscReal compcoeff = aeqn->compCoeff; 
+
+    VecDuplicate(mesh->lCent,  &GradA);
+    VecDuplicate(aeqn->lAlpha, &AlphaSmooth);
+    VecSet(GradA, 0.0);
+    VecSet(AlphaSmooth, 0.0);
+
+    DMDAVecGetArray(fda, mesh->lCsi,        &csi);
+    DMDAVecGetArray(fda, mesh->lEta,        &eta);
+    DMDAVecGetArray(fda, mesh->lZet,        &zet);
+    DMDAVecGetArray(fda, mesh->lICsi,       &icsi);
+    DMDAVecGetArray(fda, mesh->lIEta,       &ieta);
+    DMDAVecGetArray(fda, mesh->lIZet,       &izet);
+    DMDAVecGetArray(fda, mesh->lJCsi,       &jcsi);
+    DMDAVecGetArray(fda, mesh->lJEta,       &jeta);
+    DMDAVecGetArray(fda, mesh->lJZet,       &jzet);
+    DMDAVecGetArray(fda, mesh->lKCsi,       &kcsi);
+    DMDAVecGetArray(fda, mesh->lKEta,       &keta);
+    DMDAVecGetArray(fda, mesh->lKZet,       &kzet);
+    DMDAVecGetArray(da,  mesh->lAj,         &aj);
+    DMDAVecGetArray(da,  mesh->lIAj,        &iaj);
+    DMDAVecGetArray(da,  mesh->lJAj,        &jaj);
+    DMDAVecGetArray(da,  mesh->lKAj,        &kaj);
+
+    DMDAVecGetArray(fda, ueqn->lUcont,     &ucont);
+    DMDAVecGetArray(da,  aeqn->lAlpha,     &alpha);
+    DMDAVecGetArray(da,  mesh->lNvert,     &nvert);
+    DMDAVecGetArray(da,  mesh->lmeshTag,   &meshTag);
+    DMDAVecGetArray(fda, aeqn->lDivAHO,    &div);
+
+    DMDAVecGetArray(da,  AlphaSmooth,      &alpha_smooth);
+
+    // step 0: smooth alpha by averaging over a 3x3x3 stencil
+    for (k=lzs; k<lze; k++)
+    {
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+                PetscReal sum = 0.0;
+                for (PetscInt kk=-1; kk<=1; kk++)
+                {
+                    for (PetscInt jj=-1; jj<=1; jj++)
+                    {
+                        for (PetscInt ii=-1; ii<=1; ii++)
+                        {
+                            sum += alpha[k+kk][j+jj][i+ii];
+                        }
+                    }
+                }
+                alpha_smooth[k][j][i] = sum / 27.0;
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(da,  AlphaSmooth,      &alpha_smooth);
+
+    // sync ghost cells so neighboring processors can read GradA
+    DMLocalToLocalBegin(da, AlphaSmooth, INSERT_VALUES, AlphaSmooth);
+    DMLocalToLocalEnd  (da, AlphaSmooth, INSERT_VALUES, AlphaSmooth);
+
+
+    DMDAVecGetArray(fda, GradA,       &gradAlpha);
+    DMDAVecGetArray(da,  AlphaSmooth, &alpha_smooth);
+
+    // step 1: compute alpha gradient at cell centers 
+    for (k=lzs; k<lze; k++)
+    {
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+                // get 1/V at the i-face
+                PetscReal ajc = aj[k][j][i];
+
+                // get face normals
+                csi0 = csi[k][j][i].x, csi1 = csi[k][j][i].y, csi2 = csi[k][j][i].z;
+                eta0 = eta[k][j][i].x, eta1 = eta[k][j][i].y, eta2 = eta[k][j][i].z;
+                zet0 = zet[k][j][i].x, zet1 = zet[k][j][i].y, zet2 = zet[k][j][i].z;
+
+                // compute metric tensor
+                g11 = csi0 * csi0 + csi1 * csi1 + csi2 * csi2;
+                g21 = eta0 * csi0 + eta1 * csi1 + eta2 * csi2;
+                g31 = zet0 * csi0 + zet1 * csi1 + zet2 * csi2;
+
+                Compute_dscalar_center
+                (
+                    mesh,
+                    i, j, k,  mx, my, mz,
+                    alpha_smooth, nvert, meshTag, 
+                    &dadcsi, &dadeta, &dadzet
+                );
+
+                Compute_dscalar_dxyz
+                (
+                    mesh,
+                    csi0, csi1, csi2,
+                    eta0, eta1, eta2,
+                    zet0, zet1, zet2,
+                    ajc,
+                    dadcsi, dadeta, dadzet,
+                    &dadx, &dady, &dadz
+                );
+
+                gradAlpha[k][j][i].x = dadx;
+                gradAlpha[k][j][i].y = dady;
+                gradAlpha[k][j][i].z = dadz;
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(fda, GradA, &gradAlpha);
+    DMDAVecRestoreArray(da,  AlphaSmooth, &alpha_smooth);
+
+    // sync ghost cells so neighboring processors can read GradA
+    DMLocalToLocalBegin(fda, GradA, INSERT_VALUES, GradA);
+    DMLocalToLocalEnd  (fda, GradA, INSERT_VALUES, GradA);
+
+    // reset periodic fluxes in GradA so that they are correct at periodic boundaries
+    resetCellPeriodicFluxes(mesh, GradA, GradA, "vector", "localToLocal");
+
+    DMDAVecGetArray(fda, GradA, &gradAlpha);
+
+    // compute interface velocity at cell faces as uc_face = c * mag_u_face * grad_alpha_face / mag_grad_alpha_face
+    for (k=zs; k<ze; k++)
+    {
+        for (j=ys; j<ye; j++)
+        {
+            for (i=xs; i<xe; i++)
+            {
+                if(i==mx-1 || j==my-1 || k==mz-1) continue;
+
+                // i-faces
+                if(j!=0 && k!=0)
+                {
+                    PetscReal alpha_face;
+                    alpha_face = 0.5 * (alpha[k][j][i] + alpha[k][j][i+1]);
+
+                    Cmpnts gradAlpha_face;
+                    gradAlpha_face.x = 0.5 * (gradAlpha[k][j][i].x + gradAlpha[k][j][i+1].x);
+                    gradAlpha_face.y = 0.5 * (gradAlpha[k][j][i].y + gradAlpha[k][j][i+1].y);
+                    gradAlpha_face.z = 0.5 * (gradAlpha[k][j][i].z + gradAlpha[k][j][i+1].z);
+
+                    PetscReal ucat_face_mag      = fabs(ucont[k][j][i].x) / nMag(icsi[k][j][i]); 
+                    PetscReal gradAlpha_face_mag = nMag(gradAlpha_face);
+
+                    Cmpnts ucatc_face;
+                    ucatc_face.x = compcoeff * ucat_face_mag * gradAlpha_face.x / (gradAlpha_face_mag + 1e-10);
+                    ucatc_face.y = compcoeff * ucat_face_mag * gradAlpha_face.y / (gradAlpha_face_mag + 1e-10);
+                    ucatc_face.z = compcoeff * ucat_face_mag * gradAlpha_face.z / (gradAlpha_face_mag + 1e-10);
+
+                    PetscReal coeff = alpha_face*(1.0 - alpha_face);
+                    div[k][j][i].x -= coeff * nDot(ucatc_face, icsi[k][j][i]);
+                }
+
+                // j-faces
+                if(i!=0 && k!=0)
+                {
+                    PetscReal alpha_face;
+                    alpha_face = 0.5 * (alpha[k][j][i] + alpha[k][j+1][i]);
+
+                    Cmpnts gradAlpha_face;
+                    gradAlpha_face.x = 0.5 * (gradAlpha[k][j][i].x + gradAlpha[k][j+1][i].x);
+                    gradAlpha_face.y = 0.5 * (gradAlpha[k][j][i].y + gradAlpha[k][j+1][i].y);
+                    gradAlpha_face.z = 0.5 * (gradAlpha[k][j][i].z + gradAlpha[k][j+1][i].z);
+
+                    PetscReal ucat_face_mag      = fabs(ucont[k][j][i].y) / nMag(jeta[k][j][i]);
+                    PetscReal gradAlpha_face_mag = nMag(gradAlpha_face);
+
+                    Cmpnts ucatc_face;
+                    ucatc_face.x = compcoeff * ucat_face_mag * gradAlpha_face.x / (gradAlpha_face_mag + 1e-10);
+                    ucatc_face.y = compcoeff * ucat_face_mag * gradAlpha_face.y / (gradAlpha_face_mag + 1e-10);
+                    ucatc_face.z = compcoeff * ucat_face_mag * gradAlpha_face.z / (gradAlpha_face_mag + 1e-10);
+
+                    PetscReal coeff = alpha_face*(1.0 - alpha_face);
+                    div[k][j][i].y -= coeff * nDot(ucatc_face, jeta[k][j][i]);
+                }
+
+                // k-faces
+                if(i!=0 && j!=0)
+                {
+                    PetscReal alpha_face;
+                    alpha_face = 0.5 * (alpha[k][j][i] + alpha[k+1][j][i]);
+
+                    Cmpnts gradAlpha_face;
+                    gradAlpha_face.x = 0.5 * (gradAlpha[k][j][i].x + gradAlpha[k+1][j][i].x);
+                    gradAlpha_face.y = 0.5 * (gradAlpha[k][j][i].y + gradAlpha[k+1][j][i].y);
+                    gradAlpha_face.z = 0.5 * (gradAlpha[k][j][i].z + gradAlpha[k+1][j][i].z);
+
+                    PetscReal ucat_face_mag      = fabs(ucont[k][j][i].z) / nMag(kzet[k][j][i]);
+                    PetscReal gradAlpha_face_mag = nMag(gradAlpha_face);
+
+                    Cmpnts ucatc_face;
+                    ucatc_face.x = compcoeff * ucat_face_mag * gradAlpha_face.x / (gradAlpha_face_mag + 1e-15);
+                    ucatc_face.y = compcoeff * ucat_face_mag * gradAlpha_face.y / (gradAlpha_face_mag + 1e-15);
+                    ucatc_face.z = compcoeff * ucat_face_mag * gradAlpha_face.z / (gradAlpha_face_mag + 1e-15);
+
+                    PetscReal coeff = alpha_face*(1.0 - alpha_face);
+                    div[k][j][i].z -= coeff * nDot(ucatc_face, kzet[k][j][i]);
+                }
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(fda, mesh->lCsi,        &csi);
+    DMDAVecRestoreArray(fda, mesh->lEta,        &eta);
+    DMDAVecRestoreArray(fda, mesh->lZet,        &zet);
+    DMDAVecRestoreArray(fda, mesh->lICsi,       &icsi);
+    DMDAVecRestoreArray(fda, mesh->lIEta,       &ieta);
+    DMDAVecRestoreArray(fda, mesh->lIZet,       &izet);
+    DMDAVecRestoreArray(fda, mesh->lJCsi,       &jcsi);
+    DMDAVecRestoreArray(fda, mesh->lJEta,       &jeta);
+    DMDAVecRestoreArray(fda, mesh->lJZet,       &jzet);
+    DMDAVecRestoreArray(fda, mesh->lKCsi,       &kcsi);
+    DMDAVecRestoreArray(fda, mesh->lKEta,       &keta);
+    DMDAVecRestoreArray(fda, mesh->lKZet,       &kzet);
+    DMDAVecRestoreArray(da,  mesh->lAj,         &aj);
+    DMDAVecRestoreArray(da,  mesh->lIAj,        &iaj);
+    DMDAVecRestoreArray(da,  mesh->lJAj,        &jaj);
+    DMDAVecRestoreArray(da,  mesh->lKAj,        &kaj);
+
+    DMDAVecRestoreArray(fda, ueqn->lUcont,     &ucont);
+    DMDAVecRestoreArray(da,  aeqn->lAlpha,     &alpha);
+    DMDAVecRestoreArray(da,  mesh->lNvert,     &nvert);
+    DMDAVecRestoreArray(da,  mesh->lmeshTag,   &meshTag);
+    DMDAVecRestoreArray(fda, aeqn->lDivAHO,    &div);
+
+    DMDAVecRestoreArray(fda, GradA, &gradAlpha);
+
+    DMLocalToLocalBegin(fda, aeqn->lDivAHO, INSERT_VALUES, aeqn->lDivAHO);
+    DMLocalToLocalEnd  (fda, aeqn->lDivAHO, INSERT_VALUES, aeqn->lDivAHO);
+
+    VecDestroy(&GradA);
+    VecDestroy(&AlphaSmooth);
+
+    resetFacePeriodicFluxesVector(mesh, aeqn->lDivAHO, aeqn->lDivAHO, "localToLocal");
 
     return(0);
 }
@@ -267,9 +530,9 @@ PetscErrorCode ApplyMULESLimiter(aeqn_ *aeqn)
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
     PetscInt      i, j, k;
 
-    PetscReal     ***alphaLO, ***aj, ***rhs;
+    PetscReal     ***alphaLO, ***aj;
     PetscReal     ***Rplus, ***Rminus;
-    Cmpnts        ***divLO, ***divCor, ***lambda;
+    Cmpnts        ***div, ***divLO, ***divCor, ***lambda;
 
     PetscReal     dt  = clock->dt;
     PetscReal     eps = 1.0e-12;
@@ -278,27 +541,15 @@ PetscErrorCode ApplyMULESLimiter(aeqn_ *aeqn)
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
 
-    // ---------------------------------------------------------------------- //
-    //    step 1: correction flux = high-order minus low-order               //
-    // ---------------------------------------------------------------------- //
-
+    // correction flux lDivACor = lDivAHO - lDivALO               //
     VecCopy (aeqn->lDivAHO,  aeqn->lDivACor);
-    VecAXPY (aeqn->lDivACor, -1.0, aeqn->lDivA);
-
-    // ---------------------------------------------------------------------- //
-    //    step 2: provisional low-order cell update                           //
-    // ---------------------------------------------------------------------- //
-
-    ComputeLowOrderUpdate(aeqn);
-
-    // ---------------------------------------------------------------------- //
-    //    step 3: per-cell R_plus and R_minus                                 //
-    // ---------------------------------------------------------------------- //
+    VecAXPY (aeqn->lDivACor, -1.0, aeqn->lDivALO);
 
     // initialize to 1.0: physical boundary ghost cells allow full correction
     VecSet(aeqn->lRplusA,  1.0);
     VecSet(aeqn->lRminusA, 1.0);
 
+    // alphaLO must be up to date
     DMDAVecGetArray(da,  aeqn->lAlphaLO,  &alphaLO);
     DMDAVecGetArray(da,  aeqn->lRplusA,   &Rplus);
     DMDAVecGetArray(da,  aeqn->lRminusA,  &Rminus);
@@ -320,22 +571,22 @@ PetscErrorCode ApplyMULESLimiter(aeqn_ *aeqn)
                 PetscReal C_plus = 0.0, C_minus = 0.0;
                 PetscReal c;
 
-                c =  dt * aj[k][j][i] * divCor[k][j][i].x;    // right i-face
+                c =  divCor[k][j][i].x;    // right i-face
                 if(c > 0.0) C_plus += c; else C_minus -= c;
 
-                c = -dt * aj[k][j][i] * divCor[k][j][i-1].x;  // left i-face
+                c = -divCor[k][j][i-1].x;  // left i-face
                 if(c > 0.0) C_plus += c; else C_minus -= c;
 
-                c =  dt * aj[k][j][i] * divCor[k][j][i].y;    // right j-face
+                c =  divCor[k][j][i].y;    // right j-face
                 if(c > 0.0) C_plus += c; else C_minus -= c;
 
-                c = -dt * aj[k][j][i] * divCor[k][j-1][i].y;  // left j-face
+                c = -divCor[k][j-1][i].y;  // left j-face
                 if(c > 0.0) C_plus += c; else C_minus -= c;
 
-                c =  dt * aj[k][j][i] * divCor[k][j][i].z;    // right k-face
+                c =  divCor[k][j][i].z;    // right k-face
                 if(c > 0.0) C_plus += c; else C_minus -= c;
 
-                c = -dt * aj[k][j][i] * divCor[k-1][j][i].z;  // left k-face
+                c = -divCor[k-1][j][i].z;  // left k-face
                 if(c > 0.0) C_plus += c; else C_minus -= c;
 
                 Rplus [k][j][i] = (C_plus  > eps) ? PetscMin(1.0, P_plus  / C_plus)  : 1.0;
@@ -356,10 +607,7 @@ PetscErrorCode ApplyMULESLimiter(aeqn_ *aeqn)
     DMLocalToLocalBegin(da, aeqn->lRminusA, INSERT_VALUES, aeqn->lRminusA);
     DMLocalToLocalEnd  (da, aeqn->lRminusA, INSERT_VALUES, aeqn->lRminusA);
 
-    // ---------------------------------------------------------------------- //
-    //    step 4: per-face limiter coefficient lambda_f in [0,1]              //
-    // ---------------------------------------------------------------------- //
-
+    // compute per-face limiter coefficient lambda_f in [0,1]
     VecSet(aeqn->lLambdaA, 1.0);
     DMDAVecGetArray(fda, aeqn->lDivACor,  &divCor);
     DMDAVecGetArray(fda, aeqn->lLambdaA,  &lambda);
@@ -374,8 +622,7 @@ PetscErrorCode ApplyMULESLimiter(aeqn_ *aeqn)
             {
                 if(i==mx-1 || j==my-1 || k==mz-1) continue;
 
-                // i-face: owner=(k,j,i), neighbor=(k,j,i+1)
-                // negative dF -> correction decreases owner alpha, increases neighbor
+                // i-faces: owner=(k,j,i), neighbor=(k,j,i+1)
                 if(j!=0 && k!=0)
                 {
                     PetscReal dF = divCor[k][j][i].x;
@@ -418,17 +665,73 @@ PetscErrorCode ApplyMULESLimiter(aeqn_ *aeqn)
 
     resetFacePeriodicFluxesVector(mesh, aeqn->lLambdaA, aeqn->lLambdaA, "localToLocal");
 
-    // ---------------------------------------------------------------------- //
-    //    step 5: final limited Rhs = low-order + lambda-weighted correction  //
-    // ---------------------------------------------------------------------- //
-
-    DMDAVecGetArray(da,  aeqn->Rhs,      &rhs);
+    // compute final flux  = low-order + lambda-weighted correction  
+    DMDAVecGetArray(fda, aeqn->lDivA,    &div);
     DMDAVecGetArray(da,  mesh->lAj,      &aj);
-    DMDAVecGetArray(fda, aeqn->lDivA,    &divLO);
+    DMDAVecGetArray(fda, aeqn->lDivALO,  &divLO);
     DMDAVecGetArray(fda, aeqn->lDivACor, &divCor);
     DMDAVecGetArray(fda, aeqn->lLambdaA, &lambda);
 
-    VecSet(aeqn->Rhs, 0.0);
+    for (k=zs; k<ze; k++)
+    {
+        for (j=ys; j<ye; j++)
+        {
+            for (i=xs; i<xe; i++)
+            {
+                if(i==mx-1 || j==my-1 || k==mz-1) continue;
+
+                if(j!=0 && k!=0)
+                    div[k][j][i].x = divLO [k][j][i].x + lambda[k][j][i].x   * divCor[k][j][i].x;
+
+                if(i!=0 && k!=0)
+                    div[k][j][i].y = divLO [k][j][i].y + lambda[k][j][i].y   * divCor[k][j][i].y;
+
+                if(i!=0 && j!=0)
+                    div[k][j][i].z = divLO [k][j][i].z + lambda[k][j][i].z   * divCor[k][j][i].z;
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(fda,  aeqn->lDivA,    &div);
+    DMDAVecRestoreArray(da,  mesh->lAj,      &aj);
+    DMDAVecRestoreArray(fda, aeqn->lDivALO,  &divLO);
+    DMDAVecRestoreArray(fda, aeqn->lDivACor, &divCor);
+    DMDAVecRestoreArray(fda, aeqn->lLambdaA, &lambda);
+
+    DMLocalToLocalBegin(fda, aeqn->lDivA, INSERT_VALUES, aeqn->lDivA);
+    DMLocalToLocalEnd  (fda, aeqn->lDivA, INSERT_VALUES, aeqn->lDivA);
+
+    resetFacePeriodicFluxesVector(mesh, aeqn->lDivA, aeqn->lDivA, "localToLocal");
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode FormA(aeqn_ *aeqn, Vec Div, Vec Rhs)
+{
+    mesh_         *mesh  = aeqn->access->mesh;
+    clock_        *clock = aeqn->access->clock;
+    DM            da     = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info   = mesh->info;
+    PetscInt      xs     = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys     = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs     = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx     = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k;
+
+    PetscReal     ***rhs, ***aj;
+    Cmpnts        ***div;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    DMDAVecGetArray(fda, Div,            &div);
+    DMDAVecGetArray(da,  mesh->lAj,      &aj);
+    DMDAVecGetArray(da,  Rhs,            &rhs);
 
     for (k=lzs; k<lze; k++)
     {
@@ -436,26 +739,19 @@ PetscErrorCode ApplyMULESLimiter(aeqn_ *aeqn)
         {
             for (i=lxs; i<lxe; i++)
             {
-                PetscReal loBudget =
-                    divLO [k][j][i].x - divLO [k][j][i-1].x +
-                    divLO [k][j][i].y - divLO [k][j-1][i].y +
-                    divLO [k][j][i].z - divLO [k-1][j][i].z;
-
-                PetscReal corBudget =
-                    lambda[k][j][i].x   * divCor[k][j][i].x   - lambda[k][j][i-1].x * divCor[k][j][i-1].x +
-                    lambda[k][j][i].y   * divCor[k][j][i].y   - lambda[k][j-1][i].y * divCor[k][j-1][i].y +
-                    lambda[k][j][i].z   * divCor[k][j][i].z   - lambda[k-1][j][i].z * divCor[k-1][j][i].z;
-
-                rhs[k][j][i] = (loBudget + corBudget) * aj[k][j][i];
+                rhs[k][j][i] += aj[k][j][i] * 
+                (
+                    div [k][j][i].x - div [k][j][i-1].x +
+                    div [k][j][i].y - div [k][j-1][i].y +
+                    div [k][j][i].z - div [k-1][j][i].z
+                );
             }
         }
     }
 
-    DMDAVecRestoreArray(da,  aeqn->Rhs,      &rhs);
+    DMDAVecRestoreArray(fda, Div,            &div);
     DMDAVecRestoreArray(da,  mesh->lAj,      &aj);
-    DMDAVecRestoreArray(fda, aeqn->lDivA,    &divLO);
-    DMDAVecRestoreArray(fda, aeqn->lDivACor, &divCor);
-    DMDAVecRestoreArray(fda, aeqn->lLambdaA, &lambda);
+    DMDAVecRestoreArray(da,  Rhs,            &rhs);
 
     return(0);
 }
@@ -464,31 +760,41 @@ PetscErrorCode ApplyMULESLimiter(aeqn_ *aeqn)
 
 PetscErrorCode AeqnSNES(aeqn_ *aeqn)
 {
-    mesh_  *mesh  = aeqn->access->mesh;
-    clock_ *clock = aeqn->access->clock;
+    mesh_         *mesh  = aeqn->access->mesh;
+    clock_        *clock = aeqn->access->clock;
+    DM            da     = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info   = mesh->info;
+    PetscInt      xs = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx = info.mx, my = info.my, mz = info.mz;
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k;
 
     PetscReal     norm;
     PetscInt      iter;
     PetscReal     ts, te;
 
-    PetscTime(&ts);
-    PetscPrintf(mesh->MESH_COMM, "%s%s: Solving for Alpha-Water, Initial residual = ", aeqn->ddtScheme.c_str() ,aeqn->solverType.c_str());
-    
-    // compute initial guess
-    VecCopy(aeqn->Alpha_o, aeqn->AlphaTmp);    
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
 
+    PetscTime(&ts);
+    PetscPrintf(mesh->MESH_COMM, "%s%s: Solving for Alpha-Water, Initial residual = ", aeqn->ddtScheme.c_str(), aeqn->solverType.c_str());
+
+    // Step 1: implicit upwind BE/BDF2 solve → alpha* (smooth residual, Newton converges)
+    VecCopy(aeqn->Alpha_o, aeqn->AlphaTmp);
     SNESSolve(aeqn->snesA, PETSC_NULL, aeqn->AlphaTmp);
     SNESGetFunctionNorm(aeqn->snesA, &norm);
     SNESGetIterationNumber(aeqn->snesA, &iter);
 
-    // report total inner linear iterations (= total MatMFFD FormA calls for J*v)
     PetscInt linIter = 0;
     SNESGetLinearSolveIterations(aeqn->snesA, &linIter);
 
+    // save solution and sync ghost cells
     VecCopy(aeqn->AlphaTmp, aeqn->Alpha);
-
-    DMGlobalToLocalBegin(mesh->da, aeqn->Alpha, INSERT_VALUES, aeqn->lAlpha);
-    DMGlobalToLocalEnd  (mesh->da, aeqn->Alpha, INSERT_VALUES, aeqn->lAlpha);
+    DMGlobalToLocalBegin(da, aeqn->Alpha, INSERT_VALUES, aeqn->lAlpha);
+    DMGlobalToLocalEnd  (da, aeqn->Alpha, INSERT_VALUES, aeqn->lAlpha);
 
     PetscTime(&te);
     PetscPrintf(mesh->MESH_COMM, "Final residual = %e, Iterations = %ld (linear = %ld), Elapsed Time = %lf\n", norm, iter, linIter, te-ts);
@@ -500,41 +806,56 @@ PetscErrorCode AeqnSNES(aeqn_ *aeqn)
 
 PetscErrorCode SNESFuncEvalA(SNES snes, Vec Alpha, Vec Rhs, void *ptr)
 {
-    aeqn_ *aeqn   = (aeqn_*)ptr;
-    mesh_ *mesh   = aeqn->access->mesh;
-    clock_ *clock = aeqn->access->clock;
+    aeqn_         *aeqn  = (aeqn_*)ptr;
+    mesh_         *mesh  = aeqn->access->mesh;
+    clock_        *clock = aeqn->access->clock;
+    DM            da     = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info   = mesh->info;
+    PetscInt      xs = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx = info.mx, my = info.my, mz = info.mz;
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k;
 
-    // scatter trial solution from snes into aeqn->Alpha and lAlpha
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    // scatter trial vector to local ghost-extended array
     VecCopy(Alpha, aeqn->Alpha);
-    DMGlobalToLocalBegin(mesh->da, aeqn->Alpha, INSERT_VALUES, aeqn->lAlpha);
-    DMGlobalToLocalEnd  (mesh->da, aeqn->Alpha, INSERT_VALUES, aeqn->lAlpha);
+    DMGlobalToLocalBegin(da, aeqn->Alpha, INSERT_VALUES, aeqn->lAlpha);
+    DMGlobalToLocalEnd  (da, aeqn->Alpha, INSERT_VALUES, aeqn->lAlpha);
     resetCellPeriodicFluxes(mesh, aeqn->Alpha, aeqn->lAlpha, "scalar", "globalToLocal");
 
-    // build low-order and high-order face fluxes, apply mules limiter
+    // compute low-order divergence fluxes
     FormALowOrder (aeqn);
     FormAHighOrder(aeqn);
     AddCompressionFlux(aeqn);
+    ComputeLowOrderUpdate(aeqn);   
     ApplyMULESLimiter(aeqn);
-    resetNonResolvedCellCentersScalar(mesh, aeqn->Rhs);
 
-    // scale by dt and add time-derivative residual terms
-    PetscReal dt = clock->dt;
-    VecScale(aeqn->Rhs, dt);
+    VecSet(Rhs, 0.0);
+    FormA(aeqn, aeqn->lDivA, Rhs);
 
+    // scale by dt
+    VecScale(Rhs, clock->dt);
+
+    // zero non resolved cells
+    resetNonResolvedCellCentersScalar(mesh, Rhs);
+
+    // add time-derivative residual terms
     if(aeqn->ddtScheme == "BDF2" && clock->it > clock->itStart)
     {
-        VecAXPY(aeqn->Rhs, -3.0/2.0, Alpha);
-        VecAXPY(aeqn->Rhs,  2.0,     aeqn->Alpha_o);
-        VecAXPY(aeqn->Rhs, -1.0/2.0, aeqn->Alpha_oo);
+        VecAXPY(Rhs, -3.0/2.0, Alpha);
+        VecAXPY(Rhs,  2.0,     aeqn->Alpha_o);
+        VecAXPY(Rhs, -1.0/2.0, aeqn->Alpha_oo);
     }
     else
     {
-        VecAXPY(aeqn->Rhs, -1.0, Alpha);
-        VecAXPY(aeqn->Rhs,  1.0, aeqn->Alpha_o);
+        VecAXPY(Rhs, -1.0, Alpha);
+        VecAXPY(Rhs,  1.0, aeqn->Alpha_o);
     }
-
-    // copy residual to output
-    VecCopy(aeqn->Rhs, Rhs);
 
     return(0);
 }
@@ -552,7 +873,11 @@ PetscErrorCode FormExplicitRhsA(aeqn_ *aeqn)
     FormALowOrder (aeqn);
     FormAHighOrder(aeqn);
     AddCompressionFlux(aeqn);
+    ComputeLowOrderUpdate(aeqn);   
     ApplyMULESLimiter(aeqn);
+
+    VecSet(aeqn->Rhs, 0.0);
+    FormA(aeqn, aeqn->lDivA, aeqn->Rhs);
 
     // zero out non-resolved cells
     resetNonResolvedCellCentersScalar(mesh, aeqn->Rhs);
@@ -618,6 +943,172 @@ PetscErrorCode AeqnRK4(aeqn_ *aeqn)
     // compute elapsed time
     PetscTime(&te);
     PetscPrintf(mesh->MESH_COMM,"Elapsed Time = %f\n", te-ts);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode UpdateRho(aeqn_ *aeqn)
+{
+    mesh_         *mesh  = aeqn->access->mesh;
+    ueqn_         *ueqn  = aeqn->access->ueqn;
+    clock_        *clock = aeqn->access->clock;
+    constants_    *constants = aeqn->access->constants;
+    DM            da     = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info   = mesh->info;
+    PetscInt      xs = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k;
+
+    PetscReal     rhoAir   = constants->rho;
+    PetscReal     rhoWater = constants->rhoWater;
+
+    Cmpnts        ***ucont, ***rhoFace, 
+                  ***div;
+
+    PetscReal     ***alpha, ***rhoCell;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    DMDAVecGetArray( da, aeqn->lAlpha,   &alpha);
+    DMDAVecGetArray(fda, aeqn->lDivA,    &div);
+    DMDAVecGetArray(fda, aeqn->lRhoFace, &rhoFace);
+    DMDAVecGetArray(fda, ueqn->lUcont,   &ucont);
+    
+
+    PetscScalar tol = 1.0e-12;
+
+    for (k=zs; k<ze; k++)
+    {
+        for (j=ys; j<ye; j++)
+        {
+            for (i=xs; i<xe; i++)
+            {
+                if(i==mx-1 || j==my-1 || k==mz-1) continue;
+
+                if(j!=0 && k!=0)
+                {
+                    PetscReal alpha_face;
+
+                    // like OpenFOAM does it
+                    //alpha_face =  - div[k][j][i].x  / ucont[k][j][i].x;
+
+                    // harmonic mean
+                    //alpha_face = 2.0 * alpha[k][j][i] * alpha[k][j][i+1] / (alpha[k][j][i] + alpha[k][j][i+1]);
+
+                    // algebraic mean
+                    alpha_face = 0.5 * (alpha[k][j][i] + alpha[k][j][i+1]);
+                    
+                    // bound alpha
+                    alpha_face = PetscMax(0.0, PetscMin(1.0, alpha_face));
+
+                    // compute rho at cell faces
+                    rhoFace[k][j][i].x  = alpha_face * rhoWater + (1.0 - alpha_face) * rhoAir;
+
+                    if(rhoFace[k][j][i].x < tol)
+                    {
+                        printf("Warning: near-zero/negative density at csi face: rho(%ld,%ld,%ld) = %e\n", i, j, k, rhoFace[k][j][i].x);
+                    }
+                }
+
+                if(i!=0 && k!=0)
+                {
+                    PetscReal alpha_face;
+
+                    // like OpenFOAM does it
+                    //alpha_face =  - div[k][j][i].y  / ucont[k][j][i].y;
+
+                    // harmonic mean
+                    //alpha_face = 2.0 * alpha[k][j][i] * alpha[k][j+1][i] / (alpha[k][j][i] + alpha[k][j+1][i]);
+
+                    // algebraic mean
+                    alpha_face = 0.5 * (alpha[k][j][i] + alpha[k][j+1][i]);   
+
+                    // bound alpha
+                    alpha_face = PetscMax(0.0, PetscMin(1.0, alpha_face));
+
+                    // compute rho at cell faces
+                    rhoFace[k][j][i].y  = alpha_face * rhoWater + (1.0 - alpha_face) * rhoAir;
+
+                    if(rhoFace[k][j][i].y < tol)
+                    {
+                        printf("Warning: near-zero/negative density at eta face: rho(%ld,%ld,%ld) = %e\n", i, j, k, rhoFace[k][j][i].y);
+                    }
+                }
+
+                if(i!=0 && j!=0)
+                {
+                    PetscReal alpha_face;
+
+                    // like OpenFOAM does it
+                    // alpha_face =  - div[k][j][i].z  / ucont[k][j][i].z;
+
+                    // harmonic mean
+                    //alpha_face = 2.0 * alpha[k][j][i] * alpha[k+1][j][i] / (alpha[k][j][i] + alpha[k+1][j][i]);
+
+                    // algebraic mean
+                    alpha_face = 0.5 * (alpha[k][j][i] + alpha[k+1][j][i]);
+                    
+                    // bound alpha
+                    alpha_face = PetscMax(0.0, PetscMin(1.0, alpha_face));
+
+                    // compute rho at cell faces
+                    rhoFace[k][j][i].z  = alpha_face * rhoWater + (1.0 - alpha_face) * rhoAir;
+
+                    if(rhoFace[k][j][i].z < tol)          
+                    {
+                        printf("Warning: near-zero/negative density at zeta face: rho(%ld,%ld,%ld) = %e\n", i, j, k, rhoFace[k][j][i].z);
+                    }
+                }
+            }
+        }
+    }
+
+    DMDAVecRestoreArray( da, aeqn->lAlpha,   &alpha);
+    DMDAVecRestoreArray(fda, aeqn->lDivA,    &div);
+    DMDAVecRestoreArray(fda, aeqn->lRhoFace, &rhoFace);
+    DMDAVecRestoreArray(fda, ueqn->lUcont,   &ucont);
+
+    // local to local scatter 
+    DMLocalToLocalBegin(fda, aeqn->lRhoFace,  INSERT_VALUES, aeqn->lRhoFace);
+    DMLocalToLocalEnd  (fda, aeqn->lRhoFace,  INSERT_VALUES, aeqn->lRhoFace);
+
+    // handle periodicity
+    resetFacePeriodicFluxesVector(mesh, aeqn->lRhoFace,  aeqn->lRhoFace,  "localToLocal");
+
+    // interpolate rho at cell centers by averaging face values
+    DMDAVecGetArray( da, aeqn->lRho,     &rhoCell);
+    DMDAVecGetArray(fda, aeqn->lRhoFace, &rhoFace);
+
+    for (k=lzs; k<lze; k++)
+    {
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+                rhoCell[k][j][i] = (rhoFace[k][j][i].x + rhoFace[k][j][i-1].x +
+                                    rhoFace[k][j][i].y + rhoFace[k][j-1][i].y +
+                                    rhoFace[k][j][i].z + rhoFace[k-1][j][i].z) / 6.0;
+
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(fda, aeqn->lRhoFace, &rhoFace);
+    DMDAVecRestoreArray( da, aeqn->lRho,     &rhoCell);
+
+    DMLocalToLocalBegin(da, aeqn->lRho,  INSERT_VALUES, aeqn->lRho);
+    DMLocalToLocalEnd  (da, aeqn->lRho,  INSERT_VALUES, aeqn->lRho);
+
+    // update boundary conditions (first cells and then faces)
+    UpdateRhoBCs(aeqn);
 
     return(0);
 }

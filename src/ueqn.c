@@ -122,6 +122,17 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
     // read time discretization scheme
     readDictWord("control.dat", "-dUdtScheme", &(ueqn->ddtScheme));
 
+    // temporary: if multiphase is active can only use CN or FE
+    if(flags->isAeqnActive)
+    {
+        if(ueqn->ddtScheme != "CN" && ueqn->ddtScheme != "FE")
+        {
+            char error[512];
+            sprintf(error, "Incompatible %s dUdtScheme. Supported dUdtScheme for multiphase is CN or FE", ueqn->ddtScheme.c_str());
+            fatalErrorInFunction("InitializeUEqn", error);
+        }
+    }
+
     if(ueqn->ddtScheme == "CN")
     {
         ueqn->solverType   = "SNES";
@@ -1135,4 +1146,3 @@ PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn)
 }
 
 //***************************************************************************************************************//
-
