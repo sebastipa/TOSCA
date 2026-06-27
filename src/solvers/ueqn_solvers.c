@@ -1151,17 +1151,13 @@ PetscErrorCode ddtRhoRhs(ueqn_ *ueqn, Vec &Rhs)
 
     PetscInt      i, j, k;
 
-    // scatter old Ucont to local vector
-    DMGlobalToLocalBegin(fda, ueqn->Ucont_o, INSERT_VALUES, ueqn->lUcont_o);
-    DMGlobalToLocalEnd  (fda, ueqn->Ucont_o, INSERT_VALUES, ueqn->lUcont_o);
-
     if(flags->isAeqnActive)
     {
         DMDAVecGetArray(fda, ueqn->access->aeqn->lRhoFace, &rhoFace);
         DMDAVecGetArray(fda, ueqn->access->aeqn->lRhoFace_o, &rhoFace_o);
     }
 
-    DMDAVecGetArray(fda, ueqn->lUcont_o, &ucont_o);
+    DMDAVecGetArray(fda, ueqn->Ucont_o, &ucont_o);
     DMDAVecGetArray(fda, Rhs,  &rhs);
 
     // loop over internal cell faces
@@ -1201,7 +1197,7 @@ PetscErrorCode ddtRhoRhs(ueqn_ *ueqn, Vec &Rhs)
         DMDAVecRestoreArray(fda, ueqn->access->aeqn->lRhoFace_o, &rhoFace_o);
     }
 
-    DMDAVecRestoreArray(fda, ueqn->lUcont_o, &ucont_o);
+    DMDAVecRestoreArray(fda, ueqn->Ucont_o, &ucont_o);
     DMDAVecRestoreArray(fda, Rhs,  &rhs);
 
     return(0);
