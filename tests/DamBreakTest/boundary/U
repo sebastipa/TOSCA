@@ -1,0 +1,24 @@
+# TOSCA Input file - U boundary conditions 
+# -------------------------------------------
+
+#internal field 
+
+internalField    uniform
+                 {
+                     value (0.0 0.0 0.0)
+                     zeroAlphaOne  1
+                     perturbations 0
+                 }
+
+# boundary patches
+iLeft   periodic
+
+iRight  periodic
+
+jLeft   noSlip
+        
+jRight  slip
+
+kLeft   periodic
+        
+kRight  periodic   

@@ -1,0 +1,24 @@
+# TOSCA Input file - T boundary conditions 
+# -------------------------------------------
+
+#internal field 
+
+internalField    cube
+                 {
+                     center (0.5 0.5 0.3)
+                     length 0.3
+                 }
+
+# boundary patches
+
+iLeft   periodic
+
+iRight  periodic
+
+jLeft   zeroGradient
+
+jRight  zeroGradient
+
+kLeft   periodic
+
+kRight  periodic
