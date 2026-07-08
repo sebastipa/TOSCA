@@ -190,6 +190,9 @@ PetscErrorCode postProcessInitialize(domain_ **domainAddr, clock_ *clock, simInf
         // initialize i/o controls and initialization type
         InitializeIO(domain[d].io);
 
+        // alpha water equation initialize
+        InitializeAEqn(domain[d].aeqn);
+
         // momentum equation initialize
         InitializeUEqn(domain[d].ueqn);
 
@@ -198,9 +201,6 @@ PetscErrorCode postProcessInitialize(domain_ **domainAddr, clock_ *clock, simInf
 
         // temperature equation initialize
         InitializeTEqn(domain[d].teqn);
-
-        // alpha water equation initialize
-        InitializeAEqn(domain[d].aeqn);
 
         // LES model initialize
         InitializeLES(domain[d].les);

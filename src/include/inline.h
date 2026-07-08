@@ -4802,6 +4802,95 @@ inline PetscReal central4(PetscReal f0, PetscReal f1, PetscReal f2, PetscReal f3
 
 //***************************************************************************************************************//
 
+inline PetscReal tvd12(PetscReal f0, PetscReal f1, PetscReal f2, PetscReal f3, PetscReal wavespeed)
+{
+    // 2nd-order TVD face value with Van Leer limiter
+    PetscReal n, d, r, lim;
+    PetscReal fU, fD;
+    const PetscReal eps = 1e-5;
+
+    if(wavespeed > 0)
+    {
+        n = f1 - f0;
+        d = f2 - f1;
+        fU = f1;
+        fD = f2;
+    }
+    else
+    {
+        n = f2 - f3;
+        d = f1 - f2;
+        fU = f2;
+        fD = f1;
+    }
+
+    if(fabs(d) < eps)
+    {
+        return fU;
+    }
+
+    r = n / d;
+
+    // Van Leer limiter: phi(r) = (r + |r|)/(1 + |r|)
+    lim = (r + fabs(r)) / (1.0 + fabs(r));
+
+    return fU + 0.5 * lim * (fD - fU);
+}
+
+//***************************************************************************************************************//
+
+inline PetscReal tvd34(PetscReal f0, PetscReal f1, PetscReal f2, PetscReal f3, PetscReal wavespeed)
+{
+    // 3rd-to-4th order TVD-like face value with Van Leer limiter
+    // low-order branch: QUICK (3rd-order upwind-biased)
+    // high-order branch: 4th-order central interpolation
+    PetscReal n, d, r, lim;
+    PetscReal fU;
+    const PetscReal eps = 1e-5;
+
+    if(wavespeed > 0)
+    {
+        n = f1 - f0;
+        d = f2 - f1;
+        fU = f1;
+    }
+    else
+    {
+        n = f2 - f3;
+        d = f1 - f2;
+        fU = f2;
+    }
+
+    if(fabs(d) < eps)
+    {
+        return fU;
+    }
+
+    r = n / d;
+
+    // Van Leer limiter: phi(r) = (r + |r|)/(1 + |r|)
+    lim = (r + fabs(r)) / (1.0 + fabs(r));
+
+    // QUICK (3rd-order upwind-biased) face value
+    PetscReal q3;
+    if(wavespeed > 0)
+    {
+        q3 = (-f0 + 6.0 * f1 + 3.0 * f2) / 8.0;
+    }
+    else
+    {
+        q3 = (-f3 + 6.0 * f2 + 3.0 * f1) / 8.0;
+    }
+
+    // 4th-order central face value
+    PetscReal c4 = central4(f0, f1, f2, f3);
+
+    // lim=0 uses QUICK (3rd), lim=1 uses central4 (4th)
+    return q3 + lim * (c4 - q3);
+}
+
+//***************************************************************************************************************//
+
 inline PetscReal centralUpwind(PetscReal f0, PetscReal f1, PetscReal f2, PetscReal f3, PetscReal wavespeed)
 {
     PetscReal r, n, d;

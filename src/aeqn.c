@@ -56,9 +56,14 @@ PetscErrorCode InitializeAEqn(aeqn_ *aeqn)
         VecDuplicate(mesh->lAj,   &(aeqn->lRplusA));     VecSet(aeqn->lRplusA,  1.0);
         VecDuplicate(mesh->lAj,   &(aeqn->lRminusA));    VecSet(aeqn->lRminusA, 1.0);
 
-        // MULES sweeps (currently only one sweep)
-        aeqn->mulesIter = 3;
+        // MULES sweeps: typically 1 is sufficient with sub-cycling
+        // Multiple sweeps can refine limiters but add complexity and cost
+        aeqn->mulesIter = 1;
         PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-mulesIter", &(aeqn->mulesIter), PETSC_NULL);
+
+        // alpha sub-cycling steps
+        aeqn->nAlphaSubCycles = 3;
+        PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-nAlphaSubCycles", &(aeqn->nAlphaSubCycles), PETSC_NULL);
 
         // numerical compression coefficient
         aeqn->compCoeff = 0.2;
@@ -130,7 +135,7 @@ PetscErrorCode InitializeAEqn(aeqn_ *aeqn)
             PetscPrintf(mesh->MESH_COMM, " > relTolA = %e\n", aeqn->relExitTol);
             PetscPrintf(mesh->MESH_COMM, " > absTolA = %e\n", aeqn->absExitTol);
         }
-        else if (aeqn->ddtScheme=="RK4")
+        else if (aeqn->ddtScheme=="RK3")
         {
             aeqn->solverType       = "EXP";
         }
@@ -138,7 +143,7 @@ PetscErrorCode InitializeAEqn(aeqn_ *aeqn)
         {
             char error[512];
             sprintf(error,  "unknown ddtScheme %s for Alpha-Water equation, available schemes are\n"
-                            "    - RK4 (Runge Kutta 4)\n"
+                            "    - RK3 (Runge Kutta 3)\n"
                             "    - BE (Backward Euler - BDF1)\n"
                             "    - BDF2 (2nd order Backward Differentiation Formula)\n",
                             aeqn->ddtScheme.c_str());
@@ -158,19 +163,11 @@ PetscErrorCode SolveAEqn(aeqn_ *aeqn)
 
     if(aeqn->ddtScheme=="BE" || aeqn->ddtScheme=="BDF2")
         AeqnSNES(aeqn);
-    else if (aeqn->ddtScheme=="RK4")
-        AeqnRK4(aeqn);
-
-    boundAlpha(aeqn);
+    else if (aeqn->ddtScheme=="RK3")
+        AeqnRK3(aeqn);
 
     // reset periodic cell values
     resetCellPeriodicFluxes(mesh, aeqn->Alpha, aeqn->lAlpha, "scalar", "globalToLocal");
-
-    // print min max of alpha water for logging
-    PetscReal alphaMin, alphaMax;
-    VecMin(aeqn->Alpha, NULL, &alphaMin);
-    VecMax(aeqn->Alpha, NULL, &alphaMax);
-    PetscPrintf(mesh->MESH_COMM, "Alpha-Water min = %.5f, max = %.5f\n", alphaMin, alphaMax);
 
     return(0);
 }
@@ -292,24 +289,12 @@ PetscErrorCode GradRho(aeqn_ *aeqn)
                 PetscReal g33_k = (kzet[k][j][i].x * kzet[k][j][i].x + kzet[k][j][i].y * kzet[k][j][i].y + kzet[k][j][i].z * kzet[k][j][i].z);
 
                 // density gradient in the i-direction
-                if( i==mx-2 && mesh->ii_periodic)
-                {
-                    drdc = rho[k][j][mx+1] - rho[k][j][i];
-                }
-                else
-                {
-                    drdc = rho[k][j][i+1] - rho[k][j][i];
-                }
+                drdc = rho[k][j][i+1] - rho[k][j][i];
 
                 if
                 (
                     // j-right boundary -> use upwind only at the corner faces
-                    (
-                        j==my-2 &&
-                        (
-                            i==mx-2
-                        )
-                    ) || isOversetIFace(k, j+1, i, i+1, meshTag)
+                    (j==my-2 && i==mx-2) || isOversetIFace(k, j+1, i, i+1, meshTag)
                 )
                 {
                     drde = (rho[k][j  ][i  ] - rho[k][j-1][i  ] + rho[k][j  ][i+1] - rho[k][j-1][i+1]) * 0.5;
@@ -317,12 +302,7 @@ PetscErrorCode GradRho(aeqn_ *aeqn)
                 else if
                 (
                     // j-left boundary -> use upwind  only at the corner faces
-                    (
-                        j == 1 &&
-                        (
-                            i == mx - 2
-                        )
-                     ) || isOversetIFace(k, j-1, i, i+1, meshTag)
+                    (j == 1 && i == mx-2) || isOversetIFace(k, j-1, i, i+1, meshTag)
                 )
                 {
                     drde = (rho[k][j+1][i  ] - rho[k][j  ][i  ] + rho[k][j+1][i+1] - rho[k][j  ][i+1]) * 0.5;
@@ -335,12 +315,7 @@ PetscErrorCode GradRho(aeqn_ *aeqn)
                 if
                 (
                     // k-right boundary -> use upwind  only at the corner faces
-                    (
-                        k == mz - 2 &&
-                        (
-                            i==mx-2
-                        )
-                    ) || isOversetIFace(k+1, j, i, i+1, meshTag)
+                    (k == mz-2 && i==mx-2) || isOversetIFace(k+1, j, i, i+1, meshTag)
                 )
                 {
                     drdz = (rho[k][j][i  ] - rho[k-1][j][i  ] + rho[k][j][i+1] - rho[k-1][j][i+1]) * 0.5;
@@ -348,12 +323,7 @@ PetscErrorCode GradRho(aeqn_ *aeqn)
                 else if
                 (
                     // k-left boundary  -> use upwind  only at the corner faces
-                    (
-                        k == 1 &&
-                        (
-                            i==mx-2
-                        )
-                    ) || isOversetIFace(k-1, j, i, i+1, meshTag)
+                    (k == 1 && i==mx-2) || isOversetIFace(k-1, j, i, i+1, meshTag)
                 )
                 {
                     drdz = (rho[k+1][j][i  ] - rho[k][j][i  ] + rho[k+1][j][i+1] - rho[k][j][i+1]) * 0.5;
@@ -372,12 +342,7 @@ PetscErrorCode GradRho(aeqn_ *aeqn)
                 if
                 (
                     // i-right boundary -> use upwind  only at the corner faces
-                    (
-                        i == mx-2 &&
-                        (
-                            j==my-2
-                        )
-                    ) || isOversetJFace(k, j, i+1, j+1, meshTag)
+                    (i == mx-2 && j==my-2) || isOversetJFace(k, j, i+1, j+1, meshTag)
                 )
                 {
                     drdc = (rho[k][j  ][i] - rho[k][j  ][i-1] + rho[k][j+1][i] - rho[k][j+1][i-1]) * 0.5;
@@ -385,12 +350,7 @@ PetscErrorCode GradRho(aeqn_ *aeqn)
                 else if
                 (
                     // i-left boundary -> use upwind  only at the corner faces
-                    (
-                        i == 1 &&
-                        (
-                            j==my-2
-                        )
-                    ) || isOversetJFace(k, j, i-1, j+1, meshTag)
+                    (i == 1 && j==my-2) || isOversetJFace(k, j, i-1, j+1, meshTag)
                 )
                 {
                     drdc = (rho[k][j  ][i+1] - rho[k][j  ][i] + rho[k][j+1][i+1] - rho[k][j+1][i]) * 0.5;
@@ -400,24 +360,12 @@ PetscErrorCode GradRho(aeqn_ *aeqn)
                     drdc = (rho[k][j  ][i+1] - rho[k][j  ][i-1] + rho[k][j+1][i+1] - rho[k][j+1][i-1]) * 0.25;
                 }
 
-                if( j==my-2 && mesh->jj_periodic)
-                {
-                    drde = rho[k][my+1][i] - rho[k][j][i];
-                }
-                else
-                {
-                    drde = rho[k][j+1][i] - rho[k][j][i];
-                }
+                drde = rho[k][j+1][i] - rho[k][j][i];
 
                 if
                 (
                     // k-right boundary -> use upwind  only at the corner faces
-                    (
-                        k == mz-2 &&
-                        (
-                            j== my-2
-                        )
-                    ) || isOversetJFace(k+1, j, i, j+1, meshTag)
+                    (k == mz-2 && j== my-2) || isOversetJFace(k+1, j, i, j+1, meshTag)
                 )
                 {
                     drdz = (rho[k][j  ][i] - rho[k-1][j  ][i] + rho[k][j+1][i] - rho[k-1][j+1][i]) * 0.5;
@@ -425,12 +373,7 @@ PetscErrorCode GradRho(aeqn_ *aeqn)
                 else if
                 (
                     // k-left boundary -> use upwind  only at the corner faces
-                    (
-                        k == 1 &&
-                        (
-                            j== my-2
-                        )
-                    ) || isOversetJFace(k-1, j, i, j+1, meshTag)
+                    (k == 1 && j== my-2) || isOversetJFace(k-1, j, i, j+1, meshTag)
                 )
                 {
                     drdz = (rho[k+1][j  ][i] - rho[k][j  ][i] + rho[k+1][j+1][i] - rho[k][j+1][i]) * 0.5;
@@ -449,12 +392,7 @@ PetscErrorCode GradRho(aeqn_ *aeqn)
                 if
                 (
                     // i-right boundary -> use upwind  only at the corner faces
-                    (
-                        i == mx - 2 &&
-                        (
-                            k==mz-2
-                        )
-                    ) || isOversetKFace(k, j, i+1, k+1, meshTag)
+                    (i == mx - 2 && k==mz-2) || isOversetKFace(k, j, i+1, k+1, meshTag)
                 )
                 {
                     drdc = (rho[k  ][j][i] - rho[k  ][j][i-1] + rho[k+1][j][i] - rho[k+1][j][i-1]) * 0.5;
@@ -462,12 +400,7 @@ PetscErrorCode GradRho(aeqn_ *aeqn)
                 else if
                 (
                     // i-left boundary -> use upwind  only at the corner faces
-                    (
-                        i == 1 &&
-                        (
-                            k == mz - 2
-                        )
-                    ) || isOversetKFace(k, j, i-1, k+1, meshTag)
+                    (i == 1 && k == mz - 2) || isOversetKFace(k, j, i-1, k+1, meshTag)
                 )
                 {
                     drdc = (rho[k  ][j][i+1] - rho[k  ][j][i] + rho[k+1][j][i+1] - rho[k+1][j][i]) * 0.5;
@@ -480,12 +413,7 @@ PetscErrorCode GradRho(aeqn_ *aeqn)
                 if
                 (
                     // j-right boundary -> use upwind  only at the corner faces
-                    (
-                        j == my - 2 &&
-                        (
-                            k==mz-2
-                        )
-                    ) || isOversetKFace(k, j+1, i, k+1, meshTag)
+                    (j == my - 2 && k==mz-2) || isOversetKFace(k, j+1, i, k+1, meshTag)
                 )
                 {
                     drde = (rho[k  ][j][i] - rho[k  ][j-1][i] + rho[k+1][j][i] - rho[k+1][j-1][i]) * 0.5;
@@ -493,12 +421,7 @@ PetscErrorCode GradRho(aeqn_ *aeqn)
                 else if
                 (
                     // j-left boundary -> use upwind  only at the corner faces
-                    (
-                        j == 1 &&
-                        (
-                            k==mz-2
-                        )
-                    )  || isOversetKFace(k, j-1, i, k+1, meshTag)
+                    (j == 1 && k==mz-2)  || isOversetKFace(k, j-1, i, k+1, meshTag)
                 )
                 {
                     drde = (rho[k  ][j+1][i] - rho[k  ][j][i] + rho[k+1][j+1][i] - rho[k+1][j][i]) * 0.5;
@@ -508,14 +431,7 @@ PetscErrorCode GradRho(aeqn_ *aeqn)
                     drde = (rho[k  ][j+1][i] - rho[k  ][j-1][i] + rho[k+1][j+1][i] - rho[k+1][j-1][i]) * 0.25;
                 }
 
-                if( k==mz-2 && mesh->kk_periodic)
-                {
-                    drdz = rho[mz+1][j][i] - rho[k][j][i];
-                }
-                else
-                {
-                    drdz = (rho[k+1][j][i] - rho[k][j][i]);
-                }
+                drdz = (rho[k+1][j][i] - rho[k][j][i]);
                    
                 cent_f  = nScale(0.5, nSum(cent[k][j][i], cent[k+1][j][i]));
                 coeff_k = nMag(gravity)*(nDot(vertical, cent_f) - Href);

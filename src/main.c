@@ -88,46 +88,69 @@ int main(int argc, char **argv)
                     // T^{n+1}_ghost = 4/3 T^{n-} - 1/3 T^{n-1} (difference from the true BCs by O(dt**2))
                     // for now accept it as this is consistent with the fields they are carrying
                     VecCopy(domain[d].teqn->Tmprt_o, domain[d].teqn->Tmprt_oo); 
-                    //resetNonResolvedCellCentersScalar(domain[d].mesh,  domain[d].teqn->Tmprt_oo);
 
                     VecCopy(domain[d].teqn->Tmprt, domain[d].teqn->Tmprt_o);
-                    //scaleNonResolvedCellCentersScalar(domain[d].mesh,  domain[d].teqn->Tmprt_o, 3.0/4.0);
                 }
                 else
                 {
                     VecCopy(domain[d].teqn->Tmprt, domain[d].teqn->Tmprt_o);
                 }
-            }
-
-            if(flags.isAeqnActive)
-            {
-                // save alpha and rho at old time step for BDF2
-                if(domain[d].aeqn->ddtScheme == "BDF2")
-                {
-                    VecCopy(domain[d].aeqn->Alpha_o, domain[d].aeqn->Alpha_oo);
-                    VecCopy(domain[d].aeqn->Alpha, domain[d].aeqn->Alpha_o);
-                }
-                else
-                {
-                    VecCopy(domain[d].aeqn->Alpha, domain[d].aeqn->Alpha_o);
-                }
-
-                VecCopy(domain[d].aeqn->lRhoFace, domain[d].aeqn->lRhoFace_o);
-
-                // alpha water step 
-                SolveAEqn(domain[d].aeqn);
-
-                // calculate rho 
-                UpdateRho(domain[d].aeqn);
-
-                // compute density gradient for multiphase
-                GradRho(domain[d].aeqn);
             }
 
             // update flux limiter
             if(domain[d].ueqn->centralUpwindDiv || domain[d].ueqn->centralUpwindWDiv)
             {
                 UpdateFluxLimiter(domain[d].ueqn);
+            }
+
+            if(flags.isAeqnActive)
+            {
+                // alpha water sub-cycling: take multiple smaller timesteps
+                PetscInt nSubCycles  = domain[d].aeqn->nAlphaSubCycles;
+                PetscReal dtOriginal = domain[d].clock->dt;
+                PetscReal dtAlpha    = dtOriginal / nSubCycles;
+                
+                for (PetscInt subcycle = 0; subcycle < nSubCycles; subcycle++)
+                {
+                    // temporarily reduce timestep for alpha equation
+                    domain[d].clock->dt = dtAlpha;
+
+                    // save alpha and rho at old time step for BDF2
+                    if(domain[d].aeqn->ddtScheme == "BDF2")
+                    {
+                        VecCopy(domain[d].aeqn->Alpha_o, domain[d].aeqn->Alpha_oo);
+                        VecCopy(domain[d].aeqn->Alpha, domain[d].aeqn->Alpha_o);
+                    }
+                    else
+                    {
+                        VecCopy(domain[d].aeqn->Alpha, domain[d].aeqn->Alpha_o);
+                    }
+                    
+                    // advance alpha by one sub-step
+                    SolveAEqn(domain[d].aeqn);
+                }
+
+                // bound alpha water between 0 and 1 & print min max of alpha water for logging
+                PetscReal alphaMinPre, alphaMaxPre;
+                VecMin(domain[d].aeqn->Alpha, NULL, &alphaMinPre);
+                VecMax(domain[d].aeqn->Alpha, NULL, &alphaMaxPre);
+                boundAlpha(domain[d].aeqn);
+                PetscReal alphaMinPost, alphaMaxPost;
+                VecMin(domain[d].aeqn->Alpha, NULL, &alphaMinPost);
+                VecMax(domain[d].aeqn->Alpha, NULL, &alphaMaxPost);
+                PetscPrintf(domain[d].mesh->MESH_COMM, "Alpha-Water pre/post correction min = %.5f/%.5f, max = %.5f/%.5f\n", alphaMinPre, alphaMinPost, alphaMaxPre, alphaMaxPost);
+                
+                // restore original timestep
+                domain[d].clock->dt = dtOriginal;
+
+                // save old time step density before updating rho
+                VecCopy(domain[d].aeqn->lRhoFace, domain[d].aeqn->lRhoFace_o);
+
+                // calculate rho 
+                UpdateRho(domain[d].aeqn);
+
+                // compute density gradient for multiphase
+                GradRho(domain[d].aeqn);
             }
 
             // update SGS models

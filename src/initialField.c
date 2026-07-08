@@ -87,7 +87,7 @@ PetscErrorCode SetInitialField(domain_ *domain)
         PetscPrintf(mesh->MESH_COMM, "Setting initial field: %s\n\n", domain->ueqn->initFieldType.c_str());
         readFields(domain, domain->clock->startTime);
 
-        if(flags->isAeqnActive) {UpdateAlphaWaterBCs(domain->aeqn); UpdateRho(domain->aeqn);}
+        if(flags->isAeqnActive) {UpdateAlphaWaterBCs(domain->aeqn); UpdateRho(domain->aeqn); boundAlpha(domain->aeqn);}
                                  UpdateCartesianBCs(domain->ueqn);
                                  UpdateContravariantBCs(domain->ueqn);
                                  UpdatePressureBCs(domain->peqn);

@@ -37,7 +37,7 @@ PetscErrorCode SNESFuncEvalA(SNES snes, Vec Alpha, Vec Rhs, void *ptr);
 PetscErrorCode FormExplicitRhsA(aeqn_ *aeqn);
 
 //! \brief solve alpha-water equation using runge-kutta 4
-PetscErrorCode AeqnRK4(aeqn_ *aeqn);
+PetscErrorCode AeqnRK3(aeqn_ *aeqn);
 
 //! \brief compute density-weighted contravariant velocity and face density for multiphase flows
 PetscErrorCode UpdateRho(aeqn_ *aeqn);

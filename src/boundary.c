@@ -119,7 +119,7 @@ PetscErrorCode checkBCsAndSetPatchTypes(mesh_ *mesh)
                                         "inletFunctioniLeft", "inletFunctioniRight", "zeroGradient", "fixedValue", "thetaWallFunction",
                                         "fixedGradient", "periodic", "oversetInterpolate"};
 
-    std::vector<word> alphaAvailableBC = {"periodic", "zeroGradient", "oversetInterpolate"};
+    std::vector<word> alphaAvailableBC = {"periodic", "zeroGradient", "fixedValue", "oversetInterpolate"};
 
     std::vector<word> nutAvailableBC = {"inletFunction","inletFunctionkLeft", "inletFunctionkRight", "inletFunctionjLeft","inletFunctionjRight",
                                         "inletFunctioniLeft", "inletFunctioniRight", "zeroGradient", "fixedValue",
@@ -2808,37 +2808,6 @@ PetscErrorCode UpdateAlphaWaterBCs(aeqn_ *aeqn)
                     continue;
                 }
 
-                // zeroGradient boundary condition on i-left patch
-                if (mesh->boundaryA.iLeft=="zeroGradient" && i==1)
-                {
-                    a[k][j][i-1] = la[k][j][i];
-                }
-                // zeroGradient boundary condition on i-right patch
-                if (mesh->boundaryA.iRight=="zeroGradient" && i==mx-2)
-                {
-                    a[k][j][i+1] = la[k][j][i];
-                }
-                // zeroGradient boundary condition on j-left patch
-                if (mesh->boundaryA.jLeft=="zeroGradient" && j==1)
-                {
-                    a[k][j-1][i] = la[k][j][i];
-                }
-                // zeroGradient boundary condition on j-right patch
-                if (mesh->boundaryA.jRight=="zeroGradient" && j==my-2)
-                {
-                    a[k][j+1][i] = la[k][j][i];
-                }
-                // zeroGradient boundary condition on k-left patch
-                if (mesh->boundaryA.kLeft=="zeroGradient"  && k==1)
-                {
-                    a[k-1][j][i] = la[k][j][i];
-                }
-                // zeroGradient boundary condition on k-right patch
-                if (mesh->boundaryA.kRight=="zeroGradient" && k==mz-2)
-                {
-                    a[k+1][j][i] = la[k][j][i];
-                }
-
                 // periodic boundary condition on i-left patch
                 if (mesh->boundaryA.iLeft=="periodic" && i==1)
                 {
@@ -2874,6 +2843,68 @@ PetscErrorCode UpdateAlphaWaterBCs(aeqn_ *aeqn)
                 {
                     if(mesh->k_periodic)       a[k+1][j][i] = la[1][j][i];
                     else if(mesh->kk_periodic) a[k+1][j][i] = la[mz+1][j][i];
+                }
+
+                // zeroGradient boundary condition on i-left patch
+                if (mesh->boundaryA.iLeft=="zeroGradient" && i==1)
+                {
+                    a[k][j][i-1] = la[k][j][i];
+                }
+                // zeroGradient boundary condition on i-right patch
+                if (mesh->boundaryA.iRight=="zeroGradient" && i==mx-2)
+                {
+                    a[k][j][i+1] = la[k][j][i];
+                }
+                // zeroGradient boundary condition on j-left patch
+                if (mesh->boundaryA.jLeft=="zeroGradient" && j==1)
+                {
+                    a[k][j-1][i] = la[k][j][i];
+                }
+                // zeroGradient boundary condition on j-right patch
+                if (mesh->boundaryA.jRight=="zeroGradient" && j==my-2)
+                {
+                    a[k][j+1][i] = la[k][j][i];
+                }
+                // zeroGradient boundary condition on k-left patch
+                if (mesh->boundaryA.kLeft=="zeroGradient"  && k==1)
+                {
+                    a[k-1][j][i] = la[k][j][i];
+                }
+                // zeroGradient boundary condition on k-right patch
+                if (mesh->boundaryA.kRight=="zeroGradient" && k==mz-2)
+                {
+                    a[k+1][j][i] = la[k][j][i];
+                }
+
+                // fixedValue boundary condition on i-left patch
+                if (mesh->boundaryA.iLeft=="fixedValue" && i==1)
+                {
+                    a[k][j][i-1] = mesh->boundaryA.iLval;
+                }
+                // fixedValue boundary condition on i-right patch
+                if (mesh->boundaryA.iRight=="fixedValue" && i==mx-2)
+                {
+                    a[k][j][i+1] = mesh->boundaryA.iRval;
+                }
+                // fixedValue boundary condition on j-left patch
+                if (mesh->boundaryA.jLeft=="fixedValue" && j==1)
+                {
+                    a[k][j-1][i] = mesh->boundaryA.jLval;
+                }
+                // fixedValue boundary condition on j-right patch
+                if (mesh->boundaryA.jRight=="fixedValue" && j==my-2)
+                {
+                    a[k][j+1][i] = mesh->boundaryA.jRval;
+                }
+                // fixedValue boundary condition on k-left patch
+                if (mesh->boundaryA.kLeft=="fixedValue" && k==1)
+                {
+                    a[k-1][j][i] = mesh->boundaryA.kLval;
+                }
+                // fixedValue boundary condition on k-right patch
+                if (mesh->boundaryA.kRight=="fixedValue" && k==mz-2)
+                {
+                    a[k+1][j][i] = mesh->boundaryA.kRval;
                 }
             }
         }

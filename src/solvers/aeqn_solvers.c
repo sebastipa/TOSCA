@@ -81,12 +81,13 @@ PetscErrorCode FormAHighOrder(aeqn_ *aeqn)
     PetscInt      i, j, k;
 
     PetscReal     ***alpha, ***nvert, ***meshTag;
-    Cmpnts        ***ucont, ***div;
+    Cmpnts        ***ucont, ***limiter, ***div;
 
     DMDAVecGetArray(da,  aeqn->lAlpha,    &alpha);
     DMDAVecGetArray(fda, ueqn->lUcont,    &ucont);
     DMDAVecGetArray(da,  mesh->lNvert,    &nvert);
     DMDAVecGetArray(da,  mesh->lmeshTag,  &meshTag);
+    DMDAVecGetArray(fda, mesh->fluxLimiter, &limiter);
 
     VecSet(aeqn->lDivAHO, 0.0);
     DMDAVecGetArray(fda, aeqn->lDivAHO, &div);
@@ -111,8 +112,9 @@ PetscErrorCode FormAHighOrder(aeqn_ *aeqn)
                         PetscInt  iL, iR;
                         PetscReal denom;
                         getFace2Cell4StencilCsi(mesh, k, j, i, mx, &iL, &iR, &denom, nvert, meshTag);
-                        div[k][j][i].x = -ucont[k][j][i].x * central4(alpha[k][j][iL], alpha[k][j][i], alpha[k][j][i+1], alpha[k][j][iR]);
+                        //div[k][j][i].x = -ucont[k][j][i].x * central4(alpha[k][j][iL], alpha[k][j][i], alpha[k][j][i+1], alpha[k][j][iR]);
                         //div[k][j][i].x = -ucont[k][j][i].x * central(alpha[k][j][i], alpha[k][j][i+1]);
+                        div[k][j][i].x = -ucont[k][j][i].x * tvd12(alpha[k][j][iL], alpha[k][j][i], alpha[k][j][i+1], alpha[k][j][iR], ucont[k][j][i].x);
                     }
                 }
 
@@ -128,8 +130,9 @@ PetscErrorCode FormAHighOrder(aeqn_ *aeqn)
                         PetscInt  jL, jR;
                         PetscReal denom;
                         getFace2Cell4StencilEta(mesh, k, j, i, my, &jL, &jR, &denom, nvert, meshTag);
-                        div[k][j][i].y = -ucont[k][j][i].y * central4(alpha[k][jL][i], alpha[k][j][i], alpha[k][j+1][i], alpha[k][jR][i]);
+                        //div[k][j][i].y = -ucont[k][j][i].y * central4(alpha[k][jL][i], alpha[k][j][i], alpha[k][j+1][i], alpha[k][jR][i]);
                         //div[k][j][i].y = -ucont[k][j][i].y * central(alpha[k][j][i], alpha[k][j+1][i]);
+                        div[k][j][i].y = -ucont[k][j][i].y * tvd12(alpha[k][jL][i], alpha[k][j][i], alpha[k][j+1][i], alpha[k][jR][i], ucont[k][j][i].y);
                     }
                 }
 
@@ -145,8 +148,9 @@ PetscErrorCode FormAHighOrder(aeqn_ *aeqn)
                         PetscInt  kL, kR;
                         PetscReal denom;
                         getFace2Cell4StencilZet(mesh, k, j, i, mz, &kL, &kR, &denom, nvert, meshTag);
-                        div[k][j][i].z = -ucont[k][j][i].z * central4(alpha[kL][j][i], alpha[k][j][i], alpha[k+1][j][i], alpha[kR][j][i]);
+                        //div[k][j][i].z = -ucont[k][j][i].z * central4(alpha[kL][j][i], alpha[k][j][i], alpha[k+1][j][i], alpha[kR][j][i]);
                         //div[k][j][i].z = -ucont[k][j][i].z * central(alpha[k][j][i], alpha[k+1][j][i]);
+                        div[k][j][i].z = -ucont[k][j][i].z * tvd12(alpha[kL][j][i], alpha[k][j][i], alpha[k+1][j][i], alpha[kR][j][i], ucont[k][j][i].z);
                     }
                 }
             }
@@ -158,6 +162,7 @@ PetscErrorCode FormAHighOrder(aeqn_ *aeqn)
     DMDAVecRestoreArray(fda, ueqn->lUcont,    &ucont);
     DMDAVecRestoreArray(da,  mesh->lNvert,    &nvert);
     DMDAVecRestoreArray(da,  mesh->lmeshTag,  &meshTag);
+    DMDAVecRestoreArray(fda, mesh->fluxLimiter, &limiter);
 
     DMLocalToLocalBegin(fda, aeqn->lDivAHO, INSERT_VALUES, aeqn->lDivAHO);
     DMLocalToLocalEnd  (fda, aeqn->lDivAHO, INSERT_VALUES, aeqn->lDivAHO);
@@ -172,8 +177,8 @@ PetscErrorCode FormAHighOrder(aeqn_ *aeqn)
 PetscErrorCode ComputeLowOrderUpdate(aeqn_ *aeqn)
 {
     // provisional low-order cell update: alpha_LO = alpha + dt * aj * divBudget_LO
-    // divBudget is net inflow (positive) because FormALowOrder stores -u*alpha at each face
-    // clips to [0,1] and syncs ghosts for use in the mules limiter R+/R- bounds
+    // Note: do NOT clip alphaLO as it must allow values outside [0,1] so that P_plus/P_minus
+    // can go negative, enabling MULES to self-correct when low-order fluxes violate bounds
 
     mesh_         *mesh  = aeqn->access->mesh;
     clock_        *clock = aeqn->access->clock;
@@ -213,7 +218,8 @@ PetscErrorCode ComputeLowOrderUpdate(aeqn_ *aeqn)
                     div[k][j][i].z - div[k-1][j][i].z;
 
                 // provisional low-order update: alpha + dt * inflow_rate
-                alphaLO[k][j][i] = PetscMax(0.0, PetscMin(1.0, alpha[k][j][i] + dt * aj[k][j][i] * divBudget));
+                // NO CLIPPING: alphaLO can be outside [0,1] to enable negative P correction
+                alphaLO[k][j][i] = alpha[k][j][i] + dt * aj[k][j][i] * divBudget;
             }
         }
     }
@@ -226,6 +232,8 @@ PetscErrorCode ComputeLowOrderUpdate(aeqn_ *aeqn)
     // sync ghost cells so neighboring processors can read alpha_LO
     DMLocalToLocalBegin(da, aeqn->lAlphaLO, INSERT_VALUES, aeqn->lAlphaLO);
     DMLocalToLocalEnd  (da, aeqn->lAlphaLO, INSERT_VALUES, aeqn->lAlphaLO);
+
+    resetCellPeriodicFluxes(mesh, aeqn->lAlphaLO, aeqn->lAlphaLO, "scalar", "localToLocal");
 
     return(0);
 }
@@ -328,6 +336,7 @@ PetscErrorCode AddCompressionFlux(aeqn_ *aeqn)
     DMLocalToLocalBegin(da, AlphaSmooth, INSERT_VALUES, AlphaSmooth);
     DMLocalToLocalEnd  (da, AlphaSmooth, INSERT_VALUES, AlphaSmooth);
 
+    resetCellPeriodicFluxes(mesh, AlphaSmooth, AlphaSmooth, "scalar", "localToLocal");
 
     DMDAVecGetArray(fda, GradA,       &gradAlpha);
     DMDAVecGetArray(da,  AlphaSmooth, &alpha_smooth);
@@ -391,16 +400,16 @@ PetscErrorCode AddCompressionFlux(aeqn_ *aeqn)
     DMDAVecGetArray(fda, GradA, &gradAlpha);
 
     // compute interface velocity at cell faces as uc_face = c * mag_u_face * grad_alpha_face / mag_grad_alpha_face
-    for (k=zs; k<ze; k++)
+    // Loop over interior faces only (lxs, lys, lzs exclude boundary faces)
+    for (k=lzs; k<lze; k++)
     {
-        for (j=ys; j<ye; j++)
+        for (j=lys; j<lye; j++)
         {
-            for (i=xs; i<xe; i++)
+            for (i=lxs; i<lxe; i++)
             {
-                if(i==mx-1 || j==my-1 || k==mz-1) continue;
+                if(i>=mx-2 || j>=my-2 || k>=mz-2) continue;
 
                 // i-faces
-                if(j!=0 && k!=0)
                 {
                     PetscReal alpha_face;
                     alpha_face = 0.5 * (alpha[k][j][i] + alpha[k][j][i+1]);
@@ -423,7 +432,6 @@ PetscErrorCode AddCompressionFlux(aeqn_ *aeqn)
                 }
 
                 // j-faces
-                if(i!=0 && k!=0)
                 {
                     PetscReal alpha_face;
                     alpha_face = 0.5 * (alpha[k][j][i] + alpha[k][j+1][i]);
@@ -446,7 +454,6 @@ PetscErrorCode AddCompressionFlux(aeqn_ *aeqn)
                 }
 
                 // k-faces
-                if(i!=0 && j!=0)
                 {
                     PetscReal alpha_face;
                     alpha_face = 0.5 * (alpha[k][j][i] + alpha[k+1][j][i]);
@@ -887,62 +894,54 @@ PetscErrorCode FormExplicitRhsA(aeqn_ *aeqn)
 
 //***************************************************************************************************************//
 
-PetscErrorCode AeqnRK4(aeqn_ *aeqn)
+PetscErrorCode AeqnRK3(aeqn_ *aeqn)
 {
+    // SSP-RK3 (Strong Stability Preserving Runge-Kutta 3rd order)
+    // Third-order accurate, guarantees boundedness when MULES limits each stage
+    // 
+    // Mathematical form:
+    //   Stage 1: u1 = u0 + dt*L(u0)
+    //   Stage 2: u2 = 3/4*u0 + 1/4*(u1 + dt*L(u1))
+    //   Stage 3: u_new = 1/3*u0 + 2/3*(u2 + dt*L(u2))
+    //
+    // Each stage: compute full forward Euler step (dtCoeff=1.0), 
+    // then take convex combination with u0 to preserve boundedness
+
     mesh_  *mesh  = aeqn->access->mesh;
     clock_ *clock = aeqn->access->clock;
-
-    PetscReal ts,te;
+    PetscReal ts, te, dt = clock->dt;
 
     PetscTime(&ts);
-    PetscPrintf(mesh->MESH_COMM, "RungeKutta-4: Solving for Alpha-Water, Stage ");
+    PetscPrintf(mesh->MESH_COMM, "SSP-RK3: Solving for Alpha-Water, Stage ");
 
-    PetscInt  s = 4;
-    PetscReal b[4];
-    PetscReal a[4];
-
-    b[0] = 1.0 / 6.0;
-    b[1] = 1.0 / 3.0;
-    b[2] = 1.0 / 3.0;
-    b[3] = 1.0 / 6.0;
-
-    a[0] = 0.0;
-    a[1] = 0.5;
-    a[2] = 0.5;
-    a[3] = 1.0;
-
-    PetscReal dt = clock->dt;
-
-    // Alpha_o contribution
-    VecCopy(aeqn->Alpha_o, aeqn->AlphaTmp);
-
-    // contribution from K2, K3, K4
-    for (PetscInt i=0; i<s; i++)
-    {
-        PetscPrintf(mesh->MESH_COMM, "%ld, ", i+1);
-
-        // compute intermediate guess and evaluate RHS
-        if(i!=0)
-        {
-            VecWAXPY(aeqn->Alpha, a[i] * dt, aeqn->Rhs, aeqn->Alpha_o);
-            DMGlobalToLocalBegin(mesh->da, aeqn->Alpha, INSERT_VALUES, aeqn->lAlpha);
-            DMGlobalToLocalEnd(mesh->da, aeqn->Alpha, INSERT_VALUES, aeqn->lAlpha);
-        }
-
-        // compute function guess
-        FormExplicitRhsA(aeqn);
-
-        // add contribution from K1, K2, K3, K4
-        VecAXPY(aeqn->AlphaTmp, dt * b[i], aeqn->Rhs);
-    }
-
-    VecCopy(aeqn->AlphaTmp, aeqn->Alpha);
+    // Stage 1: Alpha_1 = Alpha_o + dt*L(Alpha_o)
+    PetscPrintf(mesh->MESH_COMM, "1, ");
+    
+    FormExplicitRhsA(aeqn);
+    VecWAXPY(aeqn->Alpha, dt, aeqn->Rhs, aeqn->Alpha_o);  // Alpha = Alpha_o + dt*L
     DMGlobalToLocalBegin(mesh->da, aeqn->Alpha, INSERT_VALUES, aeqn->lAlpha);
     DMGlobalToLocalEnd(mesh->da, aeqn->Alpha, INSERT_VALUES, aeqn->lAlpha);
 
-    // compute elapsed time
+    // Stage 2: Alpha_2 = 3/4*Alpha_o + 1/4*(Alpha_1 + dt*L(Alpha_1))
+    PetscPrintf(mesh->MESH_COMM, "2, ");
+    
+    FormExplicitRhsA(aeqn);
+    VecAXPY(aeqn->Alpha, dt, aeqn->Rhs);               // Alpha = Alpha_1 + dt*L
+    VecAXPBY(aeqn->Alpha, 0.75, 0.25, aeqn->Alpha_o);  // Alpha = 0.75*Alpha_o + 0.25*Alpha
+    DMGlobalToLocalBegin(mesh->da, aeqn->Alpha, INSERT_VALUES, aeqn->lAlpha);
+    DMGlobalToLocalEnd(mesh->da, aeqn->Alpha, INSERT_VALUES, aeqn->lAlpha);
+    
+    // Stage 3: Alpha_new = 1/3*Alpha_o + 2/3*(Alpha_2 + dt*L(Alpha_2)) 
+    PetscPrintf(mesh->MESH_COMM, "3, ");
+
+    FormExplicitRhsA(aeqn);
+    VecAXPY(aeqn->Alpha, dt, aeqn->Rhs);                     // Alpha = Alpha_2 + dt*L
+    VecAXPBY(aeqn->Alpha, 1.0/3.0, 2.0/3.0, aeqn->Alpha_o);  // Alpha = (1/3)*Alpha_o + (2/3)*Alpha
+    DMGlobalToLocalBegin(mesh->da, aeqn->Alpha, INSERT_VALUES, aeqn->lAlpha);
+    DMGlobalToLocalEnd(mesh->da, aeqn->Alpha, INSERT_VALUES, aeqn->lAlpha);
+
     PetscTime(&te);
-    PetscPrintf(mesh->MESH_COMM,"Elapsed Time = %f\n", te-ts);
+    PetscPrintf(mesh->MESH_COMM, "Elapsed Time = %f\n", te-ts);
 
     return(0);
 }
