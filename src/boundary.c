@@ -1238,10 +1238,11 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                         PetscReal z = cent[k][j][i].z;
 
                         // shear exponent
-                        PetscReal alpha = 0.107027;
+                        //PetscReal alpha = 0.107027;
+
 
                         // power low contribution
-                        ucat[k-1][j][i] = nScale(pow(h/ifPtr->Href, alpha), ifPtr->Uref);
+                        ucat[k-1][j][i] = nScale(pow(h/ifPtr->Href, ifPtr->alpha), ifPtr->Uref);
 
                         // fluctuations contribution
                         PetscReal f          = ifPtr->uPrimeRMS;

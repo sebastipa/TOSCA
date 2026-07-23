@@ -60,6 +60,7 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
             readSubDictVector(fileName.c_str(), "inletFunction", "Uref", &(ifPtr->Uref));
             readSubDictDouble(fileName.c_str(), "inletFunction", "Href", &(ifPtr->Href));
             readSubDictDouble(fileName.c_str(), "inletFunction", "uPrimeRMS", &(ifPtr->uPrimeRMS));
+            readSubDictDouble(fileName.c_str(), "inletFunction", "alpha", &(ifPtr->alpha));
         }
         // log law profile
         else if (ifPtr->typeU == 2)
