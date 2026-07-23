@@ -65,6 +65,7 @@ struct inletFunctionTypes
     Cmpnts        Uref;
     PetscReal     Href;
     PetscReal     uPrimeRMS;
+    PetscReal     alpha;
 
     // type 2/5: log law/with veer + neutral stratification
     Cmpnts        Udir;                       //!< velocity direction vector
