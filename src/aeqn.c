@@ -56,11 +56,6 @@ PetscErrorCode InitializeAEqn(aeqn_ *aeqn)
         VecDuplicate(mesh->lAj,   &(aeqn->lRplusA));     VecSet(aeqn->lRplusA,  1.0);
         VecDuplicate(mesh->lAj,   &(aeqn->lRminusA));    VecSet(aeqn->lRminusA, 1.0);
 
-        // MULES sweeps: typically 1 is sufficient with sub-cycling
-        // Multiple sweeps can refine limiters but add complexity and cost
-        aeqn->mulesIter = 1;
-        PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-mulesIter", &(aeqn->mulesIter), PETSC_NULL);
-
         // alpha sub-cycling steps
         aeqn->nAlphaSubCycles = 3;
         PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-nAlphaSubCycles", &(aeqn->nAlphaSubCycles), PETSC_NULL);
@@ -166,7 +161,8 @@ PetscErrorCode SolveAEqn(aeqn_ *aeqn)
     else if (aeqn->ddtScheme=="RK3")
         AeqnRK3(aeqn);
 
-    // reset periodic cell values
+    // reset periodicity (strict enforcement is crucial)
+    enforceInteriorCellPeriodicity(mesh, aeqn->Alpha, aeqn->lAlpha, "scalar");
     resetCellPeriodicFluxes(mesh, aeqn->Alpha, aeqn->lAlpha, "scalar", "globalToLocal");
 
     return(0);

@@ -5,8 +5,6 @@
 
 PetscErrorCode FormALowOrder(aeqn_ *aeqn)
 {
-    // compute first-order upwind face fluxes and store in lDivA
-
     mesh_         *mesh  = aeqn->access->mesh;
     ueqn_         *ueqn  = aeqn->access->ueqn;
     DM            da     = mesh->da, fda = mesh->fda;
@@ -27,9 +25,7 @@ PetscErrorCode FormALowOrder(aeqn_ *aeqn)
     VecSet(aeqn->lDivALO, 0.0);
     DMDAVecGetArray(fda, aeqn->lDivALO, &div);
 
-    // ---------------------------------------------------------------------- //
-    //                  upwind face flux assembly (i, j, k)                   //
-    // ---------------------------------------------------------------------- //
+    // compute first-order upwind face fluxes and store in lDivALO
 
     for (k=zs; k<ze; k++)
     {
@@ -67,8 +63,6 @@ PetscErrorCode FormALowOrder(aeqn_ *aeqn)
 
 PetscErrorCode FormAHighOrder(aeqn_ *aeqn)
 {
-    // compute fourth-order central face fluxes and store in lDivAHO
-
     mesh_         *mesh  = aeqn->access->mesh;
     ueqn_         *ueqn  = aeqn->access->ueqn;
     DM            da     = mesh->da, fda = mesh->fda;
@@ -91,6 +85,8 @@ PetscErrorCode FormAHighOrder(aeqn_ *aeqn)
 
     VecSet(aeqn->lDivAHO, 0.0);
     DMDAVecGetArray(fda, aeqn->lDivAHO, &div);
+
+    // compute high-order face fluxes and store in lDivAHO
 
     for (k=zs; k<ze; k++)
     {
@@ -218,7 +214,6 @@ PetscErrorCode ComputeLowOrderUpdate(aeqn_ *aeqn)
                     div[k][j][i].z - div[k-1][j][i].z;
 
                 // provisional low-order update: alpha + dt * inflow_rate
-                // NO CLIPPING: alphaLO can be outside [0,1] to enable negative P correction
                 alphaLO[k][j][i] = alpha[k][j][i] + dt * aj[k][j][i] * divBudget;
             }
         }
@@ -229,7 +224,7 @@ PetscErrorCode ComputeLowOrderUpdate(aeqn_ *aeqn)
     DMDAVecRestoreArray(da,  mesh->lAj,      &aj);
     DMDAVecRestoreArray(fda, aeqn->lDivALO,  &div);
 
-    // sync ghost cells so neighboring processors can read alpha_LO
+    // scatter before periodicity reset
     DMLocalToLocalBegin(da, aeqn->lAlphaLO, INSERT_VALUES, aeqn->lAlphaLO);
     DMLocalToLocalEnd  (da, aeqn->lAlphaLO, INSERT_VALUES, aeqn->lAlphaLO);
 
@@ -614,6 +609,10 @@ PetscErrorCode ApplyMULESLimiter(aeqn_ *aeqn)
     DMLocalToLocalBegin(da, aeqn->lRminusA, INSERT_VALUES, aeqn->lRminusA);
     DMLocalToLocalEnd  (da, aeqn->lRminusA, INSERT_VALUES, aeqn->lRminusA);
 
+    // enforce periodic consistency for R values at periodic boundaries
+    resetCellPeriodicFluxes(mesh, aeqn->lRplusA,  aeqn->lRplusA,  "scalar", "localToLocal");
+    resetCellPeriodicFluxes(mesh, aeqn->lRminusA, aeqn->lRminusA, "scalar", "localToLocal");
+
     // compute per-face limiter coefficient lambda_f in [0,1]
     VecSet(aeqn->lLambdaA, 1.0);
     DMDAVecGetArray(fda, aeqn->lDivACor,  &divCor);
@@ -833,6 +832,9 @@ PetscErrorCode SNESFuncEvalA(SNES snes, Vec Alpha, Vec Rhs, void *ptr)
     VecCopy(Alpha, aeqn->Alpha);
     DMGlobalToLocalBegin(da, aeqn->Alpha, INSERT_VALUES, aeqn->lAlpha);
     DMGlobalToLocalEnd  (da, aeqn->Alpha, INSERT_VALUES, aeqn->lAlpha);
+    
+    // ensure alpha periodic fluxes are consistent
+    enforceInteriorCellPeriodicity(mesh, aeqn->Alpha, aeqn->lAlpha, "scalar");
     resetCellPeriodicFluxes(mesh, aeqn->Alpha, aeqn->lAlpha, "scalar", "globalToLocal");
 
     // compute low-order divergence fluxes
@@ -873,7 +875,12 @@ PetscErrorCode FormExplicitRhsA(aeqn_ *aeqn)
 {
     mesh_ *mesh = aeqn->access->mesh;
 
+    // scatter alpha to ensure ghost cells are updated
+    DMGlobalToLocalBegin(mesh->da, aeqn->Alpha, INSERT_VALUES, aeqn->lAlpha);
+    DMGlobalToLocalEnd  (mesh->da, aeqn->Alpha, INSERT_VALUES, aeqn->lAlpha);
+
     // ensure alpha periodic fluxes are consistent
+    enforceInteriorCellPeriodicity(mesh, aeqn->Alpha, aeqn->lAlpha, "scalar");
     resetCellPeriodicFluxes(mesh, aeqn->Alpha, aeqn->lAlpha, "scalar", "globalToLocal");
 
     // build low-order and high-order face fluxes, apply mules limiter -> result in aeqn->Rhs
@@ -884,6 +891,7 @@ PetscErrorCode FormExplicitRhsA(aeqn_ *aeqn)
     ApplyMULESLimiter(aeqn);
 
     VecSet(aeqn->Rhs, 0.0);
+
     FormA(aeqn, aeqn->lDivA, aeqn->Rhs);
 
     // zero out non-resolved cells
@@ -925,7 +933,7 @@ PetscErrorCode AeqnRK3(aeqn_ *aeqn)
     // Stage 2: Alpha_2 = 3/4*Alpha_o + 1/4*(Alpha_1 + dt*L(Alpha_1))
     PetscPrintf(mesh->MESH_COMM, "2, ");
     
-    FormExplicitRhsA(aeqn);
+    FormExplicitRhsA(aeqn);  
     VecAXPY(aeqn->Alpha, dt, aeqn->Rhs);               // Alpha = Alpha_1 + dt*L
     VecAXPBY(aeqn->Alpha, 0.75, 0.25, aeqn->Alpha_o);  // Alpha = 0.75*Alpha_o + 0.25*Alpha
     DMGlobalToLocalBegin(mesh->da, aeqn->Alpha, INSERT_VALUES, aeqn->lAlpha);

@@ -6,9 +6,8 @@
 PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
 {
     // In this function the viscous + divergence term of the temperature equation are
-    // discretized at cell centers.
-    // First the divergence and viscous fluxes are evaluated at cell faces, then
-    // their budget is evaluated at the internal cells, forming the Rhs.
+    // discretized at cell centers. First the divergence and viscous fluxes are evaluated 
+    // at cell faces, then their budget is evaluated at the internal cells, forming the Rhs.
 
     mesh_         *mesh  = teqn->access->mesh;
     ueqn_         *ueqn  = teqn->access->ueqn;
@@ -490,8 +489,8 @@ PetscErrorCode FormT(teqn_ *teqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
     }
 
     DMLocalToLocalBegin(fda, teqn->lDivT,  INSERT_VALUES, teqn->lDivT);
-    DMLocalToLocalEnd  (fda, teqn->lDivT,  INSERT_VALUES, teqn->lDivT);
     DMLocalToLocalBegin(fda, teqn->lViscT, INSERT_VALUES, teqn->lViscT);
+    DMLocalToLocalEnd  (fda, teqn->lDivT,  INSERT_VALUES, teqn->lDivT);
     DMLocalToLocalEnd  (fda, teqn->lViscT, INSERT_VALUES, teqn->lViscT);
 
     if(teqn->access->flags->isLesActive && (les->model == BAMD || les->model == BV))
@@ -716,6 +715,10 @@ PetscErrorCode FormExplicitRhsT(teqn_ *teqn)
     mesh_ *mesh   = teqn->access->mesh;
     clock_ *clock = teqn->access->clock;
 
+    // scatter Tmprt to lTmprt before resetting periodic fluxes
+    DMGlobalToLocalBegin(mesh->da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
+    DMGlobalToLocalEnd  (mesh->da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
+
     // reset temperature periodic fluxes to be consistent if the flow is periodic
     resetCellPeriodicFluxes(mesh, teqn->Tmprt, teqn->lTmprt, "scalar", "globalToLocal");
 
@@ -828,6 +831,10 @@ PetscErrorCode TeqnABBE(teqn_ *teqn)
     PetscPrintf(mesh->MESH_COMM, "IMEX-CNAB: Solving for T, ");
 
     // Step 1: ensure T^n state is synchronised (lTmprt current)
+    DMGlobalToLocalBegin(mesh->da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
+    DMGlobalToLocalEnd  (mesh->da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
+    
+    // ensure alpha periodic fluxes are consistent
     resetCellPeriodicFluxes(mesh, teqn->Tmprt, teqn->lTmprt, "scalar", "globalToLocal");
 
     // Step 2: convective RHS at T^n → RhsConv (conv-only, formMode=1)

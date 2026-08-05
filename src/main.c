@@ -18,27 +18,27 @@ int main(int argc, char **argv)
     // uncomment to enable PETSc peak-memory tracking
     // PetscMemorySetGetMaximumUsage();
 
-    // domains array
+    // declare simulation data
     domain_ *domain;
 
     // simulation clock
     clock_   clock;
     ReadTimeControls(&clock);
 
-    // simulation flags (initialize)
+    // initialize simulation flags
     flags_ flags;
     SetSimulationFlags(&flags);
 
-    // simulation info (initialize)
+    // initialize simulation info
     simInfo_ info;
     SetSimulationInfo(&info);
 
-    // simulation time
+    // initialize simulation time
     PetscReal solutionTimeStart, solutionTimeEnd;
     PetscReal iterationTimeStart, iterationTimeEnd;
     PetscTime(&solutionTimeStart);
 
-    // initialize simulation
+    // initialize simulation data
     simulationInitialize(&domain, &clock, &info, &flags);
 
     if(flags.isPvCatalystActive)
@@ -68,27 +68,24 @@ int main(int argc, char **argv)
             if(flags.isOversetActive)
                 PetscPrintf(PETSC_COMM_WORLD, "\nDomain: %ld\n\n", *(domain[d].access.domainID));
 
-            // reset flags based on domain preferences
+            // locally copythis domain flags
             flags = domain[d].flags;
 
-            // update the IBM position and interpolate based on it before the start of solution
+            // update the IBM position and interpolate based on new positions
             if(flags.isIBMActive)
             {
                 UpdateIBM(domain[d].ibm);
             }
 
-            // snapshot old fields: they contain BCs for this time step as boundary conditions have been updated
+            // save velocity at old time step
             VecCopy(domain[d].ueqn->Ucont, domain[d].ueqn->Ucont_o);
 
             if(flags.isTeqnActive)
             {
-                // save temperature at old time step for BDF2
+                // save temperature at old time step
                 if(domain[d].teqn->ddtScheme == "BDF2")
                 {
-                    // T^{n+1}_ghost = 4/3 T^{n-} - 1/3 T^{n-1} (difference from the true BCs by O(dt**2))
-                    // for now accept it as this is consistent with the fields they are carrying
                     VecCopy(domain[d].teqn->Tmprt_o, domain[d].teqn->Tmprt_oo); 
-
                     VecCopy(domain[d].teqn->Tmprt, domain[d].teqn->Tmprt_o);
                 }
                 else
@@ -103,6 +100,7 @@ int main(int argc, char **argv)
                 UpdateFluxLimiter(domain[d].ueqn);
             }
 
+            // solve the alpha water equation
             if(flags.isAeqnActive)
             {
                 // alpha water sub-cycling: take multiple smaller timesteps
@@ -115,7 +113,7 @@ int main(int argc, char **argv)
                     // temporarily reduce timestep for alpha equation
                     domain[d].clock->dt = dtAlpha;
 
-                    // save alpha and rho at old time step for BDF2
+                    // save alpha at old time step
                     if(domain[d].aeqn->ddtScheme == "BDF2")
                     {
                         VecCopy(domain[d].aeqn->Alpha_o, domain[d].aeqn->Alpha_oo);
@@ -123,33 +121,34 @@ int main(int argc, char **argv)
                     }
                     else
                     {
-                        VecCopy(domain[d].aeqn->Alpha, domain[d].aeqn->Alpha_o);
+                        VecCopy(domain[d].aeqn->Alpha, domain[d].aeqn->Alpha_o);  
                     }
-                    
+
                     // advance alpha by one sub-step
                     SolveAEqn(domain[d].aeqn);
                 }
 
-                // bound alpha water between 0 and 1 & print min max of alpha water for logging
-                PetscReal alphaMinPre, alphaMaxPre;
-                VecMin(domain[d].aeqn->Alpha, NULL, &alphaMinPre);
-                VecMax(domain[d].aeqn->Alpha, NULL, &alphaMaxPre);
-                boundAlpha(domain[d].aeqn);
-                PetscReal alphaMinPost, alphaMaxPost;
-                VecMin(domain[d].aeqn->Alpha, NULL, &alphaMinPost);
-                VecMax(domain[d].aeqn->Alpha, NULL, &alphaMaxPost);
-                PetscPrintf(domain[d].mesh->MESH_COMM, "Alpha-Water pre/post correction min = %.5f/%.5f, max = %.5f/%.5f\n", alphaMinPre, alphaMinPost, alphaMaxPre, alphaMaxPost);
-                
                 // restore original timestep
                 domain[d].clock->dt = dtOriginal;
+
+                // bound alpha water between 0 and 1 & print min max of alpha water for logging
+                PetscReal alphaMinPre; VecMin(domain[d].aeqn->Alpha, NULL, &alphaMinPre); 
+                PetscReal alphaMaxPre; VecMax(domain[d].aeqn->Alpha, NULL, &alphaMaxPre);
+                 
+                boundAlpha(domain[d].aeqn);
+
+                PetscReal alphaMinPost; VecMin(domain[d].aeqn->Alpha, NULL, &alphaMinPost);
+                PetscReal alphaMaxPost; VecMax(domain[d].aeqn->Alpha, NULL, &alphaMaxPost);
+                
+                PetscPrintf(domain[d].mesh->MESH_COMM, "Alpha-Water pre/post correction min = %.5f/%.5f, max = %.5f/%.5f\n", alphaMinPre, alphaMinPost, alphaMaxPre, alphaMaxPost);
 
                 // save old time step density before updating rho
                 VecCopy(domain[d].aeqn->lRhoFace, domain[d].aeqn->lRhoFace_o);
 
-                // calculate rho 
+                // update rho 
                 UpdateRho(domain[d].aeqn);
 
-                // compute density gradient for multiphase
+                // compute density gradient
                 GradRho(domain[d].aeqn);
             }
 
@@ -169,7 +168,7 @@ int main(int argc, char **argv)
                 }
             }
 
-            // correct damping layers/fringe regions
+            // correct damping layers/fringe region
             if(flags.isXDampingActive || flags.isZDampingActive)
             {
                 correctDampingSources(domain[d].ueqn);
@@ -204,16 +203,16 @@ int main(int argc, char **argv)
                 GradP(domain[d].peqn);
             }
 
-            // finish the y-damping layer processor mapping 
+            // update y-damping layer processor mapping 
             if(flags.isYDampingActive)
             {
                 mapYDamping(domain[d].ueqn);
             }
 
-            // handle buoyancy term
+            // buoyancy term
             if(flags.isTeqnActive)
             {
-                // save the old buoyancy term for the AB2 time stepping
+                // save old buoyancy term for AB2 formulation
                 if(clock.it > clock.itStart)
                 {
                     if(domain[d].teqn->pTildeFormulation)
@@ -222,23 +221,23 @@ int main(int argc, char **argv)
                         VecCopy(domain[d].ueqn->bTheta, domain[d].ueqn->bTheta_o);
                 }
 
-                // compute the new buoyancy term
+                // compute new buoyancy term
                 if(domain[d].teqn->pTildeFormulation)
                     ghGradRhoK(domain[d].teqn);
                 else
                     Buoyancy(domain[d].ueqn, 1.0);
             }
 
-            // solve U and adjust global mass conservation
+            // solve the momentum equation
             SolveUEqn(domain[d].ueqn);
 
-            // correct pressure and enforce local mass conservation
+            // solve the pressure equation
             SolvePEqn(domain[d].peqn);
 
             // update cartesian velocity
             contravariantToCartesian(domain[d].ueqn);
 
-            // temperature step
+            // potential temperature step
             if(flags.isTeqnActive)
             {
                 // update SGS fields 
@@ -266,7 +265,6 @@ int main(int argc, char **argv)
                 // interpolate IBM cells before computing the forces and moments on the IBM
                 if(flags.isIBMActive)
                 {
-
                     if (domain[d].ibm->IBInterpolationModel == "CURVIB")
                     {
 
@@ -319,15 +317,15 @@ int main(int argc, char **argv)
                 FormU (domain[d].ueqn, domain[d].ueqn->Rhs_o, 1.0);
             }
 
+            // update temperature BC
             if(flags.isTeqnActive)
             {
-                // update temperature BC
                 UpdateTemperatureBCs(domain[d].teqn);
             }
 
+            // update alpha water BC
             if(flags.isAeqnActive)
             {
-                // update alpha water BC
                 UpdateAlphaWaterBCs(domain[d].aeqn);
             }
 
@@ -353,6 +351,7 @@ int main(int argc, char **argv)
             MPI_Barrier(domain[d].mesh->MESH_COMM);
         }
 
+        // perform paraview catalyst actions
         if(flags.isPvCatalystActive)
         {
             #if USE_CATALYST
@@ -360,6 +359,7 @@ int main(int argc, char **argv)
             #endif
         }
 
+        // perform overset interpolation
         if(flags.isOversetActive)
         {
             UpdateOversetInterpolation(domain);
@@ -368,14 +368,13 @@ int main(int argc, char **argv)
         // remove gauge pressure and sync
         SyncPressureAcrossDomains(domain);
 
+        // write output files
         WriteAcquisition(domain);
 
         clock.it ++;
 
         PetscTime(&iterationTimeEnd);
-
         PetscPrintf(PETSC_COMM_WORLD, "Total iteration time = %lf s\n", iterationTimeEnd - iterationTimeStart);
-
         MPI_Barrier(PETSC_COMM_WORLD);
 
     }
@@ -385,11 +384,8 @@ int main(int argc, char **argv)
     #endif
 
     PetscTime(&solutionTimeEnd);
-
     PetscPrintf(PETSC_COMM_WORLD, "\n\nIterations = %ld, Cpu Time = %lf s, Finalizing parallel run\n", clock.it-1, solutionTimeEnd - solutionTimeStart);
-
     PetscPrintf(PETSC_COMM_WORLD, "\n\nEnd\n\n");
-
     PetscFinalize();
 
     return(0);

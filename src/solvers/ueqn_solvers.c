@@ -1341,9 +1341,6 @@ PetscErrorCode SNESFuncEval(SNES snes, Vec Ucont, Vec Rhs, void *ptr)
         setBackgroundBC(mesh);
     }
 
-    // reset cartesian periodic fluxes to be consistent if the flow is periodic
-    resetCellPeriodicFluxes(mesh, ueqn->Ucat, ueqn->lUcat, "vector", "globalToLocal");
-
     // initialize Rhs from the prebuilt constant-RHS buffer (bU).
     VecCopy(ueqn->bU, Rhs);
 
@@ -1433,9 +1430,6 @@ PetscErrorCode ExplicitRhsU(ueqn_ *ueqn, PetscInt formMode)
     // {
     //     UpdateImmersedBCs(ueqn->access->ibm);
     // }
-
-    // reset cartesian periodic fluxes to be consistent if the flow is periodic
-    resetCellPeriodicFluxes(mesh, ueqn->Ucat, ueqn->lUcat, "vector", "globalToLocal");
 
     // initialize the rhs vector
     VecSet(ueqn->Rhs, 0.0);
@@ -1940,9 +1934,6 @@ PetscErrorCode IMEXMatVec(Mat A, Vec v, Vec Av)
     {
         setBackgroundBC(mesh);
     }
-
-    // reset cartesian periodic fluxes to be consistent if the flow is periodic
-    resetCellPeriodicFluxes(mesh, ueqn->Ucat, ueqn->lUcat, "vector", "globalToLocal");
 
     // Av = v - dt*scale*Visc(v)
     VecSet(Av, 0.0); 

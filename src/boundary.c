@@ -870,66 +870,6 @@ PetscErrorCode UpdateContravariantBCs(ueqn_ *ueqn)
                 {
                     if(ucont[k][j][i].z < 0.0) ucont[k][j][i].z = 0.0;
                 }
-
-                // i,j,k  or ii, jj, kk periodic type: the right
-                // boundary velocity has been solved in this case: put it on the
-                // left boundary
-                if
-                (
-                    mesh->boundaryU.iLeft=="periodic" &&
-                    i==0
-                )
-                {
-                    if(mesh->i_periodic) ucont[k][j][i].x = lucont[k][j][mx-2].x;
-                    else if(mesh->ii_periodic) ucont[k][j][i].x = lucont[k][j][-2].x;
-                }
-
-                if
-                (
-                    mesh->boundaryU.iRight=="periodic" &&
-                    i==mx-2
-                )
-                {
-                    // do nothing, already have the fluxes
-                }
-
-                if
-                (
-                    mesh->boundaryU.jLeft=="periodic" &&
-                    j==0
-                )
-                {
-                    if(mesh->j_periodic) ucont[k][j][i].y = lucont[k][my-2][i].y;
-                    else if(mesh->jj_periodic) ucont[k][j][i].y = lucont[k][-2][i].y;
-                }
-
-                if
-                (
-                    mesh->boundaryU.jRight=="periodic" &&
-                    j==my-2
-                )
-                {
-                    // do nothing, already have the fluxes
-                }
-
-                if
-                (
-                    mesh->boundaryU.kLeft=="periodic" &&
-                    k==0
-                )
-                {
-                    if(mesh->k_periodic)       ucont[k][j][i].z = lucont[mz-2][j][i].z;
-                    else if(mesh->kk_periodic) ucont[k][j][i].z = lucont[-2][j][i].z;
-                }
-
-                if
-                (
-                    mesh->boundaryU.kRight=="periodic" &&
-                    k==mz-2
-                )
-                {
-                    // do nothing, already have the fluxes
-                }
             }
         }
     }
@@ -943,9 +883,8 @@ PetscErrorCode UpdateContravariantBCs(ueqn_ *ueqn)
     DMDAVecRestoreArray(fda, mesh->lKZet,  &kzet);
     DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
 
-    // scatter new contravariant velocity values
-    DMGlobalToLocalBegin(fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
-    DMGlobalToLocalEnd  (fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
+    // reset periodic face fluxes and scatter
+    resetFacePeriodicFluxesVector(mesh, ueqn->Ucont, ueqn->lUcont, "globalToLocal");
 
     return(0);
 }
@@ -2098,58 +2037,6 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                     if(isOversetCell(k,j,i,meshTag)) mSetValue(ucat[k+1][j][i],0);
 
                 }
-
-                // i-periodic boundary condition on i-left patch
-                if (mesh->boundaryU.iLeft=="periodic" && i==1)
-                {
-                    if(mesh->i_periodic) ucat[k][j][i-1] = lucat[k][j][mx-2];
-                    else if (mesh->ii_periodic) ucat[k][j][i-1] = lucat[k][j][-2];
-
-                    if ( isIBMCell(k,j,i,nvert)) mSetValue(ucat[k][j][i-1],0);
-                }
-                // i-periodic boundary condition on i-right patch
-                if (mesh->boundaryU.iRight=="periodic" && i==mx-2)
-                {
-
-                    if(mesh->i_periodic) ucat[k][j][i+1] = lucat[k][j][1];
-                    else if (mesh->ii_periodic) ucat[k][j][i+1] = lucat[k][j][mx+1];
-
-                    if ( isIBMCell(k,j,i,nvert) ) mSetValue(ucat[k][j][i+1],0);
-                }
-                // j-periodic boundary condition on j-left patch
-                if (mesh->boundaryU.jLeft=="periodic" && j==1)
-                {
-
-                    if(mesh->j_periodic) ucat[k][j-1][i] = lucat[k][my-2][i];
-                    else if(mesh->jj_periodic) ucat[k][j-1][i] = lucat[k][-2][i];
-
-                    if ( isIBMCell(k,j,i,nvert) ) mSetValue(ucat[k][j-1][i],0);
-                }
-                // j-periodic boundary condition on j-right patch
-                if (mesh->boundaryU.jRight=="periodic" && j==my-2)
-                {
-                    if(mesh->j_periodic) ucat[k][j+1][i] = lucat[k][1][i];
-                    else if(mesh->jj_periodic) ucat[k][j+1][i] = lucat[k][my+1][i];
-
-                    if ( isIBMCell(k,j,i,nvert) ) mSetValue(ucat[k][j+1][i],0);
-                }
-                // k-periodic boundary condition on k-left patch
-                if (mesh->boundaryU.kLeft=="periodic" && k==1)
-                {
-
-                    if(mesh->k_periodic) ucat[k-1][j][i] = lucat[mz-2][j][i];
-                    else if(mesh->kk_periodic) ucat[k-1][j][i] = lucat[-2][j][i];
-
-                    if ( isIBMCell(k,j,i,nvert)) mSetValue(ucat[k-1][j][i],0);
-                }
-                // k-periodic boundary condition on k-right patch
-                if (mesh->boundaryU.kRight=="periodic" && k==mz-2)
-                {
-                    if(mesh->k_periodic) ucat[k+1][j][i] = lucat[1][j][i];
-                    else if(mesh->kk_periodic) ucat[k+1][j][i] = lucat[mz+1][j][i];
-
-                    if ( isIBMCell(k,j,i,nvert) ) mSetValue(ucat[k+1][j][i],0);
-                }
             }
         }
     }
@@ -2170,10 +2057,10 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
     DMDAVecRestoreArray(fda, ueqn->lUcat,  &lucat);
     DMDAVecRestoreArray(fda, ueqn->lUcont,  &lucont);
 
-    DMGlobalToLocalBegin(fda, ueqn->Ucat, INSERT_VALUES, ueqn->lUcat);
-    DMGlobalToLocalEnd  (fda, ueqn->Ucat, INSERT_VALUES, ueqn->lUcat);
-
     DMDAVecRestoreArray(da, ueqn->lUstar, &ustar);
+    
+    // reset cartesian periodic cell values and scatter
+    resetCellPeriodicFluxes(mesh, ueqn->Ucat, ueqn->lUcat, "vector", "globalToLocal");
 
     return(0);
 }
@@ -2695,43 +2582,6 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
 
                     t[k+1][j][i] = d * mesh->boundaryT.kRval + lt[k][j][i];
                 }
-
-                // periodic boundary condition on i-left patch
-                if (mesh->boundaryT.iLeft=="periodic" && i==1)
-                {
-                    if(mesh->i_periodic)       t[k][j][i-1] = lt[k][j][mx-2];
-                    else if(mesh->ii_periodic) t[k][j][i-1] = lt[k][j][-2];
-                }
-                // periodic boundary condition on i-right patch
-                if (mesh->boundaryT.iRight=="periodic" && i==mx-2)
-                {
-                    if(mesh->i_periodic)        t[k][j][i+1] = lt[k][j][1];
-                    else if (mesh->ii_periodic) t[k][j][i+1] = lt[k][j][mx+1];
-                }
-                // periodic boundary condition on j-left patch
-                if (mesh->boundaryT.jLeft=="periodic" && j==1)
-                {
-                    if(mesh->j_periodic)       t[k][j-1][i] = lt[k][my-2][i];
-                    else if(mesh->jj_periodic) t[k][j-1][i] = lt[k][-2][i];
-                }
-                // periodic boundary condition on j-right patch
-                if (mesh->boundaryT.jRight=="periodic" && j==my-2)
-                {
-                    if(mesh->j_periodic)       t[k][j+1][i] = lt[k][1][i];
-                    else if(mesh->jj_periodic) t[k][j+1][i] = lt[k][my+1][i];
-                }
-                // periodic boundary condition on k-left patch
-                if (mesh->boundaryT.kLeft=="periodic" && k==1)
-                {
-                    if(mesh->k_periodic)       t[k-1][j][i] = lt[mz-2][j][i];
-                    else if(mesh->kk_periodic) t[k-1][j][i] = lt[-2][j][i];
-                }
-                // periodic boundary condition on k-right patch
-                if (mesh->boundaryT.kRight=="periodic" && k==mz-2)
-                {
-                    if(mesh->k_periodic)       t[k+1][j][i] = lt[1][j][i];
-                    else if(mesh->kk_periodic) t[k+1][j][i] = lt[mz+1][j][i];
-                }
             }
         }
     }
@@ -2749,9 +2599,8 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
     DMDAVecRestoreArray(da, teqn->lTmprt, &lt);
     DMDAVecRestoreArray(da, teqn->Tmprt,  &t);
 
-    // scatter global to local
-    DMGlobalToLocalBegin(da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
-    DMGlobalToLocalEnd  (da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
+    // reset periodic cell fluxes and scatter
+    resetCellPeriodicFluxes(mesh, teqn->Tmprt, teqn->lTmprt, "scalar", "globalToLocal");
 
     return(0);
 }
@@ -2806,43 +2655,6 @@ PetscErrorCode UpdateAlphaWaterBCs(aeqn_ *aeqn)
                 {
                     a[k][j][i] = 0.0;
                     continue;
-                }
-
-                // periodic boundary condition on i-left patch
-                if (mesh->boundaryA.iLeft=="periodic" && i==1)
-                {
-                    if(mesh->i_periodic)       a[k][j][i-1] = la[k][j][mx-2];
-                    else if(mesh->ii_periodic) a[k][j][i-1] = la[k][j][-2];
-                }
-                // periodic boundary condition on i-right patch
-                if (mesh->boundaryA.iRight=="periodic" && i==mx-2)
-                {
-                    if(mesh->i_periodic)        a[k][j][i+1] = la[k][j][1];
-                    else if (mesh->ii_periodic) a[k][j][i+1] = la[k][j][mx+1];
-                }
-                // periodic boundary condition on j-left patch
-                if (mesh->boundaryA.jLeft=="periodic" && j==1)
-                {
-                    if(mesh->j_periodic)       a[k][j-1][i] = la[k][my-2][i];
-                    else if(mesh->jj_periodic) a[k][j-1][i] = la[k][-2][i];
-                }
-                // periodic boundary condition on j-right patch
-                if (mesh->boundaryA.jRight=="periodic" && j==my-2)
-                {
-                    if(mesh->j_periodic)       a[k][j+1][i] = la[k][1][i];
-                    else if(mesh->jj_periodic) a[k][j+1][i] = la[k][my+1][i];
-                }
-                // periodic boundary condition on k-left patch
-                if (mesh->boundaryA.kLeft=="periodic" && k==1)
-                {
-                    if(mesh->k_periodic)       a[k-1][j][i] = la[mz-2][j][i];
-                    else if(mesh->kk_periodic) a[k-1][j][i] = la[-2][j][i];
-                }
-                // periodic boundary condition on k-right patch
-                if (mesh->boundaryA.kRight=="periodic" && k==mz-2)
-                {
-                    if(mesh->k_periodic)       a[k+1][j][i] = la[1][j][i];
-                    else if(mesh->kk_periodic) a[k+1][j][i] = la[mz+1][j][i];
                 }
 
                 // zeroGradient boundary condition on i-left patch
@@ -2923,9 +2735,8 @@ PetscErrorCode UpdateAlphaWaterBCs(aeqn_ *aeqn)
     DMDAVecRestoreArray(da, aeqn->lAlpha, &la);
     DMDAVecRestoreArray(da, aeqn->Alpha,  &a);
 
-    // scatter global to local
-    DMGlobalToLocalBegin(da, aeqn->Alpha, INSERT_VALUES, aeqn->lAlpha);
-    DMGlobalToLocalEnd  (da, aeqn->Alpha, INSERT_VALUES, aeqn->lAlpha);
+    // reset periodic cell fluxes and scatter
+    resetCellPeriodicFluxes(mesh, aeqn->Alpha, aeqn->lAlpha, "scalar", "globalToLocal");
 
     return(0);
 }
@@ -3176,43 +2987,6 @@ PetscErrorCode UpdateNutBCs(les_ *les)
                 {
                     nut[k+1][j][i] = mesh->boundaryNut.kRval;
                 }
-
-                // periodic boundary condition on i-left patch
-                if (mesh->boundaryNut.iLeft=="periodic" && i==1)
-                {
-                    if(mesh->i_periodic)       nut[k][j][i-1] = nut[k][j][mx-2];
-                    else if(mesh->ii_periodic) nut[k][j][i-1] = nut[k][j][-2];
-                }
-                // periodic boundary condition on i-right patch
-                if (mesh->boundaryNut.iRight=="periodic" && i==mx-2)
-                {
-                    if(mesh->i_periodic)        nut[k][j][i+1] = nut[k][j][1];
-                    else if (mesh->ii_periodic) nut[k][j][i+1] = nut[k][j][mx+1];
-                }
-                // periodic boundary condition on j-left patch
-                if (mesh->boundaryNut.jLeft=="periodic" && j==1)
-                {
-                    if(mesh->j_periodic)       nut[k][j-1][i] = nut[k][my-2][i];
-                    else if(mesh->jj_periodic) nut[k][j-1][i] = nut[k][-2][i];
-                }
-                // periodic boundary condition on j-right patch
-                if (mesh->boundaryNut.jRight=="periodic" && j==my-2)
-                {
-                    if(mesh->j_periodic)       nut[k][j+1][i] = nut[k][1][i];
-                    else if(mesh->jj_periodic) nut[k][j+1][i] = nut[k][my+1][i];
-                }
-                // periodic boundary condition on k-left patch
-                if (mesh->boundaryNut.kLeft=="periodic" && k==1)
-                {
-                    if(mesh->k_periodic)       nut[k-1][j][i] = nut[mz-2][j][i];
-                    else if(mesh->kk_periodic) nut[k-1][j][i] = nut[-2][j][i];
-                }
-                // periodic boundary condition on k-right patch
-                if (mesh->boundaryNut.kRight=="periodic" && k==mz-2)
-                {
-                    if(mesh->k_periodic)       nut[k+1][j][i] = nut[1][j][i];
-                    else if(mesh->kk_periodic) nut[k+1][j][i] = nut[mz+1][j][i];
-                }
             }
         }
     }
@@ -3224,9 +2998,8 @@ PetscErrorCode UpdateNutBCs(les_ *les)
     DMDAVecRestoreArray(da,  mesh->lIAj,   &iaj);
     DMDAVecRestoreArray(fda, mesh->lCent,  &cent);
 
-    // scatter nut from global to local
-    DMLocalToLocalBegin(da, les->lNu_t, INSERT_VALUES, les->lNu_t);
-    DMLocalToLocalEnd  (da, les->lNu_t, INSERT_VALUES, les->lNu_t);
+    // reset periodic cell fluxes and scatter
+    resetCellPeriodicFluxes(mesh, les->lNu_t, les->lNu_t, "scalar", "localToLocal");
 
     return(0);
 }
@@ -3274,8 +3047,7 @@ PetscErrorCode UpdatektBCs(les_ *les)
                 // periodic boundary condition on i-left patch
                 if (mesh->boundaryNut.iLeft=="periodic" && i==1)
                 {
-                    if(mesh->i_periodic)       kt[k][j][i-1] = kt[k][j][mx-2];
-                    else if(mesh->ii_periodic) kt[k][j][i-1] = kt[k][j][-2];
+                    // will be handled by reset function
                 }
                 else if (i==1)
                 {
@@ -3285,8 +3057,7 @@ PetscErrorCode UpdatektBCs(les_ *les)
                 // periodic boundary condition on i-right patch
                 if (mesh->boundaryNut.iRight=="periodic" && i==mx-2)
                 {
-                    if(mesh->i_periodic)        kt[k][j][i+1] = kt[k][j][1];
-                    else if (mesh->ii_periodic) kt[k][j][i+1] = kt[k][j][mx+1];
+                    // will be handled by reset function
                 }
                 else if (i==mx-2)
                 {
@@ -3296,8 +3067,7 @@ PetscErrorCode UpdatektBCs(les_ *les)
                 // periodic boundary condition on j-left patch
                 if (mesh->boundaryNut.jLeft=="periodic" && j==1)
                 {
-                    if(mesh->j_periodic)       kt[k][j-1][i] = kt[k][my-2][i];
-                    else if(mesh->jj_periodic) kt[k][j-1][i] = kt[k][-2][i];
+                    // will be handled by reset function
                 }
                 else if (j==1)
                 {
@@ -3307,8 +3077,7 @@ PetscErrorCode UpdatektBCs(les_ *les)
                 // periodic boundary condition on j-right patch
                 if (mesh->boundaryNut.jRight=="periodic" && j==my-2)
                 {
-                    if(mesh->j_periodic)       kt[k][j+1][i] = kt[k][1][i];
-                    else if(mesh->jj_periodic) kt[k][j+1][i] = kt[k][my+1][i];
+                    // will be handled by reset function
                 }
                 else if (j==my-2)
                 {
@@ -3318,8 +3087,7 @@ PetscErrorCode UpdatektBCs(les_ *les)
                 // periodic boundary condition on k-left patch
                 if (mesh->boundaryNut.kLeft=="periodic" && k==1)
                 {
-                    if(mesh->k_periodic)       kt[k-1][j][i] = kt[mz-2][j][i];
-                    else if(mesh->kk_periodic) kt[k-1][j][i] = kt[-2][j][i];
+                    // will be handled by reset function
                 }
                 else if (k==1)
                 {
@@ -3329,8 +3097,7 @@ PetscErrorCode UpdatektBCs(les_ *les)
                 // periodic boundary condition on k-right patch
                 if (mesh->boundaryNut.kRight=="periodic" && k==mz-2)
                 {
-                    if(mesh->k_periodic)       kt[k+1][j][i] = kt[1][j][i];
-                    else if(mesh->kk_periodic) kt[k+1][j][i] = kt[mz+1][j][i];
+                    // will be handled by reset function
                 }
                 else if (k==mz-2)
                 {
@@ -3344,9 +3111,8 @@ PetscErrorCode UpdatektBCs(les_ *les)
     DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
     DMDAVecRestoreArray(da, mesh->lmeshTag, &meshTag);
 
-    // scatter nut from local to local
-    DMLocalToLocalBegin(da, les->lk_t, INSERT_VALUES, les->lk_t);
-    DMLocalToLocalEnd  (da, les->lk_t, INSERT_VALUES, les->lk_t);
+    // reset periodic cell fluxes and scatter
+    resetCellPeriodicFluxes(mesh, les->lk_t, les->lk_t, "scalar", "localToLocal");
 
     return(0);
 }
@@ -3435,9 +3201,8 @@ PetscErrorCode UpdatePressureBCs(peqn_ *peqn)
     DMDAVecRestoreArray(da, peqn->lP, &lp);
     DMDAVecRestoreArray(da, peqn->P, &p);
 
-    // scatter Phi from global to local
-    DMGlobalToLocalBegin(da, peqn->P, INSERT_VALUES, peqn->lP);
-    DMGlobalToLocalEnd  (da, peqn->P, INSERT_VALUES, peqn->lP);
+    // reset periodic cell fluxes and scatter
+    resetCellPeriodicFluxes(mesh, peqn->P, peqn->lP, "scalar", "globalToLocal");
 
     return(0);
 }
@@ -3523,9 +3288,8 @@ PetscErrorCode UpdateRhoBCs(aeqn_ *aeqn)
     DMDAVecRestoreArray(da, mesh->lmeshTag, &meshTag);
     DMDAVecRestoreArray(da, aeqn->lRho, &lr);
 
-    // scatter from global to local
-    DMLocalToLocalBegin(da, aeqn->lRho, INSERT_VALUES, aeqn->lRho);
-    DMLocalToLocalEnd  (da, aeqn->lRho, INSERT_VALUES, aeqn->lRho);
+    // reset periodic cell fluxes and scatter
+    resetCellPeriodicFluxes(mesh, aeqn->lRho, aeqn->lRho, "scalar", "localToLocal");
 
     // re-interpolate at the faces
     DMDAVecGetArray(fda, aeqn->lRhoFace, &rhoFace);
@@ -3537,67 +3301,30 @@ PetscErrorCode UpdateRhoBCs(aeqn_ *aeqn)
         {
             for (i=xs; i<xe; i++)
             {
-                // i,j,k  or ii, jj, kk periodic type: the right
-                // boundary velocity has been solved in this case: put it on the
-                // left boundary
-                if
-                (
-                    i==0
-                )
+                // interpolate density at faces for non-periodic boundaries
+                if(i==0 && !mesh->i_periodic && !mesh->ii_periodic)
                 {
-                    if(mesh->i_periodic) rhoFace[k][j][i].x = rhoFace[k][j][mx-2].x;
-                    else if(mesh->ii_periodic) rhoFace[k][j][i].x = rhoFace[k][j][-2].x;
-                    else rhoFace[k][j][i].x = 0.5*(lr[k][j][i] + lr[k][j][i+1]);
+                    rhoFace[k][j][i].x = 0.5*(lr[k][j][i] + lr[k][j][i+1]);
                 }
-
-                if
-                (
-                    i==mx-2
-                )
+                if(i==mx-2 && !mesh->i_periodic && !mesh->ii_periodic)
                 {
-                    if(mesh->i_periodic) {}       // do nothing, already have the fluxes
-                    else if(mesh->ii_periodic) {} // do nothing, already have the fluxes
-                    else rhoFace[k][j][i].x = 0.5*(lr[k][j][i] + lr[k][j][i+1]);
+                    rhoFace[k][j][i].x = 0.5*(lr[k][j][i] + lr[k][j][i+1]);
                 }
-
-                if
-                (
-                    j==0
-                )
+                if(j==0 && !mesh->j_periodic && !mesh->jj_periodic)
                 {
-                    if(mesh->j_periodic) rhoFace[k][j][i].y = rhoFace[k][my-2][i].y;
-                    else if(mesh->jj_periodic) rhoFace[k][j][i].y = rhoFace[k][-2][i].y;
-                    else rhoFace[k][j][i].y = 0.5*(lr[k][j][i] + lr[k][j+1][i]);
+                    rhoFace[k][j][i].y = 0.5*(lr[k][j][i] + lr[k][j+1][i]);
                 }
-
-                if
-                (
-                    j==my-2
-                )
+                if(j==my-2 && !mesh->j_periodic && !mesh->jj_periodic)
                 {
-                    if(mesh->j_periodic) {}       // do nothing, already have the fluxes
-                    else if(mesh->jj_periodic) {} // do nothing, already have the fluxes
-                    else rhoFace[k][j][i].y = 0.5*(lr[k][j][i] + lr[k][j+1][i]);
+                    rhoFace[k][j][i].y = 0.5*(lr[k][j][i] + lr[k][j+1][i]);
                 }
-
-                if
-                (
-                    k==0
-                )
+                if(k==0 && !mesh->k_periodic && !mesh->kk_periodic)
                 {
-                    if(mesh->k_periodic)       rhoFace[k][j][i].z = rhoFace[mz-2][j][i].z;
-                    else if(mesh->kk_periodic) rhoFace[k][j][i].z = rhoFace[-2][j][i].z;
-                    else rhoFace[k][j][i].z = 0.5*(lr[k][j][i] + lr[k+1][j][i]);
+                    rhoFace[k][j][i].z = 0.5*(lr[k][j][i] + lr[k+1][j][i]);
                 }
-
-                if
-                (
-                    k==mz-2
-                )
+                if(k==mz-2 && !mesh->k_periodic && !mesh->kk_periodic)
                 {
-                    if(mesh->k_periodic) {}       // do nothing, already have the fluxes
-                    else if(mesh->kk_periodic) {} // do nothing, already have the fluxes
-                    else rhoFace[k][j][i].z = 0.5*(lr[k][j][i] + lr[k+1][j][i]);
+                    rhoFace[k][j][i].z = 0.5*(lr[k][j][i] + lr[k+1][j][i]);
                 }
             }
         }
@@ -3606,9 +3333,8 @@ PetscErrorCode UpdateRhoBCs(aeqn_ *aeqn)
     DMDAVecRestoreArray(fda, aeqn->lRhoFace, &rhoFace);
     DMDAVecRestoreArray(da, aeqn->lRho, &lr);
 
-    // scatter from global to local
-    DMLocalToLocalBegin(fda, aeqn->lRhoFace, INSERT_VALUES, aeqn->lRhoFace);
-    DMLocalToLocalEnd  (fda, aeqn->lRhoFace, INSERT_VALUES, aeqn->lRhoFace);
+    // reset periodic face fluxes and scatter
+    resetFacePeriodicFluxesVector(mesh, aeqn->lRhoFace, aeqn->lRhoFace, "localToLocal");
 
     return(0);
 }
@@ -3695,9 +3421,8 @@ PetscErrorCode UpdatePhiBCs(peqn_ *peqn)
     DMDAVecRestoreArray(da, peqn->lPhi, &lphi);
     DMDAVecRestoreArray(da, peqn->Phi, &phi);
 
-    // scatter Phi from global to local
-    DMGlobalToLocalBegin(da, peqn->Phi, INSERT_VALUES, peqn->lPhi);
-    DMGlobalToLocalEnd  (da, peqn->Phi, INSERT_VALUES, peqn->lPhi);
+    // reset periodic cell fluxes and scatter
+    resetCellPeriodicFluxes(mesh, peqn->Phi, peqn->lPhi, "scalar", "globalToLocal");
 
     return(0);
 }

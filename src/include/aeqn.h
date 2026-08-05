@@ -38,7 +38,6 @@ struct aeqn_
     Vec           lRhoFace;                   //!< density at faces (for multiphase flows)
     Vec           lRhoFace_o;                 //!< density at faces at previous time step (for multiphase flows)
 
-    PetscInt      mulesIter;                  //!< number of mules limiter sweeps (default 1, currently unused - relies on sub-cycling)
     PetscInt      nAlphaSubCycles;            //!< number of alpha sub-cycling steps (default 3)
     PetscReal     compCoeff;                  //!< numerical compression term coefficient
 

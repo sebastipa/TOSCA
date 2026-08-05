@@ -2972,6 +2972,9 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
     DMGlobalToLocalBegin(fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
     DMGlobalToLocalEnd  (fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
 
+    // reset periodic face fluxes to ensure consistency after velocity projection
+    resetFacePeriodicFluxesVector(mesh, ueqn->Ucont, ueqn->lUcont, "globalToLocal");
+
     return(0);
 }
 
@@ -3579,14 +3582,7 @@ PetscErrorCode GradP(peqn_ *peqn)
                 PetscReal g33_k = (kzet[k][j][i].x * kzet[k][j][i].x + kzet[k][j][i].y * kzet[k][j][i].y + kzet[k][j][i].z * kzet[k][j][i].z);
 
                 // pressure gradient in the i-direction
-                if( i==mx-2 && mesh->ii_periodic)
-                {
-                    dpdc = p[k][j][mx+1] - p[k][j][i];
-                }
-                else
-                {
-                    dpdc = p[k][j][i+1] - p[k][j][i];
-                }
+                dpdc = p[k][j][i+1] - p[k][j][i];
 
                 if
                 (
@@ -3684,14 +3680,7 @@ PetscErrorCode GradP(peqn_ *peqn)
                     dpdc = (p[k][j  ][i+1] - p[k][j  ][i-1] + p[k][j+1][i+1] - p[k][j+1][i-1]) * 0.25;
                 }
 
-                if( j==my-2 && mesh->jj_periodic)
-                {
-                    dpde = p[k][my+1][i] - p[k][j][i];
-                }
-                else
-                {
-                    dpde = p[k][j+1][i] - p[k][j][i];
-                }
+                dpde = p[k][j+1][i] - p[k][j][i];
 
                 if
                 (
@@ -3789,14 +3778,7 @@ PetscErrorCode GradP(peqn_ *peqn)
                     dpde = (p[k  ][j+1][i] - p[k  ][j-1][i] + p[k+1][j+1][i] - p[k+1][j-1][i]) * 0.25;
                 }
 
-                if( k==mz-2 && mesh->kk_periodic)
-                {
-                    dpdz = p[mz+1][j][i] - p[k][j][i];
-                }
-                else
-                {
-                    dpdz = (p[k+1][j][i] - p[k][j][i]);
-                }
+                dpdz = (p[k+1][j][i] - p[k][j][i]);
 
                 dp[k][j][i].z = (dpdc * g31_k + dpde * g32_k + dpdz * g33_k) * kaj[k][j][i];
 

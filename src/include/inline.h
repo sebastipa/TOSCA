@@ -5468,6 +5468,7 @@ inline void resetNoPenetrationFluxes(ueqn_ *ueqn)
 
 //***************************************************************************************************************//
 
+//! \brief Reset periodic ghost cells (no scatter - caller must scatter first)
 inline void resetFacePeriodicFluxesVector(mesh_ *mesh, Vec V, Vec lV, const char *scatterType)
 {
     DMDALocalInfo    info = mesh->info;
@@ -5542,20 +5543,24 @@ inline void resetFacePeriodicFluxesVector(mesh_ *mesh, Vec V, Vec lV, const char
     {
         DMDAVecRestoreArray (mesh->fda, V, &v);
         DMDAVecRestoreArray (mesh->fda, lV, &lv);
+        
+        // scatter to propagate periodic updates to all processors
         DMGlobalToLocalBegin(mesh->fda, V, INSERT_VALUES, lV);
         DMGlobalToLocalEnd  (mesh->fda, V, INSERT_VALUES, lV);
     }
     else if(scatterType=="localToLocal")
     {
         DMDAVecRestoreArray (mesh->fda, V, &v);
-        DMLocalToLocalBegin (mesh->fda, V, INSERT_VALUES, V);
-        DMLocalToLocalEnd   (mesh->fda, V, INSERT_VALUES, V);
+        
+        // scatter to propagate periodic updates to all processors
+        DMLocalToLocalBegin(mesh->fda, V, INSERT_VALUES, V);
+        DMLocalToLocalEnd  (mesh->fda, V, INSERT_VALUES, V);
     }
     else
     {
         char error[512];
         sprintf(error, "wrong scatter type selected, available types are\n    - globalToLocal\n    - localToLocal\n");
-        fatalErrorInFunction("resetCellPeriodicFluxes",  error);
+        fatalErrorInFunction("resetFacePeriodicFluxesVector",  error);
     }
 
     return;
@@ -5563,7 +5568,7 @@ inline void resetFacePeriodicFluxesVector(mesh_ *mesh, Vec V, Vec lV, const char
 
 //***************************************************************************************************************//
 
-//! \brief Reset periodic values and scatter
+//! \brief Reset periodic values (no scatter - caller must scatter first)
 inline void resetCellPeriodicFluxes(mesh_ *mesh, Vec &V, Vec &lV, const char *type, const char *scatterType)
 {
     DM            da    = mesh->da, fda = mesh->fda;
@@ -5676,14 +5681,18 @@ inline void resetCellPeriodicFluxes(mesh_ *mesh, Vec &V, Vec &lV, const char *ty
         {
             DMDAVecRestoreArray(da, V, &s);
             DMDAVecRestoreArray(da, lV, &ls);
+            
+            // scatter to propagate periodic updates to all processors
             DMGlobalToLocalBegin(da, V, INSERT_VALUES, lV);
-            DMGlobalToLocalEnd(da, V, INSERT_VALUES, lV);
+            DMGlobalToLocalEnd  (da, V, INSERT_VALUES, lV);
         }
         else if(scatterType=="localToLocal")
         {
             DMDAVecRestoreArray(da, V, &s);
+            
+            // scatter to propagate periodic updates to all processors
             DMLocalToLocalBegin(da, V, INSERT_VALUES, V);
-            DMLocalToLocalEnd(da, V, INSERT_VALUES, V);
+            DMLocalToLocalEnd  (da, V, INSERT_VALUES, V);
         }
         else
         {
@@ -5698,14 +5707,18 @@ inline void resetCellPeriodicFluxes(mesh_ *mesh, Vec &V, Vec &lV, const char *ty
         {
             DMDAVecRestoreArray(fda, V, &v);
             DMDAVecRestoreArray(fda, lV, &lv);
+            
+            // scatter to propagate periodic updates to all processors
             DMGlobalToLocalBegin(fda, V, INSERT_VALUES, lV);
-            DMGlobalToLocalEnd(fda, V, INSERT_VALUES, lV);
+            DMGlobalToLocalEnd  (fda, V, INSERT_VALUES, lV);
         }
         else if(scatterType=="localToLocal")
         {
             DMDAVecRestoreArray(fda, V, &v);
+            
+            // scatter to propagate periodic updates to all processors
             DMLocalToLocalBegin(fda, V, INSERT_VALUES, V);
-            DMLocalToLocalEnd(fda, V, INSERT_VALUES, V);
+            DMLocalToLocalEnd  (fda, V, INSERT_VALUES, V);
         }
         else
         {
@@ -5713,6 +5726,163 @@ inline void resetCellPeriodicFluxes(mesh_ *mesh, Vec &V, Vec &lV, const char *ty
             sprintf(error, "wrong scatter type selected, available types are\n    - globalToLocal\n    - localToLocal\n");
             fatalErrorInFunction("resetCellPeriodicFluxes",  error);
         }
+    }
+
+    return;
+}
+
+//***************************************************************************************************************//
+
+//! \brief Enforce periodicity on interior cells for Type 2 periodic boundaries
+inline void enforceInteriorCellPeriodicity(mesh_ *mesh, Vec V, Vec lV, const char *type)
+{
+    // average first-internal cells on opposing boundaries to enforce periodicity
+    // used in multiphase to remove spurious alpha oscillations at periodic boundaries
+
+    DM            da    = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info  = mesh->info;
+    PetscInt      xs = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx = info.mx, my = info.my, mz = info.mz;
+    PetscInt      i, j, k, idx;
+
+    // only applies to type 2 periodic boundaries (ii, jj, kk)
+    if(!mesh->ii_periodic && !mesh->jj_periodic && !mesh->kk_periodic)
+        return;
+
+    if(type == "scalar")
+    {
+        PetscScalar ***v;
+        DMDAVecGetArray(da, V, &v);
+
+        // i-direction: enforce v[k][j][1] == v[k][j][mx-2]
+        if(mesh->ii_periodic)
+        {
+            PetscInt   nvals      = my * mz;
+            PetscReal *vals_left  = (PetscReal*)calloc(nvals, sizeof(PetscReal));
+            PetscReal *vals_right = (PetscReal*)calloc(nvals, sizeof(PetscReal));
+            PetscReal *vals_avg   = (PetscReal*)calloc(2*nvals, sizeof(PetscReal));
+            PetscReal *send_buf   = (PetscReal*)calloc(2*nvals, sizeof(PetscReal));
+            
+            // Pack values from cells this processor owns
+            idx = 0;
+            for(k=0; k<mz; k++)
+            {
+                for(j=0; j<my; j++)
+                {
+                    if(xs <= 1 && xe > 1 && ys <= j && ye > j && zs <= k && ze > k)
+                        send_buf[idx] = v[k][j][1];
+                    if(xs <= mx-2 && xe > mx-2 && ys <= j && ye > j && zs <= k && ze > k)
+                        send_buf[nvals + idx] = v[k][j][mx-2];
+                    idx++;
+                }
+            }
+            
+            // scatter all to all
+            MPI_Allreduce(send_buf, vals_avg, 2*nvals, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+            
+            // average values and enforce periodicity
+            idx = 0;
+            for(k=0; k<mz; k++)
+            {
+                for(j=0; j<my; j++)
+                {
+                    PetscReal avg = 0.5 * (vals_avg[idx] + vals_avg[nvals + idx]);
+                    if(xs <= 1 && xe > 1 && ys <= j && ye > j && zs <= k && ze > k)
+                        v[k][j][1] = avg;
+                    if(xs <= mx-2 && xe > mx-2 && ys <= j && ye > j && zs <= k && ze > k)
+                        v[k][j][mx-2] = avg;
+                    idx++;
+                }
+            }
+            
+            free(vals_left); free(vals_right); free(vals_avg); free(send_buf);
+        }
+
+        // j-direction: enforce v[k][1][i] == v[k][my-2][i]
+        if(mesh->jj_periodic)
+        {
+            PetscInt   nvals = mx * mz;
+            PetscReal *send_buf = (PetscReal*)calloc(2*nvals, sizeof(PetscReal));
+            PetscReal *vals_avg = (PetscReal*)calloc(2*nvals, sizeof(PetscReal));
+            
+            idx = 0;
+            for(k=0; k<mz; k++)
+            {
+                for(i=0; i<mx; i++)
+                {
+                    if(ys <= 1 && ye > 1 && xs <= i && xe > i && zs <= k && ze > k)
+                        send_buf[idx] = v[k][1][i];
+                    if(ys <= my-2 && ye > my-2 && xs <= i && xe > i && zs <= k && ze > k)
+                        send_buf[nvals + idx] = v[k][my-2][i];
+                    idx++;
+                }
+            }
+            
+            MPI_Allreduce(send_buf, vals_avg, 2*nvals, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+            
+            idx = 0;
+            for(k=0; k<mz; k++)
+            {
+                for(i=0; i<mx; i++)
+                {
+                    PetscReal avg = 0.5 * (vals_avg[idx] + vals_avg[nvals + idx]);
+                    if(ys <= 1 && ye > 1 && xs <= i && xe > i && zs <= k && ze > k)
+                        v[k][1][i] = avg;
+                    if(ys <= my-2 && ye > my-2 && xs <= i && xe > i && zs <= k && ze > k)
+                        v[k][my-2][i] = avg;
+                    idx++;
+                }
+            }
+            
+            free(send_buf); free(vals_avg);
+        }
+
+        // k-direction: enforce v[1][j][i] == v[mz-2][j][i]
+        if(mesh->kk_periodic)
+        {
+            PetscInt nvals = mx * my;
+            PetscReal *send_buf = (PetscReal*)calloc(2*nvals, sizeof(PetscReal));
+            PetscReal *vals_avg = (PetscReal*)calloc(2*nvals, sizeof(PetscReal));
+            
+            idx = 0;
+            for(j=0; j<my; j++)
+            {
+                for(i=0; i<mx; i++)
+                {
+                    if(zs <= 1 && ze > 1 && xs <= i && xe > i && ys <= j && ye > j)
+                        send_buf[idx] = v[1][j][i];
+                    if(zs <= mz-2 && ze > mz-2 && xs <= i && xe > i && ys <= j && ye > j)
+                        send_buf[nvals + idx] = v[mz-2][j][i];
+                    idx++;
+                }
+            }
+            
+            MPI_Allreduce(send_buf, vals_avg, 2*nvals, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+            
+            idx = 0;
+            for(j=0; j<my; j++)
+            {
+                for(i=0; i<mx; i++)
+                {
+                    PetscReal avg = 0.5 * (vals_avg[idx] + vals_avg[nvals + idx]);
+                    if(zs <= 1 && ze > 1 && xs <= i && xe > i && ys <= j && ye > j)
+                        v[1][j][i] = avg;
+                    if(zs <= mz-2 && ze > mz-2 && xs <= i && xe > i && ys <= j && ye > j)
+                        v[mz-2][j][i] = avg;
+                    idx++;
+                }
+            }
+            
+            free(send_buf); free(vals_avg);
+        }
+
+        DMDAVecRestoreArray(da, V, &v);
+        
+        // Scatter to update ghost cells with new averaged interior values
+        DMGlobalToLocalBegin(da, V, INSERT_VALUES, lV);
+        DMGlobalToLocalEnd  (da, V, INSERT_VALUES, lV);
     }
 
     return;
