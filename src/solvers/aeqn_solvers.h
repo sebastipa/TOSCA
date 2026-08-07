@@ -42,4 +42,7 @@ PetscErrorCode AeqnRK3(aeqn_ *aeqn);
 //! \brief compute density-weighted contravariant velocity and face density for multiphase flows
 PetscErrorCode UpdateRho(aeqn_ *aeqn);
 
+//! \brief compute alpha damping source term
+PetscErrorCode dampingSourceA(aeqn_ *aeqn, Vec &Rhs, PetscReal scale);
+
 #endif

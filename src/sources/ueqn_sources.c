@@ -2985,6 +2985,7 @@ PetscErrorCode sourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 {
     abl_          *abl  = ueqn->access->abl;
+    aeqn_         *aeqn;
     mesh_         *mesh = ueqn->access->mesh;
     DM            da   = mesh->da, fda = mesh->fda;
     DMDALocalInfo info = mesh->info;
@@ -3040,6 +3041,11 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
         {
             DMDAVecGetArray(fda, abl->uBarInstY, &uBarY);
         }
+    }
+
+    if(ueqn->access->flags->isAeqnActive)
+    {
+        aeqn = ueqn->access->aeqn;
     }
 
     // z damping layer
@@ -3481,6 +3487,222 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                             (kRightUBar.z - central(ucat[k][j][i].z, ucat[k+1][j][i].z)) * kzet[k][j][i].z
                         )
                     );
+                }
+
+                // kLeft wave relaxation zone
+                if(ueqn->access->flags->isKLeftAlphaDampingActive)
+                {
+                    x     = cent[k][j][i].x;
+                    xi    = cent[k][j][i+1].x;
+                    xj    = cent[k][j+1][i].x;
+                    xk    = cent[k+1][j][i].x;
+
+                    // compute Nordstrom viscosity at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
+                    nud_x   = viscNordstrom(aeqn->kLeftAlphaDampingCoeff, aeqn->kLeftAlphaDampingStart, aeqn->kLeftAlphaDampingEnd, aeqn->kLeftAlphaDampingDelta, x);
+                    nudi_x  = viscNordstrom(aeqn->kLeftAlphaDampingCoeff, aeqn->kLeftAlphaDampingStart, aeqn->kLeftAlphaDampingEnd, aeqn->kLeftAlphaDampingDelta, xi);
+                    nudj_x  = viscNordstrom(aeqn->kLeftAlphaDampingCoeff, aeqn->kLeftAlphaDampingStart, aeqn->kLeftAlphaDampingEnd, aeqn->kLeftAlphaDampingDelta, xj);
+                    nudk_x  = viscNordstrom(aeqn->kLeftAlphaDampingCoeff, aeqn->kLeftAlphaDampingStart, aeqn->kLeftAlphaDampingEnd, aeqn->kLeftAlphaDampingDelta, xk);
+
+                    PetscReal y = cent[k][j][i].y;
+                    PetscReal z = cent[k][j][i].z;
+                    PetscReal t = mesh->access->clock->time;
+                    
+                    // wave parameters
+                    PetscReal H      = aeqn->waveHeight; 
+                    PetscReal k_wave = aeqn->waveNumber; 
+                    PetscReal omega  = aeqn->waveOmega; 
+                    PetscReal d      = aeqn->waveLevel; 
+                    PetscReal phi    = aeqn->wavePhase; 
+                    PetscReal theta  = aeqn->waveDirection; 
+                    
+                    // transform to wave coordinates (z_wave = 0 at MWL, z_wave = -d at bottom)
+                    PetscReal z_wave = z - d;
+                    
+                    // wave phase argument
+                    PetscReal arg  = k_wave * (x  * std::cos(theta) + y * std::sin(theta)) - omega * t + phi;
+                    PetscReal argi = k_wave * (xi * std::cos(theta) + y * std::sin(theta)) - omega * t + phi;
+                    PetscReal argj = k_wave * (xj * std::cos(theta) + y * std::sin(theta)) - omega * t + phi;
+                    PetscReal argk = k_wave * (xk * std::cos(theta) + y * std::sin(theta)) - omega * t + phi;
+
+                    // compute instantaneous wave elevation at this (x,y,t)
+                    PetscReal eta_instant, eta_instant_i, eta_instant_j, eta_instant_k;
+                    
+                    if (aeqn->waveType == "linear")
+                    {
+                        eta_instant   = (H/2.0) * std::cos(arg);
+                        eta_instant_i = (H/2.0) * std::cos(argi);
+                        eta_instant_j = (H/2.0) * std::cos(argj);
+                        eta_instant_k = (H/2.0) * std::cos(argk);
+                    }
+                    else if (aeqn->waveType == "stokes2")
+                    {
+                        PetscReal eta1, eta1_i, eta1_j, eta1_k;
+                        PetscReal eta2, eta2_i, eta2_j, eta2_k;
+
+                        PetscReal sinh_kd = std::sinh(k_wave * d);
+                        PetscReal cosh_kd = std::cosh(k_wave * d);
+                        PetscReal cosh_2kd = std::cosh(2.0 * k_wave * d);
+                        
+                        eta1   = (H/2.0) * std::cos(arg);
+                        eta1_i = (H/2.0) * std::cos(argi);
+                        eta1_j = (H/2.0) * std::cos(argj);
+                        eta1_k = (H/2.0) * std::cos(argk);
+
+                        eta2   = (k_wave * H * H / 8.0) * cosh_kd / (sinh_kd * sinh_kd * sinh_kd) * (2.0 + cosh_2kd) * std::cos(2.0 * arg);
+                        eta2_i = (k_wave * H * H / 8.0) * cosh_kd / (sinh_kd * sinh_kd * sinh_kd) * (2.0 + cosh_2kd) * std::cos(2.0 * argi);
+                        eta2_j = (k_wave * H * H / 8.0) * cosh_kd / (sinh_kd * sinh_kd * sinh_kd) * (2.0 + cosh_2kd) * std::cos(2.0 * argj);
+                        eta2_k = (k_wave * H * H / 8.0) * cosh_kd / (sinh_kd * sinh_kd * sinh_kd) * (2.0 + cosh_2kd) * std::cos(2.0 * argk);
+                        
+                        eta_instant   = eta1 + eta2;
+                        eta_instant_i = eta1_i + eta2_i;
+                        eta_instant_j = eta1_j + eta2_j;
+                        eta_instant_k = eta1_k + eta2_k;
+                    }
+                    
+                    PetscReal u_wave   = 0.0, w_wave   = 0.0, 
+                              u_wave_i = 0.0, w_wave_i = 0.0, 
+                              u_wave_j = 0.0, w_wave_j = 0.0, 
+                              u_wave_k = 0.0, w_wave_k = 0.0;
+                    
+                    // Compute wave orbital velocities at cell position
+                    PetscReal z_wave_clamped   = (z_wave > eta_instant)   ? eta_instant   : z_wave,
+                              z_wave_clamped_i = (z_wave > eta_instant_i) ? eta_instant_i : z_wave,
+                              z_wave_clamped_j = (z_wave > eta_instant_j) ? eta_instant_j : z_wave,
+                              z_wave_clamped_k = (z_wave > eta_instant_k) ? eta_instant_k : z_wave;
+                    
+                    if (aeqn->waveType == "linear")
+                    {
+                        // Linear (Airy) wave orbital velocities
+                        PetscReal cosh_factor   = std::cosh(k_wave * (z_wave_clamped   + d)) / std::sinh(k_wave * d),
+                                  cosh_factor_i = std::cosh(k_wave * (z_wave_clamped_i + d)) / std::sinh(k_wave * d),
+                                  cosh_factor_j = std::cosh(k_wave * (z_wave_clamped_j + d)) / std::sinh(k_wave * d),
+                                  cosh_factor_k = std::cosh(k_wave * (z_wave_clamped_k + d)) / std::sinh(k_wave * d);
+                        
+                        PetscReal sinh_factor   = std::sinh(k_wave * (z_wave_clamped + d))   / std::sinh(k_wave * d),
+                                  sinh_factor_i = std::sinh(k_wave * (z_wave_clamped_i + d)) / std::sinh(k_wave * d),
+                                  sinh_factor_j = std::sinh(k_wave * (z_wave_clamped_j + d)) / std::sinh(k_wave * d),
+                                  sinh_factor_k = std::sinh(k_wave * (z_wave_clamped_k + d)) / std::sinh(k_wave * d);
+                        
+                        u_wave   = (H/2.0) * (omega/k_wave) * cosh_factor   * std::cos(arg);
+                        u_wave_i = (H/2.0) * (omega/k_wave) * cosh_factor_i * std::cos(argi);
+                        u_wave_j = (H/2.0) * (omega/k_wave) * cosh_factor_j * std::cos(argj);
+                        u_wave_k = (H/2.0) * (omega/k_wave) * cosh_factor_k * std::cos(argk);
+                        w_wave   = (H/2.0) * (omega/k_wave) * sinh_factor   * std::sin(arg);
+                        w_wave_i = (H/2.0) * (omega/k_wave) * sinh_factor_i * std::sin(argi);
+                        w_wave_j = (H/2.0) * (omega/k_wave) * sinh_factor_j * std::sin(argj);
+                        w_wave_k = (H/2.0) * (omega/k_wave) * sinh_factor_k * std::sin(argk);
+
+
+                    }
+                    else if (aeqn->waveType == "stokes2")
+                    {
+                        // Stokes 2nd order wave orbital velocities
+                        PetscReal sinh_kd = std::sinh(k_wave * d);
+                        PetscReal cosh_kd = std::cosh(k_wave * d);
+                        
+                        // 1st order terms
+                        PetscReal cosh_kz   = std::cosh(k_wave * (z_wave_clamped + d)),
+                                  cosh_kz_i = std::cosh(k_wave * (z_wave_clamped_i + d)),
+                                  cosh_kz_j = std::cosh(k_wave * (z_wave_clamped_j + d)),
+                                  cosh_kz_k = std::cosh(k_wave * (z_wave_clamped_k + d));
+                        PetscReal sinh_kz   = std::sinh(k_wave * (z_wave_clamped + d)),
+                                  sinh_kz_i = std::sinh(k_wave * (z_wave_clamped_i + d)),
+                                  sinh_kz_j = std::sinh(k_wave * (z_wave_clamped_j + d)),
+                                  sinh_kz_k = std::sinh(k_wave * (z_wave_clamped_k + d));
+
+                        PetscReal u1   = (H * omega / 2.0) * cosh_kz   / sinh_kd,
+                                  u1_i = (H * omega / 2.0) * cosh_kz_i / sinh_kd,
+                                  u1_j = (H * omega / 2.0) * cosh_kz_j / sinh_kd,
+                                  u1_k = (H * omega / 2.0) * cosh_kz_k / sinh_kd;
+                        PetscReal w1   = (H * omega / 2.0) * sinh_kz   / sinh_kd,
+                                  w1_i = (H * omega / 2.0) * sinh_kz_i / sinh_kd,
+                                  w1_j = (H * omega / 2.0) * sinh_kz_j / sinh_kd,
+                                  w1_k = (H * omega / 2.0) * sinh_kz_k / sinh_kd;
+                        
+                        // 2nd order terms (note: a² = H²/4)
+                        PetscReal cosh_2kz   = std::cosh(2.0 * k_wave * (z_wave_clamped   + d)),
+                                  cosh_2kz_i = std::cosh(2.0 * k_wave * (z_wave_clamped_i + d)),
+                                  cosh_2kz_j = std::cosh(2.0 * k_wave * (z_wave_clamped_j + d)),
+                                  cosh_2kz_k = std::cosh(2.0 * k_wave * (z_wave_clamped_k + d));
+                        PetscReal sinh_2kz   = std::sinh(2.0 * k_wave * (z_wave_clamped   + d)),
+                                  sinh_2kz_i = std::sinh(2.0 * k_wave * (z_wave_clamped_i + d)),
+                                  sinh_2kz_j = std::sinh(2.0 * k_wave * (z_wave_clamped_j + d)),
+                                  sinh_2kz_k = std::sinh(2.0 * k_wave * (z_wave_clamped_k + d));
+                        
+                        PetscReal sinh4_kd = sinh_kd * sinh_kd * sinh_kd * sinh_kd;
+                        
+                        PetscReal u2   = (3.0/16.0) * H * H * omega * k_wave * cosh_2kz   / sinh4_kd,
+                                  u2_i = (3.0/16.0) * H * H * omega * k_wave * cosh_2kz_i / sinh4_kd,
+                                  u2_j = (3.0/16.0) * H * H * omega * k_wave * cosh_2kz_j / sinh4_kd,
+                                  u2_k = (3.0/16.0) * H * H * omega * k_wave * cosh_2kz_k / sinh4_kd;
+                        PetscReal w2   = (3.0/16.0) * H * H * omega * k_wave * sinh_2kz   / sinh4_kd, 
+                                  w2_i = (3.0/16.0) * H * H * omega * k_wave * sinh_2kz_i / sinh4_kd,
+                                  w2_j = (3.0/16.0) * H * H * omega * k_wave * sinh_2kz_j / sinh4_kd,
+                                  w2_k = (3.0/16.0) * H * H * omega * k_wave * sinh_2kz_k / sinh4_kd;
+                        
+                        // Total velocity (1st + 2nd order)
+                        u_wave = u1   * std::cos(arg)  + u2   * std::cos(2.0 * arg),
+                                 u1_i * std::cos(argi) + u2_i * std::cos(2.0 * argi),
+                                 u1_j * std::cos(argj) + u2_j * std::cos(2.0 * argj),
+                                 u1_k * std::cos(argk) + u2_k * std::cos(2.0 * argk);
+                        w_wave = w1   * std::sin(arg)  + w2   * std::sin(2.0 * arg),
+                                 w1_i * std::sin(argi) + w2_i * std::sin(2.0 * argi),
+                                 w1_j * std::sin(argj) + w2_j * std::sin(2.0 * argj),
+                                 w1_k * std::sin(argk) + w2_k * std::sin(2.0 * argk);
+                    }
+                    
+                    if (z_wave < eta_instant)
+                    {
+                        Cmpnts uBar;
+
+                        uBar.x = 0.5 * (u_wave * std::cos(theta) + u_wave_i * std::cos(theta));
+                        uBar.y = 0.5 * (u_wave * std::sin(theta) + u_wave_i * std::sin(theta));
+                        uBar.z = 0.5 * (w_wave + w_wave_i);
+
+                        // i-fluxes
+                        rhs[k][j][i].x
+                        +=
+                        scale * central(nud_x, nudi_x) *
+                        (
+                            (
+                                (uBar.x - central(ucat[k][j][i].x, ucat[k][j][i+1].x)) * icsi[k][j][i].x +
+                                (uBar.y - central(ucat[k][j][i].y, ucat[k][j][i+1].y)) * icsi[k][j][i].y +
+                                (uBar.z - central(ucat[k][j][i].z, ucat[k][j][i+1].z)) * icsi[k][j][i].z
+                            )   
+                        );
+
+                        uBar.x = 0.5 * (u_wave * std::cos(theta) + u_wave_j * std::cos(theta));
+                        uBar.y = 0.5 * (u_wave * std::sin(theta) + u_wave_j * std::sin(theta));
+                        uBar.z = 0.5 * (w_wave + w_wave_j);
+
+                        // j-fluxes
+                        rhs[k][j][i].y
+                        +=
+                        scale * central(nud_x, nudj_x) *
+                        (
+                            (
+                                (uBar.x - central(ucat[k][j][i].x, ucat[k][j+1][i].x)) * jeta[k][j][i].x +
+                                (uBar.y - central(ucat[k][j][i].y, ucat[k][j+1][i].y)) * jeta[k][j][i].y +
+                                (uBar.z - central(ucat[k][j][i].z, ucat[k][j+1][i].z)) * jeta[k][j][i].z
+                            )
+                        );
+
+                        uBar.x = 0.5 * (u_wave * std::cos(theta) + u_wave_k * std::cos(theta));
+                        uBar.y = 0.5 * (u_wave * std::sin(theta) + u_wave_k * std::sin(theta));
+                        uBar.z = 0.5 * (w_wave + w_wave_k);
+
+                        // k-fluxes
+                        rhs[k][j][i].z
+                        +=
+                        scale * central(nud_x, nudk_x) *
+                        (
+                            (
+                                (uBar.x - central(ucat[k][j][i].x, ucat[k+1][j][i].x)) * kzet[k][j][i].x +
+                                (uBar.y - central(ucat[k][j][i].y, ucat[k+1][j][i].y)) * kzet[k][j][i].y +
+                                (uBar.z - central(ucat[k][j][i].z, ucat[k+1][j][i].z)) * kzet[k][j][i].z
+                            )
+                        );
+                    }
                 }
             }
         }

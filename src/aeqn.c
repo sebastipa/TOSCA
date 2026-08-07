@@ -144,6 +144,73 @@ PetscErrorCode InitializeAEqn(aeqn_ *aeqn)
                             aeqn->ddtScheme.c_str());
             fatalErrorInFunction("InitializeAEqn", error);
         }
+
+        // read right damping region parameters 
+        if(flags->isKRightAlphaDampingActive)
+        {
+            readSubDictDouble("waveProperties", "kRightAlphaDampingProperties", "patchDistance",   &(aeqn->kRightAlphaDampingDelta));
+            readSubDictDouble("waveProperties", "kRightAlphaDampingProperties", "dampingCoeff",    &(aeqn->kRightAlphaDampingCoeff));
+            readSubDictDouble("waveProperties", "kRightAlphaDampingProperties", "stillWaterLevel", &(aeqn->kRightAlphaDampingWaterLevel));
+        }
+
+        // read left damping region parameters
+        if(flags->isKLeftAlphaDampingActive)
+        {
+            readSubDictDouble("waveProperties", "kLeftAlphaDampingProperties", "dampingStart",     &(aeqn->kLeftAlphaDampingStart));
+            readSubDictDouble("waveProperties", "kLeftAlphaDampingProperties", "dampingEnd",       &(aeqn->kLeftAlphaDampingEnd));
+            readSubDictDouble("waveProperties", "kLeftAlphaDampingProperties", "dampingDelta",     &(aeqn->kLeftAlphaDampingDelta));
+            readSubDictDouble("waveProperties", "kLeftAlphaDampingProperties", "dampingCoeff",     &(aeqn->kLeftAlphaDampingCoeff));
+
+            readSubDictWord  ("waveProperties", "kLeftAlphaDampingProperties", "waveType",         &(aeqn->waveType));
+            readSubDictDouble("waveProperties", "kLeftAlphaDampingProperties", "waveHeight",       &(aeqn->waveHeight));
+            readSubDictDouble("waveProperties", "kLeftAlphaDampingProperties", "wavePeriod",       &(aeqn->wavePeriod));
+            readSubDictDouble("waveProperties", "kLeftAlphaDampingProperties", "waveLevel",        &(aeqn->waveLevel));
+            readSubDictDouble("waveProperties", "kLeftAlphaDampingProperties", "waveDirection",    &(aeqn->waveDirection));
+            readSubDictDouble("waveProperties", "kLeftAlphaDampingProperties", "wavePhase",        &(aeqn->wavePhase));
+            
+            // validate wave type
+            if(aeqn->waveType != "linear" && aeqn->waveType != "stokes2")
+            {
+                char error[512];
+                sprintf(error, "unknown waveType %s, available types are:\n        linear  : Linear (Airy) wave theory\n        stokes2 : Stokes 2nd order theory\n", aeqn->waveType.c_str());
+                fatalErrorInFunction("InitializeAEqn", error);
+            }
+            
+            // compute derived wave quantities
+            PetscReal g = 9.81;  
+            PetscReal T = aeqn->wavePeriod;
+            PetscReal d = aeqn->waveLevel;
+            
+            // angular frequency
+            aeqn->waveOmega = 2.0 * M_PI / T;
+            PetscReal omega = aeqn->waveOmega;
+            
+            // solve dispersion relation: omega^2 = g*k*tanh(k*d)
+            // iterative solution for wave number k
+
+            // deep water initial guess
+            PetscReal k = omega * omega / g;  
+
+            for(PetscInt iter=0; iter<200; iter++)
+            {
+                PetscReal f  = omega * omega - g * k * std::tanh(k * d);
+                PetscReal df = -g * std::tanh(k * d) - g * k * d * (1.0 - std::tanh(k * d) * std::tanh(k * d));
+                
+                // Newton-Raphson
+                k = k - f / df;  
+            }
+
+            // wave number and wave length
+            aeqn->waveNumber = k;
+            aeqn->waveLambda = 2.0 * M_PI / k;
+            
+            PetscPrintf(mesh->MESH_COMM, "\nkLeft alpha-water damping region parameters:\n");
+            PetscPrintf(mesh->MESH_COMM, "   %s waves:\n", aeqn->waveType.c_str());
+            PetscPrintf(mesh->MESH_COMM, "   -> H = %.4f m, T = %.4f s\n", aeqn->waveHeight, aeqn->wavePeriod);
+            PetscPrintf(mesh->MESH_COMM, "   -> waveLevel = %.4f m (MWL position in domain)\n", aeqn->waveLevel);
+            PetscPrintf(mesh->MESH_COMM, "   -> k = %.6f rad/m, lambda = %.4f m, omega = %.6f rad/s\n", aeqn->waveNumber, aeqn->waveLambda, aeqn->waveOmega);
+            PetscPrintf(mesh->MESH_COMM, "   -> kd = %.3f (%s water)\n\n", aeqn->waveNumber * aeqn->waveLevel, aeqn->waveNumber * aeqn->waveLevel > 3.14 ? "deep" : (aeqn->waveNumber * aeqn->waveLevel < 0.5 ? "shallow" : "intermediate"));
+        }
     }
 
     return(0);

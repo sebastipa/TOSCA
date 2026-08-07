@@ -24,6 +24,8 @@ struct flags_
     PetscInt isPvCatalystActive;
     PetscInt isKLeftRayleighDampingActive;
     PetscInt isKRightRayleighDampingActive;
+    PetscInt isKLeftAlphaDampingActive;
+    PetscInt isKRightAlphaDampingActive;
     PetscInt isAdvectionDampingXActive;
     PetscInt isAdvectionDampingYActive;
     PetscInt isSideForceActive;

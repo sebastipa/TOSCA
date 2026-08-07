@@ -847,6 +847,11 @@ PetscErrorCode SNESFuncEvalA(SNES snes, Vec Alpha, Vec Rhs, void *ptr)
     VecSet(Rhs, 0.0);
     FormA(aeqn, aeqn->lDivA, Rhs);
 
+    if(aeqn->access->flags->isKLeftAlphaDampingActive || aeqn->access->flags->isKRightAlphaDampingActive)
+    {
+        dampingSourceA(aeqn, Rhs, 1.0);
+    }
+
     // scale by dt
     VecScale(Rhs, clock->dt);
 
@@ -894,6 +899,11 @@ PetscErrorCode FormExplicitRhsA(aeqn_ *aeqn)
 
     FormA(aeqn, aeqn->lDivA, aeqn->Rhs);
 
+    if(aeqn->access->flags->isKLeftAlphaDampingActive || aeqn->access->flags->isKRightAlphaDampingActive)
+    {
+        dampingSourceA(aeqn, aeqn->Rhs, 1.0);
+    }
+    
     // zero out non-resolved cells
     resetNonResolvedCellCentersScalar(mesh, aeqn->Rhs);
 
@@ -1116,6 +1126,135 @@ PetscErrorCode UpdateRho(aeqn_ *aeqn)
 
     // update boundary conditions (first cells and then faces)
     UpdateRhoBCs(aeqn);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode dampingSourceA(aeqn_ *aeqn, Vec &Rhs, PetscReal scale)
+{
+    mesh_         *mesh  = aeqn->access->mesh;
+    DM            da     = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info   = mesh->info;
+    PetscInt      xs = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k;
+
+    PetscReal     ***rhs, ***alpha;
+    Cmpnts        ***cent;
+
+    PetscReal     z, y, x, xmin, xmax, nud, alphaBar;
+    PetscReal     start, end, delta, coeff, waterLevel;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    if(aeqn->access->flags->isKLeftAlphaDampingActive)
+    {
+        start = aeqn->kLeftAlphaDampingStart;
+        end   = aeqn->kLeftAlphaDampingEnd;
+        delta = aeqn->kLeftAlphaDampingDelta;
+        coeff = aeqn->kLeftAlphaDampingCoeff;
+    }
+    else if(aeqn->access->flags->isKRightAlphaDampingActive)
+    {
+        delta = aeqn->kRightAlphaDampingDelta;
+        coeff = aeqn->kRightAlphaDampingCoeff;
+        waterLevel = aeqn->kRightAlphaDampingWaterLevel;
+    }
+
+    DMDAVecGetArray(da,  Rhs,   &rhs);
+    DMDAVecGetArray(da,  aeqn->lAlpha, &alpha);
+    DMDAVecGetArray(fda, mesh->lCent,  &cent);
+
+    for (k=lzs; k<lze; k++)
+    {
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+                // compute cell center x at i,j,k
+                x     = cent[k][j][i].x;
+                y     = cent[k][j][i].y;
+                z     = cent[k][j][i].z;
+
+                if(aeqn->access->flags->isKLeftAlphaDampingActive)
+                {
+                    // here we have to prescribe the wave in half a meter 
+                    PetscReal t = mesh->access->clock->time;
+                    
+                    // wave parameters
+                    PetscReal H      = aeqn->waveHeight;
+                    PetscReal k_wave = aeqn->waveNumber;
+                    PetscReal omega  = aeqn->waveOmega;
+                    PetscReal d      = aeqn->waveLevel;
+                    PetscReal phi    = aeqn->wavePhase;
+                    PetscReal theta  = aeqn->waveDirection;;
+                    
+                    // transform to wave coordinates (z_wave = 0 at MWL, z_wave = -d at bottom)
+                    PetscReal z_wave = z - d;
+                    
+                    // wave phase argument
+                    PetscReal arg = k_wave * (x * std::cos(theta) + y * std::sin(theta)) - omega * t + phi;
+                    
+                    // compute instantaneous wave elevation at this (x,y,t)
+                    PetscReal eta_instant;
+                    if (aeqn->waveType == "linear")
+                    {
+                        eta_instant = (H/2.0) * std::cos(arg);
+                    }
+                    else  if (aeqn->waveType == "stokes2")
+                    {
+                        PetscReal sinh_kd  = std::sinh(k_wave * d);
+                        PetscReal cosh_kd  = std::cosh(k_wave * d);
+                        PetscReal cosh_2kd = std::cosh(2.0 * k_wave * d);
+                        PetscReal eta1     = (H/2.0) * std::cos(arg);
+                        PetscReal eta2     = (k_wave * H * H / 8.0) * cosh_kd / (sinh_kd * sinh_kd * sinh_kd) 
+                                             * (2.0 + cosh_2kd) * std::cos(2.0 * arg);
+                        eta_instant        = eta1 + eta2;
+                    }
+                    
+                    // set alpha based on wave elevation
+                    PetscReal z_surface = d + eta_instant;
+                    alphaBar            = (z < z_surface) ? 1.0 : 0.0;
+                    
+                    nud   = viscNordstrom(coeff, start, end, delta, x);
+
+                    rhs[k][j][i] += scale * nud * (alphaBar - alpha[k][j][i]);
+                }
+                else if(aeqn->access->flags->isKRightAlphaDampingActive)
+                {
+                    xmin  = mesh->bounds.xmax - delta;
+                    xmax  = mesh->bounds.xmax;
+
+                                    // bar state 
+                    if(z < waterLevel)
+                    {
+                        alphaBar = 1.0;
+                    }
+                    else
+                    {
+                        alphaBar = 0.0;
+                    }
+
+                    // compute Cosine viscosity 
+                    nud   = viscCosAscending(coeff, xmin, xmax, x);
+
+                    rhs[k][j][i] += scale * nud * (alphaBar - alpha[k][j][i]);
+                }
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(da, Rhs,   &rhs);
+    DMDAVecRestoreArray(da, aeqn->lAlpha, &alpha);
+    DMDAVecRestoreArray(fda, mesh->lCent,  &cent);
 
     return(0);
 }

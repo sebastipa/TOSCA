@@ -119,7 +119,7 @@ PetscErrorCode checkBCsAndSetPatchTypes(mesh_ *mesh)
                                         "inletFunctioniLeft", "inletFunctioniRight", "zeroGradient", "fixedValue", "thetaWallFunction",
                                         "fixedGradient", "periodic", "oversetInterpolate"};
 
-    std::vector<word> alphaAvailableBC = {"periodic", "zeroGradient", "fixedValue", "oversetInterpolate"};
+    std::vector<word> alphaAvailableBC = {"periodic", "zeroGradient", "fixedValue", "inletOutlet", "oversetInterpolate"};
 
     std::vector<word> nutAvailableBC = {"inletFunction","inletFunctionkLeft", "inletFunctionkRight", "inletFunctionjLeft","inletFunctionjRight",
                                         "inletFunctioniLeft", "inletFunctioniRight", "zeroGradient", "fixedValue",
@@ -2626,6 +2626,8 @@ PetscErrorCode UpdateAlphaWaterBCs(aeqn_ *aeqn)
     PetscReal     ***aj, ***iaj;
     Cmpnts        ***csi, ***eta, ***zet, ***icsi, ***cent;
 
+    Cmpnts        ***div;
+
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
@@ -2643,6 +2645,8 @@ PetscErrorCode UpdateAlphaWaterBCs(aeqn_ *aeqn)
 
     DMDAVecGetArray(da, aeqn->lAlpha, &la);
     DMDAVecGetArray(da, aeqn->Alpha,  &a);
+
+    DMDAVecGetArray(fda, aeqn->lDivALO,  &div);
 
     for (k=lzs; k<lze; k++)
     {
@@ -2687,26 +2691,48 @@ PetscErrorCode UpdateAlphaWaterBCs(aeqn_ *aeqn)
                 {
                     a[k+1][j][i] = la[k][j][i];
                 }
+                
+                // inletOutlet boundary condition on k-right patch
+                // Prevents air ingress at outlet: enforces alpha=1.0 to maintain liquid phase
+                if (mesh->boundaryA.kRight=="inletOutlet" && k==mz-2)
+                {
+                    // Enforce on both ghost cell (k+1) AND interior cell (k) to prevent MULES diffusion
+                    PetscReal alpha_interior = la[k][j][i];
+                    PetscReal alpha_fixed = (alpha_interior > 0.95) ? 1.0 : alpha_interior;
+                    
+                    a[k+1][j][i] = alpha_fixed;  
+                    //a[k][j][i]   = alpha_fixed;    
+                }
 
+                if (mesh->boundaryA.kRight=="inletOutlet" && k==1)
+                {
+                    // Enforce on both ghost cell (k-1) AND interior cell (k) to prevent MULES diffusion
+                    PetscReal alpha_interior = la[k][j][i];
+                    PetscReal alpha_fixed    = (alpha_interior > 0.95) ? 1.0 : alpha_interior;
+                    
+                    a[k-1][j][i] = alpha_fixed;  
+                    //a[k][j][i]   = alpha_fixed;    
+                }
+                
                 // fixedValue boundary condition on i-left patch
                 if (mesh->boundaryA.iLeft=="fixedValue" && i==1)
                 {
-                    a[k][j][i-1] = mesh->boundaryA.iLval;
+                    a[k][j][i-1] = mesh->boundaryA.iLval;  // ghost cell
                 }
                 // fixedValue boundary condition on i-right patch
                 if (mesh->boundaryA.iRight=="fixedValue" && i==mx-2)
                 {
-                    a[k][j][i+1] = mesh->boundaryA.iRval;
+                    a[k][j][i+1] = mesh->boundaryA.iRval;  
                 }
                 // fixedValue boundary condition on j-left patch
                 if (mesh->boundaryA.jLeft=="fixedValue" && j==1)
                 {
-                    a[k][j-1][i] = mesh->boundaryA.jLval;
+                    a[k][j-1][i] = mesh->boundaryA.jLval;  
                 }
                 // fixedValue boundary condition on j-right patch
                 if (mesh->boundaryA.jRight=="fixedValue" && j==my-2)
                 {
-                    a[k][j+1][i] = mesh->boundaryA.jRval;
+                    a[k][j+1][i] = mesh->boundaryA.jRval;  
                 }
                 // fixedValue boundary condition on k-left patch
                 if (mesh->boundaryA.kLeft=="fixedValue" && k==1)
@@ -2734,6 +2760,8 @@ PetscErrorCode UpdateAlphaWaterBCs(aeqn_ *aeqn)
 
     DMDAVecRestoreArray(da, aeqn->lAlpha, &la);
     DMDAVecRestoreArray(da, aeqn->Alpha,  &a);
+
+    DMDAVecRestoreArray(fda, aeqn->lDivALO,  &div);
 
     // reset periodic cell fluxes and scatter
     resetCellPeriodicFluxes(mesh, aeqn->Alpha, aeqn->lAlpha, "scalar", "globalToLocal");

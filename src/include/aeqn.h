@@ -49,9 +49,31 @@ struct aeqn_
     // initial field
     word          initFieldType;
 
+    // damping regions
+    PetscReal     kRightAlphaDampingDelta;       //!< damping region thickness (m)
+    PetscReal     kRightAlphaDampingCoeff;       //!< damping region coefficient (1/s)
+    PetscReal     kRightAlphaDampingWaterLevel;  //!< unperturbed water level (m)
+
+    PetscReal     kLeftAlphaDampingStart;        //!< damping region start (m)
+    PetscReal     kLeftAlphaDampingEnd;          //!< damping region end (m)
+    PetscReal     kLeftAlphaDampingDelta;        //!< damping region rising and decaying length (m)
+    PetscReal     kLeftAlphaDampingCoeff;        //!< damping region coefficient (1/s)
+
+    // wave properties to be used for damping regions
+    
+    // monochromatic wave (linear or stokes2)
+    word         waveType;                    //!< wave theory type: "linear" or "stokes2"
+    PetscReal    waveHeight;                  //!< wave height H (m)
+    PetscReal    wavePeriod;                  //!< wave period T (s)
+    PetscReal    waveLevel;                   //!< MWL position in domain coords (m) - also water depth if bottom is at z=0
+    PetscReal    waveDirection;               //!< wave propagation angle (degrees, 0=x-dir)
+    PetscReal    wavePhase;                   //!< initial phase offset (radians)
+    PetscReal    waveNumber;                  //!< computed wave number k (1/m)
+    PetscReal    waveOmega;                   //!< computed angular frequency omega (rad/s)
+    PetscReal    waveLambda;                  //!< computed wavelength lambda (m)
+
     // access
     access_       *access;                     //!< access database
-
 };
 
 #endif

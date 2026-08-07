@@ -224,6 +224,8 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     flags->isYDampingActive              = 0;
     flags->isKLeftRayleighDampingActive  = 0;
     flags->isKRightRayleighDampingActive = 0;
+    flags->isKLeftAlphaDampingActive     = 0;
+    flags->isKRightAlphaDampingActive    = 0;
     flags->isAdvectionDampingXActive     = 0;
     flags->isAdvectionDampingYActive     = 0;
     flags->isCanopyActive                = 0;
@@ -234,27 +236,29 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     flags->isBulkGradPForcingActive      = 0;
     flags->isMeanGradPForcingActive      = 0;
 
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-overset",          &(flags->isOversetActive), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-les",              &(flags->isLesActive), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-potentialT",       &(flags->isTeqnActive), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-multiphase",       &(flags->isAeqnActive), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-abl",              &(flags->isAblActive), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-windplant",        &(flags->isWindFarmActive), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-ibm",              &(flags->isIBMActive), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-zDampingLayer",    &(flags->isZDampingActive), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-xDampingLayer",    &(flags->isXDampingActive), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-yDampingLayer",    &(flags->isYDampingActive), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-canopy",           &(flags->isCanopyActive), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-adjustTimeStep",   &(flags->isAdjustableTime), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-pvCatalyst",       &(flags->isPvCatalystActive), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-kLeftRayleigh",    &(flags->isKLeftRayleighDampingActive), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-kRightRayleigh",   &(flags->isKRightRayleighDampingActive), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-advectionDampingX",&(flags->isAdvectionDampingXActive), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-advectionDampingY",&(flags->isAdvectionDampingYActive), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-nonInertial",      &(flags->isNonInertialFrameActive), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-agwModeling",      &(flags->isGravityWaveModelingActive), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-bulkGradPForce",   &(flags->isBulkGradPForcingActive ), PETSC_NULL);
-    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-meanGradPForce",   &(flags->isMeanGradPForcingActive ), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-overset",           &(flags->isOversetActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-les",               &(flags->isLesActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-potentialT",        &(flags->isTeqnActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-multiphase",        &(flags->isAeqnActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-abl",               &(flags->isAblActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-windplant",         &(flags->isWindFarmActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-ibm",               &(flags->isIBMActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-zDampingLayer",     &(flags->isZDampingActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-xDampingLayer",     &(flags->isXDampingActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-yDampingLayer",     &(flags->isYDampingActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-canopy",            &(flags->isCanopyActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-adjustTimeStep",    &(flags->isAdjustableTime), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-pvCatalyst",        &(flags->isPvCatalystActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-kLeftRayleigh",     &(flags->isKLeftRayleighDampingActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-kRightRayleigh",    &(flags->isKRightRayleighDampingActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-kLeftAlphaDamping", &(flags->isKLeftAlphaDampingActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-kRightAlphaDamping",&(flags->isKRightAlphaDampingActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-advectionDampingX", &(flags->isAdvectionDampingXActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-advectionDampingY", &(flags->isAdvectionDampingYActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-nonInertial",       &(flags->isNonInertialFrameActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-agwModeling",       &(flags->isGravityWaveModelingActive), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-bulkGradPForce",    &(flags->isBulkGradPForcingActive ), PETSC_NULL);
+    PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, "-meanGradPForce",    &(flags->isMeanGradPForcingActive ), PETSC_NULL);
 
     // do some checks
     if(flags->isZDampingActive || flags->isXDampingActive || flags->isYDampingActive || flags->isKLeftRayleighDampingActive || flags->isKRightRayleighDampingActive || flags->isAdvectionDampingXActive)
@@ -303,6 +307,14 @@ PetscErrorCode SetSimulationFlags(flags_ *flags)
     {
         char error[512];
         sprintf(error, "potentialT and multiphase flags cannot be active at the same time");
+        fatalErrorInFunction("SetSimulationFlags", error);
+    }
+
+    // alpha damping requires multiphase to be active
+    if((flags->isKLeftAlphaDampingActive || flags->isKRightAlphaDampingActive) && !flags->isAeqnActive)
+    {
+        char error[512];
+        sprintf(error, "kLeftAlphaDamping and kRightAlphaDamping require multiphase to be active");
         fatalErrorInFunction("SetSimulationFlags", error);
     }
 
