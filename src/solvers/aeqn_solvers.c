@@ -1193,11 +1193,14 @@ PetscErrorCode dampingSourceA(aeqn_ *aeqn, Vec &Rhs, PetscReal scale)
                     PetscReal H      = aeqn->waveHeight;
                     PetscReal k_wave = aeqn->waveNumber;
                     PetscReal omega  = aeqn->waveOmega;
-                    PetscReal d      = aeqn->waveLevel;
+                    PetscReal d      = aeqn->waveLevel;  // MWL position in domain
                     PetscReal phi    = aeqn->wavePhase;
                     PetscReal theta  = aeqn->waveDirection;;
                     
-                    // transform to wave coordinates (z_wave = 0 at MWL, z_wave = -d at bottom)
+                    // water depth (for wave formulas)
+                    PetscReal depth = d - mesh->bounds.zmin;
+                    
+                    // transform to wave coordinates (z_wave = 0 at MWL, z_wave = -depth at bottom)
                     PetscReal z_wave = z - d;
                     
                     // wave phase argument
@@ -1211,9 +1214,9 @@ PetscErrorCode dampingSourceA(aeqn_ *aeqn, Vec &Rhs, PetscReal scale)
                     }
                     else  if (aeqn->waveType == "stokes2")
                     {
-                        PetscReal sinh_kd  = std::sinh(k_wave * d);
-                        PetscReal cosh_kd  = std::cosh(k_wave * d);
-                        PetscReal cosh_2kd = std::cosh(2.0 * k_wave * d);
+                        PetscReal sinh_kd  = std::sinh(k_wave * depth);
+                        PetscReal cosh_kd  = std::cosh(k_wave * depth);
+                        PetscReal cosh_2kd = std::cosh(2.0 * k_wave * depth);
                         PetscReal eta1     = (H/2.0) * std::cos(arg);
                         PetscReal eta2     = (k_wave * H * H / 8.0) * cosh_kd / (sinh_kd * sinh_kd * sinh_kd) 
                                              * (2.0 + cosh_2kd) * std::cos(2.0 * arg);

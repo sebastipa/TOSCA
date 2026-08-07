@@ -3511,11 +3511,14 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     PetscReal H      = aeqn->waveHeight; 
                     PetscReal k_wave = aeqn->waveNumber; 
                     PetscReal omega  = aeqn->waveOmega; 
-                    PetscReal d      = aeqn->waveLevel; 
+                    PetscReal d      = aeqn->waveLevel;  // MWL position in domain
                     PetscReal phi    = aeqn->wavePhase; 
                     PetscReal theta  = aeqn->waveDirection; 
                     
-                    // transform to wave coordinates (z_wave = 0 at MWL, z_wave = -d at bottom)
+                    // water depth (for wave formulas)
+                    PetscReal depth = d - mesh->bounds.zmin;
+                    
+                    // transform to wave coordinates (z_wave = 0 at MWL, z_wave = -depth at bottom)
                     PetscReal z_wave = z - d;
                     
                     // wave phase argument
@@ -3539,9 +3542,9 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                         PetscReal eta1, eta1_i, eta1_j, eta1_k;
                         PetscReal eta2, eta2_i, eta2_j, eta2_k;
 
-                        PetscReal sinh_kd = std::sinh(k_wave * d);
-                        PetscReal cosh_kd = std::cosh(k_wave * d);
-                        PetscReal cosh_2kd = std::cosh(2.0 * k_wave * d);
+                        PetscReal sinh_kd = std::sinh(k_wave * depth);
+                        PetscReal cosh_kd = std::cosh(k_wave * depth);
+                        PetscReal cosh_2kd = std::cosh(2.0 * k_wave * depth);
                         
                         eta1   = (H/2.0) * std::cos(arg);
                         eta1_i = (H/2.0) * std::cos(argi);
@@ -3573,15 +3576,15 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     if (aeqn->waveType == "linear")
                     {
                         // Linear (Airy) wave orbital velocities
-                        PetscReal cosh_factor   = std::cosh(k_wave * (z_wave_clamped   + d)) / std::sinh(k_wave * d),
-                                  cosh_factor_i = std::cosh(k_wave * (z_wave_clamped_i + d)) / std::sinh(k_wave * d),
-                                  cosh_factor_j = std::cosh(k_wave * (z_wave_clamped_j + d)) / std::sinh(k_wave * d),
-                                  cosh_factor_k = std::cosh(k_wave * (z_wave_clamped_k + d)) / std::sinh(k_wave * d);
+                        PetscReal cosh_factor   = std::cosh(k_wave * (z_wave_clamped   + depth)) / std::sinh(k_wave * depth),
+                                  cosh_factor_i = std::cosh(k_wave * (z_wave_clamped_i + depth)) / std::sinh(k_wave * depth),
+                                  cosh_factor_j = std::cosh(k_wave * (z_wave_clamped_j + depth)) / std::sinh(k_wave * depth),
+                                  cosh_factor_k = std::cosh(k_wave * (z_wave_clamped_k + depth)) / std::sinh(k_wave * depth);
                         
-                        PetscReal sinh_factor   = std::sinh(k_wave * (z_wave_clamped + d))   / std::sinh(k_wave * d),
-                                  sinh_factor_i = std::sinh(k_wave * (z_wave_clamped_i + d)) / std::sinh(k_wave * d),
-                                  sinh_factor_j = std::sinh(k_wave * (z_wave_clamped_j + d)) / std::sinh(k_wave * d),
-                                  sinh_factor_k = std::sinh(k_wave * (z_wave_clamped_k + d)) / std::sinh(k_wave * d);
+                        PetscReal sinh_factor   = std::sinh(k_wave * (z_wave_clamped   + depth))   / std::sinh(k_wave * depth),
+                                  sinh_factor_i = std::sinh(k_wave * (z_wave_clamped_i + depth)) / std::sinh(k_wave * depth),
+                                  sinh_factor_j = std::sinh(k_wave * (z_wave_clamped_j + depth)) / std::sinh(k_wave * depth),
+                                  sinh_factor_k = std::sinh(k_wave * (z_wave_clamped_k + depth)) / std::sinh(k_wave * depth);
                         
                         u_wave   = (H/2.0) * (omega/k_wave) * cosh_factor   * std::cos(arg);
                         u_wave_i = (H/2.0) * (omega/k_wave) * cosh_factor_i * std::cos(argi);
@@ -3597,18 +3600,18 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     else if (aeqn->waveType == "stokes2")
                     {
                         // Stokes 2nd order wave orbital velocities
-                        PetscReal sinh_kd = std::sinh(k_wave * d);
-                        PetscReal cosh_kd = std::cosh(k_wave * d);
+                        PetscReal sinh_kd = std::sinh(k_wave * depth);
+                        PetscReal cosh_kd = std::cosh(k_wave * depth);
                         
                         // 1st order terms
-                        PetscReal cosh_kz   = std::cosh(k_wave * (z_wave_clamped + d)),
-                                  cosh_kz_i = std::cosh(k_wave * (z_wave_clamped_i + d)),
-                                  cosh_kz_j = std::cosh(k_wave * (z_wave_clamped_j + d)),
-                                  cosh_kz_k = std::cosh(k_wave * (z_wave_clamped_k + d));
-                        PetscReal sinh_kz   = std::sinh(k_wave * (z_wave_clamped + d)),
-                                  sinh_kz_i = std::sinh(k_wave * (z_wave_clamped_i + d)),
-                                  sinh_kz_j = std::sinh(k_wave * (z_wave_clamped_j + d)),
-                                  sinh_kz_k = std::sinh(k_wave * (z_wave_clamped_k + d));
+                        PetscReal cosh_kz   = std::cosh(k_wave * (z_wave_clamped   + depth)),
+                                  cosh_kz_i = std::cosh(k_wave * (z_wave_clamped_i + depth)),
+                                  cosh_kz_j = std::cosh(k_wave * (z_wave_clamped_j + depth)),
+                                  cosh_kz_k = std::cosh(k_wave * (z_wave_clamped_k + depth));
+                        PetscReal sinh_kz   = std::sinh(k_wave * (z_wave_clamped   + depth)),
+                                  sinh_kz_i = std::sinh(k_wave * (z_wave_clamped_i + depth)),
+                                  sinh_kz_j = std::sinh(k_wave * (z_wave_clamped_j + depth)),
+                                  sinh_kz_k = std::sinh(k_wave * (z_wave_clamped_k + depth));
 
                         PetscReal u1   = (H * omega / 2.0) * cosh_kz   / sinh_kd,
                                   u1_i = (H * omega / 2.0) * cosh_kz_i / sinh_kd,
@@ -3620,14 +3623,14 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                                   w1_k = (H * omega / 2.0) * sinh_kz_k / sinh_kd;
                         
                         // 2nd order terms (note: a² = H²/4)
-                        PetscReal cosh_2kz   = std::cosh(2.0 * k_wave * (z_wave_clamped   + d)),
-                                  cosh_2kz_i = std::cosh(2.0 * k_wave * (z_wave_clamped_i + d)),
-                                  cosh_2kz_j = std::cosh(2.0 * k_wave * (z_wave_clamped_j + d)),
-                                  cosh_2kz_k = std::cosh(2.0 * k_wave * (z_wave_clamped_k + d));
-                        PetscReal sinh_2kz   = std::sinh(2.0 * k_wave * (z_wave_clamped   + d)),
-                                  sinh_2kz_i = std::sinh(2.0 * k_wave * (z_wave_clamped_i + d)),
-                                  sinh_2kz_j = std::sinh(2.0 * k_wave * (z_wave_clamped_j + d)),
-                                  sinh_2kz_k = std::sinh(2.0 * k_wave * (z_wave_clamped_k + d));
+                        PetscReal cosh_2kz   = std::cosh(2.0 * k_wave * (z_wave_clamped   + depth)),
+                                  cosh_2kz_i = std::cosh(2.0 * k_wave * (z_wave_clamped_i + depth)),
+                                  cosh_2kz_j = std::cosh(2.0 * k_wave * (z_wave_clamped_j + depth)),
+                                  cosh_2kz_k = std::cosh(2.0 * k_wave * (z_wave_clamped_k + depth));
+                        PetscReal sinh_2kz   = std::sinh(2.0 * k_wave * (z_wave_clamped   + depth)),
+                                  sinh_2kz_i = std::sinh(2.0 * k_wave * (z_wave_clamped_i + depth)),
+                                  sinh_2kz_j = std::sinh(2.0 * k_wave * (z_wave_clamped_j + depth)),
+                                  sinh_2kz_k = std::sinh(2.0 * k_wave * (z_wave_clamped_k + depth));
                         
                         PetscReal sinh4_kd = sinh_kd * sinh_kd * sinh_kd * sinh_kd;
                         
