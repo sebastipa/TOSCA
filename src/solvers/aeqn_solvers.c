@@ -109,8 +109,8 @@ PetscErrorCode FormAHighOrder(aeqn_ *aeqn)
                         PetscReal denom;
                         getFace2Cell4StencilCsi(mesh, k, j, i, mx, &iL, &iR, &denom, nvert, meshTag);
                         //div[k][j][i].x = -ucont[k][j][i].x * central4(alpha[k][j][iL], alpha[k][j][i], alpha[k][j][i+1], alpha[k][j][iR]);
-                        //div[k][j][i].x = -ucont[k][j][i].x * central(alpha[k][j][i], alpha[k][j][i+1]);
-                        div[k][j][i].x = -ucont[k][j][i].x * tvd12(alpha[k][j][iL], alpha[k][j][i], alpha[k][j][i+1], alpha[k][j][iR], ucont[k][j][i].x);
+                        div[k][j][i].x = -ucont[k][j][i].x * central(alpha[k][j][i], alpha[k][j][i+1]);
+                        //div[k][j][i].x = -ucont[k][j][i].x * tvd12(alpha[k][j][iL], alpha[k][j][i], alpha[k][j][i+1], alpha[k][j][iR], ucont[k][j][i].x);
                     }
                 }
 
@@ -127,8 +127,8 @@ PetscErrorCode FormAHighOrder(aeqn_ *aeqn)
                         PetscReal denom;
                         getFace2Cell4StencilEta(mesh, k, j, i, my, &jL, &jR, &denom, nvert, meshTag);
                         //div[k][j][i].y = -ucont[k][j][i].y * central4(alpha[k][jL][i], alpha[k][j][i], alpha[k][j+1][i], alpha[k][jR][i]);
-                        //div[k][j][i].y = -ucont[k][j][i].y * central(alpha[k][j][i], alpha[k][j+1][i]);
-                        div[k][j][i].y = -ucont[k][j][i].y * tvd12(alpha[k][jL][i], alpha[k][j][i], alpha[k][j+1][i], alpha[k][jR][i], ucont[k][j][i].y);
+                        div[k][j][i].y = -ucont[k][j][i].y * central(alpha[k][j][i], alpha[k][j+1][i]);
+                        //div[k][j][i].y = -ucont[k][j][i].y * tvd12(alpha[k][jL][i], alpha[k][j][i], alpha[k][j+1][i], alpha[k][jR][i], ucont[k][j][i].y);
                     }
                 }
 
@@ -145,8 +145,8 @@ PetscErrorCode FormAHighOrder(aeqn_ *aeqn)
                         PetscReal denom;
                         getFace2Cell4StencilZet(mesh, k, j, i, mz, &kL, &kR, &denom, nvert, meshTag);
                         //div[k][j][i].z = -ucont[k][j][i].z * central4(alpha[kL][j][i], alpha[k][j][i], alpha[k+1][j][i], alpha[kR][j][i]);
-                        //div[k][j][i].z = -ucont[k][j][i].z * central(alpha[k][j][i], alpha[k+1][j][i]);
-                        div[k][j][i].z = -ucont[k][j][i].z * tvd12(alpha[kL][j][i], alpha[k][j][i], alpha[k+1][j][i], alpha[kR][j][i], ucont[k][j][i].z);
+                        div[k][j][i].z = -ucont[k][j][i].z * central(alpha[k][j][i], alpha[k+1][j][i]);
+                        //div[k][j][i].z = -ucont[k][j][i].z * tvd12(alpha[kL][j][i], alpha[k][j][i], alpha[k+1][j][i], alpha[kR][j][i], ucont[k][j][i].z);
                     }
                 }
             }
@@ -302,7 +302,7 @@ PetscErrorCode AddCompressionFlux(aeqn_ *aeqn)
 
     DMDAVecGetArray(da,  AlphaSmooth,      &alpha_smooth);
 
-    // step 0: smooth alpha by averaging over a 3x3x3 stencil
+    // smooth-filter alpha by averaging over a 3x3x3 box
     for (k=lzs; k<lze; k++)
     {
         for (j=lys; j<lye; j++)
@@ -336,7 +336,7 @@ PetscErrorCode AddCompressionFlux(aeqn_ *aeqn)
     DMDAVecGetArray(fda, GradA,       &gradAlpha);
     DMDAVecGetArray(da,  AlphaSmooth, &alpha_smooth);
 
-    // step 1: compute alpha gradient at cell centers 
+    // compute alpha gradient at cell centers 
     for (k=lzs; k<lze; k++)
     {
         for (j=lys; j<lye; j++)
@@ -395,12 +395,11 @@ PetscErrorCode AddCompressionFlux(aeqn_ *aeqn)
     DMDAVecGetArray(fda, GradA, &gradAlpha);
 
     // compute interface velocity at cell faces as uc_face = c * mag_u_face * grad_alpha_face / mag_grad_alpha_face
-    // Loop over interior faces only (lxs, lys, lzs exclude boundary faces)
-    for (k=lzs; k<lze; k++)
+    for (k=zs; k<lze; k++)
     {
-        for (j=lys; j<lye; j++)
+        for (j=ys; j<lye; j++)
         {
-            for (i=lxs; i<lxe; i++)
+            for (i=xs; i<lxe; i++)
             {
                 if(i>=mx-2 || j>=my-2 || k>=mz-2) continue;
 
@@ -513,12 +512,12 @@ PetscErrorCode AddCompressionFlux(aeqn_ *aeqn)
 
 PetscErrorCode ApplyMULESLimiter(aeqn_ *aeqn)
 {
-    // apply mules flux limiter to produce a bounded, conservative Rhs
+    // apply mules flux limiter to produce a bounded, conservative fluxes
     // step 1: correction = lDivAHO - lDivA
     // step 2: provisional low-order cell update into lAlphaLO
-    // step 3: per-cell R_plus, R_minus (how much correction each cell can absorb)
-    // step 4: per-face lambda_f = min(R of owner, R of neighbor)
-    // step 5: final Rhs = low-order budget + lambda-limited correction budget
+    // step 3: computation of R_plus, R_minus (how much correction each cell can absorb)
+    // step 4: computation of lambda_f = min(R of owner, R of neighbor)
+    // step 5: final fluxes = low-order fluxes + lambda-limited high-order fluxes
 
     mesh_         *mesh  = aeqn->access->mesh;
     clock_        *clock = aeqn->access->clock;
@@ -671,7 +670,7 @@ PetscErrorCode ApplyMULESLimiter(aeqn_ *aeqn)
 
     resetFacePeriodicFluxesVector(mesh, aeqn->lLambdaA, aeqn->lLambdaA, "localToLocal");
 
-    // compute final flux  = low-order + lambda-weighted correction  
+    // compute final flux = low-order + lambda-weighted correction  
     DMDAVecGetArray(fda, aeqn->lDivA,    &div);
     DMDAVecGetArray(da,  mesh->lAj,      &aj);
     DMDAVecGetArray(fda, aeqn->lDivALO,  &divLO);
@@ -718,6 +717,7 @@ PetscErrorCode FormA(aeqn_ *aeqn, Vec Div, Vec Rhs)
 {
     mesh_         *mesh  = aeqn->access->mesh;
     clock_        *clock = aeqn->access->clock;
+    ueqn_        *ueqn  = aeqn->access->ueqn;
     DM            da     = mesh->da, fda = mesh->fda;
     DMDALocalInfo info   = mesh->info;
     PetscInt      xs     = info.xs, xe = info.xs + info.xm;
@@ -728,8 +728,8 @@ PetscErrorCode FormA(aeqn_ *aeqn, Vec Div, Vec Rhs)
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
     PetscInt      i, j, k;
 
-    PetscReal     ***rhs, ***aj;
-    Cmpnts        ***div;
+    PetscReal     ***rhs, ***aj, ***lalpha;
+    Cmpnts        ***div, ***lucont;
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
@@ -738,6 +738,8 @@ PetscErrorCode FormA(aeqn_ *aeqn, Vec Div, Vec Rhs)
     DMDAVecGetArray(fda, Div,            &div);
     DMDAVecGetArray(da,  mesh->lAj,      &aj);
     DMDAVecGetArray(da,  Rhs,            &rhs);
+    DMDAVecGetArray(fda, ueqn->lUcont,     &lucont);
+    DMDAVecGetArray(da,  aeqn->lAlpha,     &lalpha);
 
     for (k=lzs; k<lze; k++)
     {
@@ -751,6 +753,14 @@ PetscErrorCode FormA(aeqn_ *aeqn, Vec Div, Vec Rhs)
                     div [k][j][i].y - div [k][j-1][i].y +
                     div [k][j][i].z - div [k-1][j][i].z
                 );
+
+                // correction for non-divergence free cells (this should be all zero)
+                rhs[k][j][i] += aj[k][j][i] * lalpha[k][j][i] *
+                (
+                    lucont [k][j][i].x - lucont [k][j][i-1].x +
+                    lucont [k][j][i].y - lucont [k][j-1][i].y +
+                    lucont [k][j][i].z - lucont [k-1][j][i].z
+                );
             }
         }
     }
@@ -758,6 +768,8 @@ PetscErrorCode FormA(aeqn_ *aeqn, Vec Div, Vec Rhs)
     DMDAVecRestoreArray(fda, Div,            &div);
     DMDAVecRestoreArray(da,  mesh->lAj,      &aj);
     DMDAVecRestoreArray(da,  Rhs,            &rhs);
+    DMDAVecRestoreArray(fda, ueqn->lUcont,   &lucont);
+    DMDAVecRestoreArray(da,  aeqn->lAlpha,   &lalpha);
 
     return(0);
 }
@@ -899,7 +911,11 @@ PetscErrorCode FormExplicitRhsA(aeqn_ *aeqn)
 
     FormA(aeqn, aeqn->lDivA, aeqn->Rhs);
 
-    if(aeqn->access->flags->isKLeftAlphaDampingActive || aeqn->access->flags->isKRightAlphaDampingActive)
+    if
+    (
+        aeqn->access->flags->isKLeftAlphaDampingActive || 
+        aeqn->access->flags->isKRightAlphaDampingActive
+    )
     {
         dampingSourceA(aeqn, aeqn->Rhs, 1.0);
     }
@@ -1014,7 +1030,7 @@ PetscErrorCode UpdateRho(aeqn_ *aeqn)
                 {
                     PetscReal alpha_face;
 
-                    // like OpenFOAM does it
+                    // OpenFOAM way
                     //alpha_face =  - div[k][j][i].x  / ucont[k][j][i].x;
 
                     // harmonic mean
@@ -1039,7 +1055,7 @@ PetscErrorCode UpdateRho(aeqn_ *aeqn)
                 {
                     PetscReal alpha_face;
 
-                    // like OpenFOAM does it
+                    // OpenFOAM way
                     //alpha_face =  - div[k][j][i].y  / ucont[k][j][i].y;
 
                     // harmonic mean
@@ -1064,7 +1080,7 @@ PetscErrorCode UpdateRho(aeqn_ *aeqn)
                 {
                     PetscReal alpha_face;
 
-                    // like OpenFOAM does it
+                    // OpenFOAM way
                     // alpha_face =  - div[k][j][i].z  / ucont[k][j][i].z;
 
                     // harmonic mean
@@ -1149,7 +1165,7 @@ PetscErrorCode dampingSourceA(aeqn_ *aeqn, Vec &Rhs, PetscReal scale)
     Cmpnts        ***cent;
 
     PetscReal     z, y, x, xmin, xmax, nud, alphaBar;
-    PetscReal     start, end, delta, coeff, waterLevel;
+    PetscReal     start, end, delta, coeff;
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
@@ -1161,12 +1177,6 @@ PetscErrorCode dampingSourceA(aeqn_ *aeqn, Vec &Rhs, PetscReal scale)
         end   = aeqn->kLeftAlphaDampingEnd;
         delta = aeqn->kLeftAlphaDampingDelta;
         coeff = aeqn->kLeftAlphaDampingCoeff;
-    }
-    else if(aeqn->access->flags->isKRightAlphaDampingActive)
-    {
-        delta = aeqn->kRightAlphaDampingDelta;
-        coeff = aeqn->kRightAlphaDampingCoeff;
-        waterLevel = aeqn->kRightAlphaDampingWaterLevel;
     }
 
     DMDAVecGetArray(da,  Rhs,   &rhs);
@@ -1187,57 +1197,75 @@ PetscErrorCode dampingSourceA(aeqn_ *aeqn, Vec &Rhs, PetscReal scale)
                 if(aeqn->access->flags->isKLeftAlphaDampingActive)
                 {
                     // here we have to prescribe the wave in half a meter 
-                    PetscReal t = mesh->access->clock->time;
-                    
-                    // wave parameters
-                    PetscReal H      = aeqn->waveHeight;
-                    PetscReal k_wave = aeqn->waveNumber;
-                    PetscReal omega  = aeqn->waveOmega;
-                    PetscReal d      = aeqn->waveLevel;  // MWL position in domain
-                    PetscReal phi    = aeqn->wavePhase;
-                    PetscReal theta  = aeqn->waveDirection;;
-                    
-                    // water depth (for wave formulas)
-                    PetscReal depth = d - mesh->bounds.zmin;
-                    
-                    // transform to wave coordinates (z_wave = 0 at MWL, z_wave = -depth at bottom)
-                    PetscReal z_wave = z - d;
-                    
-                    // wave phase argument
-                    PetscReal arg = k_wave * (x * std::cos(theta) + y * std::sin(theta)) - omega * t + phi;
-                    
-                    // compute instantaneous wave elevation at this (x,y,t)
-                    PetscReal eta_instant;
-                    if (aeqn->waveType == "linear")
+                    PetscReal t      = mesh->access->clock->time;
+                    PetscReal d      = aeqn->waveLevel - mesh->bounds.zmin;
+                    PetscReal theta  = aeqn->waveDirection;
+                    PetscReal z_surface, eta_instant;
+
+                    if (aeqn->waveType == "linear" || aeqn->waveType == "stokes2")
                     {
-                        eta_instant = (H/2.0) * std::cos(arg);
+                        // wave parameters
+                        PetscReal H      = aeqn->waveHeight;
+                        PetscReal k_wave = aeqn->waveNumber;
+                        PetscReal omega  = aeqn->waveOmega;
+                        PetscReal phi    = aeqn->wavePhase;
+                        
+                        // wave phase argument
+                        PetscReal arg = k_wave * (x * std::cos(theta) + y * std::sin(theta)) - omega * t + phi;
+                        
+                        // compute instantaneous wave elevation at this (x,y,t)
+                        if (aeqn->waveType == "linear")
+                        {
+                            eta_instant = (H/2.0) * std::cos(arg);
+                        }
+                        else  if (aeqn->waveType == "stokes2")
+                        {
+                            PetscReal sinh_kd  = std::sinh(      k_wave * d);
+                            PetscReal cosh_kd  = std::cosh(      k_wave * d);
+                            PetscReal cosh_2kd = std::cosh(2.0 * k_wave * d);
+                            PetscReal eta1     = (H/2.0) * std::cos(arg);
+                            PetscReal eta2     = (k_wave * H * H / 8.0) * cosh_kd / (sinh_kd * sinh_kd * sinh_kd) 
+                                                * (2.0 + cosh_2kd) * std::cos(2.0 * arg);
+                            eta_instant        = eta1 + eta2;
+                        }
+                        
+                        // compute the instantaneous surface elevation
+                        z_surface = aeqn->waveLevel + eta_instant;
                     }
-                    else  if (aeqn->waveType == "stokes2")
+                    else if (aeqn->waveType == "dispersiveFocusing")
                     {
-                        PetscReal sinh_kd  = std::sinh(k_wave * depth);
-                        PetscReal cosh_kd  = std::cosh(k_wave * depth);
-                        PetscReal cosh_2kd = std::cosh(2.0 * k_wave * depth);
-                        PetscReal eta1     = (H/2.0) * std::cos(arg);
-                        PetscReal eta2     = (k_wave * H * H / 8.0) * cosh_kd / (sinh_kd * sinh_kd * sinh_kd) 
-                                             * (2.0 + cosh_2kd) * std::cos(2.0 * arg);
-                        eta_instant        = eta1 + eta2;
+                        eta_instant = 0.0;
+
+                        for(PetscInt g=0; g<aeqn->nGroups; g++)
+                        {
+                            PetscReal A      = aeqn->groupAmplitudes[g];
+                            PetscReal k_wave = aeqn->groupWaveNumbers[g];
+                            PetscReal omega  = aeqn->groupOmegas[g];
+                            PetscReal phi    = aeqn->groupPhases[g];
+
+                            // wave phase argument
+                            PetscReal arg = omega * t - k_wave * (x * std::cos(theta) + y * std::sin(theta)) + phi;
+
+                            // compute instantaneous wave elevation at this (x,y,t)
+                            eta_instant += A * std::cos(arg);
+                        }
+
+                        // compute the instantaneous surface elevation
+                        z_surface = aeqn->waveLevel + eta_instant;
                     }
-                    
-                    // set alpha based on wave elevation
-                    PetscReal z_surface = d + eta_instant;
-                    alphaBar            = (z < z_surface) ? 1.0 : 0.0;
-                    
-                    nud   = viscNordstrom(coeff, start, end, delta, x);
+
+                    alphaBar = (z < z_surface) ? 1.0 : 0.0;
+                    nud      = viscNordstrom(coeff, start, end, delta, x);
 
                     rhs[k][j][i] += scale * nud * (alphaBar - alpha[k][j][i]);
                 }
                 else if(aeqn->access->flags->isKRightAlphaDampingActive)
                 {
-                    xmin  = mesh->bounds.xmax - delta;
+                    xmin  = mesh->bounds.xmax - aeqn->kRightAlphaDampingDelta;
                     xmax  = mesh->bounds.xmax;
 
-                                    // bar state 
-                    if(z < waterLevel)
+                    // bar state 
+                    if(z < aeqn->kRightAlphaDampingWaterLevel)
                     {
                         alphaBar = 1.0;
                     }
@@ -1247,7 +1275,7 @@ PetscErrorCode dampingSourceA(aeqn_ *aeqn, Vec &Rhs, PetscReal scale)
                     }
 
                     // compute Cosine viscosity 
-                    nud   = viscCosAscending(coeff, xmin, xmax, x);
+                    nud   = viscCosAscending(aeqn->kRightAlphaDampingCoeff, xmin, xmax, x);
 
                     rhs[k][j][i] += scale * nud * (alphaBar - alpha[k][j][i]);
                 }
@@ -1255,8 +1283,8 @@ PetscErrorCode dampingSourceA(aeqn_ *aeqn, Vec &Rhs, PetscReal scale)
         }
     }
 
-    DMDAVecRestoreArray(da, Rhs,   &rhs);
-    DMDAVecRestoreArray(da, aeqn->lAlpha, &alpha);
+    DMDAVecRestoreArray(da,  Rhs,   &rhs);
+    DMDAVecRestoreArray(da,  aeqn->lAlpha, &alpha);
     DMDAVecRestoreArray(fda, mesh->lCent,  &cent);
 
     return(0);

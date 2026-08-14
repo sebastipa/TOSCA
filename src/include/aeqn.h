@@ -72,6 +72,16 @@ struct aeqn_
     PetscReal    waveOmega;                   //!< computed angular frequency omega (rad/s)
     PetscReal    waveLambda;                  //!< computed wavelength lambda (m)
 
+    // dispersive focusing wave groups
+    PetscInt     nGroups;                     //!< number of wave groups
+    PetscReal    waveSteepness;               //!< wave steepness 
+    PetscReal    focusTime;                   //!< time of wave group focusing (s)
+    PetscReal    focusCoord;                  //!< x-coordinate of wave group focusing (m)
+    PetscReal    *groupAmplitudes;            //!< wave group amplitudes (m)
+    PetscReal    *groupWaveNumbers;           //!< wave group wave numbers (1/m)
+    PetscReal    *groupOmegas;                //!< wave group angular frequencies (rad/s)
+    PetscReal    *groupPhases;                //!< wave group initial phases (rad)
+
     // access
     access_       *access;                     //!< access database
 };

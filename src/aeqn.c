@@ -162,12 +162,11 @@ PetscErrorCode InitializeAEqn(aeqn_ *aeqn)
             readSubDictDouble("waveProperties", "kLeftAlphaDampingProperties", "dampingCoeff",     &(aeqn->kLeftAlphaDampingCoeff));
 
             readSubDictWord  ("waveProperties", "kLeftAlphaDampingProperties", "waveType",         &(aeqn->waveType));
-            readSubDictDouble("waveProperties", "kLeftAlphaDampingProperties", "waveHeight",       &(aeqn->waveHeight));
-            readSubDictDouble("waveProperties", "kLeftAlphaDampingProperties", "wavePeriod",       &(aeqn->wavePeriod));
-            readSubDictDouble("waveProperties", "kLeftAlphaDampingProperties", "waveLevel",        &(aeqn->waveLevel));
             readSubDictDouble("waveProperties", "kLeftAlphaDampingProperties", "waveDirection",    &(aeqn->waveDirection));
-            readSubDictDouble("waveProperties", "kLeftAlphaDampingProperties", "wavePhase",        &(aeqn->wavePhase));
-            
+
+            // convert direction to radians
+            aeqn->waveDirection = aeqn->waveDirection * M_PI / 180.0;
+
             // validate wave type
             if(aeqn->waveType != "linear" && aeqn->waveType != "stokes2")
             {
@@ -175,6 +174,12 @@ PetscErrorCode InitializeAEqn(aeqn_ *aeqn)
                 sprintf(error, "unknown waveType %s, available types are:\n        linear  : Linear (Airy) wave theory\n        stokes2 : Stokes 2nd order theory\n", aeqn->waveType.c_str());
                 fatalErrorInFunction("InitializeAEqn", error);
             }
+
+            // read remaining parameters and compute wave quantities
+            readSubDictDouble("waveProperties", "kLeftAlphaDampingProperties", "waveHeight",       &(aeqn->waveHeight));
+            readSubDictDouble("waveProperties", "kLeftAlphaDampingProperties", "wavePeriod",       &(aeqn->wavePeriod));
+            readSubDictDouble("waveProperties", "kLeftAlphaDampingProperties", "waveLevel",        &(aeqn->waveLevel));
+            readSubDictDouble("waveProperties", "kLeftAlphaDampingProperties", "wavePhase",        &(aeqn->wavePhase));
             
             // compute derived wave quantities
             PetscReal g = 9.81;  
@@ -195,7 +200,7 @@ PetscErrorCode InitializeAEqn(aeqn_ *aeqn)
             {
                 PetscReal f  = omega * omega - g * k * std::tanh(k * d);
                 PetscReal df = -g * std::tanh(k * d) - g * k * d * (1.0 - std::tanh(k * d) * std::tanh(k * d));
-                
+                    
                 // Newton-Raphson
                 k = k - f / df;  
             }
@@ -203,9 +208,11 @@ PetscErrorCode InitializeAEqn(aeqn_ *aeqn)
             // wave number and wave length
             aeqn->waveNumber = k;
             aeqn->waveLambda = 2.0 * M_PI / k;
-            
+        
+            // print info
             PetscPrintf(mesh->MESH_COMM, "\nkLeft alpha-water damping region parameters:\n");
-            PetscPrintf(mesh->MESH_COMM, "   %s waves:\n", aeqn->waveType.c_str());
+            PetscPrintf(mesh->MESH_COMM, "   -> %s waves:\n", aeqn->waveType.c_str());
+            PetscPrintf(mesh->MESH_COMM, "   -> direction = %.2f deg\n", aeqn->waveDirection);
             PetscPrintf(mesh->MESH_COMM, "   -> H = %.4f m, T = %.4f s\n", aeqn->waveHeight, aeqn->wavePeriod);
             PetscPrintf(mesh->MESH_COMM, "   -> waveLevel = %.4f m (MWL position in domain)\n", aeqn->waveLevel);
             PetscPrintf(mesh->MESH_COMM, "   -> k = %.6f rad/m, lambda = %.4f m, omega = %.6f rad/s\n", aeqn->waveNumber, aeqn->waveLambda, aeqn->waveOmega);

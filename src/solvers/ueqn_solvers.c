@@ -1366,7 +1366,8 @@ PetscErrorCode SNESFuncEval(SNES snes, Vec Ucont, Vec Rhs, void *ptr)
         ueqn->access->flags->isZDampingActive ||
         ueqn->access->flags->isKLeftRayleighDampingActive ||
         ueqn->access->flags->isKRightRayleighDampingActive ||
-        ueqn->access->flags->isKLeftAlphaDampingActive
+        ueqn->access->flags->isKLeftAlphaDampingActive ||
+        ueqn->access->flags->isKRightAlphaDampingActive
     )
     {
         dampingSourceU(ueqn, Rhs, 1.0);  
@@ -1521,7 +1522,8 @@ PetscErrorCode ExplicitRhsU(ueqn_ *ueqn, PetscInt formMode)
         ueqn->access->flags->isZDampingActive ||
         ueqn->access->flags->isKLeftRayleighDampingActive ||
         ueqn->access->flags->isKRightRayleighDampingActive ||
-        ueqn->access->flags->isKLeftAlphaDampingActive
+        ueqn->access->flags->isKLeftAlphaDampingActive ||
+        ueqn->access->flags->isKRightAlphaDampingActive
     )
     {
         dampingSourceU(ueqn, ueqn->Rhs, 1.0);
