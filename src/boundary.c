@@ -3122,6 +3122,32 @@ PetscErrorCode UpdatePressureBCs(peqn_ *peqn)
                 {
                     p[k][j][i] = lp[c][b][a];
                 }
+
+                // apply zero gradient also at interpolated faces from the hole mesh in overset 
+                if(isInterpolatedCell(k, j, i, meshTag) && isZeroedCell(k, j, i+1, meshTag))
+                {
+                    p[k][j][i] = lp[k][j][i-1];
+                }
+                if(isInterpolatedCell(k, j, i, meshTag) && isZeroedCell(k, j, i-1, meshTag))
+                {
+                    p[k][j][i] = lp[k][j][i+1];
+                }
+                if(isInterpolatedCell(k, j, i, meshTag) && isZeroedCell(k, j+1, i, meshTag))
+                {
+                    p[k][j][i] = lp[k][j-1][i];
+                }
+                if(isInterpolatedCell(k, j, i, meshTag) && isZeroedCell(k, j-1, i, meshTag))
+                {
+                    p[k][j][i] = lp[k][j+1][i];
+                }
+                if(isInterpolatedCell(k, j, i, meshTag) && isZeroedCell(k+1, j, i, meshTag))
+                {
+                    p[k][j][i] = lp[k-1][j][i];
+                }
+                if(isInterpolatedCell(k, j, i, meshTag) && isZeroedCell(k-1, j, i, meshTag))
+                {
+                    p[k][j][i] = lp[k+1][j][i];
+                }
             }
         }
     }
