@@ -759,6 +759,7 @@ PetscErrorCode contravariantToCartesianGeneric(mesh_ *mesh, Vec &lCont, Vec &lCa
 PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn)
 {
     mesh_           *mesh = ueqn->access->mesh;
+    aeqn_           *aeqn;
     DM               da = mesh->da, fda = mesh->fda;
     DMDALocalInfo    info = mesh->info;
     PetscInt         xs = info.xs, xe = info.xs + info.xm;
@@ -767,15 +768,17 @@ PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn)
     PetscInt         mx = info.mx, my = info.my, mz = info.mz;
 
     PetscInt         lxs, lxe, lys, lye, lzs, lze;
-    PetscInt         i, j, k;
+    PetscInt         i, j, k, multiphase = 0;
 
     Cmpnts           ***ucont, ***lucont,
                      ***coor;
-    PetscReal        epsilon = 1.e-10, ***nvert;
+    Cmpnts           ***icsi, ***jeta, ***kzet;
+    PetscReal        epsilon = 1.e-10, ***nvert, ***alpha;
 
     PetscScalar      globalFlux;
     PetscScalar      lFluxIn = 0.0, lFluxOut = 0.0,
-                     FluxIn  = 0.0, FluxOut  = 0.0;
+                     FluxIn  = 0.0, FluxOut  = 0.0,
+                     lArea   = 0.0, Area     = 0.0;
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
@@ -785,20 +788,38 @@ PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn)
     DMDAVecGetArray(fda, ueqn->lUcont, &lucont);
     DMDAVecGetArray(da,  mesh->lNvert, &nvert);
 
-    // instead of saying that fluxin is on left patches and fluxout is on right patches
-    // we can say that fluxin is on the patches with negative velocity and fluxout is on the patches with positive velocity
-    // The mass imbalance is then distributed to the cells with positive velocity based on the ratio between their area and
-    // the cumulative area of the outflow faces
+    DMDAVecGetArray(fda, mesh->lICsi, &icsi);
+    DMDAVecGetArray(fda, mesh->lJEta, &jeta);
+    DMDAVecGetArray(fda, mesh->lKZet, &kzet);
+
+    if(mesh->access->flags->isAeqnActive)
+    {
+        multiphase = 1;
+        aeqn = ueqn->access->aeqn;
+        DMDAVecGetArray(da, aeqn->lAlpha, &alpha);
+    }
+
+    // This function ensures net zero flux through the domain. We loop through all boundary cells and 
+    // cumulate inflow and outflow total fluxes (each taken with positive sign). If the net flux is non-zero, 
+    // we distribute the net flux as an outflow (if net flux is entering) or inflow (if net flux is exiting) 
+    // flux to all boundary cells. The following types of cells cannot be used to adjust the fluxes:
+    //  - periodic cells: because they need to preserve strict periodicity
+    //  - wall and IBM cells: because they should have strict zero fluxes
+    //  - cells belonging to inletFluction patches: because the flux is prescribed at these cells
+    //  - wet cells in case of multiphase flow (this might be eliminated upon furhter testing)
+    //
+    // Note that for some combination of BCs it is not possible to adjust the fluxes. Ensuring a consistent set 
+    // of BCs is the responsibility of the user.
 
     if
     (
         !mesh->k_periodic && !mesh->kk_periodic
     )
     {
-        // k-left boundary
+        // k-left boundary - exclude wall-type patches
         if (zs==0 && mesh->boundaryU.kLeftPatchType == 0)
         {
-            // k-left boundary face
+            // k-left boundary
             k = 0;
 
             // loop on the boundary faces
@@ -806,46 +827,58 @@ PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn)
             {
                 for (i=lxs; i<lxe; i++)
                 {
-                    // cumulate flux
-                    if(ucont[k][j][i].z > 0.0 && (!isIBMCell(k+1, j, i, nvert)))
+                    // cumulate fluxes
+                    if(!isIBMCell(k+1, j, i, nvert))
                     {
-                        lFluxIn += ucont[k][j][i].z;
-                    }
-                    else if(ucont[k][j][i].z < 0.0 && (!isIBMCell(k+1, j, i, nvert)))
-                    {
-                        lFluxOut += fabs(ucont[k][j][i].z);
-                    }
-                    else 
-                    {
-                        ucont[k][j][i].z = 0.;
+                        if(ucont[k][j][i].z > 0.0)
+                        {
+                            lFluxIn += ucont[k][j][i].z;
+                        }
+                        else if(ucont[k][j][i].z < 0.0)
+                        {
+                            lFluxOut += fabs(ucont[k][j][i].z);
+                        }
+
+                        // cumulate distribution area 
+                        if(mesh->boundaryU.kLeft !="inletFunction")
+                        {
+                            PetscReal alphaFace = multiphase == 1 ? 0.5 * (alpha[k+1][j][i] + alpha[k][j][i]) : 0.0;
+                            lArea              += nMag(kzet[k][j][i]) * (1 - alphaFace); 
+                        }
                     }
                 }
             }
         }
 
-        // compute outflow flux at k-right boundary
+        // k-right boundary - exclude wall-type patches
         if (ze==mz && mesh->boundaryU.kRightPatchType == 0)
         {
-            // k-right boundary face
+            // k-right boundary
             k = mz-2;
 
-            // loop on the boundary cells
+            // loop on the boundary faces
             for (j=lys; j<lye; j++)
             {
                 for (i=lxs; i<lxe; i++)
                 {
-                    // cumulate flux
-                    if(ucont[k][j][i].z > 0 && (!isIBMCell(k, j, i, nvert)))
+                    // cumulate fluxes
+                    if(!isIBMCell(k, j, i, nvert))
                     {
-                        lFluxOut += ucont[k][j][i].z;
-                    }
-                    else if(ucont[k][j][i].z < 0.0 && (!isIBMCell(k, j, i, nvert)))
-                    {
-                        lFluxIn += fabs(ucont[k][j][i].z);
-                    }
-                    else
-                    {
-                        ucont[k][j][i].z = 0.;
+                        if(ucont[k][j][i].z > 0)
+                        {
+                            lFluxOut += ucont[k][j][i].z;
+                        }
+                        else if(ucont[k][j][i].z < 0.0 )
+                        {
+                            lFluxIn += fabs(ucont[k][j][i].z);
+                        }
+
+                        // cumulate distribution area 
+                        if(mesh->boundaryU.kRight !="inletFunction")
+                        {
+                            PetscReal alphaFace = multiphase == 1 ? 0.5 * (alpha[k+1][j][i] + alpha[k][j][i]) : 0.0;
+                            lArea              += nMag(kzet[k][j][i]) * (1 - alphaFace); 
+                        }
                     }
                 }
             }
@@ -857,10 +890,10 @@ PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn)
         !mesh->j_periodic && !mesh->jj_periodic
     )
     {
-        // compute flux at j-left boundary
+        // j-left boundary - exclude wall-type patches
         if (ys==0 && mesh->boundaryU.jLeftPatchType == 0)
         {
-            // j-left boundary face
+            // j-left boundary
             j = 0;
 
             // loop on the boundary faces
@@ -868,46 +901,58 @@ PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn)
             {
                 for (i=lxs; i<lxe; i++)
                 {
-                    // cumulate flux
-                    if(ucont[k][j][i].y > 0.0 && (!isIBMCell(k, j+1, i, nvert)))
+                    // cumulate fluxes
+                    if(!isIBMCell(k, j+1, i, nvert))
                     {
-                        lFluxIn += ucont[k][j][i].y;
-                    }
-                    else if(ucont[k][j][i].y < 0.0 && (!isIBMCell(k, j+1, i, nvert)))
-                    {
-                        lFluxOut += fabs(ucont[k][j][i].y);
-                    }
-                    else
-                    {
-                        ucont[k][j][i].y = 0.;
+                        if(ucont[k][j][i].y > 0.0)
+                        {
+                            lFluxIn += ucont[k][j][i].y;
+                        }
+                        else if(ucont[k][j][i].y < 0.0)
+                        {
+                            lFluxOut += fabs(ucont[k][j][i].y);
+                        }
+
+                        // cumulate distribution area 
+                        if(mesh->boundaryU.jLeft !="inletFunction")
+                        {
+                            PetscReal alphaFace =  multiphase == 1 ? 0.5 * (alpha[k][j+1][i] + alpha[k][j][i]) : 0.0;
+                            lArea              += nMag(jeta[k][j][i]) * (1- alphaFace);
+                        }
                     }
                 }
             }
         }
 
-        // compute flux at j-right boundary
+        // j-right boundary - exclude wall-type patches
         if (ye==my && mesh->boundaryU.jRightPatchType == 0)
         {
-            // j-right boundary face
+            // j-right boundary
             j = my-2;
 
-            // loop on the boundary cells
+            // loop on the boundary faces
             for (k=lzs; k<lze; k++)
             {
                 for (i=lxs; i<lxe; i++)
                 {
-                    // cumulate flux
-                    if(ucont[k][j][i].y > 0.0 && (!isIBMCell(k, j, i, nvert)))
+                    // cumulate fluxes
+                    if(!isIBMCell(k, j, i, nvert))
                     {
-                        lFluxOut += ucont[k][j][i].y;
-                    }
-                    else if(ucont[k][j][i].y < 0.0 && (!isIBMCell(k, j, i, nvert)))
-                    {
-                        lFluxIn += fabs(ucont[k][j][i].y);
-                    }
-                    else
-                    {
-                        ucont[k][j][i].y = 0.;
+                        if(ucont[k][j][i].y > 0.0)
+                        {
+                            lFluxOut += ucont[k][j][i].y;
+                        }
+                        else if(ucont[k][j][i].y < 0.0)
+                        {
+                            lFluxIn += fabs(ucont[k][j][i].y);
+                        }
+
+                        // cumulate distribution area 
+                        if(mesh->boundaryU.jRight !="inletFunction")
+                        {
+                            PetscReal alphaFace =  multiphase == 1 ? 0.5 * (alpha[k][j+1][i] + alpha[k][j][i]) : 0.0;
+                            lArea              += nMag(jeta[k][j][i]) * (1- alphaFace);
+                        }
                     }
                 }
             }
@@ -919,10 +964,10 @@ PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn)
         !mesh->i_periodic && !mesh->ii_periodic
     )
     {
-        // compute flux at i-left boundary
+        // i-left boundary - exclude wall-type patches
         if (xs==0 && mesh->boundaryU.iLeftPatchType == 0)
         {
-            // i-left boundary face
+            // i-left boundary
             i = 0;
 
             // loop on the boundary faces
@@ -930,27 +975,33 @@ PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn)
             {
                 for (j=lys; j<lye; j++)
                 {
-                    // cumulate flux
-                    if(ucont[k][j][i].x > 0.0 && (!isIBMCell(k, j, i+1, nvert)))
+                    // cumulate fluxes
+                    if(!isIBMCell(k, j, i+1, nvert))
                     {
-                        lFluxIn += ucont[k][j][i].x;
-                    }
-                    else if(ucont[k][j][i].x < 0.0 && (!isIBMCell(k, j, i+1, nvert)))
-                    {
-                        lFluxOut += fabs(ucont[k][j][i].x);
-                    }
-                    else
-                    {
-                        ucont[k][j][i].x = 0.;
+                        if(ucont[k][j][i].x > 0.0)
+                        {
+                            lFluxIn += ucont[k][j][i].x;
+                        }
+                        else if(ucont[k][j][i].x < 0.0)
+                        {
+                            lFluxOut += fabs(ucont[k][j][i].x);
+                        }
+
+                        // cumulate distribution area 
+                        if(mesh->boundaryU.iLeft !="inletFunction")
+                        {
+                            PetscReal alphaFace = multiphase == 1 ? 0.5 * (alpha[k][j][i+1] + alpha[k][j][i]) : 0.0;
+                            lArea              += nMag(icsi[k][j][i]) * (1- alphaFace);
+                        }
                     }
                 }
             }
         }
 
-        // compute flux at i-right boundary
+        // i-right boundary - exclude wall-type patches
         if (xe==mx && mesh->boundaryU.iRightPatchType == 0)
         {
-            // i-right boundary face
+            // i-right boundary
             i = mx-2;
 
             // loop on the boundary faces
@@ -958,43 +1009,52 @@ PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn)
             {
                 for (j=lys; j<lye; j++)
                 {
-                    // cumulate flux
-                    if(ucont[k][j][i].x > 0.0 && (!isIBMCell(k, j, i, nvert)))
+                    // cumulate fluxes
+                    if(!isIBMCell(k, j, i, nvert))
                     {
-                        lFluxOut += ucont[k][j][i].x;
-                    }
-                    else if(ucont[k][j][i].x < 0.0 && (!isIBMCell(k, j, i, nvert)))
-                    {
-                        lFluxIn += fabs(ucont[k][j][i].x);
-                    }
-                    else
-                    {
-                        ucont[k][j][i].x = 0.;
+                        if(ucont[k][j][i].x > 0.0)
+                        {
+                            lFluxOut += ucont[k][j][i].x;
+                        }
+                        else if(ucont[k][j][i].x < 0.0 )
+                        {
+                            lFluxIn += fabs(ucont[k][j][i].x);
+                        }
+
+                        // cumulate distribution area 
+                        if(mesh->boundaryU.iRight !="inletFunction")
+                        {
+                            PetscReal alphaFace = multiphase == 1 ? 0.5 * (alpha[k][j][i+1] + alpha[k][j][i]) : 0.0;
+                            lArea              += nMag(icsi[k][j][i]) * (1- alphaFace);
+                        }
                     }
                 }
             }
         }
     }
 
-    // cumulate the net influx and net outflux
+    // cumulate the net influx, net outflux and distribution area
     MPI_Allreduce(&lFluxIn, &FluxIn, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
     MPI_Allreduce(&lFluxOut, &FluxOut, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&lArea, &Area, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
 
-    //PetscPrintf(mesh->MESH_COMM, "Pre correction: Fluxin = %lf, Fluxout = %lf\n", FluxIn, FluxOut);
+    PetscPrintf(mesh->MESH_COMM, "Pre correction: Fluxin = %lf, Fluxout = %lf, Area = %lf\n", FluxIn, FluxOut, Area);
 
+    // evaluate net flux
     globalFlux = FluxOut - FluxIn;
 
-    lFluxOut = 0.0;
+    // reset local fluxes to zero for post-correction check
+    lFluxOut   = 0.0; lFluxIn = 0.0; 
 
     if
     (
         !mesh->k_periodic && !mesh->kk_periodic
     )
     {
-        // k-left boundary
+        // k-left boundary - exclude wall-type patches
         if (zs==0 && mesh->boundaryU.kLeftPatchType == 0)
         {
-            // k-left boundary face
+            // k-left boundary
             k = 0;
 
             // loop on the boundary faces
@@ -1002,32 +1062,54 @@ PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn)
             {
                 for (i=lxs; i<lxe; i++)
                 {
-                    // cumulate flux
-                    if(ucont[k][j][i].z < 0.0 && (!isIBMCell(k+1, j, i, nvert)))
+                    if(!isIBMCell(k+1, j, i, nvert))
                     {
-                        ucont[k][j][i].z += globalFlux * (fabs(ucont[k][j][i].z) / FluxOut);
-                        lFluxOut += fabs(ucont[k][j][i].z);   
+                        if(mesh->boundaryU.kLeft!="inletFunction")
+                        {
+                            PetscReal alphaFace = multiphase == 1 ? 0.5 * (alpha[k+1][j][i] + alpha[k][j][i]) : 0.0;
+                            ucont[k][j][i].z   += globalFlux * (nMag(kzet[k][j][i]) / Area) * (1- alphaFace);
+                        }
+                        
+                        if(ucont[k][j][i].z > 0.0)
+                        {
+                            lFluxIn += ucont[k][j][i].z;
+                        }
+                        else if(ucont[k][j][i].z < 0.0)
+                        {
+                            lFluxOut += fabs(ucont[k][j][i].z);
+                        }
                     }
                 }
             }
         }
 
-        // correct outflow flux at k-right boundary
+        // k-right boundary - exclude wall-type patches
         if (ze==mz && mesh->boundaryU.kRightPatchType == 0)
         {
-            // k-right boundary face
+            // k-right boundary
             k = mz-2;
 
-            // loop on the boundary cells
+            // loop on the boundary faces
             for (j=lys; j<lye; j++)
             {
                 for (i=lxs; i<lxe; i++)
                 {
-                    // cumulate flux
-                    if(ucont[k][j][i].z > 0 && (!isIBMCell(k, j, i, nvert)))
+                    if(!isIBMCell(k, j, i, nvert))
                     {
-                        ucont[k][j][i].z -= globalFlux * (ucont[k][j][i].z / FluxOut);
-                        lFluxOut += ucont[k][j][i].z;
+                        if(mesh->boundaryU.kRight !="inletFunction")
+                        {
+                            PetscReal alphaFace = multiphase == 1 ? 0.5 * (alpha[k+1][j][i] + alpha[k][j][i]) : 0.0;
+                            ucont[k][j][i].z   -= globalFlux * (nMag(kzet[k][j][i]) / Area) * (1- alphaFace);
+                        }
+                        
+                        if(ucont[k][j][i].z > 0.0)
+                        {
+                            lFluxOut += ucont[k][j][i].z;
+                        }
+                        else if(ucont[k][j][i].z < 0.0)
+                        {
+                            lFluxIn += fabs(ucont[k][j][i].z);
+                        }
                     }
                 }
             }
@@ -1039,7 +1121,7 @@ PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn)
         !mesh->j_periodic && !mesh->jj_periodic
     )
     {
-        // compute flux at j-left boundary
+        // j-left boundary - exclude wall-type patches
         if (ys==0 && mesh->boundaryU.jLeftPatchType == 0)
         {
             // j-left boundary face
@@ -1050,17 +1132,28 @@ PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn)
             {
                 for (i=lxs; i<lxe; i++)
                 {
-                    // cumulate flux
-                    if(ucont[k][j][i].y < 0.0 && (!isIBMCell(k, j+1, i, nvert)))
+                    if(!isIBMCell(k, j+1, i, nvert))
                     {
-                        ucont[k][j][i].y += globalFlux * (fabs(ucont[k][j][i].y) / FluxOut);
-                        lFluxOut += fabs(ucont[k][j][i].y);
+                        if(mesh->boundaryU.jLeft !="inletFunction")
+                        {
+                            PetscReal alphaFace =  multiphase == 1 ? 0.5 * (alpha[k][j+1][i] + alpha[k][j][i]) : 0.0;
+                            ucont[k][j][i].y   += globalFlux * (nMag(jeta[k][j][i]) / Area) * (1- alphaFace);
+                        }
+
+                        if(ucont[k][j][i].y > 0.0)
+                        {
+                            lFluxIn += ucont[k][j][i].y;
+                        }
+                        else if(ucont[k][j][i].y < 0.0)
+                        {
+                            lFluxOut += fabs(ucont[k][j][i].y);
+                        }
                     }
                 }
             }
         }
 
-        // compute flux at j-right boundary
+        // j-right boundary - exclude wall-type patches
         if (ye==my && mesh->boundaryU.jRightPatchType == 0)
         {
             // j-right boundary face
@@ -1071,11 +1164,22 @@ PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn)
             {
                 for (i=lxs; i<lxe; i++)
                 {
-                    // cumulate flux
-                    if(ucont[k][j][i].y > 0.0 && (!isIBMCell(k, j, i, nvert)))
+                    if(!isIBMCell(k, j, i, nvert))
                     {
-                        ucont[k][j][i].y -= globalFlux * (ucont[k][j][i].y / FluxOut);
-                        lFluxOut += ucont[k][j][i].y;
+                        if(mesh->boundaryU.jRight !="inletFunction")
+                        {
+                            PetscReal alphaFace =  multiphase == 1 ? 0.5 * (alpha[k][j+1][i] + alpha[k][j][i]) : 0.0;
+                            ucont[k][j][i].y   -= globalFlux * (nMag(jeta[k][j][i]) / Area) * (1- alphaFace);
+                        }
+
+                        if(ucont[k][j][i].y > 0.0)
+                        {
+                            lFluxOut += ucont[k][j][i].y;
+                        }
+                        else if(ucont[k][j][i].y < 0.0)
+                        {
+                            lFluxIn += fabs(ucont[k][j][i].y);
+                        }
                     }
                 }
             }
@@ -1087,7 +1191,7 @@ PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn)
         !mesh->i_periodic && !mesh->ii_periodic
     )
     {
-        // compute flux at i-left boundary
+        // i-left boundary - exclude wall-type patches
         if (xs==0 && mesh->boundaryU.iLeftPatchType == 0)
         {
             // i-left boundary face
@@ -1098,17 +1202,28 @@ PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn)
             {
                 for (j=lys; j<lye; j++)
                 {
-                    // cumulate flux
-                    if(ucont[k][j][i].x < 0.0 && (!isIBMCell(k, j, i+1, nvert)))
+                    if(!isIBMCell(k, j, i+1, nvert))
                     {
-                        ucont[k][j][i].x += globalFlux * (fabs(ucont[k][j][i].x) / FluxOut);
-                        lFluxOut += fabs(ucont[k][j][i].x);
+                        if(mesh->boundaryU.iLeft !="inletFunction")
+                        {
+                            PetscReal alphaFace = multiphase == 1 ? 0.5 * (alpha[k][j][i+1] + alpha[k][j][i]) : 0.0;
+                            ucont[k][j][i].x   += globalFlux * (nMag(icsi[k][j][i]) / Area) * (1- alphaFace);
+                        }
+
+                        if(ucont[k][j][i].x > 0.0)
+                        {
+                            lFluxIn += ucont[k][j][i].x;
+                        }
+                        else if(ucont[k][j][i].x < 0.0)
+                        {
+                            lFluxOut += fabs(ucont[k][j][i].x);
+                        }
                     }
                 }
             }
         }
 
-        // compute flux at i-right boundary
+        // i-right boundary - exclude wall-type patches
         if (xe==mx && mesh->boundaryU.iRightPatchType == 0)	
         {
             // i-right boundary face
@@ -1119,24 +1234,46 @@ PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn)
             {
                 for (j=lys; j<lye; j++)
                 {
-                    // cumulate flux
-                    if(ucont[k][j][i].x > 0.0 && (!isIBMCell(k, j, i, nvert)))
+                    if(!isIBMCell(k, j, i, nvert))
                     {
-                        ucont[k][j][i].x -= globalFlux * (ucont[k][j][i].x / FluxOut);
-                        lFluxOut += ucont[k][j][i].x;
+                        if(mesh->boundaryU.iRight !="inletFunction")
+                        {
+                            PetscReal alphaFace = multiphase == 1 ? 0.5 * (alpha[k][j][i+1] + alpha[k][j][i]) : 0.0;
+                            ucont[k][j][i].x   -= globalFlux * (nMag(icsi[k][j][i]) / Area) * (1- alphaFace);
+                        }
+
+                        if(ucont[k][j][i].x > 0.0)
+                        {
+                            lFluxOut += ucont[k][j][i].x;
+                        }
+                        else if(ucont[k][j][i].x < 0.0)
+                        {
+                            lFluxIn += fabs(ucont[k][j][i].x);
+                        }
                     }
                 }
             }
         }
     }
 
-    // cumulate the net influx and net outflux
-    // MPI_Allreduce(&lFluxOut, &FluxOut, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-    // PetscPrintf(mesh->MESH_COMM, "Post correction: Fluxin = %lf, Fluxout = %lf\n", FluxIn, FluxOut);
+    // cumulate the net influx and net outflux for cehcking
+    MPI_Allreduce(&lFluxIn, &FluxIn, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+    MPI_Allreduce(&lFluxOut, &FluxOut, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+    PetscPrintf(mesh->MESH_COMM, "Post correction: Fluxin = %lf, Fluxout = %lf\n", FluxIn, FluxOut);
 
     DMDAVecRestoreArray(fda, ueqn->Ucont, &ucont);
     DMDAVecRestoreArray(fda, ueqn->lUcont, &lucont);
-    DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
+
+    DMDAVecRestoreArray(fda, mesh->lICsi, &icsi);
+    DMDAVecRestoreArray(fda, mesh->lJEta, &jeta);
+    DMDAVecRestoreArray(fda, mesh->lKZet, &kzet);
+
+    if(mesh->access->flags->isAeqnActive)
+    {
+        DMDAVecRestoreArray(da, aeqn->lAlpha, &alpha);
+    }
 
     // scatter new contravariant velocity values
     DMGlobalToLocalBegin(fda, ueqn->Ucont, INSERT_VALUES, ueqn->lUcont);
