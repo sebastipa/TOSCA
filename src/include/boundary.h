@@ -58,6 +58,7 @@ struct inletFunctionTypes
     // type of inlet function
     PetscInt      typeU;
     PetscInt      typeT;
+    PetscInt      typeA;
     PetscInt      typeNut;
 
     // type 1: power law (velocity only)
@@ -126,6 +127,20 @@ struct inletFunctionTypes
     // type 6: i-dir sinusoidal inflow
     PetscReal    amplitude;                   //!< oscillation amplitude w.r.t. reference velocity magnitude
     PetscReal    periods;                     //!< number of periods in the spanwise direction
+
+    // type 7: discrete focused wave groups
+    PetscInt     dfN;                         //!< number of groups
+    word         dfFile;                      //!< file containing the group parameters 
+    PetscReal    dfWaterLevel;                //!<
+    PetscReal    dfxFocus;                    //!<
+    PetscReal    dftStart;                    //!<
+    PetscReal    dftEnd;                      //!<
+    PetscReal    *dfAmplitudes;               //!<
+    PetscReal    *dfOmegas;                   //!<
+    PetscReal    *dfPhases;                   //!<
+    PetscReal    *dfWaveNumbers;              //!<
+    PetscReal    *letaMeasured;               //!< measured wave elevation at the inflow location (local)
+    PetscReal    *etaMeasured;                //!< measured wave elevation at the inflow location (global)
 };
 
 //! \brief Struct storing inlet functions data

@@ -119,7 +119,7 @@ PetscErrorCode checkBCsAndSetPatchTypes(mesh_ *mesh)
                                         "inletFunctioniLeft", "inletFunctioniRight", "zeroGradient", "fixedValue", "thetaWallFunction",
                                         "fixedGradient", "periodic", "oversetInterpolate"};
 
-    std::vector<word> alphaAvailableBC = {"periodic", "zeroGradient", "fixedValue", "inletOutlet", "oversetInterpolate"};
+    std::vector<word> alphaAvailableBC = {"inletFunction","periodic", "zeroGradient", "fixedValue", "inletOutlet", "oversetInterpolate"};
 
     std::vector<word> nutAvailableBC = {"inletFunction","inletFunctionkLeft", "inletFunctionkRight", "inletFunctionjLeft","inletFunctionjRight",
                                         "inletFunctioniLeft", "inletFunctioniRight", "zeroGradient", "fixedValue",
@@ -745,6 +745,8 @@ PetscErrorCode SetPeriodicConnectivity(mesh_ *mesh, word &meshFileName)
 PetscErrorCode UpdateContravariantBCs(ueqn_ *ueqn)
 {
     mesh_        *mesh = ueqn->access->mesh;
+    clock_       *clock = ueqn->access->clock;
+    aeqn_        *aeqn;
     DM            da   = mesh->da, fda = mesh->fda;
     DMDALocalInfo info = mesh->info;
     PetscInt      xs   = info.xs, xe = info.xs + info.xm;
@@ -754,8 +756,9 @@ PetscErrorCode UpdateContravariantBCs(ueqn_ *ueqn)
 
     Cmpnts        ***ucont, ***lucont,
                   ***lucat,
-                  ***icsi, ***jeta, ***kzet;
-    PetscReal     ***nvert;
+                  ***icsi, ***jeta, ***kzet,
+                  ***cent;
+    PetscReal     ***nvert, ***alpha;
 
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
     PetscInt      i, j, k;
@@ -764,6 +767,7 @@ PetscErrorCode UpdateContravariantBCs(ueqn_ *ueqn)
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
 
+    DMDAVecGetArray(fda, mesh->lCent,  &cent);
     DMDAVecGetArray(fda, mesh->lICsi,  &icsi);
     DMDAVecGetArray(fda, mesh->lJEta,  &jeta);
     DMDAVecGetArray(fda, mesh->lKZet,  &kzet);
@@ -772,6 +776,12 @@ PetscErrorCode UpdateContravariantBCs(ueqn_ *ueqn)
     DMDAVecGetArray(fda, ueqn->Ucont,  &ucont);
     DMDAVecGetArray(fda, ueqn->lUcont, &lucont);
     DMDAVecGetArray(fda, ueqn->lUcat,  &lucat);
+
+    if(mesh->access->flags->isAeqnActive)
+    {
+        aeqn = ueqn->access->aeqn;
+        DMDAVecGetArray(da, aeqn->lAlpha, &alpha);
+    }
 
     for (k=zs; k<lze; k++)
     {
@@ -874,6 +884,7 @@ PetscErrorCode UpdateContravariantBCs(ueqn_ *ueqn)
         }
     }
 
+    DMDAVecRestoreArray(fda, mesh->lCent,  &cent);
     DMDAVecRestoreArray(fda, ueqn->Ucont, &ucont);
     DMDAVecRestoreArray(fda, ueqn->lUcont, &lucont);
     DMDAVecRestoreArray(fda, ueqn->lUcat,  &lucat);
@@ -882,6 +893,11 @@ PetscErrorCode UpdateContravariantBCs(ueqn_ *ueqn)
     DMDAVecRestoreArray(fda, mesh->lJEta,  &jeta);
     DMDAVecRestoreArray(fda, mesh->lKZet,  &kzet);
     DMDAVecRestoreArray(da, mesh->lNvert, &nvert);
+
+    if(mesh->access->flags->isAeqnActive)
+    {
+        DMDAVecRestoreArray(da, aeqn->lAlpha, &alpha);
+    }
 
     // reset periodic face fluxes and scatter
     resetFacePeriodicFluxesVector(mesh, ueqn->Ucont, ueqn->lUcont, "globalToLocal");
@@ -894,6 +910,8 @@ PetscErrorCode UpdateContravariantBCs(ueqn_ *ueqn)
 PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
 {
     mesh_        *mesh = ueqn->access->mesh;
+    clock_       *clock = ueqn->access->clock;
+    aeqn_        *aeqn;
     DM            da   = mesh->da, fda = mesh->fda;
     DMDALocalInfo info = mesh->info;
     PetscInt      xs   = info.xs, xe = info.xs + info.xm;
@@ -907,7 +925,7 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
     Cmpnts        ***csi,  ***eta,  ***zet;
     Cmpnts        ***cent;
 
-    PetscReal     ***aj, ***iaj;
+    PetscReal     ***aj, ***iaj, ***alpha;
     PetscReal     ***nvert, ***ustar, ***meshTag;
     Cmpnts        ***ucat,  ***lucat,
                   ***lucont;
@@ -942,6 +960,12 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
     DMDAVecGetArray(fda, ueqn->lUcat,  &lucat);
     DMDAVecGetArray(fda, ueqn->lUcont,  &lucont);
     DMDAVecGetArray(da,  ueqn->lUstar, &ustar);
+
+    if(mesh->access->flags->isAeqnActive)
+    {
+        aeqn = ueqn->access->aeqn;
+        DMDAVecGetArray(da, aeqn->lAlpha, &alpha);
+    }
 
     // read inflow if necessary
     if(mesh->boundaryU.kLeft == "inletFunction")
@@ -1011,6 +1035,33 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                     }
                 }
             }
+        }
+        // compute measured water level
+        else if(ifPtr->typeU == 7)
+        {
+
+            // set local and global vector to zero 
+            for (i=0; i<mx; i++)
+            {
+                ifPtr->letaMeasured[i] = 0.0;
+                ifPtr->etaMeasured[i] = 0.0;
+            }
+
+            // for each j find the total volume of water
+            if(zs==0)
+            {
+                for (i=lxs; i<lxe; i++)
+                {
+                    for (j=lys; j<lye; j++)
+                    {
+                        PetscReal area = nMag(eta[lzs][j][i]);
+                        ifPtr->letaMeasured[i] += (alpha[lzs][j][i] / aj[lzs][j][i]) / area;
+                    }
+                }
+            }
+
+            // sum across processors
+            MPI_Allreduce(ifPtr->letaMeasured, ifPtr->etaMeasured, mx, MPIU_REAL, MPI_SUM, mesh->MESH_COMM);
         }
     }
 
@@ -1354,19 +1405,6 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                         // set velocity according to log law
                         ucat[k-1][j][i] = nScale(uMag, ifPtr->Udir);
                     }
-                    // Nieuwstadt model
-                    else if (ifPtr->typeU == 5)
-                    {
-                        PetscReal h = cent[k][j][i].z - mesh->grndLevel;
-                        ucat[k-1][j][i] = NieuwstadtInflowEvaluate(ifPtr, h);
-                    }
-                    // sinusoidal inflow
-                    else if (ifPtr->typeU == 6)
-                    {
-                        PetscReal fraction = (cent[k][j][i].y - mesh->bounds.ymin)/mesh->bounds.Ly;
-                        PetscReal uMag     = (1.0 + ifPtr->amplitude*std::cos(ifPtr->periods * 2.0 * M_PI * fraction)) * nMag(ifPtr->Uref);
-                        ucat[k-1][j][i]    = nScale(uMag, ifPtr->Udir);
-                    }
                     // unsteady mapped inflow
                     else if (ifPtr->typeU == 3)
                     {
@@ -1695,6 +1733,190 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                         else
                         {
                             ucat[k-1][j][i] = nSet(uGhost);
+                        }
+                    }
+                    // Nieuwstadt model
+                    else if (ifPtr->typeU == 5)
+                    {
+                        PetscReal h = cent[k][j][i].z - mesh->grndLevel;
+                        ucat[k-1][j][i] = NieuwstadtInflowEvaluate(ifPtr, h);
+                    }
+                    // sinusoidal inflow
+                    else if (ifPtr->typeU == 6)
+                    {
+                        PetscReal fraction = (cent[k][j][i].y - mesh->bounds.ymin)/mesh->bounds.Ly;
+                        PetscReal uMag     = (1.0 + ifPtr->amplitude*std::cos(ifPtr->periods * 2.0 * M_PI * fraction)) * nMag(ifPtr->Uref);
+                        ucat[k-1][j][i]    = nScale(uMag, ifPtr->Udir);
+                    }
+                    // discrete focusing wave groups
+                    else if (ifPtr->typeU == 7)
+                    {
+                        PetscReal u_wave = 0.0, w_wave = 0.0;
+
+                        PetscReal z_wave   = cent[k][j][i].z - mesh->bounds.zmin;
+                        PetscReal d        = ifPtr->dfWaterLevel - mesh->bounds.zmin;
+                        PetscReal cellTop  = 0.5 * (cent[k][j+1][i].z + cent[k][j][i].z) - mesh->bounds.zmin;
+                        PetscReal cellBot  = 0.5 * (cent[k][j][i].z + cent[k][j-1][i].z) - mesh->bounds.zmin;
+                        
+                        // initialize eta to MWL
+                        PetscReal eta_wave = d;
+
+                        // do eta and velocity calculations
+                        if(ifPtr->dftStart <= clock->time && clock->time <= ifPtr->dftEnd)
+                        {
+                            
+                            PetscReal x_wave = ifPtr->dfxFocus;
+                            PetscReal t_wave = clock->time;
+
+                            PetscReal aw, kw, ww, pw;
+
+                            for (PetscInt iw=0; iw<ifPtr->dfN; iw++)
+                            {
+                                aw = ifPtr->dfAmplitudes[iw];
+                                kw = ifPtr->dfWaveNumbers[iw];
+                                ww = ifPtr->dfOmegas[iw];
+                                pw = ifPtr->dfPhases[iw];
+
+                                eta_wave += aw * std::cos(ww * t_wave + pw - kw * x_wave);
+                            }
+
+
+                            for (PetscInt iw=0; iw<ifPtr->dfN; iw++)
+                            {
+                                aw = ifPtr->dfAmplitudes[iw];
+                                kw = ifPtr->dfWaveNumbers[iw];
+                                ww = ifPtr->dfOmegas[iw];
+                                pw = ifPtr->dfPhases[iw];
+
+                                PetscScalar arg = ww * t_wave + pw - kw * x_wave;
+
+                                // limit z to the top of the wave
+                                PetscScalar z_profile = std::min(z_wave, eta_wave); 
+
+                                PetscReal vertical_factor_u = 0.0;
+                                PetscReal vertical_factor_w = 0.0;
+                                
+                                // deep water limit
+                                if (kw * d > 10.0) 
+                                {
+                                    // cosh(k*z)/sinh(k*d) and sinh(k*z)/sinh(k*d) converge to exp(k * (z - d))
+                                    PetscReal exp_factor = std::exp(kw * (z_profile - d));
+                                    vertical_factor_u = exp_factor;
+                                    vertical_factor_w = exp_factor;
+                                }
+                                else 
+                                {
+                                    // Formulazione esatta per origine al fondale
+                                    vertical_factor_u = std::cosh(kw * z_profile) / std::sinh(kw * d);
+                                    vertical_factor_w = std::sinh(kw * z_profile) / std::sinh(kw * d);
+                                }
+
+                                u_wave += aw * ww * vertical_factor_u * std::cos(arg);
+                                w_wave -= aw * ww * vertical_factor_w * std::sin(arg);
+                            }
+                        }
+
+                        // theoretical water level is eta_wave so we have three types of cells 
+                        PetscReal alphaTeo  = z_wave < eta_wave ? 1.0 : 0.0;
+
+                        // set lower and upper bounds for special layer 
+                        PetscReal specialStart = PetscMin(ifPtr->etaMeasured[i], eta_wave);
+                        PetscReal specialEnd   = PetscMax(ifPtr->etaMeasured[i], eta_wave);
+
+                        
+                        // fully air
+                        if (cellBot >= specialEnd)
+                        {
+                            ucat[k-1][j][i].x = 0.0;
+                            ucat[k-1][j][i].y = 0.0;
+                            ucat[k-1][j][i].z = 0.0;
+                        }
+                        // fully water
+                        else if (cellTop <= specialStart)
+                        {
+                            ucat[k-1][j][i].x = u_wave;
+                            ucat[k-1][j][i].y = 0.0;
+                            ucat[k-1][j][i].z = w_wave;
+                            
+                        }
+                        // special layer intersects cell
+                        else 
+                        {
+                            // cell contains interface (mesh under resolved)
+                            if (cellBot < specialStart && cellTop > specialEnd)
+                            {
+                                PetscReal cellHeight = cellTop - cellBot;
+                                ucat[k-1][j][i].x = u_wave * (eta_wave - cellBot) / cellHeight;
+                                ucat[k-1][j][i].y = 0.0;
+                                ucat[k-1][j][i].z = w_wave * (eta_wave - cellBot) / cellHeight;
+                            }
+                            // interface contains cell
+                            else if (cellBot >= specialStart && cellTop <= specialEnd)
+                            {
+                                if(ifPtr->etaMeasured[i] < eta_wave)
+                                {
+                                    ucat[k-1][j][i].x = u_wave;
+                                    ucat[k-1][j][i].y = 0.0;
+                                    ucat[k-1][j][i].z = w_wave;
+                                }
+                                else
+                                {
+                                    ucat[k-1][j][i].x = 0.0;
+                                    ucat[k-1][j][i].y = 0.0;
+                                    ucat[k-1][j][i].z = 0.0;
+                                }
+                            }
+                            // cell cuts interface top
+                            else if (cellBot < specialEnd && cellTop > specialEnd)
+                            {
+                                PetscReal cellHeight = cellTop - cellBot;
+                                if(ifPtr->etaMeasured[i] < eta_wave)
+                                {
+                                    // calculate intersection of teoretical water level and cell`sss
+                                    ucat[k-1][j][i].x = u_wave * (specialEnd - cellBot) / cellHeight;
+                                    ucat[k-1][j][i].y = 0.0;
+                                    ucat[k-1][j][i].z = w_wave * (specialEnd - cellBot) / cellHeight;
+                                }
+                                else
+                                {
+
+                                    ucat[k-1][j][i].x = 0.0;
+                                    ucat[k-1][j][i].y = 0.0;
+                                    ucat[k-1][j][i].z = 0.0;
+                                }
+                            }
+                            // cell cuts interface bottom
+                            else if (cellBot < specialStart && cellTop > specialStart)
+                            {
+                                if(ifPtr->etaMeasured[i] < eta_wave)
+                                {
+                                    ucat[k-1][j][i].x = u_wave;
+                                    ucat[k-1][j][i].y = 0.0;
+                                    ucat[k-1][j][i].z = w_wave;
+                                }
+                                else
+                                {
+                                    PetscReal cellHeight = cellTop - cellBot;
+                                    ucat[k-1][j][i].x = u_wave * (specialStart - cellBot) / cellHeight;
+                                    ucat[k-1][j][i].y = 0.0;   
+                                    ucat[k-1][j][i].z = u_wave * (specialStart - cellBot) / cellHeight;
+                                }
+                            }
+                        }
+                        
+
+                        // active wave absorption
+                        PetscReal etaR = ifPtr->etaMeasured[i] - eta_wave;
+                        PetscReal Uc   = - sqrt(9.81 / d) * etaR * alpha[k][j][i];
+
+                        // apply correction velocity
+                        if(Uc > 0.0 && z_wave < ifPtr->etaMeasured[i])
+                        {
+                            ucat[k-1][j][i].x += Uc;
+                        }
+                        else if (Uc < 0.0)
+                        {
+                            ucat[k-1][j][i].x += Uc;
                         }
                     }
                 }
@@ -2058,6 +2280,11 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
     DMDAVecRestoreArray(fda, ueqn->lUcont,  &lucont);
 
     DMDAVecRestoreArray(da, ueqn->lUstar, &ustar);
+
+    if(mesh->access->flags->isAeqnActive)
+    {
+        DMDAVecRestoreArray(da, aeqn->lAlpha, &alpha);
+    }
     
     // reset cartesian periodic cell values and scatter
     resetCellPeriodicFluxes(mesh, ueqn->Ucat, ueqn->lUcat, "vector", "globalToLocal");
@@ -2610,6 +2837,8 @@ PetscErrorCode UpdateTemperatureBCs(teqn_ *teqn)
 PetscErrorCode UpdateAlphaWaterBCs(aeqn_ *aeqn)
 {
     mesh_         *mesh = aeqn->access->mesh;
+    ueqn_        *ueqn = aeqn->access->ueqn;
+    clock_       *clock = aeqn->access->clock;
     DM            da   = mesh->da, fda = mesh->fda;
     DMDALocalInfo info = mesh->info;
     PetscInt      xs   = info.xs, xe = info.xs + info.xm;
@@ -2626,11 +2855,14 @@ PetscErrorCode UpdateAlphaWaterBCs(aeqn_ *aeqn)
     PetscReal     ***aj, ***iaj;
     Cmpnts        ***csi, ***eta, ***zet, ***icsi, ***cent;
 
-    Cmpnts        ***div;
+    Cmpnts        ***div, ***lucont;
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    PetscMPIInt   rank;
+    MPI_Comm_rank(mesh->MESH_COMM, &rank);
 
     DMDAVecGetArray(fda, mesh->lCent,  &cent);
 
@@ -2647,6 +2879,40 @@ PetscErrorCode UpdateAlphaWaterBCs(aeqn_ *aeqn)
     DMDAVecGetArray(da, aeqn->Alpha,  &a);
 
     DMDAVecGetArray(fda, aeqn->lDivALO,  &div);
+    DMDAVecGetArray(fda, ueqn->lUcont,   &lucont);
+
+    // do inlet function if necessary
+    if(mesh->boundaryA.kLeft == "inletFunction")
+    {
+        inletFunctionTypes *ifPtr = mesh->inletF.kLeft;
+
+        if(ifPtr->typeU == 7)
+        {
+
+            // set local and global vector to zero 
+            for (i=0; i<mx; i++)
+            {
+                ifPtr->letaMeasured[i] = 0.0;
+                ifPtr->etaMeasured[i] = 0.0;
+            }
+
+            // for each j find the total volume of water
+            if(zs==0)
+            {
+                for (i=lxs; i<lxe; i++)
+                {
+                    for (j=lys; j<lye; j++)
+                    {
+                        PetscReal area = nMag(eta[lzs][j][i]);
+                        ifPtr->letaMeasured[i] += (la[lzs][j][i] / aj[lzs][j][i]) / area;
+                    }
+                }
+            }
+
+            // sum across processors
+            MPI_Allreduce(ifPtr->letaMeasured, ifPtr->etaMeasured, mx, MPIU_REAL, MPI_SUM, mesh->MESH_COMM);
+        }
+    }
 
     for (k=lzs; k<lze; k++)
     {
@@ -2744,6 +3010,142 @@ PetscErrorCode UpdateAlphaWaterBCs(aeqn_ *aeqn)
                 {
                     a[k+1][j][i] = mesh->boundaryA.kRval;
                 }
+                // inflow functions
+                if (mesh->boundaryA.kLeft=="inletFunction" && k==1)
+                {
+                    inletFunctionTypes *ifPtr = mesh->inletF.kLeft;
+
+                    // discrete focusing wave groups
+                    if (ifPtr->typeA == 7)
+                    {
+                        PetscReal z_wave   = cent[k][j][i].z - mesh->bounds.zmin;
+                        PetscReal d        = ifPtr->dfWaterLevel - mesh->bounds.zmin;
+                        PetscReal cellTop  = 0.5 * (cent[k][j+1][i].z + cent[k][j][i].z) - mesh->bounds.zmin;
+                        PetscReal cellBot  = 0.5 * (cent[k][j][i].z + cent[k][j-1][i].z) - mesh->bounds.zmin;
+
+                        // initialize eta to MWL
+                        PetscReal eta_wave = d;
+
+                        // do eta calculations
+                        if(ifPtr->dftStart <= clock->time && clock->time <= ifPtr->dftEnd)
+                        {
+                            PetscReal x_wave = ifPtr->dfxFocus;
+                            PetscReal t_wave = clock->time;
+
+                            PetscReal aw, kw, ww, pw;
+
+                            for (PetscInt iw=0; iw<ifPtr->dfN; iw++)
+                            {
+                                aw = ifPtr->dfAmplitudes[iw];
+                                kw = ifPtr->dfWaveNumbers[iw];
+                                ww = ifPtr->dfOmegas[iw];
+                                pw = ifPtr->dfPhases[iw];
+
+                                eta_wave += aw * std::cos(ww * t_wave + pw - kw * x_wave);
+                            }
+                        }
+
+                        // theoretical water level is eta_wave so we have three types of cells 
+                        PetscReal alphaTeo  = z_wave < eta_wave ? 1.0 : 0.0;
+
+                        // set lower and upper bounds for special layer 
+                        PetscReal specialStart = PetscMin(ifPtr->etaMeasured[i], eta_wave);
+                        PetscReal specialEnd   = PetscMax(ifPtr->etaMeasured[i], eta_wave);
+
+                        // fully air
+                        if (cellBot >= specialEnd)
+                        {
+                            a[k-1][j][i] = 0.0;
+                        }
+                        // fully water
+                        else if (cellTop <= specialStart)
+                        {
+                            if(lucont[k-1][j][i].z < 0.0)
+                            {
+                                a[k-1][j][i] = la[k][j][i];
+                            }
+                            else
+                            {
+                                a[k-1][j][i] = 1.0;
+                            }
+                        }
+                        // special layer intersects cell
+                        else 
+                        {
+                            // cell contains interface (mesh under resolved)
+                            if (cellBot < specialStart && cellTop > specialEnd)
+                            {
+                                if(ifPtr->etaMeasured[i] < eta_wave)
+                                {
+                                    if(lucont[k-1][j][i].z < 0.0)
+                                    {
+                                        a[k-1][j][i] = la[k][j][i];
+                                    }
+                                    else
+                                    {
+                                        PetscReal cellHeight = cellTop - cellBot;
+                                        a[k-1][j][i] = (eta_wave - cellBot) / cellHeight;
+                                    }
+                                }
+                                else
+                                {
+                                    a[k-1][j][i] = la[k][j][i];
+                                }
+                            }
+                            // interface contains cell
+                            else if (cellBot >= specialStart && cellTop <= specialEnd)
+                            {
+                                if(ifPtr->etaMeasured[i] < eta_wave)
+                                {
+                                    if(lucont[k-1][j][i].z < 0.0)
+                                    {
+                                        a[k-1][j][i] = la[k][j][i];
+                                    }
+                                    else
+                                    {
+                                        a[k-1][j][i] = 1.0;
+                                    }
+                                }
+                                else
+                                {
+                                    a[k-1][j][i] = la[k][j][i];
+                                }
+                            }
+                            // cell cuts interface top
+                            else if (cellBot < specialEnd && cellTop > specialEnd)
+                            {
+                                if(ifPtr->etaMeasured[i] < eta_wave)
+                                {
+                                    PetscReal cellHeight = cellTop - cellBot;
+                                    a[k-1][j][i] = (specialEnd - cellBot) / cellHeight;
+                                }
+                                else
+                                {
+                                    a[k-1][j][i] = la[k][j][i];
+                                }
+                            }
+                            // cell cuts interface bottom
+                            else if (cellBot < specialStart && cellTop > specialStart)
+                            {
+                                if(ifPtr->etaMeasured[i] < eta_wave)
+                                {
+                                    if(lucont[k-1][j][i].z < 0.0)
+                                    {
+                                        a[k-1][j][i] = la[k][j][i];
+                                    }
+                                    else
+                                    {
+                                        a[k-1][j][i] = 1.0;
+                                    }
+                                }
+                                else
+                                {
+                                    a[k-1][j][i] = la[k][j][i];
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -2762,6 +3164,7 @@ PetscErrorCode UpdateAlphaWaterBCs(aeqn_ *aeqn)
     DMDAVecRestoreArray(da, aeqn->Alpha,  &a);
 
     DMDAVecRestoreArray(fda, aeqn->lDivALO,  &div);
+    DMDAVecRestoreArray(fda, ueqn->lUcont,   &lucont);
 
     // reset periodic cell fluxes and scatter
     resetCellPeriodicFluxes(mesh, aeqn->Alpha, aeqn->lAlpha, "scalar", "globalToLocal");

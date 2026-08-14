@@ -41,6 +41,7 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
         // allocate memory for this patch inlet function data and init types
         PetscMalloc(sizeof(inletFunctionTypes), &mesh->inletF.kLeft);
         mesh->inletF.kLeft->typeU   = -1;
+        mesh->inletF.kLeft->typeA   = -1;
         mesh->inletF.kLeft->typeT   = -1;
         mesh->inletF.kLeft->typeNut = -1;
         inletFunctionsAllocated ++;
@@ -866,10 +867,46 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
             readSubDictDouble(fileName.c_str(), "inletFunction", "periods",    &(ifPtr->periods));
             ifPtr->Udir = nScale(1.0/nMag(ifPtr->Uref), ifPtr->Uref);
         }
+        // discrete focused wave groups
+        else if (ifPtr->typeU == 7)
+        {
+            readSubDictInt  (fileName.c_str(), "inletFunction",  "N",          &(ifPtr->dfN));
+            readSubDictWord (fileName.c_str(), "inletFunction",  "file",       &(ifPtr->dfFile));
+            readSubDictDouble(fileName.c_str(), "inletFunction", "waterLevel", &(ifPtr->dfWaterLevel));
+            readSubDictDouble(fileName.c_str(), "inletFunction", "xFocus",     &(ifPtr->dfxFocus));
+            readSubDictDouble(fileName.c_str(), "inletFunction", "tStart",     &(ifPtr->dftStart));
+            readSubDictDouble(fileName.c_str(), "inletFunction", "tEnd",       &(ifPtr->dftEnd));
+            
+            ifPtr->dfAmplitudes  = new PetscReal[ifPtr->dfN];
+            ifPtr->dfWaveNumbers = new PetscReal[ifPtr->dfN];
+            ifPtr->dfOmegas      = new PetscReal[ifPtr->dfN];
+            ifPtr->dfPhases      = new PetscReal[ifPtr->dfN];
+            ifPtr->letaMeasured  = new PetscReal[mx];
+            ifPtr->etaMeasured   = new PetscReal[mx];
+
+            // read file with amplitudes, omegas, wave numbers and phases (1 header line)
+            std::ifstream dfFileStream(ifPtr->dfFile.c_str());
+            if (!dfFileStream.is_open())
+            {
+                char error[512];
+                sprintf(error, "cannot open file:\n    %s\n", ifPtr->dfFile.c_str());
+                fatalErrorInFunction("SetInflowFunctions",  error);
+            }
+            else
+            {
+                std::string line;
+                std::getline(dfFileStream, line); // skip header line
+                for (PetscInt n = 0; n < ifPtr->dfN; ++n)
+                {
+                    dfFileStream >> ifPtr->dfAmplitudes[n] >> ifPtr->dfOmegas[n] >> ifPtr->dfWaveNumbers[n] >> ifPtr->dfPhases[n];
+                }
+                dfFileStream.close();
+            }
+        }
         else
         {
             char error[512];
-            sprintf(error, "unknown inflow profile on k-left boundary, available profiles are:\n        1 : power law (alpha = 0.107027)\n        2 : log law according to ABLProperties.dat\n        3 : unsteady mapped inflow from database\n        4 : unsteady interpolated inflow from database\n        5 : Nieuwstadt inflow (with veer)\n        6 : Sinusoidal inflow varying in i-direction\n");
+            sprintf(error, "unknown inflow profile on k-left boundary, available profiles are:\n        1 : power law (alpha = 0.107027)\n        2 : log law according to ABLProperties.dat\n        3 : unsteady mapped inflow from database\n        4 : unsteady interpolated inflow from database\n        5 : Nieuwstadt inflow (with veer)\n        6 : Sinusoidal inflow varying in i-direction\n        7 : Discrete focused wave groups\n");
             fatalErrorInFunction("SetInflowFunctions",  error);
         }
 
@@ -889,6 +926,7 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
             {
                 PetscMalloc(sizeof(inletFunctionTypes), &(mesh->inletF.kLeft));
                 mesh->inletF.kLeft->typeU   = -1;
+                mesh->inletF.kLeft->typeA   = -1;
                 mesh->inletF.kLeft->typeT   = -1;
                 mesh->inletF.kLeft->typeNut = -1;
                 inletFunctionsAllocated++;
@@ -929,6 +967,45 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
             }
 
             PetscPrintf(mesh->MESH_COMM, "done\n\n");
+        }
+    }
+
+    // check also alpha specification
+    if(mesh->access->flags->isAeqnActive)
+    {
+        if(mesh->boundaryA.kLeft == "inletFunction")
+        {
+            word           fileName, location, field;
+
+            PetscPrintf(mesh->MESH_COMM, "Creating AlphaWater inflow boundary data...");
+
+            if(!inletFunctionsAllocated)
+            {
+                PetscMalloc(sizeof(inletFunctionTypes), &(mesh->inletF.kLeft));
+                mesh->inletF.kLeft->typeU   = -1;
+                mesh->inletF.kLeft->typeA   = -1;
+                mesh->inletF.kLeft->typeT   = -1;
+                mesh->inletF.kLeft->typeNut = -1;
+                inletFunctionsAllocated++;
+            }
+
+            // set local pointer to this inlet function type
+            inletFunctionTypes *ifPtr = mesh->inletF.kLeft;
+
+            location = "./boundary/" + mesh->meshName + "/";
+            field    = "AlphaWater";
+            fileName = location + field;
+
+            readSubDictInt(fileName.c_str(), "inletFunction", "type", &(ifPtr->typeA));
+            if (ifPtr->typeA == 7)
+            {
+                if(ifPtr->typeU != 7)
+                {
+                    char error[512];
+                    sprintf(error, "inletFunction type 7 requires the same type in U and AlphaWater");
+                    fatalErrorInFunction("SetInflowFunctions",  error);
+                }
+            }
         }
     }
 
