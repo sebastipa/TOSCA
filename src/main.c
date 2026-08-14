@@ -66,47 +66,26 @@ int main(int argc, char **argv)
         for(PetscInt d=0; d<info.nDomains; d++)
         {
             if(flags.isOversetActive)
-                PetscPrintf(PETSC_COMM_WORLD, "\nDomain: %ld\n\n", *(domain[d].access.domainID));
+            PetscPrintf(PETSC_COMM_WORLD, "\nDomain: %ld\n\n", *(domain[d].access.domainID));
 
-            // locally copythis domain flags
+            // locally copy this domain flags
             flags = domain[d].flags;
 
-            // update the IBM position and interpolate based on new positions
-            if(flags.isIBMActive)
-            {
-                UpdateIBM(domain[d].ibm);
-            }
-
-            // save velocity at old time step
-            VecCopy(domain[d].ueqn->Ucont, domain[d].ueqn->Ucont_o);
-
-            if(flags.isTeqnActive)
-            {
-                // save temperature at old time step
-                if(domain[d].teqn->ddtScheme == "BDF2")
-                {
-                    VecCopy(domain[d].teqn->Tmprt_o, domain[d].teqn->Tmprt_oo); 
-                    VecCopy(domain[d].teqn->Tmprt, domain[d].teqn->Tmprt_o);
-                }
-                else
-                {
-                    VecCopy(domain[d].teqn->Tmprt, domain[d].teqn->Tmprt_o);
-                }
-            }
-
-            // update flux limiter
-            if(domain[d].ueqn->centralUpwindDiv || domain[d].ueqn->centralUpwindWDiv)
-            {
-                UpdateFluxLimiter(domain[d].ueqn);
-            }
-
-            // solve the alpha water equation
+            // **** SOLVE ALPHA-WATER EQUATION ****
             if(flags.isAeqnActive)
             {
-                // alpha water sub-cycling: take multiple smaller timesteps
-                PetscInt nSubCycles  = domain[d].aeqn->nAlphaSubCycles;
-                PetscReal dtOriginal = domain[d].clock->dt;
-                PetscReal dtAlpha    = dtOriginal / nSubCycles;
+                // Note: velocity BCs are not updated yet otherwise they would break continuity
+
+                // IBM interpolation for alpha should go here with the old positions. If not possible
+                // we must move alpha equation after momentum (might think about it when is the moment)
+                
+                // update alpha water BCs
+                UpdateAlphaWaterBCs(domain[d].aeqn);
+
+                // alpha water sub-cycling
+                PetscInt  nSubCycles  = domain[d].aeqn->nAlphaSubCycles;
+                PetscReal dtOriginal  = domain[d].clock->dt;
+                PetscReal dtAlpha     = dtOriginal / nSubCycles;
                 
                 for (PetscInt subcycle = 0; subcycle < nSubCycles; subcycle++)
                 {
@@ -131,16 +110,14 @@ int main(int argc, char **argv)
                 // restore original timestep
                 domain[d].clock->dt = dtOriginal;
 
-                // bound alpha water between 0 and 1 & print min max of alpha water for logging
+                // bound alpha water between 0 and 1 and print min max of alpha water for logging
                 PetscReal alphaMinPre; VecMin(domain[d].aeqn->Alpha, NULL, &alphaMinPre); 
                 PetscReal alphaMaxPre; VecMax(domain[d].aeqn->Alpha, NULL, &alphaMaxPre);
-                 
                 boundAlpha(domain[d].aeqn);
-
                 PetscReal alphaMinPost; VecMin(domain[d].aeqn->Alpha, NULL, &alphaMinPost);
                 PetscReal alphaMaxPost; VecMax(domain[d].aeqn->Alpha, NULL, &alphaMaxPost);
                 
-                PetscPrintf(domain[d].mesh->MESH_COMM, "Alpha-Water pre/post correction min = %.5f/%.5f, max = %.5f/%.5f\n", alphaMinPre, alphaMinPost, alphaMaxPre, alphaMaxPost);
+                PetscPrintf(domain[d].mesh->MESH_COMM, "Alpha-Water pre/post correction min = %e/%e, max = %e/%e\n", alphaMinPre, alphaMinPost, alphaMaxPre, alphaMaxPost);
 
                 // save old time step density before updating rho
                 VecCopy(domain[d].aeqn->lRhoFace, domain[d].aeqn->lRhoFace_o);
@@ -152,94 +129,141 @@ int main(int argc, char **argv)
                 GradRho(domain[d].aeqn);
             }
 
-            // update SGS models
-            if(flags.isLesActive)
+            // **** SOLVE MOMENTUM EQUATION ****
             {
-                UpdateCs (domain[d].les);
-                UpdateNut(domain[d].les);
-                UpdateWallModelsU(domain[d].ueqn);
+                // update cartesian BC
+                UpdateCartesianBCs(domain[d].ueqn);
 
+                // update contravariant BC
+                UpdateContravariantBCs(domain[d].ueqn);
+
+                // update the IBM position and interpolate based on new positions
                 if(flags.isIBMActive)
                 {
-                    if(domain[d].ibm->wallShearOn)
+                    UpdateIBM(domain[d].ibm);
+                }
+
+                // perform overset interpolation
+                if(flags.isOversetActive)
+                {
+                    UpdateOversetInterpolation(domain);
+                }
+
+                // save velocity at old time step
+                VecCopy(domain[d].ueqn->Ucont, domain[d].ueqn->Ucont_o);
+
+                // update flux limiter
+                if(domain[d].ueqn->centralUpwindDiv || domain[d].ueqn->centralUpwindWDiv)
+                {
+                    UpdateFluxLimiter(domain[d].ueqn);
+                }
+
+                // update SGS models
+                if(flags.isLesActive)
+                {
+                    UpdateCs (domain[d].les);
+                    UpdateNut(domain[d].les);
+                    UpdateWallModelsU(domain[d].ueqn);
+
+                    if(flags.isIBMActive)
                     {
-                        findIBMWallShearChester(domain[d].ibm);
+                        if(domain[d].ibm->wallShearOn)
+                        {
+                            findIBMWallShearChester(domain[d].ibm);
+                        }
                     }
                 }
-            }
 
-            // correct damping layers/fringe region
-            if(flags.isXDampingActive || flags.isZDampingActive)
-            {
-                correctDampingSources(domain[d].ueqn);
-            }
-
-            // update flow controllers source terms
-            if(flags.isAblActive)
-            {
-                if(domain[d].abl->controllerActive)
+                // correct damping layers
+                if(flags.isXDampingActive || flags.isZDampingActive)
                 {
-                    CorrectSourceTerms(domain[d].ueqn, 1);
+                    correctDampingSources(domain[d].ueqn);
                 }
-                if(domain[d].abl->controllerActiveT && flags.isTeqnActive)
+
+                // update flow controllers source terms
+                if(flags.isAblActive)
                 {
-                    CorrectSourceTermsT(domain[d].teqn, 1);
+                    if(domain[d].abl->controllerActive)
+                    {
+                        CorrectSourceTerms(domain[d].ueqn, 1);
+                    }
+                    if(domain[d].abl->controllerActiveT && flags.isTeqnActive)
+                    {
+                        CorrectSourceTermsT(domain[d].teqn, 1);
+                    }
                 }
-            }
 
-            // update wind turbines
-            if(flags.isWindFarmActive)
-            {
-                UpdateWindTurbines(domain[d].farm);
-            }
-
-            // compute pressure gradient term
-            if(domain[d].ueqn->central4Div)
-            {
-                GradP4thOrder(domain[d].peqn);
-            }
-            else 
-            {
-                GradP(domain[d].peqn);
-            }
-
-            // update y-damping layer processor mapping 
-            if(flags.isYDampingActive)
-            {
-                mapYDamping(domain[d].ueqn);
-            }
-
-            // buoyancy term
-            if(flags.isTeqnActive)
-            {
-                // save old buoyancy term for AB2 formulation
-                if(clock.it > clock.itStart)
+                // update wind turbines
+                if(flags.isWindFarmActive)
                 {
+                    UpdateWindTurbines(domain[d].farm);
+                }
+
+                // compute pressure gradient term
+                if(domain[d].ueqn->central4Div)
+                {
+                    GradP4thOrder(domain[d].peqn);
+                }
+                else 
+                {
+                    GradP(domain[d].peqn);
+                }
+
+                // update y-damping layer processor mapping 
+                if(flags.isYDampingActive)
+                {
+                    mapYDamping(domain[d].ueqn);
+                }
+
+                // buoyancy term
+                if(flags.isTeqnActive)
+                {
+                    // save old buoyancy term for AB2 formulation
+                    if(clock.it > clock.itStart)
+                    {
+                        if(domain[d].teqn->pTildeFormulation)
+                            VecCopy(domain[d].teqn->ghGradRhok, domain[d].teqn->ghGradRhok_o);
+                        else
+                            VecCopy(domain[d].ueqn->bTheta, domain[d].ueqn->bTheta_o);
+                    }
+
+                    // compute new buoyancy term
                     if(domain[d].teqn->pTildeFormulation)
-                        VecCopy(domain[d].teqn->ghGradRhok, domain[d].teqn->ghGradRhok_o);
+                        ghGradRhoK(domain[d].teqn);
                     else
-                        VecCopy(domain[d].ueqn->bTheta, domain[d].ueqn->bTheta_o);
+                        Buoyancy(domain[d].ueqn, 1.0);
                 }
 
-                // compute new buoyancy term
-                if(domain[d].teqn->pTildeFormulation)
-                    ghGradRhoK(domain[d].teqn);
-                else
-                    Buoyancy(domain[d].ueqn, 1.0);
+                // solve the momentum equation
+                SolveUEqn(domain[d].ueqn);
+
+                // solve the pressure equation
+                SolvePEqn(domain[d].peqn);
+
+                // update cartesian velocity
+                contravariantToCartesian(domain[d].ueqn);
+
+                // sync processors
+                MPI_Barrier(domain[d].mesh->MESH_COMM);
             }
 
-            // solve the momentum equation
-            SolveUEqn(domain[d].ueqn);
-
-            // solve the pressure equation
-            SolvePEqn(domain[d].peqn);
-
-            // update cartesian velocity
-            contravariantToCartesian(domain[d].ueqn);
-
-            // potential temperature step
+            // **** SOLVE POT. TEMPERATURE EQUATION ****
             if(flags.isTeqnActive)
             {
+                // update temperature BC
+                UpdateTemperatureBCs(domain[d].teqn);
+
+                // save temperature at old time step
+                if(domain[d].teqn->ddtScheme == "BDF2")
+                {
+                    VecCopy(domain[d].teqn->Tmprt_o, domain[d].teqn->Tmprt_oo); 
+                    VecCopy(domain[d].teqn->Tmprt, domain[d].teqn->Tmprt_o);
+                }
+                else
+                {
+                    VecCopy(domain[d].teqn->Tmprt, domain[d].teqn->Tmprt_o);
+                }
+
                 // update SGS fields 
                 UpdateCsk(domain[d].les);
                 UpdatekT(domain[d].les);
@@ -249,17 +273,21 @@ int main(int argc, char **argv)
                 
                 // advance temperature to n+1
                 SolveTEqn(domain[d].teqn);
+
+                // sync processors
+                MPI_Barrier(domain[d].mesh->MESH_COMM);
             }
 
-            MPI_Barrier(domain[d].mesh->MESH_COMM);
+            // **** CHECK CONTINUITY ERRORS ****
+            {
+                // print time step continuity errors (slower)
+                // ContinuityErrors(domain[d].peqn);
 
-            // print time step continuity errors (slower)
-            // ContinuityErrors(domain[d].peqn);
+                // print time step continuity errors (optimized)
+                ContinuityErrorsOptimized(domain[d].peqn);
+            }
 
-            // print time step continuity errors (optimized)
-            ContinuityErrorsOptimized(domain[d].peqn);
-
-            // save momentum right hand side
+            // save momentum right hand side if using Crank-Nicholson scheme
             if(domain[d].ueqn->ddtScheme=="CN")
             {
                 // interpolate IBM cells before computing the forces and moments on the IBM
@@ -317,24 +345,7 @@ int main(int argc, char **argv)
                 FormU (domain[d].ueqn, domain[d].ueqn->Rhs_o, 1.0);
             }
 
-            // update temperature BC
-            if(flags.isTeqnActive)
-            {
-                UpdateTemperatureBCs(domain[d].teqn);
-            }
-
-            // update alpha water BC
-            if(flags.isAeqnActive)
-            {
-                UpdateAlphaWaterBCs(domain[d].aeqn);
-            }
-
-            // update cartesian BC
-            UpdateCartesianBCs(domain[d].ueqn);
-
-            // update contravariant BC
-            UpdateContravariantBCs(domain[d].ueqn);
-
+            // compute forces and moments on the IBM
             if(flags.isIBMActive)
             {
                 if(domain[d].ibm->computeForce)
@@ -351,25 +362,22 @@ int main(int argc, char **argv)
             MPI_Barrier(domain[d].mesh->MESH_COMM);
         }
 
-        // perform paraview catalyst actions
-        if(flags.isPvCatalystActive)
-        {
-            #if USE_CATALYST
-            catalystExecute(domain);
-            #endif
-        }
-
-        // perform overset interpolation
-        if(flags.isOversetActive)
-        {
-            UpdateOversetInterpolation(domain);
-        }
-
-        // remove gauge pressure and sync
+        // **** SYNC PRESSURE ACROSS DOMAINS ****
         SyncPressureAcrossDomains(domain);
 
-        // write output files
-        WriteAcquisition(domain);
+        // **** RUN DATA ACQUISITION ****
+        {
+            // perform paraview catalyst actions
+            if(flags.isPvCatalystActive)
+            {
+                #if USE_CATALYST
+                catalystExecute(domain);
+                #endif
+            }
+
+            // write output files
+            WriteAcquisition(domain);
+        }
 
         clock.it ++;
 
