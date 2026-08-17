@@ -4090,7 +4090,8 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
 {
     mesh_         *mesh  = ibm->access->mesh;
     ueqn_         *ueqn  = ibm->access->ueqn;
-    teqn_         *teqn  = ibm->access->teqn;
+    teqn_         *teqn;
+    aeqn_         *aeqn;
     peqn_         *peqn  = ibm->access->peqn;
     flags_        *flags = ibm->access->flags;
     constants_    *cst   = ibm->access->constants;
@@ -4110,10 +4111,10 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
     PetscInt      b, c, s;
     cellIds       initCp;
     Cmpnts        ***ucat, ***lucat, ***cent, ***csi, ***eta, ***zet;
-    PetscReal     ***lt, ***temp, ***aj, ***nvert, ***meshTag, ***lp, ***p;
+    PetscReal     ***lt, ***temp, ***aj, ***nvert, ***meshTag, ***lp, ***p, ***la, ***a;
     Cmpnts        bPt, bPtInit;
     Cmpnts        bPtVel, ibmPtVel, ibmPtVelPrev;
-    PetscReal     nfMag, cellSize, bPtTemp, bPtPres, elemDist;
+    PetscReal     nfMag, cellSize, bPtTemp, bPtPres, bPtAlpha, elemDist;
 
     DMDAVecGetArray(fda, mesh->lCent, &cent);
     DMDAVecGetArray(fda, ueqn->lUcat, &lucat);
@@ -4129,8 +4130,16 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
 
     if (flags->isTeqnActive)
     {
+        teqn = ibm->access->teqn;
         DMDAVecGetArray(da, teqn->lTmprt, &lt);
         DMDAVecGetArray(da, teqn->Tmprt, &temp);
+    }
+
+    if(flags->isAeqnActive)
+    {
+        aeqn = ibm->access->aeqn;
+        DMDAVecGetArray(da, aeqn->lAlpha, &la);
+        DMDAVecGetArray(da, aeqn->Alpha, &a);
     }
 
     //local pointer for ibmFluidCells
@@ -4343,6 +4352,19 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
                     );
                 }
 
+                if (flags->isAeqnActive)
+                {
+                    scalarPointLocalVolumeInterpolation
+                    (
+                            mesh,
+                            bPt.x, bPt.y, bPt.z,
+                            ic, jc, kc,
+                            cent,
+                            la,
+                            bPtAlpha
+                    );
+                }
+
                 scalarPointLocalVolumeInterpolation
                 (
                         mesh,
@@ -4365,6 +4387,11 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
             if (flags->isTeqnActive)
             {
                 bPtTemp = lt[initCp.k][initCp.j][initCp.i];
+            }
+
+            if (flags->isAeqnActive)
+            {
+                bPtAlpha = la[initCp.k][initCp.j][initCp.i];
             }
 
             bPt = nSet(bPtInit);
@@ -4512,6 +4539,12 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
             }
          }
 
+         if(flags->isAeqnActive)
+         {
+            //apply zerogradient boundary condition
+            a[k][j][i] =  bPtAlpha;
+         }
+
          // save the element acceleration term (dudt . elementNormal)
          PetscReal bP = nDot(nScale(-1.0/clock->dtOld, nSub(ibmPtVel, ibmPtVelPrev)), eNorm);
 
@@ -4537,6 +4570,14 @@ PetscErrorCode CurvibInterpolation(ibm_ *ibm)
         DMGlobalToLocalBegin(da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
         DMGlobalToLocalEnd(da, teqn->Tmprt, INSERT_VALUES, teqn->lTmprt);
 
+    }
+
+    if(flags->isAeqnActive)
+    {
+        DMDAVecRestoreArray(da, aeqn->lAlpha, &la);
+        DMDAVecRestoreArray(da, aeqn->Alpha, &a);
+        DMGlobalToLocalBegin(da, aeqn->Alpha, INSERT_VALUES, aeqn->lAlpha);
+        DMGlobalToLocalEnd(da, aeqn->Alpha, INSERT_VALUES, aeqn->lAlpha);
     }
 
     DMGlobalToLocalBegin(fda, ueqn->Ucat, INSERT_VALUES, ueqn->lUcat);

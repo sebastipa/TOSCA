@@ -554,11 +554,8 @@ PetscErrorCode ReadPhysicalConstants(domain_ *domain)
     }
 
     // read flow density
-    if(domain->flags.isWindFarmActive || domain->flags.isIBMActive)
-    {
-      readDictDouble("control.dat", "-rho", &(domain->constants.rho));
-    }
-    else if(domain->flags.isAeqnActive)
+    
+    if(domain->flags.isAeqnActive)
     {
         readDictDouble("control.dat", "-rhoAir",   &(domain->constants.rho));
         readDictDouble("control.dat", "-rhoWater", &(domain->constants.rhoWater));
@@ -567,7 +564,14 @@ PetscErrorCode ReadPhysicalConstants(domain_ *domain)
     }
     else
     {
-        PetscOptionsGetReal(PETSC_NULL, PETSC_NULL,"-rho", &(domain->constants.rho), PETSC_NULL);
+        if(domain->flags.isWindFarmActive || domain->flags.isIBMActive)
+        {
+            readDictDouble("control.dat", "-rho", &(domain->constants.rho));
+        }
+        else
+        {
+            PetscOptionsGetReal(PETSC_NULL, PETSC_NULL,"-rho", &(domain->constants.rho), PETSC_NULL);
+        }
     }
 
     // read Prandtl number

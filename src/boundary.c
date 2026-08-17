@@ -2923,7 +2923,7 @@ PetscErrorCode UpdateAlphaWaterBCs(aeqn_ *aeqn)
                 // set to zero if solid
                 if(isIBMSolidCell(k, j, i, nvert) || isZeroedCell(k, j, i, meshTag))
                 {
-                    a[k][j][i] = 0.0;
+                    a[k][j][i] = 1.0;
                     continue;
                 }
 

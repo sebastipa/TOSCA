@@ -403,7 +403,8 @@ PetscErrorCode AddCompressionFlux(aeqn_ *aeqn)
             {
                 if(i>=mx-2 || j>=my-2 || k>=mz-2) continue;
 
-                // i-faces
+                // i-faces (exclude IBM faces)
+                if (!isOversetIFace(k, j, i, i+1, meshTag))
                 {
                     PetscReal alpha_face;
                     alpha_face = 0.5 * (alpha[k][j][i] + alpha[k][j][i+1]);
@@ -425,7 +426,8 @@ PetscErrorCode AddCompressionFlux(aeqn_ *aeqn)
                     div[k][j][i].x -= coeff * nDot(ucatc_face, icsi[k][j][i]);
                 }
 
-                // j-faces
+                // j-faces (exclude IBM faces)
+                if (!isOversetJFace(k, j, i, j+1, meshTag))
                 {
                     PetscReal alpha_face;
                     alpha_face = 0.5 * (alpha[k][j][i] + alpha[k][j+1][i]);
@@ -447,7 +449,8 @@ PetscErrorCode AddCompressionFlux(aeqn_ *aeqn)
                     div[k][j][i].y -= coeff * nDot(ucatc_face, jeta[k][j][i]);
                 }
 
-                // k-faces
+                // k-faces (exclude IBM faces)
+                if (!isOversetKFace(k, j, i, k+1, meshTag))
                 {
                     PetscReal alpha_face;
                     alpha_face = 0.5 * (alpha[k][j][i] + alpha[k+1][j][i]);
@@ -1047,7 +1050,7 @@ PetscErrorCode UpdateRho(aeqn_ *aeqn)
 
                     if(rhoFace[k][j][i].x < tol)
                     {
-                        printf("Warning: near-zero/negative density at csi face: rho(%ld,%ld,%ld) = %e\n", i, j, k, rhoFace[k][j][i].x);
+                        printf("Warning: near-zero/negative density at csi face: rho(%ld,%ld,%ld) = %e (alpha_face = %f, rho_water = %f)\n", i, j, k, rhoFace[k][j][i].x, alpha_face, rhoWater);
                     }
                 }
 
@@ -1072,7 +1075,7 @@ PetscErrorCode UpdateRho(aeqn_ *aeqn)
 
                     if(rhoFace[k][j][i].y < tol)
                     {
-                        printf("Warning: near-zero/negative density at eta face: rho(%ld,%ld,%ld) = %e\n", i, j, k, rhoFace[k][j][i].y);
+                        printf("Warning: near-zero/negative density at eta face: rho(%ld,%ld,%ld) = %e (alpha_face = %f)\n", i, j, k, rhoFace[k][j][i].y, alpha_face);
                     }
                 }
 
@@ -1097,7 +1100,7 @@ PetscErrorCode UpdateRho(aeqn_ *aeqn)
 
                     if(rhoFace[k][j][i].z < tol)          
                     {
-                        printf("Warning: near-zero/negative density at zeta face: rho(%ld,%ld,%ld) = %e\n", i, j, k, rhoFace[k][j][i].z);
+                        printf("Warning: near-zero/negative density at zeta face: rho(%ld,%ld,%ld) = %e (alpha_face = %f)\n", i, j, k, rhoFace[k][j][i].z, alpha_face);
                     }
                 }
             }
