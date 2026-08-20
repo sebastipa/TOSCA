@@ -135,11 +135,11 @@ as they will download and compile the libraries automatically, making hte instal
 </li>
 <li><p>Save an environment variable that will tell TOSCA where PETSc is installed in your <code class="docutils literal notranslate"><span class="pre">.bashrc</span></code>. For HPC installations
 it might be a better practice to use the <code class="docutils literal notranslate"><span class="pre">.bash_profile</span></code> instead.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;export PETSC_DIR=</span><span class="nv">$HOME</span><span class="s2">/your--path--to--petsc--dir&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span><span class="nv">$HOME</span>/.bashrc
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">echo</span><span class="w"> </span><span class="s2">"export PETSC_DIR=</span><span class="nv">$HOME</span><span class="s2">/your--path--to--petsc--dir"</span><span class="w"> </span>&gt;&gt;<span class="w"> </span><span class="nv">$HOME</span>/.bashrc
 </pre></div>
 </div>
 <p>or, for HPCs</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;export PETSC_DIR=</span><span class="nv">$HOME</span><span class="s2">/your--path--to--petsc--dir&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span><span class="nv">$HOME</span>/.bash_profile
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">echo</span><span class="w"> </span><span class="s2">"export PETSC_DIR=</span><span class="nv">$HOME</span><span class="s2">/your--path--to--petsc--dir"</span><span class="w"> </span>&gt;&gt;<span class="w"> </span><span class="nv">$HOME</span>/.bash_profile
 </pre></div>
 </div>
 </li>
@@ -147,11 +147,11 @@ it might be a better practice to use the <code class="docutils literal notransla
 it might be a better practice to use the <code class="docutils literal notranslate"><span class="pre">.bash_profile</span></code> instead.</p></li>
 </ol>
 <blockquote>
-<div><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;export PETSC_ARCH=arch-linux-c-opt&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span><span class="nv">$HOME</span>/.bashrc
+<div><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">echo</span><span class="w"> </span><span class="s2">"export PETSC_ARCH=arch-linux-c-opt"</span><span class="w"> </span>&gt;&gt;<span class="w"> </span><span class="nv">$HOME</span>/.bashrc
 </pre></div>
 </div>
 <p>or, for HPCs</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;export PETSC_ARCH=arch-linux-c-opt&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span><span class="nv">$HOME</span>/.bash_profile
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">echo</span><span class="w"> </span><span class="s2">"export PETSC_ARCH=arch-linux-c-opt"</span><span class="w"> </span>&gt;&gt;<span class="w"> </span><span class="nv">$HOME</span>/.bash_profile
 </pre></div>
 </div>
 </div></blockquote>
@@ -164,21 +164,21 @@ it might be a better practice to use the <code class="docutils literal notransla
 it might be a better practice to use the <code class="docutils literal notranslate"><span class="pre">.bash_profile</span></code> instead. This variable will be used in the TOSCA <code class="docutils literal notranslate"><span class="pre">makefile</span></code> to compile <code class="docutils literal notranslate"><span class="pre">tosca2PV</span></code>.
 If you have installed HDF5 using the <code class="docutils literal notranslate"><span class="pre">--download-hdf5</span></code> option in the PETSc configure step, the HDF5 <cite>lib</cite> and <cite>include</cite> directories will be located in
 the <code class="docutils literal notranslate"><span class="pre">$PETSC_DIR/$PETSC_ARCH/</span></code> folder, together with HYPRE and PETSc ones.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;export HDF5_DIR=</span><span class="nv">$PETSC_DIR</span><span class="s2">/</span><span class="nv">$PETSC_ARCH</span><span class="s2">&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span><span class="nv">$HOME</span>/.bashrc
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">echo</span><span class="w"> </span><span class="s2">"export HDF5_DIR=</span><span class="nv">$PETSC_DIR</span><span class="s2">/</span><span class="nv">$PETSC_ARCH</span><span class="s2">"</span><span class="w"> </span>&gt;&gt;<span class="w"> </span><span class="nv">$HOME</span>/.bashrc
 </pre></div>
 </div>
 <p>or, for HPCs</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;export HDF5_DIR=</span><span class="nv">$PETSC_DIR</span><span class="s2">/</span><span class="nv">$PETSC_ARCH</span><span class="s2">&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span><span class="nv">$HOME</span>/.bash_profile
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">echo</span><span class="w"> </span><span class="s2">"export HDF5_DIR=</span><span class="nv">$PETSC_DIR</span><span class="s2">/</span><span class="nv">$PETSC_ARCH</span><span class="s2">"</span><span class="w"> </span>&gt;&gt;<span class="w"> </span><span class="nv">$HOME</span>/.bash_profile
 </pre></div>
 </div>
 </li>
 <li><p>Add the PETSc shared libraries to your library path environment variable in your <code class="docutils literal notranslate"><span class="pre">.bashrc</span></code>. For HPC installations
 it might be a better practice to use the <code class="docutils literal notranslate"><span class="pre">.bash_profile</span></code> instead.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;export LD_LIBRARY_PATH=</span><span class="nv">$LD_LIBRARY_PATH</span><span class="s2">:</span><span class="nv">$PETSC_DIR</span><span class="s2">/</span><span class="nv">$PETSC_ARCH</span><span class="s2">/lib&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span><span class="nv">$HOME</span>/.bashrc
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">echo</span><span class="w"> </span><span class="s2">"export LD_LIBRARY_PATH=</span><span class="nv">$LD_LIBRARY_PATH</span><span class="s2">:</span><span class="nv">$PETSC_DIR</span><span class="s2">/</span><span class="nv">$PETSC_ARCH</span><span class="s2">/lib"</span><span class="w"> </span>&gt;&gt;<span class="w"> </span><span class="nv">$HOME</span>/.bashrc
 </pre></div>
 </div>
 <p>or, for HPCs</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;export LD_LIBRARY_PATH=</span><span class="nv">$LD_LIBRARY_PATH</span><span class="s2">:</span><span class="nv">$PETSC_DIR</span><span class="s2">/</span><span class="nv">$PETSC_ARCH</span><span class="s2">/lib&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span><span class="nv">$HOME</span>/.bash_profile
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">echo</span><span class="w"> </span><span class="s2">"export LD_LIBRARY_PATH=</span><span class="nv">$LD_LIBRARY_PATH</span><span class="s2">:</span><span class="nv">$PETSC_DIR</span><span class="s2">/</span><span class="nv">$PETSC_ARCH</span><span class="s2">/lib"</span><span class="w"> </span>&gt;&gt;<span class="w"> </span><span class="nv">$HOME</span>/.bash_profile
 </pre></div>
 </div>
 </li>
@@ -292,7 +292,7 @@ mkdir<span class="w"> </span>-p<span class="w"> </span>build<span class="w"> </s
 cmake<span class="w"> </span>..<span class="w"> </span>-DCMAKE_INSTALL_PREFIX<span class="o">=</span><span class="nv">$LOCATION</span>/catalyst2/install
 make
 make<span class="w"> </span>install
-<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;export CATALYST=</span><span class="nv">$LOCATION</span><span class="s2">&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span><span class="nv">$HOME</span>/.bashrc
+<span class="nb">echo</span><span class="w"> </span><span class="s2">"export CATALYST=</span><span class="nv">$LOCATION</span><span class="s2">"</span><span class="w"> </span>&gt;&gt;<span class="w"> </span><span class="nv">$HOME</span>/.bashrc
 </pre></div>
 </div>
 <p>Add the Catalyst2 shared libraries to your library path environment variable in your .bashrc with <code class="docutils literal notranslate"><span class="pre">echo</span> <span class="pre">&quot;export</span> <span class="pre">LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LOCATION/catalyst2/install/lib&quot;</span> <span class="pre">&gt;&gt;</span> <span class="pre">$HOME/.bashrc</span></code></p>
@@ -317,7 +317,7 @@ mkdir<span class="w"> </span>-p<span class="w"> </span>build<span class="w"> </s
 <p>In some cases you may have to replace lib with lib64</p>
 </div>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nv">FLAGS</span><span class="o">=(</span>-DCMAKE_INSTALL_PREFIX<span class="o">=</span><span class="nv">$LOCATION</span>/paraview-5.11.0/install<span class="w"> </span>-DVTK_OPENGL_HAS_OSMESA<span class="o">=</span>ON<span class="w"> </span>-DPARAVIEW_USE_MPI<span class="o">=</span>ON<span class="w"> </span>-DBUILD_TESTING<span class="o">=</span>OFF<span class="w"> </span>-DVTK_USE_X<span class="o">=</span>OFF<span class="w"> </span>-DPARAVIEW_USE_QT<span class="o">=</span>OFF<span class="w"> </span>-DPARAVIEW_USE_PYTHON<span class="o">=</span>ON<span class="w"> </span>-DPython3_FIND_STRATEGY<span class="o">=</span>LOCATION<span class="w"> </span>-DPython3_ROOT_DIR<span class="o">=</span><span class="nv">$EBROOTPYTHON</span><span class="w"> </span>-DPARAVIEW_BUILD_SHARED_LIBS<span class="o">=</span>ON<span class="w"> </span>-DPARAVIEW_ENABLE_RAYTRACING<span class="o">=</span>OFF<span class="w"> </span>-DPARAVIEW_ENABLE_CATALYST<span class="o">=</span>ON<span class="w"> </span><span class="o">)</span>
-cmake<span class="w"> </span>..<span class="w"> </span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">FLAGS</span><span class="p">[@]</span><span class="si">}</span><span class="s2">&quot;</span>
+cmake<span class="w"> </span>..<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">FLAGS</span><span class="p">[@]</span><span class="si">}</span><span class="s2">"</span>
 make<span class="w"> </span>-j8
 make<span class="w"> </span>install
 </pre></div>
