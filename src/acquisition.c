@@ -6834,12 +6834,16 @@ PetscErrorCode writeProbes(domain_ *domain)
                             PetscInt           i, j, k;
                             PetscInt           lxs, lxe, lys, lye, lzs, lze;
 
+                            Cmpnts             ***cent, point;
+
                             lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
                             lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
                             lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
 
                             PetscMPIInt meshRank;
                             MPI_Comm_rank(mesh->MESH_COMM, &meshRank);
+
+                            DMDAVecGetArray(mesh->fda, mesh->lCent, &cent);
 
                             if(rake->Uflag)
                             {
@@ -6855,9 +6859,25 @@ PetscErrorCode writeProbes(domain_ *domain)
                                     k = rake->cells[p][0];
                                     j = rake->cells[p][1];
                                     i = rake->cells[p][2];
-                                    lprobeValuesU[p].x = ucat[k][j][i].x;
-                                    lprobeValuesU[p].y = ucat[k][j][i].y;
-                                    lprobeValuesU[p].z = ucat[k][j][i].z;
+                                    
+                                    point.x = rake->locations[p][0];
+                                    point.y = rake->locations[p][1];
+                                    point.z = rake->locations[p][2];
+
+                                    Cmpnts ucat_p;
+
+                                    // trilinear interpolate
+                                    vectorPointLocalVolumeInterpolation
+                                    (
+                                        mesh,
+                                        point.x, point.y, point.z,
+                                        i, j, k,
+                                        cent, ucat, ucat_p
+                                    );
+
+                                    lprobeValuesU[p].x = ucat_p.x;
+                                    lprobeValuesU[p].y = ucat_p.y;
+                                    lprobeValuesU[p].z = ucat_p.z;
                                 }
 
                                 DMDAVecRestoreArray(mesh->fda, ueqn->lUcat, &ucat);
@@ -6877,7 +6897,23 @@ PetscErrorCode writeProbes(domain_ *domain)
                                     k = rake->cells[p][0];
                                     j = rake->cells[p][1];
                                     i = rake->cells[p][2];
-                                    lprobeValuesT[p] = t[k][j][i];
+
+                                    point.x = rake->locations[p][0];
+                                    point.y = rake->locations[p][1];
+                                    point.z = rake->locations[p][2];
+
+                                    PetscReal t_p;
+
+                                    // trilinear interpolate
+                                    scalarPointLocalVolumeInterpolation
+                                    (
+                                        mesh,
+                                        point.x, point.y, point.z,
+                                        i, j, k,
+                                        cent, t, t_p
+                                    );
+
+                                    lprobeValuesT[p] = t_p;
                                 }
 
                                 DMDAVecRestoreArray(mesh->da, teqn->lTmprt, &t);
@@ -6897,11 +6933,29 @@ PetscErrorCode writeProbes(domain_ *domain)
                                     k = rake->cells[p][0];
                                     j = rake->cells[p][1];
                                     i = rake->cells[p][2];
-                                    lprobeValuesP[p] = lp[k][j][i];
+
+                                    point.x = rake->locations[p][0];
+                                    point.y = rake->locations[p][1];
+                                    point.z = rake->locations[p][2];
+
+                                    PetscReal p_p;
+
+                                    // trilinear interpolate
+                                    scalarPointLocalVolumeInterpolation
+                                    (
+                                        mesh,
+                                        point.x, point.y, point.z,
+                                        i, j, k,
+                                        cent, lp, p_p
+                                    );
+
+                                    lprobeValuesP[p] = p_p;
                                 }
 
                                 DMDAVecRestoreArray(mesh->da, peqn->lP, &lp);
                             }
+
+                            DMDAVecRestoreArray(mesh->fda, mesh->lCent, &cent);
                         }
                     }
 
