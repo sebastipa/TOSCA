@@ -4147,6 +4147,26 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
                                 }
                             }
 
+                            if(flags->isAeqnActive)
+                            {
+                                char ksliceNameA[512];
+                                sprintf(ksliceNameA, "%s/AlphaWater", ksliceName);
+
+                                errno = 0;
+                                dirRes = mkdir(ksliceNameA, 0777);
+                                if (dirRes != 0 && errno != EEXIST)
+                                {
+                                    char error[1024];
+                                    sprintf(error, "could not create %s directory\n", ksliceNameA);
+                                    fatalErrorInFunction("sectionsInitialize", error);
+                                }
+                                else
+                                {
+                                    //remove_subdirs(mesh->MESH_COMM, ksliceNameA);
+                                    atLeastOneScalar++;
+                                }
+                            }
+
                             if(acquisition->isPerturbABLActive)
                             {
                                 char ksliceNameUpABL[512];
@@ -4433,6 +4453,27 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
                                 {
                                    char error[512];
                                     sprintf(error, "could not create %s directory\n", jsliceNameNut);
+                                    fatalErrorInFunction("sectionsInitialize", error);
+                                }
+                                else
+                                {
+                                    //remove_subdirs(mesh->MESH_COMM, jsliceNameNut);
+                                    atLeastOneScalar++;
+                                }
+                            }
+
+                            // create AlphaWater directory in which time snapshots are saved
+                            if(flags->isAeqnActive)
+                            {
+                                char jsliceNameA[512];
+                                sprintf(jsliceNameA, "%s/AlphaWater", jsliceName);
+
+                                errno = 0;
+                                dirRes = mkdir(jsliceNameA, 0777);
+                                if (dirRes != 0 && errno != EEXIST)
+                                {
+                                   char error[1024];
+                                    sprintf(error, "could not create %s directory\n", jsliceNameA);
                                     fatalErrorInFunction("sectionsInitialize", error);
                                 }
                                 else
@@ -4749,6 +4790,27 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
                                 {
                                    char error[512];
                                     sprintf(error, "could not create %s directory\n", isliceNameNut);
+                                    fatalErrorInFunction("sectionsInitialize", error);
+                                }
+                                else
+                                {
+                                    //remove_subdirs(mesh->MESH_COMM, isliceNameNut);
+                                    atLeastOneScalar++;
+                                }
+                            }
+
+                            // create AlphaWater directory in which time snapshots are saved
+                            if(flags->isAeqnActive)
+                            {
+                                char isliceNameA[512];
+                                sprintf(isliceNameA, "%s/AlphaWater", isliceName);
+
+                                errno = 0;
+                                dirRes = mkdir(isliceNameA, 0777);
+                                if (dirRes != 0 && errno != EEXIST)
+                                {
+                                   char error[1024];
+                                    sprintf(error, "could not create %s directory\n", isliceNameA);
                                     fatalErrorInFunction("sectionsInitialize", error);
                                 }
                                 else
@@ -5138,6 +5200,69 @@ PetscErrorCode sectionsInitialize(acquisition_ *acquisition)
                                 atLeastOneScalar++;
                             }
                         }
+
+                        // create nut directory in which time snapshots are saved
+                        if(flags->isLesActive)
+                        {
+                            char usersliceNameNut[260];
+                            sprintf(usersliceNameNut, "%s/nut", usersliceName);
+
+                            errno = 0;
+                            dirRes = mkdir(usersliceNameNut, 0777);
+                            if (dirRes != 0 && errno != EEXIST)
+                            {
+                                char error[512];
+                                sprintf(error, "could not create %s directory\n", usersliceNameNut);
+                                fatalErrorInFunction("sectionsInitialize", error);
+                            }
+                            else
+                            {
+                                //remove_subdirs(mesh->MESH_COMM, ksliceNameNut);
+                                atLeastOneScalar++;
+                            }
+                        }
+
+                        // create AlphaWater directory in which time snapshots are saved
+                        if(flags->isAeqnActive)
+                        {
+                            char usersliceNameA[512];
+                            sprintf(usersliceNameA, "%s/AlphaWater", usersliceName);
+
+                            errno = 0;
+                            dirRes = mkdir(usersliceNameA, 0777);
+                            if (dirRes != 0 && errno != EEXIST)
+                            {
+                                char error[1024];
+                                sprintf(error, "could not create %s directory\n", usersliceNameA);
+                                fatalErrorInFunction("sectionsInitialize", error);
+                            }
+                            else
+                            {
+                                //remove_subdirs(mesh->MESH_COMM, ksliceNameNut);
+                                atLeastOneScalar++;
+                            }
+                        }
+
+                        // create nv directory in which time snapshots are saved
+                        if(flags->isIBMActive)
+                        {
+                            char usersliceNameNv[260];
+                            sprintf(usersliceNameNv, "%s/nv", usersliceName);
+
+                            errno = 0;
+                            dirRes = mkdir(usersliceNameNv, 0777);
+                            if (dirRes != 0 && errno != EEXIST)
+                            {
+                                char error[512];
+                                sprintf(error, "could not create %s directory\n", usersliceNameNv);
+                                fatalErrorInFunction("sectionsInitialize", error);
+                            }
+                            else
+                            {
+                                //remove_subdirs(mesh->MESH_COMM, ksliceNameNut);
+                                atLeastOneScalar++;
+                            }
+                        }
                     }
 
                     if(atLeastOneVector)
@@ -5200,9 +5325,11 @@ PetscErrorCode writeSections(acquisition_ *acquisition)
         peqn_  *peqn  = acquisition->access->peqn;
         teqn_  *teqn;
         les_   *les;
+        aeqn_  *aeqn;
 
         if(flags->isTeqnActive) teqn = acquisition->access->teqn;
         if(flags->isLesActive)  les  = acquisition->access->les;
+        if(flags->isAeqnActive) aeqn = acquisition->access->aeqn;
 
         DMDALocalInfo info = mesh->info;
         PetscInt           mx = info.mx, my = info.my, mz = info.mz;
@@ -5253,6 +5380,7 @@ PetscErrorCode writeSections(acquisition_ *acquisition)
                     if(flags->isTeqnActive) iSectionSaveScalar(mesh, iSections, iplane, teqn->Tmprt, "T");
                     if(flags->isLesActive)  iSectionSaveScalar(mesh, iSections, iplane, les->lNu_t, "nut");
                     if(flags->isIBMActive)  iSectionSaveScalar(mesh, iSections, iplane, mesh->lNvert, "nv");
+                    if(flags->isAeqnActive) iSectionSaveScalar(mesh, iSections, iplane, aeqn->Alpha, "AlphaWater");
                 }
             }
         }
@@ -5300,6 +5428,7 @@ PetscErrorCode writeSections(acquisition_ *acquisition)
                     if(flags->isTeqnActive) jSectionSaveScalar(mesh, jSections, jplane, teqn->Tmprt, "T");
                     if(flags->isLesActive)  jSectionSaveScalar(mesh, jSections, jplane, les->lNu_t, "nut");
                     if(flags->isIBMActive)  jSectionSaveScalar(mesh, jSections, jplane, mesh->lNvert, "nv");
+                    if(flags->isAeqnActive) jSectionSaveScalar(mesh, jSections, jplane, aeqn->Alpha, "AlphaWater");
                 }
             }
         }
@@ -5348,6 +5477,7 @@ PetscErrorCode writeSections(acquisition_ *acquisition)
                     if(flags->isTeqnActive) kSectionSaveScalar(mesh, kSections, kplane, teqn->Tmprt, "T");
                     if(flags->isLesActive)  kSectionSaveScalar(mesh, kSections, kplane, les->lNu_t, "nut");
                     if(flags->isIBMActive)  kSectionSaveScalar(mesh, kSections, kplane, mesh->lNvert, "nv");
+                    if(flags->isAeqnActive) kSectionSaveScalar(mesh, kSections, kplane, aeqn->Alpha, "AlphaWater");
                 }
             }
         }
@@ -5390,6 +5520,9 @@ PetscErrorCode writeSections(acquisition_ *acquisition)
                     userSectionSaveScalar(mesh, uSection, peqn->lP, "p");
 
                     if(flags->isTeqnActive) userSectionSaveScalar(mesh, uSection, teqn->lTmprt, "T");
+                    if(flags->isLesActive)  userSectionSaveScalar(mesh, uSection, les->lNu_t, "nut");
+                    if(flags->isIBMActive)  userSectionSaveScalar(mesh, uSection, mesh->lNvert, "nv");
+                    if(flags->isAeqnActive) userSectionSaveScalar(mesh, uSection, aeqn->lAlpha, "AlphaWater");
                 }
             }
         }
@@ -6293,9 +6426,13 @@ PetscErrorCode ProbesInitialize(domain_ *domain, PetscInt postProcessing)
                     probes->rakes[nRakes].Uflag = foundInString(fields, "U");
                     probes->rakes[nRakes].Tflag = foundInString(fields, "T");
                     probes->rakes[nRakes].Pflag = foundInString(fields, "p");
+                    probes->rakes[nRakes].Aflag = foundInString(fields, "AlphaWater");
 
                     // set T flag to zero if T equation is not active
                     if(!flags->isTeqnActive) probes->rakes[nRakes].Tflag = 0;
+
+                    // set AlphaWater flag to zero if water equation is not active
+                    if(!flags->isAeqnActive) probes->rakes[nRakes].Aflag = 0;
 
                     readError = fscanf(f, "\n");
                     readError = fscanf(f, "%s\n", tmp);
@@ -6609,6 +6746,9 @@ PetscErrorCode ProbesInitialize(domain_ *domain, PetscInt postProcessing)
                             // initialize temperature file
                             if(probes->rakes[r].Tflag) InitRakeFile(&(probes->rakes[r]), "T");
 
+                            // initialize alpha water file
+                            if(probes->rakes[r].Aflag) InitRakeFile(&(probes->rakes[r]), "AlphaWater");
+
                             // initialize pressure file
                             if(probes->rakes[r].Pflag) InitRakeFile(&(probes->rakes[r]), "p");
                         }
@@ -6641,6 +6781,14 @@ PetscErrorCode ProbesInitialize(domain_ *domain, PetscInt postProcessing)
                     else
                     {
                         PetscPrintf(probes->rakes[r].RAKE_COMM, "   get T                                : no\n");
+                    }
+                    if(probes->rakes[r].Aflag)
+                    {
+                        PetscPrintf(probes->rakes[r].RAKE_COMM, "   get AlphaWater                       : yes\n");
+                    }
+                    else
+                    {
+                        PetscPrintf(probes->rakes[r].RAKE_COMM, "   get AlphaWater                       : no\n");
                     }
                     if(probes->rakes[r].Pflag)
                     {
@@ -6798,6 +6946,10 @@ PetscErrorCode writeProbes(domain_ *domain)
                     std::vector<PetscReal> lprobeValuesT;
                     std::vector<PetscReal> gprobeValuesT;
 
+                    // initialize local vectors 
+                    std::vector<PetscReal> lprobeValuesA;
+                    std::vector<PetscReal> gprobeValuesA;
+
                     // initialize local vectors
                     std::vector<PetscReal> lprobeValuesP;
                     std::vector<PetscReal> gprobeValuesP;
@@ -6812,6 +6964,12 @@ PetscErrorCode writeProbes(domain_ *domain)
                     {
                         lprobeValuesT.resize(rake->probesNumber);
                         gprobeValuesT.resize(rake->probesNumber);
+                    }
+
+                    if(rake->Aflag)
+                    {
+                        lprobeValuesA.resize(rake->probesNumber);
+                        gprobeValuesA.resize(rake->probesNumber);
                     }
 
                     if(rake->Pflag)
@@ -6834,12 +6992,16 @@ PetscErrorCode writeProbes(domain_ *domain)
                             PetscInt           i, j, k;
                             PetscInt           lxs, lxe, lys, lye, lzs, lze;
 
+                            Cmpnts             ***cent, point;
+
                             lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
                             lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
                             lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
 
                             PetscMPIInt meshRank;
                             MPI_Comm_rank(mesh->MESH_COMM, &meshRank);
+
+                            DMDAVecGetArray(mesh->fda, mesh->lCent, &cent);
 
                             if(rake->Uflag)
                             {
@@ -6855,9 +7017,25 @@ PetscErrorCode writeProbes(domain_ *domain)
                                     k = rake->cells[p][0];
                                     j = rake->cells[p][1];
                                     i = rake->cells[p][2];
-                                    lprobeValuesU[p].x = ucat[k][j][i].x;
-                                    lprobeValuesU[p].y = ucat[k][j][i].y;
-                                    lprobeValuesU[p].z = ucat[k][j][i].z;
+
+                                    point.x = rake->locations[p][0];
+                                    point.y = rake->locations[p][1];
+                                    point.z = rake->locations[p][2];
+
+                                    Cmpnts ucat_p;
+
+                                    // trilinear interpolate
+                                    vectorPointLocalVolumeInterpolation
+                                    (
+                                        mesh,
+                                        point.x, point.y, point.z,
+                                        i, j, k,
+                                        cent, ucat, ucat_p
+                                    );
+
+                                    lprobeValuesU[p].x = ucat_p.x;
+                                    lprobeValuesU[p].y = ucat_p.y;
+                                    lprobeValuesU[p].z = ucat_p.z;
                                 }
 
                                 DMDAVecRestoreArray(mesh->fda, ueqn->lUcat, &ucat);
@@ -6877,10 +7055,62 @@ PetscErrorCode writeProbes(domain_ *domain)
                                     k = rake->cells[p][0];
                                     j = rake->cells[p][1];
                                     i = rake->cells[p][2];
-                                    lprobeValuesT[p] = t[k][j][i];
+
+                                    point.x = rake->locations[p][0];
+                                    point.y = rake->locations[p][1];
+                                    point.z = rake->locations[p][2];
+
+                                    PetscReal t_p;
+
+                                    // trilinear interpolate
+                                    scalarPointLocalVolumeInterpolation
+                                    (
+                                        mesh,
+                                        point.x, point.y, point.z,
+                                        i, j, k,
+                                        cent, t, t_p
+                                    );
+
+                                    lprobeValuesT[p] = t_p;
                                 }
 
                                 DMDAVecRestoreArray(mesh->da, teqn->lTmprt, &t);
+                            }
+
+                            if(rake->Aflag)
+                            {
+                                PetscReal ***a;
+
+                                // get u equation
+                                aeqn_ *aeqn = domain[rake->domainID[p]].aeqn;
+
+                                DMDAVecGetArray(mesh->da, aeqn->lAlpha, &a);
+
+                                if(meshRank == rake->owner[p])
+                                {
+                                    k = rake->cells[p][0];
+                                    j = rake->cells[p][1];
+                                    i = rake->cells[p][2];
+
+                                    point.x = rake->locations[p][0];
+                                    point.y = rake->locations[p][1];
+                                    point.z = rake->locations[p][2];
+
+                                    PetscReal a_p;
+
+                                    // trilinear interpolate
+                                    scalarPointLocalVolumeInterpolation
+                                    (
+                                        mesh,
+                                        point.x, point.y, point.z,
+                                        i, j, k,
+                                        cent, a, a_p
+                                    );
+
+                                    lprobeValuesA[p] = a_p;
+                                }
+
+                                DMDAVecRestoreArray(mesh->da, aeqn->lAlpha, &a);
                             }
 
                             if(rake->Pflag)
@@ -6897,11 +7127,29 @@ PetscErrorCode writeProbes(domain_ *domain)
                                     k = rake->cells[p][0];
                                     j = rake->cells[p][1];
                                     i = rake->cells[p][2];
-                                    lprobeValuesP[p] = lp[k][j][i];
+
+                                    point.x = rake->locations[p][0];
+                                    point.y = rake->locations[p][1];
+                                    point.z = rake->locations[p][2];
+
+                                    PetscReal p_p;
+
+                                    // trilinear interpolate
+                                    scalarPointLocalVolumeInterpolation
+                                    (
+                                        mesh,
+                                        point.x, point.y, point.z,
+                                        i, j, k,
+                                        cent, lp, p_p
+                                    );
+
+                                    lprobeValuesP[p] = p_p;
                                 }
 
                                 DMDAVecRestoreArray(mesh->da, peqn->lP, &lp);
                             }
+
+                            DMDAVecRestoreArray(mesh->fda, mesh->lCent, &cent);
                         }
                     }
 
@@ -6955,6 +7203,31 @@ PetscErrorCode writeProbes(domain_ *domain)
                         }
                     }
 
+                    if(rake->Aflag)
+                    {
+                        MPI_Reduce(&lprobeValuesA[0], &gprobeValuesA[0], rake->probesNumber, MPIU_REAL, MPIU_SUM, 0, rake->RAKE_COMM);
+
+                        // only master process writes on the file
+                        if(!rakeRank)
+                        {
+                            // write velocity
+                            FILE *ft;
+                            word fileName = rake->timeName + "/AlphaWater";
+                            ft = fopen(fileName.c_str(), "a");
+
+                            fprintf(ft, "\t %.3lf\t\t\t\t\t\t", clock->time);
+                            for(p=0; p<rake->probesNumber; p++)
+                            {
+                                if(rake->domainID[p] != -1)
+                                {
+                                    fprintf(ft, "%.10lf\t\t", gprobeValuesA[p]);
+                                }
+                            }
+                            fprintf(ft, "\n");
+                            fclose(ft);
+                        }
+                    }
+
                     if(rake->Pflag)
                     {
                         MPI_Reduce(&lprobeValuesP[0], &gprobeValuesP[0], rake->probesNumber, MPIU_REAL, MPIU_SUM, 0, rake->RAKE_COMM);
@@ -6985,6 +7258,9 @@ PetscErrorCode writeProbes(domain_ *domain)
 
                     std::vector<PetscReal> ().swap(lprobeValuesT);
                     std::vector<PetscReal> ().swap(gprobeValuesT);
+
+                    std::vector<PetscReal> ().swap(lprobeValuesA);
+                    std::vector<PetscReal> ().swap(gprobeValuesA);
 
                     std::vector<PetscReal> ().swap(lprobeValuesP);
                     std::vector<PetscReal> ().swap(gprobeValuesP);

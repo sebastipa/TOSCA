@@ -9581,6 +9581,7 @@ PetscErrorCode sectionsReadAndAllocate(domain_ *domain)
                 if(flags.isTeqnActive) atLeastOneScalar++;
                 if(flags.isAeqnActive) atLeastOneScalar++;
                 if(flags.isLesActive)  atLeastOneScalar++;
+                if(flags.isAeqnActive) atLeastOneScalar++;
                 if(acquisition->isPerturbABLActive) {atLeastOneScalar++; atLeastOneVector++;}
                 if(io->averaging || io->phaseAveraging) atLeastOneSymmTensor++;
 
@@ -9770,6 +9771,7 @@ PetscErrorCode sectionsReadAndAllocate(domain_ *domain)
                 if(flags.isTeqnActive) atLeastOneScalar++;
                 if(flags.isAeqnActive) atLeastOneScalar++;
                 if(flags.isLesActive)  atLeastOneScalar++;
+                if(flags.isAeqnActive) atLeastOneScalar++;
                 if(acquisition->isPerturbABLActive) {atLeastOneScalar++; atLeastOneVector++;}
                 if(io->averaging || io->phaseAveraging) atLeastOneSymmTensor++;
 
@@ -9958,6 +9960,7 @@ PetscErrorCode sectionsReadAndAllocate(domain_ *domain)
                 if(flags.isTeqnActive) atLeastOneScalar++;
                 if(flags.isAeqnActive) atLeastOneScalar++;
                 if(flags.isLesActive)  atLeastOneScalar++;
+                if(flags.isAeqnActive) atLeastOneScalar++;
                 if(acquisition->isPerturbABLActive) {atLeastOneScalar++; atLeastOneVector++;}
                 if(io->averaging || io->phaseAveraging) atLeastOneSymmTensor++;
 
@@ -10220,6 +10223,7 @@ PetscErrorCode sectionsReadAndAllocate(domain_ *domain)
                     if(flags.isTeqnActive) atLeastOneScalar++;
                     if(flags.isAeqnActive) atLeastOneScalar++;
                     if(flags.isLesActive)  atLeastOneScalar++;
+                    if(flags.isAeqnActive) atLeastOneScalar++;
                     if(acquisition->isPerturbABLActive) {atLeastOneScalar++; atLeastOneVector++;}
 
                     if(atLeastOneVector)
