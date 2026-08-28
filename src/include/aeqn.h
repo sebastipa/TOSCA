@@ -22,9 +22,12 @@ struct aeqn_
 
     Vec           AlphaTmp;                   //!< temporary solution
     Vec           Alpha, lAlpha,              //!< volume fraction fields
-                  Alpha_o, Alpha_oo; 
+                  Alpha_o, Alpha_oo;
+    
+    Vec           lGradAlpha, lAlphaSmooth;   //!< fields required for compression term and acquisition
 
     Vec           lDivA;                      //!< combined face fluxes
+    Vec           lDivMean;                  //!< mean face fluxes within the time step
     Vec           lDivALO;                    //!< low-order (upwind) face fluxes
     Vec           lDivAHO;                    //!< high-order (central4) face fluxes
     Vec           lDivACor;                   //!< correction face fluxes: lDivAHO - lDivA
@@ -37,6 +40,7 @@ struct aeqn_
     Vec           lRho;                       //!< density at cell centers (for multiphase flows)
     Vec           lRhoFace;                   //!< density at faces (for multiphase flows)
     Vec           lRhoFace_o;                 //!< density at faces at previous time step (for multiphase flows)
+    Vec           lRhoFaceStage;              //!< density at faces at current RK stage (for multiphase flows)
 
     PetscInt      nAlphaSubCycles;            //!< number of alpha sub-cycling steps (default 3)
     PetscReal     compCoeff;                  //!< numerical compression term coefficient

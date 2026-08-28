@@ -73,11 +73,15 @@ int main(int argc, char **argv)
 
             // **** SOLVE ALPHA-WATER EQUATION ****
             if(flags.isAeqnActive)
-            {
+            {                
                 // Note: velocity BCs are not updated yet otherwise they would break continuity
+                // (apart from IBM)
 
                 // IBM interpolation for alpha should go here with the old positions. If not possible
                 // we must move alpha equation after momentum (might think about it when is the moment)
+
+                // set the mean divergence flux to zero at the beginning of each time step
+                VecSet(domain[d].aeqn->lDivMean, 0.0);
                 
                 // update alpha water BCs
                 UpdateAlphaWaterBCs(domain[d].aeqn);
@@ -110,6 +114,9 @@ int main(int argc, char **argv)
                 // restore original timestep
                 domain[d].clock->dt = dtOriginal;
 
+                // update alpha water BCs to have perfect consistency
+                UpdateAlphaWaterBCs(domain[d].aeqn);
+
                 // bound alpha water between 0 and 1 and print min max of alpha water for logging
                 PetscReal alphaMinPre; VecMin(domain[d].aeqn->Alpha, NULL, &alphaMinPre); 
                 PetscReal alphaMaxPre; VecMax(domain[d].aeqn->Alpha, NULL, &alphaMaxPre);
@@ -122,7 +129,7 @@ int main(int argc, char **argv)
                 // save old time step density before updating rho
                 VecCopy(domain[d].aeqn->lRhoFace, domain[d].aeqn->lRhoFace_o);
 
-                // update rho 
+                // update rho at current step
                 UpdateRho(domain[d].aeqn);
 
                 // compute density gradient
@@ -131,17 +138,17 @@ int main(int argc, char **argv)
 
             // **** SOLVE MOMENTUM EQUATION ****
             {
-                // update cartesian BC
-                UpdateCartesianBCs(domain[d].ueqn);
-
-                // update contravariant BC
-                UpdateContravariantBCs(domain[d].ueqn);
-
                 // update the IBM position and interpolate based on new positions
                 if(flags.isIBMActive)
                 {
                     UpdateIBM(domain[d].ibm);
                 }
+
+                // update cartesian BC
+                UpdateCartesianBCs(domain[d].ueqn);
+
+                // update contravariant BC
+                UpdateContravariantBCs(domain[d].ueqn);
 
                 // perform overset interpolation
                 if(flags.isOversetActive)
