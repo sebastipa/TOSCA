@@ -3148,9 +3148,10 @@ PetscErrorCode sourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 }
 
 //***************************************************************************************************************//
+
 PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 {
-    abl_          *abl  = ueqn->access->abl;
+    abl_          *abl;
     aeqn_         *aeqn;
     mesh_         *mesh = ueqn->access->mesh;
     DM            da   = mesh->da, fda = mesh->fda;
@@ -3171,45 +3172,83 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
     PetscReal     rho_fi, rho_fj, rho_fk;
 
-    precursor_    *precursor;
-    domain_       *pdomain;
-    PetscInt      kStart, kEnd;
-	PetscReal     advDampH = ueqn->access->abl->hInv - 0.5*ueqn->access->abl->dInv;
-
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
 
-    DMDAVecGetArray(fda, mesh->lICsi,  &icsi);
-    DMDAVecGetArray(fda, mesh->lJEta,  &jeta);
-    DMDAVecGetArray(fda, mesh->lKZet,  &kzet);
+    // abl related variables
+    precursor_    *precursor;
+    domain_       *pdomain;
+    PetscInt       kStart, kEnd;
+	PetscReal      advDampH; 
 
-    DMDAVecGetArray(fda, mesh->lCent,  &cent);
-    DMDAVecGetArray(fda, ueqn->lUcat,  &ucat);
-    DMDAVecGetArray(fda, ueqn->lUcont, &ucont);
-    DMDAVecGetArray(fda, Rhs,  &rhs);
+    // z damping layer
+    PetscReal alphaZ, zS, zE;
 
-    if(ueqn->access->flags->isXDampingActive)
+    // y damping layer
+    PetscReal alphaY, yS, yE, yD;
+    
+    // x damping layer
+    PetscReal alphaX, xS, xE, xD;
+
+    // see if the inflow is of spread type
+	PetscInt isInflowSpreadType = 0;
+    
+    if(ueqn->access->flags->isAblActive)
     {
-        if(abl->xFringeUBarSelectionType == 3)
-        {
-            precursor = abl->precursor;
-            pdomain   = precursor->domain;
+        abl      = ueqn->access->abl;
+        advDampH = ueqn->access->abl->hInv - 0.5*ueqn->access->abl->dInv;
 
-            if(precursor->thisProcessorInFringe)
+        if
+        (
+            abl->xFringeUBarSelectionType == 0 ||
+            abl->xFringeUBarSelectionType == 1 ||
+            abl->xFringeUBarSelectionType == 2 ||
+            abl->xFringeUBarSelectionType == 4
+        )
+        {
+            isInflowSpreadType = 1;
+        }
+
+        // z damping layer
+        alphaZ = abl->zDampingAlpha;
+        zS     = abl->zDampingStart;
+        zE     = abl->zDampingEnd;
+
+        // y damping layer
+        alphaY = abl->yDampingAlpha;
+        yS     = abl->yDampingStart;
+        yE     = abl->yDampingEnd;
+        yD     = abl->yDampingDelta;
+
+        // x damping layer
+        alphaX = abl->xDampingAlpha;
+        xS     = abl->xDampingStart;
+        xE     = abl->xDampingEnd;
+        xD     = abl->xDampingDelta;
+
+        if(ueqn->access->flags->isXDampingActive)
+        {
+            if(abl->xFringeUBarSelectionType == 3)
             {
-                DMDAVecGetArray(pdomain->mesh->fda, pdomain->ueqn->lUcont,  &ucontP);
-                kStart = precursor->map.kStart;
-                kEnd   = precursor->map.kEnd;
+                precursor = abl->precursor;
+                pdomain   = precursor->domain;
+
+                if(precursor->thisProcessorInFringe)
+                {
+                    DMDAVecGetArray(pdomain->mesh->fda, pdomain->ueqn->lUcont,  &ucontP);
+                    kStart = precursor->map.kStart;
+                    kEnd   = precursor->map.kEnd;
+                }
             }
         }
-    }
 
-    if(ueqn->access->flags->isYDampingActive)
-    {
-        if(abl->xFringeUBarSelectionType == 3)
+        if(ueqn->access->flags->isYDampingActive)
         {
-            DMDAVecGetArray(fda, abl->uBarInstY, &uBarY);
+            if(abl->xFringeUBarSelectionType == 3)
+            {
+                DMDAVecGetArray(fda, abl->uBarInstY, &uBarY);
+            }
         }
     }
 
@@ -3221,23 +3260,14 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
         DMDAVecGetArray(fda, aeqn->lRhoFace, &rhoFace);
     }
 
-    // z damping layer
-    PetscReal alphaZ = abl->zDampingAlpha;
-    PetscReal zS     = abl->zDampingStart;
-    PetscReal zE     = abl->zDampingEnd;
+    DMDAVecGetArray(fda, mesh->lICsi,  &icsi);
+    DMDAVecGetArray(fda, mesh->lJEta,  &jeta);
+    DMDAVecGetArray(fda, mesh->lKZet,  &kzet);
 
-    // y damping layer
-    PetscReal alphaY = abl->yDampingAlpha;
-    PetscReal yS     = abl->yDampingStart;
-    PetscReal yE     = abl->yDampingEnd;
-    PetscReal yD     = abl->yDampingDelta;
-    
-
-    // x damping layer
-    PetscReal alphaX = abl->xDampingAlpha;
-    PetscReal xS     = abl->xDampingStart;
-    PetscReal xE     = abl->xDampingEnd;
-    PetscReal xD     = abl->xDampingDelta;
+    DMDAVecGetArray(fda, mesh->lCent,  &cent);
+    DMDAVecGetArray(fda, ueqn->lUcat,  &ucat);
+    DMDAVecGetArray(fda, ueqn->lUcont, &ucont);
+    DMDAVecGetArray(fda, Rhs,  &rhs);
 
     // cell center coordinates
     PetscReal x, xi, xj, xk;
@@ -3262,20 +3292,6 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     PetscReal nudJ = 1.0;
     PetscReal nudK = 1.0;
 
-	// see if the inflow is of spread type
-	PetscInt isInflowSpreadType = 0;
-
-	if
-	(
-		abl->xFringeUBarSelectionType == 0 ||
-		abl->xFringeUBarSelectionType == 1 ||
-		abl->xFringeUBarSelectionType == 2 ||
-		abl->xFringeUBarSelectionType == 4
-	)
-	{
-		isInflowSpreadType = 1;
-	}
-
     // loop over internal cell faces - include right boundary faces which will be periodic
     // at the beginning. Then they will be zeroed if applicable when building the SNES rhs.
     for (k=lzs; k<lze; k++)
@@ -3289,382 +3305,385 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                 rho_fj = multiphase ? rhoFace[k][j][i].y : 1.0;
                 rho_fk = multiphase ? rhoFace[k][j][i].z : 1.0;
 
-                // x damping layer
-                if(ueqn->access->flags->isXDampingActive)
+                if(ueqn->access->flags->isAblActive)
                 {
-                    // compute cell center x at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
-                    x     = cent[k][j][i].x;
-                    xi    = cent[k][j][i+1].x;
-                    xj    = cent[k][j+1][i].x;
-                    xk    = cent[k+1][j][i].x;
-
-                    // compute Nordstrom viscosity at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
-                    nud_x   = viscNordstrom(alphaX, xS, xE, xD, x);
-                    nudi_x  = viscNordstrom(alphaX, xS, xE, xD, xi);
-                    nudj_x  = viscNordstrom(alphaX, xS, xE, xD, xj);
-                    nudk_x  = viscNordstrom(alphaX, xS, xE, xD, xk);
-
-                    // compute Stipa viscosity at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
-                    nud_x_s    = viscStipa(xS, xE, xD, x,  z , advDampH);
-                    nudi_x_s   = viscStipa(xS, xE, xD, xi, zi, advDampH);
-                    nudj_x_s   = viscStipa(xS, xE, xD, xj, zj, advDampH);
-                    nudk_x_s   = viscStipa(xS, xE, xD, xk, zk, advDampH);
-
-                    // interpolate Stipa viscosity at cell faces
-                    nudI       = central(nud_x_s, nudi_x_s);
-                    nudJ       = central(nud_x_s, nudj_x_s);
-                    nudK       = central(nud_x_s, nudk_x_s);
-
-                    // X DAMPING LAYER
-                    // ---------------
-
-                    if(isInflowSpreadType)
+                    // x damping layer
+                    if(ueqn->access->flags->isXDampingActive)
                     {
-                        Cmpnts uBarInstX  = nSet(abl->uBarInstX[j][i]);
-                        Cmpnts uBarInstXi = nSet(abl->uBarInstX[j][i+1]);
-                        Cmpnts uBarInstXj = nSet(abl->uBarInstX[j+1][i]);
+                        // compute cell center x at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
+                        x     = cent[k][j][i].x;
+                        xi    = cent[k][j][i+1].x;
+                        xj    = cent[k][j+1][i].x;
+                        xk    = cent[k+1][j][i].x;
 
-                        // i-fluxes
-                        rhs[k][j][i].x
-                        +=
-                        scale * central(nud_x, nudi_x) * rho_fi *
-                        (
-                            (
-                                (central(uBarInstX.x, uBarInstXi.x) - central(ucat[k][j][i].x, ucat[k][j][i+1].x)) * icsi[k][j][i].x +
-                                (central(uBarInstX.y, uBarInstXi.y) - central(ucat[k][j][i].y, ucat[k][j][i+1].y)) * icsi[k][j][i].y +
-                                (central(uBarInstX.z, uBarInstXi.z) - central(ucat[k][j][i].z, ucat[k][j][i+1].z)) * icsi[k][j][i].z
-                            )
-                        );
+                        // compute Nordstrom viscosity at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
+                        nud_x   = viscNordstrom(alphaX, xS, xE, xD, x);
+                        nudi_x  = viscNordstrom(alphaX, xS, xE, xD, xi);
+                        nudj_x  = viscNordstrom(alphaX, xS, xE, xD, xj);
+                        nudk_x  = viscNordstrom(alphaX, xS, xE, xD, xk);
 
-                        // j-fluxes
-                        rhs[k][j][i].y
-                        +=
-                        scale * central(nud_x, nudj_x) * rho_fj *
-                        (
-                            (
-                                (central(uBarInstX.x, uBarInstXj.x) - central(ucat[k][j][i].x, ucat[k][j+1][i].x)) * jeta[k][j][i].x +
-                                (central(uBarInstX.y, uBarInstXj.y) - central(ucat[k][j][i].y, ucat[k][j+1][i].y)) * jeta[k][j][i].y +
-                                (central(uBarInstX.z, uBarInstXj.z) - central(ucat[k][j][i].z, ucat[k][j+1][i].z)) * jeta[k][j][i].z
-                            )
-                        );
+                        // compute Stipa viscosity at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
+                        nud_x_s    = viscStipa(xS, xE, xD, x,  z , advDampH);
+                        nudi_x_s   = viscStipa(xS, xE, xD, xi, zi, advDampH);
+                        nudj_x_s   = viscStipa(xS, xE, xD, xj, zj, advDampH);
+                        nudk_x_s   = viscStipa(xS, xE, xD, xk, zk, advDampH);
 
-                        // k-fluxes
-                        rhs[k][j][i].z
-                        +=
-                        scale * central(nud_x, nudk_x) * rho_fk *
-                        (
-                            (
-                                (uBarInstX.x - central(ucat[k][j][i].x, ucat[k+1][j][i].x)) * kzet[k][j][i].x +
-                                (uBarInstX.y - central(ucat[k][j][i].y, ucat[k+1][j][i].y)) * kzet[k][j][i].y +
-                                (uBarInstX.z - central(ucat[k][j][i].z, ucat[k+1][j][i].z)) * kzet[k][j][i].z
-                            )
-                        );
-                    }
-					// concurrent precursor
-                    else
-                    {
-                        PetscReal uBarContK;
-                        PetscReal uBarContJ;
-                        PetscReal uBarContI;
+                        // interpolate Stipa viscosity at cell faces
+                        nudI       = central(nud_x_s, nudi_x_s);
+                        nudJ       = central(nud_x_s, nudj_x_s);
+                        nudK       = central(nud_x_s, nudk_x_s);
 
-                        // note: here we can use contravariant fluxes since uBar is defined at every point
+                        // X DAMPING LAYER
+                        // ---------------
 
-                        if
-                        (
-                            precursor->thisProcessorInFringe && // is this processor in the fringe?
-                            k >= kStart && k <= kEnd            // is this face in the fringe?
-
-                        )
+                        if(isInflowSpreadType)
                         {
-                            uBarContI = ucontP[k-kStart][j][i].x;
-                            uBarContJ = ucontP[k-kStart][j][i].y;
-                            uBarContK = ucontP[k-kStart][j][i].z;
+                            Cmpnts uBarInstX  = nSet(abl->uBarInstX[j][i]);
+                            Cmpnts uBarInstXi = nSet(abl->uBarInstX[j][i+1]);
+                            Cmpnts uBarInstXj = nSet(abl->uBarInstX[j+1][i]);
+
+                            // i-fluxes
+                            rhs[k][j][i].x
+                            +=
+                            scale * central(nud_x, nudi_x) * rho_fi *
+                            (
+                                (
+                                    (central(uBarInstX.x, uBarInstXi.x) - central(ucat[k][j][i].x, ucat[k][j][i+1].x)) * icsi[k][j][i].x +
+                                    (central(uBarInstX.y, uBarInstXi.y) - central(ucat[k][j][i].y, ucat[k][j][i+1].y)) * icsi[k][j][i].y +
+                                    (central(uBarInstX.z, uBarInstXi.z) - central(ucat[k][j][i].z, ucat[k][j][i+1].z)) * icsi[k][j][i].z
+                                )
+                            );
+
+                            // j-fluxes
+                            rhs[k][j][i].y
+                            +=
+                            scale * central(nud_x, nudj_x) * rho_fj *
+                            (
+                                (
+                                    (central(uBarInstX.x, uBarInstXj.x) - central(ucat[k][j][i].x, ucat[k][j+1][i].x)) * jeta[k][j][i].x +
+                                    (central(uBarInstX.y, uBarInstXj.y) - central(ucat[k][j][i].y, ucat[k][j+1][i].y)) * jeta[k][j][i].y +
+                                    (central(uBarInstX.z, uBarInstXj.z) - central(ucat[k][j][i].z, ucat[k][j+1][i].z)) * jeta[k][j][i].z
+                                )
+                            );
+
+                            // k-fluxes
+                            rhs[k][j][i].z
+                            +=
+                            scale * central(nud_x, nudk_x) * rho_fk *
+                            (
+                                (
+                                    (uBarInstX.x - central(ucat[k][j][i].x, ucat[k+1][j][i].x)) * kzet[k][j][i].x +
+                                    (uBarInstX.y - central(ucat[k][j][i].y, ucat[k+1][j][i].y)) * kzet[k][j][i].y +
+                                    (uBarInstX.z - central(ucat[k][j][i].z, ucat[k+1][j][i].z)) * kzet[k][j][i].z
+                                )
+                            );
+                        }
+                        // concurrent precursor
+                        else
+                        {
+                            PetscReal uBarContK;
+                            PetscReal uBarContJ;
+                            PetscReal uBarContI;
+
+                            // note: here we can use contravariant fluxes since uBar is defined at every point
+
+                            if
+                            (
+                                precursor->thisProcessorInFringe && // is this processor in the fringe?
+                                k >= kStart && k <= kEnd            // is this face in the fringe?
+
+                            )
+                            {
+                                uBarContI = ucontP[k-kStart][j][i].x;
+                                uBarContJ = ucontP[k-kStart][j][i].y;
+                                uBarContK = ucontP[k-kStart][j][i].z;
+                            }
+                            else
+                            {
+                                uBarContI = ucont[k][j][i].x;
+                                uBarContJ = ucont[k][j][i].y;
+                                uBarContK = ucont[k][j][i].z;
+                            }
+
+                            // i-fluxes
+                            rhs[k][j][i].x
+                            +=
+                            scale * central(nud_x, nudi_x) * rho_fi *
+                            (
+                                uBarContI - ucont[k][j][i].x
+                            );
+
+                            // j-fluxes
+                            rhs[k][j][i].y
+                            +=
+                            scale * central(nud_x, nudj_x) * rho_fj *
+                            (
+                                uBarContJ - ucont[k][j][i].y
+                            );
+
+                            // k-fluxes
+                            rhs[k][j][i].z
+                            +=
+                            scale * central(nud_x, nudk_x) * rho_fk *
+                            (
+                                uBarContK - ucont[k][j][i].z
+                            );
+                        }
+                    }
+
+                    // y damping layer
+                    if(ueqn->access->flags->isYDampingActive)
+                    {
+                        // compute cell center y at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
+                        y     = cent[k][j][i].y;
+                        yi    = cent[k][j][i+1].y;
+                        yj    = cent[k][j+1][i].y;
+                        yk    = cent[k+1][j][i].y;
+
+                        x     = cent[k][j][i].x;
+                        xi    = cent[k][j][i+1].x;
+                        xj    = cent[k][j+1][i].x;
+                        xk    = cent[k+1][j][i].x;
+
+                        // compute Nordstrom viscosity at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
+                        nud_y   = viscNordstrom(alphaY, yS, yE, yD, y);
+                        nudi_y  = viscNordstrom(alphaY, yS, yE, yD, yi);
+                        nudj_y  = viscNordstrom(alphaY, yS, yE, yD, yj);
+                        nudk_y  = viscNordstrom(alphaY, yS, yE, yD, yk);
+
+                        //scaling factor to ensure that there is no lateral fringe region in the streamfringe region domain.
+                        fAsc_x  = viscNordstromNoVertFilter(xS, xE, xD, x);
+                        fAsc_xi = viscNordstromNoVertFilter(xS, xE, xD, xi);
+                        fAsc_xj = viscNordstromNoVertFilter(xS, xE, xD, xj);
+                        fAsc_xk = viscNordstromNoVertFilter(xS, xE, xD, xk);
+
+                        if(isInflowSpreadType)
+                        {
+                            //lateral damping not defined
                         }
                         else
                         {
-                            uBarContI = ucont[k][j][i].x;
-                            uBarContJ = ucont[k][j][i].y;
-                            uBarContK = ucont[k][j][i].z;
+                            PetscReal uBarContK;
+                            PetscReal uBarContJ;
+                            PetscReal uBarContI;
+
+                            uBarContI = central(uBarY[k][j][i].x, uBarY[k][j][i+1].x) * icsi[k][j][i].x + central(uBarY[k][j][i].y, uBarY[k][j][i+1].y) * icsi[k][j][i].y + central(uBarY[k][j][i].z, uBarY[k][j][i+1].z) * icsi[k][j][i].z;
+                            uBarContJ = central(uBarY[k][j][i].x, uBarY[k][j+1][i].x) * jeta[k][j][i].x + central(uBarY[k][j][i].y, uBarY[k][j+1][i].y) * jeta[k][j][i].y + central(uBarY[k][j][i].z, uBarY[k][j+1][i].z) * jeta[k][j][i].z;
+                            uBarContK = central(uBarY[k][j][i].x, uBarY[k+1][j][i].x) * kzet[k][j][i].x + central(uBarY[k][j][i].y, uBarY[k+1][j][i].y) * kzet[k][j][i].y + central(uBarY[k][j][i].z, uBarY[k+1][j][i].z) * kzet[k][j][i].z;
+
+                            // i-fluxes
+                            rhs[k][j][i].x
+                            +=
+                            scale * rho_fi * central(nud_y, nudi_y) * central(fAsc_x, fAsc_xi) * 
+                            (
+                                uBarContI - ucont[k][j][i].x
+                            );
+
+                            // j-fluxes
+                            rhs[k][j][i].y
+                            +=
+                            scale * rho_fj * central(nud_y, nudj_y) * central(fAsc_x, fAsc_xj) * 
+                            (
+                                uBarContJ - ucont[k][j][i].y
+                            );
+
+                            // k-fluxes
+                            rhs[k][j][i].z
+                            +=
+                            scale * rho_fk * central(nud_y, nudk_y) * central(fAsc_x, fAsc_xk) *
+                            (
+                                uBarContK - ucont[k][j][i].z
+                            );
+                        }
+                    }
+
+                    // z damping layer
+                    if(ueqn->access->flags->isZDampingActive)
+                    {
+                        // compute cell center z at i,j,k and i,j+1,k points
+                        z     = (cent[k][j][i].z   - mesh->grndLevel);
+                        zj    = (cent[k][j+1][i].z - mesh->grndLevel);
+
+                        // compute Rayleigh viscosity at i,j,k and i,j+1,k points
+                        nud_z   = viscRayleigh(alphaZ, zS, zE, z);
+                        nudj_z  = viscRayleigh(alphaZ, zS, zE, zj);
+
+                        // damp also x and y components (exclude in xFringe if present)
+                        if(abl->zDampingAlsoXY)
+                        {
+                            // compute cell center z at i+1,j,k and i,j,k+1 points
+                            zi    = (cent[k][j][i+1].z - mesh->grndLevel);
+                            zk    = (cent[k+1][j][i].z - mesh->grndLevel);
+
+                            // compute Rayleigh viscosity at i+1,j,k and i,j,k+1 points
+                            nudi_z  = viscRayleigh(alphaZ, zS, zE, zi);
+                            nudk_z  = viscRayleigh(alphaZ, zS, zE, zk);
+
+                            // i-fluxes: dampen w.r.t. uBarMean
+                            rhs[k][j][i].x
+                            +=
+                            scale * rho_fi * central(nud_z, nudi_z) * nudI *
+                            (
+                                (
+                                    (abl->uBarMeanZ[j].x - central(ucat[k][j][i].x, ucat[k][j][i+1].x)) * icsi[k][j][i].x +
+                                    (abl->uBarMeanZ[j].y - central(ucat[k][j][i].y, ucat[k][j][i+1].y)) * icsi[k][j][i].y +
+                                    (abl->uBarMeanZ[j].z - central(ucat[k][j][i].z, ucat[k][j][i+1].z)) * icsi[k][j][i].z
+                                )
+                            );
+
+                            // k-fluxes: dampen w.r.t. uBarMean
+                            rhs[k][j][i].z
+                            +=
+                            scale * rho_fk * central(nud_z, nudk_z) * nudK *
+                            (
+                                (
+                                    (abl->uBarMeanZ[j].x - central(ucat[k][j][i].x, ucat[k+1][j][i].x)) * kzet[k][j][i].x +
+                                    (abl->uBarMeanZ[j].y - central(ucat[k][j][i].y, ucat[k+1][j][i].y)) * kzet[k][j][i].y +
+                                    (abl->uBarMeanZ[j].z - central(ucat[k][j][i].z, ucat[k+1][j][i].z)) * kzet[k][j][i].z
+                                )
+                            );
                         }
 
-                        // i-fluxes
-                        rhs[k][j][i].x
-                        +=
-                        scale * central(nud_x, nudi_x) * rho_fi *
-                        (
-                            uBarContI - ucont[k][j][i].x
-                        );
-
-                        // j-fluxes
+                        // j-fluxes: total damping to reach no penetration at jRight (damp also in xFringe if present)
                         rhs[k][j][i].y
                         +=
-                        scale * central(nud_x, nudj_x) * rho_fj *
+                        -1.0 * scale * rho_fj * central(nud_z, nudj_z) *
                         (
-                            uBarContJ - ucont[k][j][i].y
-                        );
-
-                        // k-fluxes
-                        rhs[k][j][i].z
-                        +=
-                        scale * central(nud_x, nudk_x) * rho_fk *
-                        (
-                            uBarContK - ucont[k][j][i].z
+                            central(ucat[k][j][i].x, ucat[k][j+1][i].x) * jeta[k][j][i].x +
+                            central(ucat[k][j][i].y, ucat[k][j+1][i].y) * jeta[k][j][i].y +
+                            central(ucat[k][j][i].z, ucat[k][j+1][i].z) * jeta[k][j][i].z
                         );
                     }
-                }
 
-                // y damping layer
-                if(ueqn->access->flags->isYDampingActive)
-                {
-                    // compute cell center y at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
-                    y     = cent[k][j][i].y;
-                    yi    = cent[k][j][i+1].y;
-                    yj    = cent[k][j+1][i].y;
-                    yk    = cent[k+1][j][i].y;
-
-                    x     = cent[k][j][i].x;
-                    xi    = cent[k][j][i+1].x;
-                    xj    = cent[k][j+1][i].x;
-                    xk    = cent[k+1][j][i].x;
-
-                    // compute Nordstrom viscosity at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
-                    nud_y   = viscNordstrom(alphaY, yS, yE, yD, y);
-                    nudi_y  = viscNordstrom(alphaY, yS, yE, yD, yi);
-                    nudj_y  = viscNordstrom(alphaY, yS, yE, yD, yj);
-                    nudk_y  = viscNordstrom(alphaY, yS, yE, yD, yk);
-
-                    //scaling factor to ensure that there is no lateral fringe region in the streamfringe region domain.
-                    fAsc_x  = viscNordstromNoVertFilter(xS, xE, xD, x);
-                    fAsc_xi = viscNordstromNoVertFilter(xS, xE, xD, xi);
-                    fAsc_xj = viscNordstromNoVertFilter(xS, xE, xD, xj);
-                    fAsc_xk = viscNordstromNoVertFilter(xS, xE, xD, xk);
-
-                    if(isInflowSpreadType)
+                    // k Left damping layer
+                    if(ueqn->access->flags->isKLeftRayleighDampingActive)
                     {
-                        //lateral damping not defined
-                    }
-                    else
-                    {
-                        PetscReal uBarContK;
-                        PetscReal uBarContJ;
-                        PetscReal uBarContI;
-
-                        uBarContI = central(uBarY[k][j][i].x, uBarY[k][j][i+1].x) * icsi[k][j][i].x + central(uBarY[k][j][i].y, uBarY[k][j][i+1].y) * icsi[k][j][i].y + central(uBarY[k][j][i].z, uBarY[k][j][i+1].z) * icsi[k][j][i].z;
-                        uBarContJ = central(uBarY[k][j][i].x, uBarY[k][j+1][i].x) * jeta[k][j][i].x + central(uBarY[k][j][i].y, uBarY[k][j+1][i].y) * jeta[k][j][i].y + central(uBarY[k][j][i].z, uBarY[k][j+1][i].z) * jeta[k][j][i].z;
-                        uBarContK = central(uBarY[k][j][i].x, uBarY[k+1][j][i].x) * kzet[k][j][i].x + central(uBarY[k][j][i].y, uBarY[k+1][j][i].y) * kzet[k][j][i].y + central(uBarY[k][j][i].z, uBarY[k+1][j][i].z) * kzet[k][j][i].z;
-
-                        // i-fluxes
-                        rhs[k][j][i].x
-                        +=
-                        scale * rho_fi * central(nud_y, nudi_y) * central(fAsc_x, fAsc_xi) * 
-                        (
-                            uBarContI - ucont[k][j][i].x
-                        );
-
-                        // j-fluxes
-                        rhs[k][j][i].y
-                        +=
-                        scale * rho_fj * central(nud_y, nudj_y) * central(fAsc_x, fAsc_xj) * 
-                        (
-                            uBarContJ - ucont[k][j][i].y
-                        );
-
-                        // k-fluxes
-                        rhs[k][j][i].z
-                        +=
-                        scale * rho_fk * central(nud_y, nudk_y) * central(fAsc_x, fAsc_xk) *
-                        (
-                            uBarContK - ucont[k][j][i].z
-                        );
-                    }
-                }
-
-                // z damping layer
-                if(ueqn->access->flags->isZDampingActive)
-                {
-                    // compute cell center z at i,j,k and i,j+1,k points
-                    z     = (cent[k][j][i].z   - mesh->grndLevel);
-                    zj    = (cent[k][j+1][i].z - mesh->grndLevel);
-
-                    // compute Rayleigh viscosity at i,j,k and i,j+1,k points
-                    nud_z   = viscRayleigh(alphaZ, zS, zE, z);
-                    nudj_z  = viscRayleigh(alphaZ, zS, zE, zj);
-
-                    // damp also x and y components (exclude in xFringe if present)
-                    if(abl->zDampingAlsoXY)
-                    {
-                        // compute cell center z at i+1,j,k and i,j,k+1 points
+                        // compute cell center z at i,j,k and i,j+1,k points
+                        z     = (cent[k][j][i].z   - mesh->grndLevel);
                         zi    = (cent[k][j][i+1].z - mesh->grndLevel);
+                        zj    = (cent[k][j+1][i].z - mesh->grndLevel);
                         zk    = (cent[k+1][j][i].z - mesh->grndLevel);
 
-                        // compute Rayleigh viscosity at i+1,j,k and i,j,k+1 points
-                        nudi_z  = viscRayleigh(alphaZ, zS, zE, zi);
-                        nudk_z  = viscRayleigh(alphaZ, zS, zE, zk);
+                        // compute cell center x at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
+                        x     = cent[k][j][i].x;
+                        xi    = cent[k][j][i+1].x;
+                        xj    = cent[k][j+1][i].x;
+                        xk    = cent[k+1][j][i].x;
 
-                        // i-fluxes: dampen w.r.t. uBarMean
+                        PetscReal hs = abl->kLeftDampingStart,
+                                he = abl->kLeftDampingEnd;
+
+                        // compute Cosine viscosity at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
+                        nud_x   = viscCosDescending(abl->kLeftDampingAlpha, hs, he, x);
+                        nudi_x  = viscCosDescending(abl->kLeftDampingAlpha, hs, he, xi);
+                        nudj_x  = viscCosDescending(abl->kLeftDampingAlpha, hs, he, xj);
+                        nudk_x  = viscCosDescending(abl->kLeftDampingAlpha, hs, he, xk);
+
+                        Cmpnts kLeftUBar   = (abl->kLeftDampingUBarSelectionType == 1) ? abl->kLeftDampingUBarVec[j]   : abl->kLeftDampingUBar;
+                        Cmpnts kLeftUBarJp = (abl->kLeftDampingUBarSelectionType == 1) ? abl->kLeftDampingUBarVec[j+1] : abl->kLeftDampingUBar;
+                        Cmpnts kLeftUBarF  = (abl->kLeftDampingUBarSelectionType == 1) ? nScale(0.5, nSum(kLeftUBar, kLeftUBarJp)) : abl->kLeftDampingUBar;
+
+                        // i-fluxes
                         rhs[k][j][i].x
                         +=
-                        scale * rho_fi * central(nud_z, nudi_z) * nudI *
+                        scale * rho_fi * central(nud_x, nudi_x) * scaleHyperTangTop(central(z,zi), abl->kLeftDampingFilterHeight, abl->kLeftDampingFilterWidth) *
                         (
                             (
-                                (abl->uBarMeanZ[j].x - central(ucat[k][j][i].x, ucat[k][j][i+1].x)) * icsi[k][j][i].x +
-                                (abl->uBarMeanZ[j].y - central(ucat[k][j][i].y, ucat[k][j][i+1].y)) * icsi[k][j][i].y +
-                                (abl->uBarMeanZ[j].z - central(ucat[k][j][i].z, ucat[k][j][i+1].z)) * icsi[k][j][i].z
+                                (kLeftUBar.x - central(ucat[k][j][i].x, ucat[k][j][i+1].x)) * icsi[k][j][i].x +
+                                (kLeftUBar.y - central(ucat[k][j][i].y, ucat[k][j][i+1].y)) * icsi[k][j][i].y +
+                                (kLeftUBar.z - central(ucat[k][j][i].z, ucat[k][j][i+1].z)) * icsi[k][j][i].z
                             )
                         );
 
-                        // k-fluxes: dampen w.r.t. uBarMean
-                        rhs[k][j][i].z
+                        // j-fluxes
+                        rhs[k][j][i].y
                         +=
-                        scale * rho_fk * central(nud_z, nudk_z) * nudK *
+                        scale * rho_fj * central(nud_x, nudj_x) * scaleHyperTangTop(central(z,zj), abl->kLeftDampingFilterHeight, abl->kLeftDampingFilterWidth) *
                         (
                             (
-                                (abl->uBarMeanZ[j].x - central(ucat[k][j][i].x, ucat[k+1][j][i].x)) * kzet[k][j][i].x +
-                                (abl->uBarMeanZ[j].y - central(ucat[k][j][i].y, ucat[k+1][j][i].y)) * kzet[k][j][i].y +
-                                (abl->uBarMeanZ[j].z - central(ucat[k][j][i].z, ucat[k+1][j][i].z)) * kzet[k][j][i].z
+                                (kLeftUBarF.x - central(ucat[k][j][i].x, ucat[k][j+1][i].x)) * jeta[k][j][i].x +
+                                (kLeftUBarF.y - central(ucat[k][j][i].y, ucat[k][j+1][i].y)) * jeta[k][j][i].y +
+                                (kLeftUBarF.z - central(ucat[k][j][i].z, ucat[k][j+1][i].z)) * jeta[k][j][i].z
+                            )
+                        );
+
+                        // k-fluxes
+                        rhs[k][j][i].z
+                        +=
+                        scale * rho_fk * central(nud_x, nudk_x) * scaleHyperTangTop(central(z,zk), abl->kLeftDampingFilterHeight, abl->kLeftDampingFilterWidth) *
+                        (
+                            (
+                                (kLeftUBar.x - central(ucat[k][j][i].x, ucat[k+1][j][i].x)) * kzet[k][j][i].x +
+                                (kLeftUBar.y - central(ucat[k][j][i].y, ucat[k+1][j][i].y)) * kzet[k][j][i].y +
+                                (kLeftUBar.z - central(ucat[k][j][i].z, ucat[k+1][j][i].z)) * kzet[k][j][i].z
                             )
                         );
                     }
 
-                    // j-fluxes: total damping to reach no penetration at jRight (damp also in xFringe if present)
-                    rhs[k][j][i].y
-                    +=
-                    -1.0 * scale * rho_fj * central(nud_z, nudj_z) *
-                    (
-                        central(ucat[k][j][i].x, ucat[k][j+1][i].x) * jeta[k][j][i].x +
-                        central(ucat[k][j][i].y, ucat[k][j+1][i].y) * jeta[k][j][i].y +
-                        central(ucat[k][j][i].z, ucat[k][j+1][i].z) * jeta[k][j][i].z
-                    );
-                }
+                    // k Right damping layer
+                    if(ueqn->access->flags->isKRightRayleighDampingActive)
+                    {
+                        // compute cell center z at i,j,k and i,j+1,k points
+                        z     = (cent[k][j][i].z   - mesh->grndLevel);
+                        zi    = (cent[k][j][i+1].z - mesh->grndLevel);
+                        zj    = (cent[k][j+1][i].z - mesh->grndLevel);
+                        zk    = (cent[k+1][j][i].z - mesh->grndLevel);
 
-                // k Left damping layer
-                if(ueqn->access->flags->isKLeftRayleighDampingActive)
-                {
-                    // compute cell center z at i,j,k and i,j+1,k points
-                    z     = (cent[k][j][i].z   - mesh->grndLevel);
-                    zi    = (cent[k][j][i+1].z - mesh->grndLevel);
-                    zj    = (cent[k][j+1][i].z - mesh->grndLevel);
-                    zk    = (cent[k+1][j][i].z - mesh->grndLevel);
+                        // compute cell center x at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
+                        x     = cent[k][j][i].x;
+                        xi    = cent[k][j][i+1].x;
+                        xj    = cent[k][j+1][i].x;
+                        xk    = cent[k+1][j][i].x;
 
-                    // compute cell center x at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
-                    x     = cent[k][j][i].x;
-                    xi    = cent[k][j][i+1].x;
-                    xj    = cent[k][j+1][i].x;
-                    xk    = cent[k+1][j][i].x;
+                        PetscReal hs = abl->kRightDampingStart,
+                                he = abl->kRightDampingEnd;
 
-                    PetscReal hs = abl->kLeftDampingStart,
-                              he = abl->kLeftDampingEnd;
+                        // compute Cosine viscosity at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
+                        nud_x   = viscCosAscending(abl->kRightDampingAlpha, hs, he, x);
+                        nudi_x  = viscCosAscending(abl->kRightDampingAlpha, hs, he, xi);
+                        nudj_x  = viscCosAscending(abl->kRightDampingAlpha, hs, he, xj);
+                        nudk_x  = viscCosAscending(abl->kRightDampingAlpha, hs, he, xk);
 
-                    // compute Cosine viscosity at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
-                    nud_x   = viscCosDescending(abl->kLeftDampingAlpha, hs, he, x);
-                    nudi_x  = viscCosDescending(abl->kLeftDampingAlpha, hs, he, xi);
-                    nudj_x  = viscCosDescending(abl->kLeftDampingAlpha, hs, he, xj);
-                    nudk_x  = viscCosDescending(abl->kLeftDampingAlpha, hs, he, xk);
+                        Cmpnts kRightUBar   = (abl->kRightDampingUBarSelectionType == 1) ? abl->kRightDampingUBarVec[j]   : abl->kRightDampingUBar;
+                        Cmpnts kRightUBarJp = (abl->kRightDampingUBarSelectionType == 1) ? abl->kRightDampingUBarVec[j+1] : abl->kRightDampingUBar;
+                        Cmpnts kRightUBarF  = (abl->kRightDampingUBarSelectionType == 1) ? nScale(0.5, nSum(kRightUBar, kRightUBarJp)) : abl->kRightDampingUBar;
 
-                    Cmpnts kLeftUBar   = (abl->kLeftDampingUBarSelectionType == 1) ? abl->kLeftDampingUBarVec[j]   : abl->kLeftDampingUBar;
-                    Cmpnts kLeftUBarJp = (abl->kLeftDampingUBarSelectionType == 1) ? abl->kLeftDampingUBarVec[j+1] : abl->kLeftDampingUBar;
-                    Cmpnts kLeftUBarF  = (abl->kLeftDampingUBarSelectionType == 1) ? nScale(0.5, nSum(kLeftUBar, kLeftUBarJp)) : abl->kLeftDampingUBar;
-
-                    // i-fluxes
-                    rhs[k][j][i].x
-                    +=
-                    scale * rho_fi * central(nud_x, nudi_x) * scaleHyperTangTop(central(z,zi), abl->kLeftDampingFilterHeight, abl->kLeftDampingFilterWidth) *
-                    (
+                        // i-fluxes
+                        rhs[k][j][i].x
+                        +=
+                        scale * rho_fi * central(nud_x, nudi_x) * scaleHyperTangTop(central(z,zi), abl->kRightDampingFilterHeight, abl->kRightDampingFilterWidth) *
                         (
-                            (kLeftUBar.x - central(ucat[k][j][i].x, ucat[k][j][i+1].x)) * icsi[k][j][i].x +
-                            (kLeftUBar.y - central(ucat[k][j][i].y, ucat[k][j][i+1].y)) * icsi[k][j][i].y +
-                            (kLeftUBar.z - central(ucat[k][j][i].z, ucat[k][j][i+1].z)) * icsi[k][j][i].z
-                        )
-                    );
+                            (
+                                (kRightUBar.x - central(ucat[k][j][i].x, ucat[k][j][i+1].x)) * icsi[k][j][i].x +
+                                (kRightUBar.y - central(ucat[k][j][i].y, ucat[k][j][i+1].y)) * icsi[k][j][i].y +
+                                (kRightUBar.z - central(ucat[k][j][i].z, ucat[k][j][i+1].z)) * icsi[k][j][i].z
+                            )
+                        );
 
-                    // j-fluxes
-                    rhs[k][j][i].y
-                    +=
-                    scale * rho_fj * central(nud_x, nudj_x) * scaleHyperTangTop(central(z,zj), abl->kLeftDampingFilterHeight, abl->kLeftDampingFilterWidth) *
-                    (
+                        // j-fluxes
+                        rhs[k][j][i].y
+                        +=
+                        scale * rho_fj * central(nud_x, nudj_x) * scaleHyperTangTop(central(z,zj), abl->kRightDampingFilterHeight, abl->kRightDampingFilterWidth) *
                         (
-                            (kLeftUBarF.x - central(ucat[k][j][i].x, ucat[k][j+1][i].x)) * jeta[k][j][i].x +
-                            (kLeftUBarF.y - central(ucat[k][j][i].y, ucat[k][j+1][i].y)) * jeta[k][j][i].y +
-                            (kLeftUBarF.z - central(ucat[k][j][i].z, ucat[k][j+1][i].z)) * jeta[k][j][i].z
-                        )
-                    );
+                            (
+                                (kRightUBarF.x - central(ucat[k][j][i].x, ucat[k][j+1][i].x)) * jeta[k][j][i].x +
+                                (kRightUBarF.y - central(ucat[k][j][i].y, ucat[k][j+1][i].y)) * jeta[k][j][i].y +
+                                (kRightUBarF.z - central(ucat[k][j][i].z, ucat[k][j+1][i].z)) * jeta[k][j][i].z
+                            )
+                        );
 
-                    // k-fluxes
-                    rhs[k][j][i].z
-                    +=
-                    scale * rho_fk * central(nud_x, nudk_x) * scaleHyperTangTop(central(z,zk), abl->kLeftDampingFilterHeight, abl->kLeftDampingFilterWidth) *
-                    (
+                        // k-fluxes
+                        rhs[k][j][i].z
+                        +=
+                        scale * rho_fk * central(nud_x, nudk_x) * scaleHyperTangTop(central(z,zk), abl->kRightDampingFilterHeight, abl->kRightDampingFilterWidth) *
                         (
-                            (kLeftUBar.x - central(ucat[k][j][i].x, ucat[k+1][j][i].x)) * kzet[k][j][i].x +
-                            (kLeftUBar.y - central(ucat[k][j][i].y, ucat[k+1][j][i].y)) * kzet[k][j][i].y +
-                            (kLeftUBar.z - central(ucat[k][j][i].z, ucat[k+1][j][i].z)) * kzet[k][j][i].z
-                        )
-                    );
-                }
-
-                // k Right damping layer
-                if(ueqn->access->flags->isKRightRayleighDampingActive)
-                {
-                    // compute cell center z at i,j,k and i,j+1,k points
-                    z     = (cent[k][j][i].z   - mesh->grndLevel);
-                    zi    = (cent[k][j][i+1].z - mesh->grndLevel);
-                    zj    = (cent[k][j+1][i].z - mesh->grndLevel);
-                    zk    = (cent[k+1][j][i].z - mesh->grndLevel);
-
-                    // compute cell center x at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
-                    x     = cent[k][j][i].x;
-                    xi    = cent[k][j][i+1].x;
-                    xj    = cent[k][j+1][i].x;
-                    xk    = cent[k+1][j][i].x;
-
-                    PetscReal hs = abl->kRightDampingStart,
-                              he = abl->kRightDampingEnd;
-
-                    // compute Cosine viscosity at i,j,k, i+1,j,k, i,j+1,k and i,j,k+1 points
-                    nud_x   = viscCosAscending(abl->kRightDampingAlpha, hs, he, x);
-                    nudi_x  = viscCosAscending(abl->kRightDampingAlpha, hs, he, xi);
-                    nudj_x  = viscCosAscending(abl->kRightDampingAlpha, hs, he, xj);
-                    nudk_x  = viscCosAscending(abl->kRightDampingAlpha, hs, he, xk);
-
-                    Cmpnts kRightUBar   = (abl->kRightDampingUBarSelectionType == 1) ? abl->kRightDampingUBarVec[j]   : abl->kRightDampingUBar;
-                    Cmpnts kRightUBarJp = (abl->kRightDampingUBarSelectionType == 1) ? abl->kRightDampingUBarVec[j+1] : abl->kRightDampingUBar;
-                    Cmpnts kRightUBarF  = (abl->kRightDampingUBarSelectionType == 1) ? nScale(0.5, nSum(kRightUBar, kRightUBarJp)) : abl->kRightDampingUBar;
-
-                    // i-fluxes
-                    rhs[k][j][i].x
-                    +=
-                    scale * rho_fi * central(nud_x, nudi_x) * scaleHyperTangTop(central(z,zi), abl->kRightDampingFilterHeight, abl->kRightDampingFilterWidth) *
-                    (
-                        (
-                            (kRightUBar.x - central(ucat[k][j][i].x, ucat[k][j][i+1].x)) * icsi[k][j][i].x +
-                            (kRightUBar.y - central(ucat[k][j][i].y, ucat[k][j][i+1].y)) * icsi[k][j][i].y +
-                            (kRightUBar.z - central(ucat[k][j][i].z, ucat[k][j][i+1].z)) * icsi[k][j][i].z
-                        )
-                    );
-
-                    // j-fluxes
-                    rhs[k][j][i].y
-                    +=
-                    scale * rho_fj * central(nud_x, nudj_x) * scaleHyperTangTop(central(z,zj), abl->kRightDampingFilterHeight, abl->kRightDampingFilterWidth) *
-                    (
-                        (
-                            (kRightUBarF.x - central(ucat[k][j][i].x, ucat[k][j+1][i].x)) * jeta[k][j][i].x +
-                            (kRightUBarF.y - central(ucat[k][j][i].y, ucat[k][j+1][i].y)) * jeta[k][j][i].y +
-                            (kRightUBarF.z - central(ucat[k][j][i].z, ucat[k][j+1][i].z)) * jeta[k][j][i].z
-                        )
-                    );
-
-                    // k-fluxes
-                    rhs[k][j][i].z
-                    +=
-                    scale * rho_fk * central(nud_x, nudk_x) * scaleHyperTangTop(central(z,zk), abl->kRightDampingFilterHeight, abl->kRightDampingFilterWidth) *
-                    (
-                        (
-                            (kRightUBar.x - central(ucat[k][j][i].x, ucat[k+1][j][i].x)) * kzet[k][j][i].x +
-                            (kRightUBar.y - central(ucat[k][j][i].y, ucat[k+1][j][i].y)) * kzet[k][j][i].y +
-                            (kRightUBar.z - central(ucat[k][j][i].z, ucat[k+1][j][i].z)) * kzet[k][j][i].z
-                        )
-                    );
+                            (
+                                (kRightUBar.x - central(ucat[k][j][i].x, ucat[k+1][j][i].x)) * kzet[k][j][i].x +
+                                (kRightUBar.y - central(ucat[k][j][i].y, ucat[k+1][j][i].y)) * kzet[k][j][i].y +
+                                (kRightUBar.z - central(ucat[k][j][i].z, ucat[k+1][j][i].z)) * kzet[k][j][i].z
+                            )
+                        );
+                    }
                 }
 
                 // k Left wave relaxation zone
@@ -3939,22 +3958,25 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     DMDAVecRestoreArray(fda, ueqn->lUcont, &ucont);
     DMDAVecRestoreArray(fda, Rhs,  &rhs);
 
-    if(ueqn->access->flags->isXDampingActive)
+    if(ueqn->access->flags->isAblActive)
     {
-        if(abl->xFringeUBarSelectionType == 3)
+        if(ueqn->access->flags->isXDampingActive)
         {
-            if(precursor->thisProcessorInFringe)
+            if(abl->xFringeUBarSelectionType == 3)
             {
-                DMDAVecRestoreArray(pdomain->mesh->fda, pdomain->ueqn->lUcont,  &ucontP);
+                if(precursor->thisProcessorInFringe)
+                {
+                    DMDAVecRestoreArray(pdomain->mesh->fda, pdomain->ueqn->lUcont,  &ucontP);
+                }
             }
         }
-    }
 
-    if(ueqn->access->flags->isYDampingActive)
-    {
-        if(abl->xFringeUBarSelectionType == 3)
+        if(ueqn->access->flags->isYDampingActive)
         {
-            DMDAVecRestoreArray(fda, abl->uBarInstY, &uBarY);
+            if(abl->xFringeUBarSelectionType == 3)
+            {
+                DMDAVecRestoreArray(fda, abl->uBarInstY, &uBarY);
+            }
         }
     }
 
