@@ -2070,7 +2070,7 @@ PetscErrorCode SetWaterHeightFieldA(aeqn_ *aeqn, PetscReal &heightRef)
         {
             for(i=lxs; i<lxe; i++)
             {
-                if(cent[k][j][i].z <= heightRef)
+                if(cent[k][j][i].z < heightRef)
                 {
                     a[k][j][i] = 1.0;
                 }
