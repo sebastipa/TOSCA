@@ -1749,11 +1749,14 @@ PetscErrorCode bodyForceCartesian2Contravariant(farm_ *farm)
     PetscInt         mx = info.mx, my = info.my, mz = info.mz;
 
     PetscInt         lxs, lxe, lys, lye, lzs, lze;
-    PetscInt         i, j, k, t, c, p;
+    PetscInt         i, j, k, t, c, p, multiphase = 0;
 
     Cmpnts           ***sCat, ***sCont;
 
-    Cmpnts           ***icsi, ***jeta, ***kzet;
+    Cmpnts           ***icsi, ***jeta, ***kzet,
+                     ***rhoFace;
+
+    PetscReal        rho_f;
 
     lxs = xs; if (xs==0) lxs = xs+1; lxe = xe; if (xe==mx) lxe = xe-1;
     lys = ys; if (ys==0) lys = ys+1; lye = ye; if (ye==my) lye = ye-1;
@@ -1769,6 +1772,13 @@ PetscErrorCode bodyForceCartesian2Contravariant(farm_ *farm)
     DMDAVecGetArray(fda, mesh->lJEta,  &jeta);
     DMDAVecGetArray(fda, mesh->lKZet,  &kzet);
 
+    // multiphase 
+    if(farm->access->flags->isAeqnActive)
+    {
+        multiphase = 1;
+        DMDAVecGetArray(fda, farm->access->aeqn->lRhoFace, &rhoFace);
+    }
+
     // interpolate BF to cell faces
     for(k=lzs; k<lze; k++)
     {
@@ -1777,49 +1787,61 @@ PetscErrorCode bodyForceCartesian2Contravariant(farm_ *farm)
             for(i=lxs; i<lxe; i++)
             {
                 // interpolate to the i-faces
-                Cmpnts sFaceI;
-                sFaceI.x = 0.5 * (sCat[k][j][i].x + sCat[k][j][i+1].x);
-                sFaceI.y = 0.5 * (sCat[k][j][i].y + sCat[k][j][i+1].y);
-                sFaceI.z = 0.5 * (sCat[k][j][i].z + sCat[k][j][i+1].z);
+                {
+                    rho_f = multiphase ? rhoFace[k][j][i].x : 1.0;
+                    
+                    Cmpnts sFaceI;
+                    sFaceI.x = 0.5 * (sCat[k][j][i].x + sCat[k][j][i+1].x);
+                    sFaceI.y = 0.5 * (sCat[k][j][i].y + sCat[k][j][i+1].y);
+                    sFaceI.z = 0.5 * (sCat[k][j][i].z + sCat[k][j][i+1].z);
 
-                // body force i-flux
-                sCont[k][j][i].x
-                =
-                (
-                    sFaceI.x * icsi[k][j][i].x +
-                    sFaceI.y * icsi[k][j][i].y +
-                    sFaceI.z * icsi[k][j][i].z
-                );
+                    // body force i-flux
+                    sCont[k][j][i].x
+                    =
+                    (
+                        sFaceI.x * icsi[k][j][i].x +
+                        sFaceI.y * icsi[k][j][i].y +
+                        sFaceI.z * icsi[k][j][i].z
+                    ) * rho_f;
+                }
 
                 // interpolate to the j-faces
-                Cmpnts sFaceJ;
-                sFaceJ.x = 0.5 * (sCat[k][j][i].x + sCat[k][j+1][i].x);
-                sFaceJ.y = 0.5 * (sCat[k][j][i].y + sCat[k][j+1][i].y);
-                sFaceJ.z = 0.5 * (sCat[k][j][i].z + sCat[k][j+1][i].z);
+                {
+                    rho_f = multiphase ? rhoFace[k][j][i].y : 1.0;
 
-                // body force j-flux
-                sCont[k][j][i].y
-                =
-                (
-                    sFaceJ.x * jeta[k][j][i].x +
-                    sFaceJ.y * jeta[k][j][i].y +
-                    sFaceJ.z * jeta[k][j][i].z
-                );
+                    Cmpnts sFaceJ;
+                    sFaceJ.x = 0.5 * (sCat[k][j][i].x + sCat[k][j+1][i].x);
+                    sFaceJ.y = 0.5 * (sCat[k][j][i].y + sCat[k][j+1][i].y);
+                    sFaceJ.z = 0.5 * (sCat[k][j][i].z + sCat[k][j+1][i].z);
+
+                    // body force j-flux
+                    sCont[k][j][i].y
+                    =
+                    (
+                        sFaceJ.x * jeta[k][j][i].x +
+                        sFaceJ.y * jeta[k][j][i].y +
+                        sFaceJ.z * jeta[k][j][i].z
+                    ) * rho_f;
+                }
 
                 // interpolate to the k-faces
-                Cmpnts sFaceK;
-                sFaceK.x = 0.5 * (sCat[k][j][i].x + sCat[k+1][j][i].x);
-                sFaceK.y = 0.5 * (sCat[k][j][i].y + sCat[k+1][j][i].y);
-                sFaceK.z = 0.5 * (sCat[k][j][i].z + sCat[k+1][j][i].z);
+                {
+                    rho_f = multiphase ? rhoFace[k][j][i].z : 1.0;
 
-                // body force k-flux
-                sCont[k][j][i].z
-                =
-                (
-                    sFaceK.x * kzet[k][j][i].x +
-                    sFaceK.y * kzet[k][j][i].y +
-                    sFaceK.z * kzet[k][j][i].z
-                );
+                    Cmpnts sFaceK;
+                    sFaceK.x = 0.5 * (sCat[k][j][i].x + sCat[k+1][j][i].x);
+                    sFaceK.y = 0.5 * (sCat[k][j][i].y + sCat[k+1][j][i].y);
+                    sFaceK.z = 0.5 * (sCat[k][j][i].z + sCat[k+1][j][i].z);
+
+                    // body force k-flux
+                    sCont[k][j][i].z
+                    =
+                    (
+                        sFaceK.x * kzet[k][j][i].x +
+                        sFaceK.y * kzet[k][j][i].y +
+                        sFaceK.z * kzet[k][j][i].z
+                    ) * rho_f;
+                }
             }
         }
     }
@@ -1830,6 +1852,11 @@ PetscErrorCode bodyForceCartesian2Contravariant(farm_ *farm)
 
     DMDAVecRestoreArray(fda, farm->sourceFarmCont,  &sCont);
     DMDAVecRestoreArray(fda, farm->lsourceFarmCat, &sCat);
+
+    if(farm->access->flags->isAeqnActive)
+    {
+        DMDAVecRestoreArray(fda, farm->access->aeqn->lRhoFace, &rhoFace);
+    }
 
     return(0);
 }

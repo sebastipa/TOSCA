@@ -3,6 +3,169 @@
 
 #include "ueqn_sources.h"
 
+
+PetscErrorCode RhsByRho(ueqn_ *ueqn, Vec &Rhs, Vec &Rho)
+{
+    mesh_         *mesh = ueqn->access->mesh;
+    DM            da   = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
+
+    Cmpnts        ***rhoFace, ***rhs;
+
+    PetscReal     ***nvert, ***meshTag;
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k, l;
+
+    DMDAVecGetArray(fda, Rho,              &rhoFace);
+    DMDAVecGetArray(fda, Rhs,              &rhs);
+    DMDAVecGetArray(da, mesh->lNvert,      &nvert);
+    DMDAVecGetArray(da, mesh->lmeshTag,    &meshTag);
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    for (k=lzs; k<lze; k++)
+    {
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+                if
+                (
+                    isFluidIFace(k, j, i, i+1, nvert) && isCalculatedIFace(k, j, i, i+1, meshTag)
+                )
+                {
+                    rhs[k][j][i].x /= rhoFace[k][j][i].x;
+                    
+                }
+
+                if
+                (
+                    isFluidJFace(k, j, i, j+1, nvert) && isCalculatedJFace(k, j, i, j+1, meshTag)
+                )
+                {
+                    rhs[k][j][i].y /= rhoFace[k][j][i].y;
+                }
+
+                if
+                (
+                    isFluidKFace(k, j, i, k+1, nvert) && isCalculatedKFace(k, j, i, k+1, meshTag)
+                )
+                {
+                    rhs[k][j][i].z /= rhoFace[k][j][i].z;
+                }
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(fda, Rho,              &rhoFace);
+    DMDAVecRestoreArray(fda, Rhs,              &rhs);
+    DMDAVecRestoreArray(da, mesh->lNvert,      &nvert);
+    DMDAVecRestoreArray(da, mesh->lmeshTag,    &meshTag);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode UdRhoDt(ueqn_ *ueqn, Vec &Rhs, Vec &Ucont, Vec &RhoNew, Vec &RhoOld, PetscReal scale)
+{
+    mesh_         *mesh = ueqn->access->mesh;
+    clock_        *clock= ueqn->access->clock;
+    aeqn_         *aeqn = ueqn->access->aeqn;
+    DM            da   = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
+
+    Cmpnts        ***ucont, ***rhoFace_n, ***rhoFace_o, ***rhs;
+
+    PetscReal     ***nvert, ***meshTag;
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k, l;
+
+    DMDAVecGetArray(fda, RhoOld, &rhoFace_o);
+    DMDAVecGetArray(fda, RhoNew,   &rhoFace_n);
+    DMDAVecGetArray(fda, Ucont,            &ucont);
+    DMDAVecGetArray(fda, Rhs,              &rhs);
+    DMDAVecGetArray(da, mesh->lNvert,      &nvert);
+    DMDAVecGetArray(da, mesh->lmeshTag,    &meshTag);
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    for (k=lzs; k<lze; k++)
+    {
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+                if
+                (
+                    isFluidIFace(k, j, i, i+1, nvert) && isCalculatedIFace(k, j, i, i+1, meshTag)
+                )
+                {
+                    rhs[k][j][i].x
+                    -=
+                    scale *
+                    (
+                        ucont[k][j][i].x * (rhoFace_n[k][j][i].x - rhoFace_o[k][j][i].x) / rhoFace_n[k][j][i].x
+                    );
+                }
+
+                if
+                (
+                    isFluidJFace(k, j, i, j+1, nvert) && isCalculatedJFace(k, j, i, j+1, meshTag)
+                )
+                {
+                    rhs[k][j][i].y
+                    -=
+                    scale *
+                    (
+                        ucont[k][j][i].y  * (rhoFace_n[k][j][i].y - rhoFace_o[k][j][i].y) / rhoFace_n[k][j][i].y
+                    );
+                }
+
+                if
+                (
+                    isFluidKFace(k, j, i, k+1, nvert) && isCalculatedKFace(k, j, i, k+1, meshTag)
+                )
+                {
+                    rhs[k][j][i].z
+                    -=
+                    scale *
+                    (
+                        ucont[k][j][i].z  * (rhoFace_n[k][j][i].z - rhoFace_o[k][j][i].z) / rhoFace_n[k][j][i].z
+                    );
+                }
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(fda, RhoOld, &rhoFace_o);
+    DMDAVecRestoreArray(fda, RhoNew,   &rhoFace_n);
+    DMDAVecRestoreArray(fda, Ucont,            &ucont);
+    DMDAVecRestoreArray(fda, Rhs,              &rhs);
+    DMDAVecRestoreArray(da, mesh->lNvert,      &nvert);
+    DMDAVecRestoreArray(da, mesh->lmeshTag,    &meshTag);
+
+    resetNonResolvedCellFaces(mesh, Rhs);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
 PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print)
 {
     mesh_         *mesh = ueqn->access->mesh;
@@ -2919,6 +3082,7 @@ PetscErrorCode sourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
         {
             for (i=lxs; i<lxe; i++)
             {
+                // i-faces
                 if
                 (
                     isFluidIFace(k, j, i, i+1, nvert) && isCalculatedIFace(k, j, i, i+1, meshTag)
@@ -2934,9 +3098,10 @@ PetscErrorCode sourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     );
                 }
 
+                // j-faces
                 if
                 (
-                        isFluidJFace(k, j, i, j+1, nvert) && isCalculatedJFace(k, j, i, j+1, meshTag)
+                    isFluidJFace(k, j, i, j+1, nvert) && isCalculatedJFace(k, j, i, j+1, meshTag)
                 )
                 {
                     rhs[k][j][i].y
@@ -2949,9 +3114,10 @@ PetscErrorCode sourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     );
                 }
 
+                // k-faces
                 if
                 (
-                        isFluidKFace(k, j, i, k+1, nvert) && isCalculatedKFace(k, j, i, k+1, meshTag)
+                    isFluidKFace(k, j, i, k+1, nvert) && isCalculatedKFace(k, j, i, k+1, meshTag)
                 )
                 {
                     rhs[k][j][i].z
@@ -2995,12 +3161,15 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
 
     Cmpnts        ***rhs, ***ucat, ***cent;
-    Cmpnts        ***icsi, ***jeta, ***kzet;
+    Cmpnts        ***icsi, ***jeta, ***kzet,
+                  ***rhoFace;
     Cmpnts        ***ucont, ***ucontP, ***uBarY;
     PetscReal     ***alpha;
 
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
-    PetscInt      i, j, k, l;
+    PetscInt      i, j, k, l, multiphase = 0;
+
+    PetscReal     rho_fi, rho_fj, rho_fk;
 
     precursor_    *precursor;
     domain_       *pdomain;
@@ -3046,8 +3215,10 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
     if(ueqn->access->flags->isAeqnActive)
     {
+        multiphase = 1;
         aeqn = ueqn->access->aeqn;
         DMDAVecGetArray(da, aeqn->lAlpha, &alpha);
+        DMDAVecGetArray(fda, aeqn->lRhoFace, &rhoFace);
     }
 
     // z damping layer
@@ -3113,6 +3284,11 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
         {
             for (i=lxs; i<lxe; i++)
             {
+                // compute density
+                rho_fi = multiphase ? rhoFace[k][j][i].x : 1.0;
+                rho_fj = multiphase ? rhoFace[k][j][i].y : 1.0;
+                rho_fk = multiphase ? rhoFace[k][j][i].z : 1.0;
+
                 // x damping layer
                 if(ueqn->access->flags->isXDampingActive)
                 {
@@ -3151,7 +3327,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                         // i-fluxes
                         rhs[k][j][i].x
                         +=
-                        scale * central(nud_x, nudi_x) *
+                        scale * central(nud_x, nudi_x) * rho_fi *
                         (
                             (
                                 (central(uBarInstX.x, uBarInstXi.x) - central(ucat[k][j][i].x, ucat[k][j][i+1].x)) * icsi[k][j][i].x +
@@ -3163,7 +3339,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                         // j-fluxes
                         rhs[k][j][i].y
                         +=
-                        scale * central(nud_x, nudj_x) *
+                        scale * central(nud_x, nudj_x) * rho_fj *
                         (
                             (
                                 (central(uBarInstX.x, uBarInstXj.x) - central(ucat[k][j][i].x, ucat[k][j+1][i].x)) * jeta[k][j][i].x +
@@ -3175,7 +3351,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                         // k-fluxes
                         rhs[k][j][i].z
                         +=
-                        scale * central(nud_x, nudk_x) *
+                        scale * central(nud_x, nudk_x) * rho_fk *
                         (
                             (
                                 (uBarInstX.x - central(ucat[k][j][i].x, ucat[k+1][j][i].x)) * kzet[k][j][i].x +
@@ -3214,7 +3390,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                         // i-fluxes
                         rhs[k][j][i].x
                         +=
-                        scale * central(nud_x, nudi_x) *
+                        scale * central(nud_x, nudi_x) * rho_fi *
                         (
                             uBarContI - ucont[k][j][i].x
                         );
@@ -3222,7 +3398,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                         // j-fluxes
                         rhs[k][j][i].y
                         +=
-                        scale * central(nud_x, nudj_x) *
+                        scale * central(nud_x, nudj_x) * rho_fj *
                         (
                             uBarContJ - ucont[k][j][i].y
                         );
@@ -3230,7 +3406,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                         // k-fluxes
                         rhs[k][j][i].z
                         +=
-                        scale * central(nud_x, nudk_x) *
+                        scale * central(nud_x, nudk_x) * rho_fk *
                         (
                             uBarContK - ucont[k][j][i].z
                         );
@@ -3280,7 +3456,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                         // i-fluxes
                         rhs[k][j][i].x
                         +=
-                        scale * central(nud_y, nudi_y) * central(fAsc_x, fAsc_xi) * 
+                        scale * rho_fi * central(nud_y, nudi_y) * central(fAsc_x, fAsc_xi) * 
                         (
                             uBarContI - ucont[k][j][i].x
                         );
@@ -3288,7 +3464,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                         // j-fluxes
                         rhs[k][j][i].y
                         +=
-                        scale * central(nud_y, nudj_y) * central(fAsc_x, fAsc_xj) * 
+                        scale * rho_fj * central(nud_y, nudj_y) * central(fAsc_x, fAsc_xj) * 
                         (
                             uBarContJ - ucont[k][j][i].y
                         );
@@ -3296,7 +3472,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                         // k-fluxes
                         rhs[k][j][i].z
                         +=
-                        scale * central(nud_y, nudk_y) * central(fAsc_x, fAsc_xk) *
+                        scale * rho_fk * central(nud_y, nudk_y) * central(fAsc_x, fAsc_xk) *
                         (
                             uBarContK - ucont[k][j][i].z
                         );
@@ -3328,7 +3504,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                         // i-fluxes: dampen w.r.t. uBarMean
                         rhs[k][j][i].x
                         +=
-                        scale * central(nud_z, nudi_z) * nudI *
+                        scale * rho_fi * central(nud_z, nudi_z) * nudI *
                         (
                             (
                                 (abl->uBarMeanZ[j].x - central(ucat[k][j][i].x, ucat[k][j][i+1].x)) * icsi[k][j][i].x +
@@ -3340,7 +3516,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                         // k-fluxes: dampen w.r.t. uBarMean
                         rhs[k][j][i].z
                         +=
-                        scale * central(nud_z, nudk_z) * nudK *
+                        scale * rho_fk * central(nud_z, nudk_z) * nudK *
                         (
                             (
                                 (abl->uBarMeanZ[j].x - central(ucat[k][j][i].x, ucat[k+1][j][i].x)) * kzet[k][j][i].x +
@@ -3353,7 +3529,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     // j-fluxes: total damping to reach no penetration at jRight (damp also in xFringe if present)
                     rhs[k][j][i].y
                     +=
-                    -1.0 * scale * central(nud_z, nudj_z) *
+                    -1.0 * scale * rho_fj * central(nud_z, nudj_z) *
                     (
                         central(ucat[k][j][i].x, ucat[k][j+1][i].x) * jeta[k][j][i].x +
                         central(ucat[k][j][i].y, ucat[k][j+1][i].y) * jeta[k][j][i].y +
@@ -3392,7 +3568,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     // i-fluxes
                     rhs[k][j][i].x
                     +=
-                    scale * central(nud_x, nudi_x) * scaleHyperTangTop(central(z,zi), abl->kLeftDampingFilterHeight, abl->kLeftDampingFilterWidth) *
+                    scale * rho_fi * central(nud_x, nudi_x) * scaleHyperTangTop(central(z,zi), abl->kLeftDampingFilterHeight, abl->kLeftDampingFilterWidth) *
                     (
                         (
                             (kLeftUBar.x - central(ucat[k][j][i].x, ucat[k][j][i+1].x)) * icsi[k][j][i].x +
@@ -3404,7 +3580,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     // j-fluxes
                     rhs[k][j][i].y
                     +=
-                    scale * central(nud_x, nudj_x) * scaleHyperTangTop(central(z,zj), abl->kLeftDampingFilterHeight, abl->kLeftDampingFilterWidth) *
+                    scale * rho_fj * central(nud_x, nudj_x) * scaleHyperTangTop(central(z,zj), abl->kLeftDampingFilterHeight, abl->kLeftDampingFilterWidth) *
                     (
                         (
                             (kLeftUBarF.x - central(ucat[k][j][i].x, ucat[k][j+1][i].x)) * jeta[k][j][i].x +
@@ -3416,7 +3592,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     // k-fluxes
                     rhs[k][j][i].z
                     +=
-                    scale * central(nud_x, nudk_x) * scaleHyperTangTop(central(z,zk), abl->kLeftDampingFilterHeight, abl->kLeftDampingFilterWidth) *
+                    scale * rho_fk * central(nud_x, nudk_x) * scaleHyperTangTop(central(z,zk), abl->kLeftDampingFilterHeight, abl->kLeftDampingFilterWidth) *
                     (
                         (
                             (kLeftUBar.x - central(ucat[k][j][i].x, ucat[k+1][j][i].x)) * kzet[k][j][i].x +
@@ -3457,7 +3633,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     // i-fluxes
                     rhs[k][j][i].x
                     +=
-                    scale * central(nud_x, nudi_x) * scaleHyperTangTop(central(z,zi), abl->kRightDampingFilterHeight, abl->kRightDampingFilterWidth) *
+                    scale * rho_fi * central(nud_x, nudi_x) * scaleHyperTangTop(central(z,zi), abl->kRightDampingFilterHeight, abl->kRightDampingFilterWidth) *
                     (
                         (
                             (kRightUBar.x - central(ucat[k][j][i].x, ucat[k][j][i+1].x)) * icsi[k][j][i].x +
@@ -3469,7 +3645,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     // j-fluxes
                     rhs[k][j][i].y
                     +=
-                    scale * central(nud_x, nudj_x) * scaleHyperTangTop(central(z,zj), abl->kRightDampingFilterHeight, abl->kRightDampingFilterWidth) *
+                    scale * rho_fj * central(nud_x, nudj_x) * scaleHyperTangTop(central(z,zj), abl->kRightDampingFilterHeight, abl->kRightDampingFilterWidth) *
                     (
                         (
                             (kRightUBarF.x - central(ucat[k][j][i].x, ucat[k][j+1][i].x)) * jeta[k][j][i].x +
@@ -3481,7 +3657,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     // k-fluxes
                     rhs[k][j][i].z
                     +=
-                    scale * central(nud_x, nudk_x) * scaleHyperTangTop(central(z,zk), abl->kRightDampingFilterHeight, abl->kRightDampingFilterWidth) *
+                    scale * rho_fk * central(nud_x, nudk_x) * scaleHyperTangTop(central(z,zk), abl->kRightDampingFilterHeight, abl->kRightDampingFilterWidth) *
                     (
                         (
                             (kRightUBar.x - central(ucat[k][j][i].x, ucat[k+1][j][i].x)) * kzet[k][j][i].x +
@@ -3639,7 +3815,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                         // i-fluxes
                         rhs[k][j][i].x
                         +=
-                        scale * central(nud_x, nudi_x) *
+                        scale * rho_fi * central(nud_x, nudi_x) *
                         (
                             (
                                 (uBar.x - central(ucat[k][j][i].x, ucat[k][j][i+1].x)) * icsi[k][j][i].x +
@@ -3660,7 +3836,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                         // j-fluxes
                         rhs[k][j][i].y
                         +=
-                        scale * central(nud_x, nudj_x) *
+                        scale * rho_fj * central(nud_x, nudj_x) *
                         (
                             (
                                 (uBar.x - central(ucat[k][j][i].x, ucat[k][j+1][i].x)) * jeta[k][j][i].x +
@@ -3681,7 +3857,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                         // k-fluxes
                         rhs[k][j][i].z
                         +=
-                        scale * central(nud_x, nudk_x) *
+                        scale * rho_fk * central(nud_x, nudk_x) *
                         (
                             (
                                 (uBar.x - central(ucat[k][j][i].x, ucat[k+1][j][i].x)) * kzet[k][j][i].x +
@@ -3717,7 +3893,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     // i-fluxes
                     rhs[k][j][i].x
                     +=
-                    scale * central(nud_x, nudi_x) * alpha_i * 
+                    scale * rho_fi * central(nud_x, nudi_x) * alpha_i * 
                     (
                         (
                             (- central(ucat[k][j][i].x, ucat[k][j][i+1].x)) * icsi[k][j][i].x +
@@ -3729,7 +3905,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     // j-fluxes
                     rhs[k][j][i].y
                     +=
-                    scale * central(nud_x, nudj_x) * alpha_j * 
+                    scale * rho_fj * central(nud_x, nudj_x) * alpha_j * 
                     (
                         (
                             (- central(ucat[k][j][i].x, ucat[k][j+1][i].x)) * jeta[k][j][i].x +
@@ -3741,7 +3917,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     // k-fluxes
                     rhs[k][j][i].z
                     +=
-                    scale * central(nud_x, nudk_x) * alpha_k * 
+                    scale * rho_fk * central(nud_x, nudk_x) * alpha_k * 
                     (
                         (
                             (- central(ucat[k][j][i].x, ucat[k+1][j][i].x)) * kzet[k][j][i].x +
@@ -3785,6 +3961,7 @@ PetscErrorCode dampingSourceU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     if(ueqn->access->flags->isAeqnActive)
     {
         DMDAVecRestoreArray(da, aeqn->lAlpha, &alpha);
+        DMDAVecRestoreArray(fda, aeqn->lRhoFace, &rhoFace);
     }
 
     return(0);
@@ -3805,13 +3982,15 @@ PetscErrorCode Coriolis(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
 
     Cmpnts        ***rhs, ***ucat, ***cent;
-    Cmpnts        ***icsi, ***jeta, ***kzet;
+    Cmpnts        ***icsi, ***jeta, ***kzet,
+                  ***rhoFace;
+
     PetscReal     ***nvert, ***meshTag;
 
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
-    PetscInt      i, j, k, l;
+    PetscInt      i, j, k, l, multiphase = 0;
 
-    PetscReal     fc = abl->fc; // coriolis parameter / 2
+    PetscReal     rho_f, fc = abl->fc; // coriolis parameter / 2
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
@@ -3823,7 +4002,6 @@ PetscErrorCode Coriolis(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     // if the eta axis is aligned with the z cartesian direction, the dotting will output
     // zero since eta face area vectors have zero component in x and y cartesian directions.
 
-
     DMDAVecGetArray(fda, mesh->lICsi,  &icsi);
     DMDAVecGetArray(fda, mesh->lJEta,  &jeta);
     DMDAVecGetArray(fda, mesh->lKZet,  &kzet);
@@ -3834,17 +4012,27 @@ PetscErrorCode Coriolis(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     DMDAVecGetArray(fda, Rhs,  &rhs);
     DMDAVecGetArray(fda, ueqn->lUcat, &ucat);
 
+    // multiphase 
+    if(ueqn->access->flags->isAeqnActive)
+    {
+        multiphase = 1;
+        DMDAVecGetArray(fda, ueqn->access->aeqn->lRhoFace, &rhoFace);
+    }
+
     for (k=lzs; k<lze; k++)
     {
         for (j=lys; j<lye; j++)
         {
             for (i=lxs; i<lxe; i++)
             {
+                // i-faces
                 if(isFluidIFace(k, j, i, i+1, nvert) && isCalculatedIFace(k, j, i, i+1, meshTag))
                 {
+                    rho_f = multiphase ? rhoFace[k][j][i].x : 1.0;
+
                     rhs[k][j][i].x
                     +=
-                    scale *
+                    scale * rho_f *
                     (
                         -2.0 *
                         (
@@ -3854,11 +4042,14 @@ PetscErrorCode Coriolis(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     );
                 }
 
+                // j-faces
                 if(isFluidJFace(k, j, i, j+1, nvert) && isCalculatedJFace(k, j, i, j+1, meshTag))
                 {
+                    rho_f = multiphase ? rhoFace[k][j][i].y : 1.0;
+
                     rhs[k][j][i].y
                     +=
-                    scale *
+                    scale * rho_f *
                     (
                         -2.0 *
                         (
@@ -3868,11 +4059,14 @@ PetscErrorCode Coriolis(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     );
                 }
 
+                // k-faces
                 if(isFluidKFace(k, j, i, k+1, nvert) && isCalculatedKFace(k, j, i, k+1, meshTag))
                 {
+                    rho_f = multiphase ? rhoFace[k][j][i].z : 1.0;
+
                     rhs[k][j][i].z
                     +=
-                    scale *
+                    scale * rho_f *
                     (
                         -2.0 *
                         (
@@ -3895,6 +4089,11 @@ PetscErrorCode Coriolis(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     DMDAVecRestoreArray(fda, Rhs,  &rhs);
     DMDAVecRestoreArray(fda, ueqn->lUcat, &ucat);
 
+    if(ueqn->access->flags->isAeqnActive)
+    {
+        DMDAVecRestoreArray(fda, ueqn->access->aeqn->lRhoFace, &rhoFace);
+    }
+
     return(0);
 }
 
@@ -3911,11 +4110,15 @@ PetscErrorCode CanopyForce(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
 
     Cmpnts        ***rhs, ***ucat, ***cent;
-    Cmpnts        ***icsi, ***jeta, ***kzet;
+    Cmpnts        ***icsi, ***jeta, ***kzet,
+                  ***rhoFace;
+    
     PetscReal     ***nvert, ***meshTag;
 
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
-    PetscInt      i, j, k, l;
+    PetscInt      i, j, k, l, multiphase = 0;
+
+    PetscReal     rho_f;
 
     // adjust canopy bounds if they are defined outside of the domain
     PetscReal     xStart  = std::max(ueqn->access->abl->xStartCanopy,mesh->bounds.xmin),
@@ -3944,6 +4147,13 @@ PetscErrorCode CanopyForce(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     DMDAVecGetArray(fda, Rhs,  &rhs);
     DMDAVecGetArray(fda, ueqn->lUcat, &ucat);
 
+    // multiphase 
+    if(ueqn->access->flags->isAeqnActive)
+    {
+        multiphase = 1;
+        DMDAVecGetArray(fda, ueqn->access->aeqn->lRhoFace, &rhoFace);
+    }
+
     for (k=lzs; k<lze; k++)
     {
         for (j=lys; j<lye; j++)
@@ -3968,23 +4178,26 @@ PetscErrorCode CanopyForce(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
                 if(coeff_i > 0 && isFluidIFace(k, j, i, i+1, nvert) && isCalculatedIFace(k, j, i, i+1, meshTag))
                 {
+                    rho_f = multiphase ? rhoFace[k][j][i].x : 1.0;
                     uSource = nMag(centralVec(ucat[k][j][i], ucat[k][j][i+1]));
                     Cmpnts forceI = nScale(0.5*cft*uSource*uSource/Hc, diskNormal);
-                    rhs[k][j][i].x += coeff_i * (forceI.x*icsi[k][j][i].x + forceI.y*icsi[k][j][i].y + forceI.z*icsi[k][j][i].z);
+                    rhs[k][j][i].x += coeff_i * rho_f * (forceI.x*icsi[k][j][i].x + forceI.y*icsi[k][j][i].y + forceI.z*icsi[k][j][i].z);
                 }
 
                 if(coeff_j > 0 && isFluidJFace(k, j, i, j+1, nvert) && isCalculatedJFace(k, j, i, j+1, meshTag))
                 {
+                    rho_f = multiphase ? rhoFace[k][j][i].y : 1.0;
                     uSource = nMag(centralVec(ucat[k][j][i], ucat[k][j+1][i]));
                     Cmpnts forceJ = nScale(0.5*cft*uSource*uSource/Hc, diskNormal);
-                    rhs[k][j][i].y += coeff_j * (forceJ.x*jeta[k][j][i].x + forceJ.y*jeta[k][j][i].y + forceJ.z*jeta[k][j][i].z);
+                    rhs[k][j][i].y += coeff_j * rho_f * (forceJ.x*jeta[k][j][i].x + forceJ.y*jeta[k][j][i].y + forceJ.z*jeta[k][j][i].z);
                 }
 
                 if(coeff_k > 0 && isFluidKFace(k, j, i, k+1, nvert) && isCalculatedKFace(k, j, i, k+1, meshTag))
                 {
+                    rho_f = multiphase ? rhoFace[k][j][i].z : 1.0;
                     uSource = nMag(centralVec(ucat[k][j][i], ucat[k+1][j][i]));
                     Cmpnts forceK = nScale(0.5*cft*uSource*uSource/Hc, diskNormal);
-                    rhs[k][j][i].z += coeff_k * (forceK.x*kzet[k][j][i].x + forceK.y*kzet[k][j][i].y + forceK.z*kzet[k][j][i].z);
+                    rhs[k][j][i].z += coeff_k * rho_f * (forceK.x*kzet[k][j][i].x + forceK.y*kzet[k][j][i].y + forceK.z*kzet[k][j][i].z);
                 }
             }
         }
@@ -3999,6 +4212,11 @@ PetscErrorCode CanopyForce(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
 
     DMDAVecRestoreArray(fda, Rhs,  &rhs);
     DMDAVecRestoreArray(fda, ueqn->lUcat, &ucat);
+
+    if(ueqn->access->flags->isAeqnActive)
+    {
+        DMDAVecRestoreArray(fda, ueqn->access->aeqn->lRhoFace, &rhoFace);
+    }
 
     return(0);
 }
@@ -4108,7 +4326,9 @@ PetscErrorCode bulkGradPForcing(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     
     Cmpnts        ***rhs, ***ucat;
     Cmpnts        ***icsi, ***jeta, ***kzet;
+
     PetscReal     ***aj, ***nvert, ***meshTag, cellVol;
+
     PetscReal      lSumUx = 0.0, lSumUy = 0.0, lSumUz = 0.0;
     PetscReal      lVol   = 0.0;
     PetscReal      gSumUx = 0.0, gSumUy = 0.0, gSumUz = 0.0, gVol = 0.0;
@@ -4130,7 +4350,7 @@ PetscErrorCode bulkGradPForcing(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
     DMDAVecGetArray(fda, ueqn->lUcat,  &ucat);
     DMDAVecGetArray(da,  mesh->lNvert, &nvert);
     DMDAVecGetArray(da,  mesh->lmeshTag, &meshTag);
-   
+
     for (k = lzs; k < lze; k++)
     {
         for (j = lys; j < lye; j++)
@@ -4167,6 +4387,7 @@ PetscErrorCode bulkGradPForcing(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
         {
             for (i = lxs; i < lxe; i++)
             {
+                //i-faces
                 if(isFluidIFace(k, j, i, i+1, nvert) && isCalculatedIFace(k, j, i, i+1, meshTag))
                 {
                     rhs[k][j][i].x 
@@ -4179,6 +4400,7 @@ PetscErrorCode bulkGradPForcing(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     );
                 }
 
+                // j-faces
                 if(isFluidJFace(k, j, i, j+1, nvert) && isCalculatedJFace(k, j, i, j+1, meshTag))
                 {
 
@@ -4192,6 +4414,7 @@ PetscErrorCode bulkGradPForcing(ueqn_ *ueqn, Vec &Rhs, PetscReal scale)
                     );
                 }
 
+                // k-faces
                 if(isFluidKFace(k, j, i, k+1, nvert) && isCalculatedKFace(k, j, i, k+1, meshTag))
                 {
 

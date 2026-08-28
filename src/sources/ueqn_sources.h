@@ -10,6 +10,9 @@
 #ifndef UEQN_SOURCES_H
 #define UEQN_SOURCES_H
 
+//! \brief Apply Rhs by Rho
+PetscErrorCode RhsByRho(ueqn_ *ueqn, Vec &Rhs, Vec &Rho);
+
 //! \brief Update driving source terms
 PetscErrorCode CorrectSourceTerms(ueqn_ *ueqn, PetscInt print);
 
@@ -18,6 +21,9 @@ PetscErrorCode mapYDamping(ueqn_ *ueqn);
 
 //! \brief Correct damping source terms
 PetscErrorCode correctDampingSources(ueqn_ *ueqn);
+
+//! \brief Apply UdRhoDt source term
+PetscErrorCode UdRhoDt(ueqn_ *ueqn, Vec &Rhs, Vec &Ucont, Vec &RhoNew, Vec &RhoOld, PetscReal scale);
 
 //! \brief Apply buoyancy force
 PetscErrorCode Buoyancy(ueqn_ *ueqn, PetscReal scale);
