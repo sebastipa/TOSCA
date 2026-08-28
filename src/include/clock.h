@@ -30,3 +30,5 @@ struct clock_
 PetscErrorCode adjustTimeStep(domain_ *domain);
 
 PetscErrorCode timeStepInfo(domain_ *domain, clock_ *clock, PetscReal &dxByU_min, PetscReal &maxU, cellIds &maxUCell);
+
+PetscErrorCode timeStepInfoMultiphase(domain_ *domain, clock_ *clock, PetscReal &minVByA, cellIds &maxDivACell);

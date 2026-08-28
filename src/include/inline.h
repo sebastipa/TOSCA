@@ -1670,9 +1670,16 @@ inline void ContravariantToCartesianPoint(Cmpnts &csi, Cmpnts &eta, Cmpnts &zet,
 };
 
 //***************************************************************************************************************//
-//! \brief Resets the value at the non-solved faces to zero except for zeroGradient, outgoing flux and periodic
+//! \brief Resets the value at the non-solved faces to zero except for periodic
 inline void resetNonResolvedCellFaces(mesh_ *mesh, Vec &V)
 {
+    // Seba on 28/08/26: so far TOSCA was solving the faces where the flow was exiting or zeroGradient
+    //                   for multiphase this blows up the solution because we might have a very large 
+    //                   rho^{t}/rho^{t-1} when the face goes from water to air. Density values at the 
+    //                   boundary are interpolated so the ratio is unstable. This is fixed by ensuring 
+    //                   a perfectly kinematic BC at all faces, whereby V^{t+1} = V^{t} + 0.0 * RHS. 
+    //                   In TOSCA V^{t} contains the BCs and it is updated before solving.
+
     DMDALocalInfo    info = mesh->info;
     PetscInt         xs = info.xs, xe = info.xs + info.xm;
     PetscInt         ys = info.ys, ye = info.ys + info.ym;
@@ -1703,11 +1710,12 @@ inline void resetNonResolvedCellFaces(mesh_ *mesh, Vec &V)
                 if(i==0)
                 {
                     // zero gradient or flow exiting
-                    if(mesh->boundaryU.iLeft=="zeroGradient" || ucont_o[k][j][i].x < 0)
-                    {
-                        // here the value is solved 
-                    }
-                    else
+                    //if(mesh->boundaryU.iLeft=="zeroGradient" || ucont_o[k][j][i].x < 0)
+                    //{
+                    //    // here the value is solved 
+                    //    v[k][j][i].x = 0.0;
+                    //}
+                    //else
                     {
                         v[k][j][i].x = 0.0;
                     }
@@ -1721,11 +1729,12 @@ inline void resetNonResolvedCellFaces(mesh_ *mesh, Vec &V)
                 else if(i==mx-2 && !(mesh->i_periodic) && !(mesh->ii_periodic))
                 {
                     // zero gradient or flow exiting
-                    if(mesh->boundaryU.iRight=="zeroGradient" || ucont_o[k][j][i].x > 0)
-                    {
-                        // here the value is solved 
-                    }
-                    else
+                    //if(mesh->boundaryU.iRight=="zeroGradient" || ucont_o[k][j][i].x > 0)
+                    //{
+                    //    // here the value is solved 
+                    //    v[k][j][i].x = 0.0;
+                    //}
+                    //else
                     {
                         v[k][j][i].x = 0.0;
                     }
@@ -1744,11 +1753,12 @@ inline void resetNonResolvedCellFaces(mesh_ *mesh, Vec &V)
                 // jLeft face 
                 if(j==0)
                 {
-                    if(mesh->boundaryU.jLeft=="zeroGradient" || ucont_o[k][j][i].y < 0)
-                    {
-                        // here the value is solved 
-                    }
-                    else
+                    //if(mesh->boundaryU.jLeft=="zeroGradient" || ucont_o[k][j][i].y < 0)
+                    //{
+                    //    // here the value is solved 
+                    //    v[k][j][i].y = 0.0;
+                    //}
+                    //else
                     {
                         v[k][j][i].y = 0.0;
                     }
@@ -1761,11 +1771,12 @@ inline void resetNonResolvedCellFaces(mesh_ *mesh, Vec &V)
                 // jRight face
                 else if(j==my-2 && !(mesh->j_periodic) && !(mesh->jj_periodic))
                 {
-                    if(mesh->boundaryU.jRight=="zeroGradient" || ucont_o[k][j][i].y > 0)
-                    {
-                        // here the value is solved
-                    }
-                    else
+                    //if(mesh->boundaryU.jRight=="zeroGradient" || ucont_o[k][j][i].y > 0)
+                    //{
+                    //    // here the value is solved
+                    //    v[k][j][i].y = 0.0;
+                    //}
+                    //else
                     {
                         v[k][j][i].y = 0.0;
                     }
@@ -1784,11 +1795,12 @@ inline void resetNonResolvedCellFaces(mesh_ *mesh, Vec &V)
                 // kLeft face
                 if(k==0)
                 {
-                    if(mesh->boundaryU.kLeft=="zeroGradient" || ucont_o[k][j][i].z < 0)
-                    {
-                        // here the value is solved
-                    }
-                    else
+                    //if(mesh->boundaryU.kLeft=="zeroGradient" || ucont_o[k][j][i].z < 0)
+                    //{
+                    //    // here the value is solved
+                    //    v[k][j][i].z = 0.0;
+                    //}
+                    //else
                     {
                         v[k][j][i].z = 0.0;
                     }
@@ -1801,11 +1813,12 @@ inline void resetNonResolvedCellFaces(mesh_ *mesh, Vec &V)
                 // kRight face
                 else if(k==mz-2 && !(mesh->k_periodic) && !(mesh->kk_periodic))
                 {
-                    if(mesh->boundaryU.kRight=="zeroGradient" || ucont_o[k][j][i].z > 0)
-                    {
-                        // here the value is solved
-                    }
-                    else
+                    //if(mesh->boundaryU.kRight=="zeroGradient" || ucont_o[k][j][i].z > 0)
+                    //{
+                    //    // here the value is solved
+                    //    v[k][j][i].z = 0.0;
+                    //}
+                    //else
                     {
                         v[k][j][i].z = 0.0;
                     }
