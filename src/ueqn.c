@@ -125,10 +125,10 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
     // temporary: if multiphase is active can only use CN or FE
     if(flags->isAeqnActive)
     {
-        if(ueqn->ddtScheme != "CN" && ueqn->ddtScheme != "FE")
+        if(ueqn->ddtScheme != "CN" && ueqn->ddtScheme != "FE" && ueqn->ddtScheme != "RK3WCN")
         {
             char error[512];
-            sprintf(error, "Incompatible %s dUdtScheme. Supported dUdtScheme for multiphase is CN or FE", ueqn->ddtScheme.c_str());
+            sprintf(error, "Incompatible %s dUdtScheme. Supported dUdtScheme for multiphase is CN, FE or RK3WCN", ueqn->ddtScheme.c_str());
             fatalErrorInFunction("InitializeUEqn", error);
         }
     }
@@ -840,7 +840,7 @@ PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn)
                         }
 
                         // cumulate distribution area 
-                        if(mesh->boundaryU.kLeft !="inletFunction")
+                        //if(mesh->boundaryU.kLeft !="inletFunction")
                         {
                             PetscReal alphaFace = multiphase == 1 ? 0.5 * (alpha[k+1][j][i] + alpha[k][j][i]) : 0.0;
                             lArea              += nMag(kzet[k][j][i]) * (1 - alphaFace); 
@@ -874,7 +874,7 @@ PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn)
                         }
 
                         // cumulate distribution area 
-                        if(mesh->boundaryU.kRight !="inletFunction")
+                        //if(mesh->boundaryU.kRight !="inletFunction")
                         {
                             PetscReal alphaFace = multiphase == 1 ? 0.5 * (alpha[k+1][j][i] + alpha[k][j][i]) : 0.0;
                             lArea              += nMag(kzet[k][j][i]) * (1 - alphaFace); 
@@ -914,7 +914,7 @@ PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn)
                         }
 
                         // cumulate distribution area 
-                        if(mesh->boundaryU.jLeft !="inletFunction")
+                        //if(mesh->boundaryU.jLeft !="inletFunction")
                         {
                             PetscReal alphaFace =  multiphase == 1 ? 0.5 * (alpha[k][j+1][i] + alpha[k][j][i]) : 0.0;
                             lArea              += nMag(jeta[k][j][i]) * (1- alphaFace);
@@ -948,7 +948,7 @@ PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn)
                         }
 
                         // cumulate distribution area 
-                        if(mesh->boundaryU.jRight !="inletFunction")
+                        //if(mesh->boundaryU.jRight !="inletFunction")
                         {
                             PetscReal alphaFace =  multiphase == 1 ? 0.5 * (alpha[k][j+1][i] + alpha[k][j][i]) : 0.0;
                             lArea              += nMag(jeta[k][j][i]) * (1- alphaFace);
@@ -988,7 +988,7 @@ PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn)
                         }
 
                         // cumulate distribution area 
-                        if(mesh->boundaryU.iLeft !="inletFunction")
+                        //if(mesh->boundaryU.iLeft !="inletFunction")
                         {
                             PetscReal alphaFace = multiphase == 1 ? 0.5 * (alpha[k][j][i+1] + alpha[k][j][i]) : 0.0;
                             lArea              += nMag(icsi[k][j][i]) * (1- alphaFace);
@@ -1022,7 +1022,7 @@ PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn)
                         }
 
                         // cumulate distribution area 
-                        if(mesh->boundaryU.iRight !="inletFunction")
+                        //if(mesh->boundaryU.iRight !="inletFunction")
                         {
                             PetscReal alphaFace = multiphase == 1 ? 0.5 * (alpha[k][j][i+1] + alpha[k][j][i]) : 0.0;
                             lArea              += nMag(icsi[k][j][i]) * (1- alphaFace);
@@ -1064,7 +1064,7 @@ PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn)
                 {
                     if(!isIBMCell(k+1, j, i, nvert))
                     {
-                        if(mesh->boundaryU.kLeft!="inletFunction")
+                        //if(mesh->boundaryU.kLeft!="inletFunction")
                         {
                             PetscReal alphaFace = multiphase == 1 ? 0.5 * (alpha[k+1][j][i] + alpha[k][j][i]) : 0.0;
                             ucont[k][j][i].z   += globalFlux * (nMag(kzet[k][j][i]) / Area) * (1- alphaFace);
@@ -1096,7 +1096,7 @@ PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn)
                 {
                     if(!isIBMCell(k, j, i, nvert))
                     {
-                        if(mesh->boundaryU.kRight !="inletFunction")
+                        //if(mesh->boundaryU.kRight !="inletFunction")
                         {
                             PetscReal alphaFace = multiphase == 1 ? 0.5 * (alpha[k+1][j][i] + alpha[k][j][i]) : 0.0;
                             ucont[k][j][i].z   -= globalFlux * (nMag(kzet[k][j][i]) / Area) * (1- alphaFace);
@@ -1134,7 +1134,7 @@ PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn)
                 {
                     if(!isIBMCell(k, j+1, i, nvert))
                     {
-                        if(mesh->boundaryU.jLeft !="inletFunction")
+                        //if(mesh->boundaryU.jLeft !="inletFunction")
                         {
                             PetscReal alphaFace =  multiphase == 1 ? 0.5 * (alpha[k][j+1][i] + alpha[k][j][i]) : 0.0;
                             ucont[k][j][i].y   += globalFlux * (nMag(jeta[k][j][i]) / Area) * (1- alphaFace);
@@ -1166,7 +1166,7 @@ PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn)
                 {
                     if(!isIBMCell(k, j, i, nvert))
                     {
-                        if(mesh->boundaryU.jRight !="inletFunction")
+                        //if(mesh->boundaryU.jRight !="inletFunction")
                         {
                             PetscReal alphaFace =  multiphase == 1 ? 0.5 * (alpha[k][j+1][i] + alpha[k][j][i]) : 0.0;
                             ucont[k][j][i].y   -= globalFlux * (nMag(jeta[k][j][i]) / Area) * (1- alphaFace);
@@ -1204,7 +1204,7 @@ PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn)
                 {
                     if(!isIBMCell(k, j, i+1, nvert))
                     {
-                        if(mesh->boundaryU.iLeft !="inletFunction")
+                        //if(mesh->boundaryU.iLeft !="inletFunction")
                         {
                             PetscReal alphaFace = multiphase == 1 ? 0.5 * (alpha[k][j][i+1] + alpha[k][j][i]) : 0.0;
                             ucont[k][j][i].x   += globalFlux * (nMag(icsi[k][j][i]) / Area) * (1- alphaFace);
@@ -1236,7 +1236,7 @@ PetscErrorCode adjustFluxesLocal(ueqn_ *ueqn)
                 {
                     if(!isIBMCell(k, j, i, nvert))
                     {
-                        if(mesh->boundaryU.iRight !="inletFunction")
+                        //if(mesh->boundaryU.iRight !="inletFunction")
                         {
                             PetscReal alphaFace = multiphase == 1 ? 0.5 * (alpha[k][j][i+1] + alpha[k][j][i]) : 0.0;
                             ucont[k][j][i].x   -= globalFlux * (nMag(icsi[k][j][i]) / Area) * (1- alphaFace);
