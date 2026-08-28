@@ -11,11 +11,17 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
     PetscInt nDomains = domain[0].info.nDomains;
     flags_   *flags   = domain[0].access.flags;
 
+    // momentum info
     PetscInt  flag       = 0;
     PetscReal cfl        = 1e10;
     PetscReal maxU       = 0.0;
     PetscReal dxByU_min  = 1e10;
     cellIds   maxUCell;
+
+    // multiphase info
+    PetscReal minVByA = 1e10;
+    cellIds   maxDivACell;
+    PetscInt  multiphaseAdjusted = 0;
 
     clock_        *clock = domain[0].clock;
 
@@ -32,6 +38,11 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
         // time step imposed by the flow on this domain
         timeStepInfo(&domain[d], clock, dxByU_min, maxU, maxUCell);
 
+        if(domain[d].flags.isAeqnActive)
+        {
+            timeStepInfoMultiphase(&domain[d], clock, minVByA, maxDivACell);
+        }
+
         // time step imposed by the precursor on this domain (must be corrected to syncronize time steps)
         if(domain[d].flags.isConcurrentPrecursorActive)
         {
@@ -44,8 +55,17 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
         // output fields
         if(flags->isAdjustableTime)
         {
-            // 2. takes the local ratio
-            clock->dt   = clock->cfl * dxByU_min;
+            // time step due to the flow
+            clock->dt = clock->cfl * dxByU_min;
+            
+            if(domain[d].flags.isAeqnActive)
+            {
+                if(minVByA < clock->dt)
+                {
+                    clock->dt = minVByA;
+                    multiphaseAdjusted = 1;
+                }
+            }
 
             PetscReal timeStart;
             PetscReal timeInterval;
@@ -378,6 +398,10 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
     else
     {
         PetscPrintf(PETSC_COMM_WORLD, "Iteration = %ld, CFL = %lf, uMax = %.6f (i,j,k = %ld, %ld, %ld), dt = %.6f, dtMaxCFL = %.6f, adjust due to write flag: %ld\n", clock->it, cfl, maxU, maxUCell.i, maxUCell.j, maxUCell.k, clock->dt, dxByU_min, flag);
+        if(multiphaseAdjusted)
+        {
+            PetscPrintf(PETSC_COMM_WORLD, "                 alpha restricting: alpha dt = %.6f max divAlpha at i,j,k = %ld, %ld, %ld\n", minVByA, maxDivACell.i, maxDivACell.j, maxDivACell.k);
+        }
     }
 
     return(0);
@@ -474,6 +498,7 @@ PetscErrorCode timeStepInfo(domain_ *domain, clock_ *clock, PetscReal &dxByU_min
                     // min overall dxByU
                     ldxByU_min = PetscMin(ldxByU_min, ldxByU);
                 }
+
             }
         }
     }
@@ -514,6 +539,93 @@ PetscErrorCode timeStepInfo(domain_ *domain, clock_ *clock, PetscReal &dxByU_min
     DMDAVecRestoreArray(fda, mesh->lZet, &zet);
     DMDAVecRestoreArray(da,  mesh->lAj, &aj);
     DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
+
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode timeStepInfoMultiphase(domain_ *domain, clock_ *clock, PetscReal &minVByA, cellIds &maxDivACell)
+{
+    flags_        *flags = domain->access.flags;
+    mesh_         *mesh  = domain->mesh;
+    aeqn_         *aeqn  = domain->aeqn;
+    DM            da = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscReal     ***nvert, ***aj;
+
+    Cmpnts        ***divAlpha;
+
+    PetscReal     deltaAlphaMax = 0.25;
+
+    PetscInt      i, j, k;
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+
+    lxs = xs; if (xs==0) lxs = xs+1; lxe = xe; if (xe==mx) lxe = xe-1;
+    lys = ys; if (ys==0) lys = ys+1; lye = ye; if (ye==my) lye = ye-1;
+    lzs = zs; if (zs==0) lzs = zs+1; lze = ze; if (ze==mz) lze = ze-1;
+
+    PetscReal lminVbyDivAlpha = 1e10, gminVbyDivAlpha = 1e10;
+    cellIds   lmaxDivACell; lmaxDivACell.i = 0; lmaxDivACell.j = 0; lmaxDivACell.k = 0;
+    cellIds   gmaxDivACell; gmaxDivACell.i = 0; gmaxDivACell.j = 0; gmaxDivACell.k = 0;
+
+    DMDAVecGetArray(da,  mesh->lNvert, &nvert);
+    DMDAVecGetArray(da,  mesh->lAj, &aj);
+    DMDAVecGetArray(fda, aeqn->lDivMean, &divAlpha);
+
+    // time step due to flow restrictions
+    for (k=lzs; k<lze; k++)
+    {
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+                if(isFluidCell(k, j, i, nvert))
+                {
+                    PetscReal VbyDivAlpha = (1.0 / aj[k][j][i]) / fabs
+                                            (
+                                                    divAlpha[k][j][i].x - divAlpha[k][j][i-1].x +
+                                                    divAlpha[k][j][i].y - divAlpha[k][j-1][i].y +
+                                                    divAlpha[k][j][i].z - divAlpha[k-1][j][i].z
+                                            );
+
+                    if(VbyDivAlpha <  lminVbyDivAlpha)
+                    {
+                        lminVbyDivAlpha = VbyDivAlpha;
+                        lmaxDivACell.i  = i;
+                        lmaxDivACell.j  = j;
+                        lmaxDivACell.k  = k;
+                    }
+                }
+            }
+        }
+    }
+
+    MPI_Allreduce(&lminVbyDivAlpha, &gminVbyDivAlpha, 1, MPIU_REAL, MPIU_MIN, mesh->MESH_COMM);
+
+    if(lminVbyDivAlpha != gminVbyDivAlpha)
+    {
+        lmaxDivACell.i = 0; lmaxDivACell.j = 0; lmaxDivACell.k = 0;
+    }
+
+    MPI_Allreduce(&lmaxDivACell, &gmaxDivACell, 3, MPIU_INT, MPIU_MAX, mesh->MESH_COMM);
+
+    // max in all domains and save ids
+    if(gminVbyDivAlpha < minVByA)
+    {
+        minVByA      = gminVbyDivAlpha * deltaAlphaMax;
+        maxDivACell  = gmaxDivACell;
+    }
+
+    DMDAVecRestoreArray(da,  mesh->lAj, &aj);
+    DMDAVecRestoreArray(da,  mesh->lNvert, &nvert);
+    DMDAVecRestoreArray(fda, aeqn->lDivMean, &divAlpha);
 
     return(0);
 }
