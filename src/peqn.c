@@ -3587,12 +3587,7 @@ PetscErrorCode GradP(peqn_ *peqn)
                 if
                 (
                     // j-right boundary -> use upwind only at the corner faces
-                    (
-                        j==my-2 &&
-                        (
-                            i==mx-2
-                        )
-                    ) || isOversetIFace(k, j+1, i, i+1, meshTag)
+                    (j==my-2 && i==mx-2) || isOversetIFace(k, j+1, i, i+1, meshTag)
                 )
                 {
                     dpde = (p[k][j  ][i  ] - p[k][j-1][i  ] + p[k][j  ][i+1] - p[k][j-1][i+1]) * 0.5;
@@ -3600,12 +3595,7 @@ PetscErrorCode GradP(peqn_ *peqn)
                 else if
                 (
                     // j-left boundary -> use upwind  only at the corner faces
-                    (
-                        j == 1 &&
-                        (
-                            i == mx - 2
-                        )
-                     ) || isOversetIFace(k, j-1, i, i+1, meshTag)
+                    (j == 1 && i == mx-2) || isOversetIFace(k, j-1, i, i+1, meshTag)
                 )
                 {
                     dpde = (p[k][j+1][i  ] - p[k][j  ][i  ] + p[k][j+1][i+1] - p[k][j  ][i+1]) * 0.5;
@@ -3618,12 +3608,7 @@ PetscErrorCode GradP(peqn_ *peqn)
                 if
                 (
                     // k-right boundary -> use upwind  only at the corner faces
-                    (
-                        k == mz - 2 &&
-                        (
-                            i==mx-2
-                        )
-                    ) || isOversetIFace(k+1, j, i, i+1, meshTag)
+                    (k == mz-2 && i==mx-2) || isOversetIFace(k+1, j, i, i+1, meshTag)
                 )
                 {
                     dpdz = (p[k][j][i  ] - p[k-1][j][i  ] + p[k][j][i+1] - p[k-1][j][i+1]) * 0.5;
@@ -3631,12 +3616,7 @@ PetscErrorCode GradP(peqn_ *peqn)
                 else if
                 (
                     // k-left boundary  -> use upwind  only at the corner faces
-                    (
-                        k == 1 &&
-                        (
-                            i==mx-2
-                        )
-                    ) || isOversetIFace(k-1, j, i, i+1, meshTag)
+                    (k == 1 && i==mx-2) || isOversetIFace(k-1, j, i, i+1, meshTag)
                 )
                 {
                     dpdz = (p[k+1][j][i  ] - p[k][j][i  ] + p[k+1][j][i+1] - p[k][j][i+1]) * 0.5;
@@ -3652,12 +3632,7 @@ PetscErrorCode GradP(peqn_ *peqn)
                 if
                 (
                     // i-right boundary -> use upwind  only at the corner faces
-                    (
-                        i == mx-2 &&
-                        (
-                            j==my-2
-                        )
-                    ) || isOversetJFace(k, j, i+1, j+1, meshTag)
+                    (i == mx-2 && j==my-2) || isOversetJFace(k, j, i+1, j+1, meshTag)
                 )
                 {
                     dpdc = (p[k][j  ][i] - p[k][j  ][i-1] + p[k][j+1][i] - p[k][j+1][i-1]) * 0.5;
@@ -3665,12 +3640,7 @@ PetscErrorCode GradP(peqn_ *peqn)
                 else if
                 (
                     // i-left boundary -> use upwind  only at the corner faces
-                    (
-                        i == 1 &&
-                        (
-                            j==my-2
-                        )
-                    ) || isOversetJFace(k, j, i-1, j+1, meshTag)
+                    (i == 1 && j==my-2) || isOversetJFace(k, j, i-1, j+1, meshTag)
                 )
                 {
                     dpdc = (p[k][j  ][i+1] - p[k][j  ][i] + p[k][j+1][i+1] - p[k][j+1][i]) * 0.5;
@@ -3685,12 +3655,7 @@ PetscErrorCode GradP(peqn_ *peqn)
                 if
                 (
                     // k-right boundary -> use upwind  only at the corner faces
-                    (
-                        k == mz-2 &&
-                        (
-                            j== my-2
-                        )
-                    ) || isOversetJFace(k+1, j, i, j+1, meshTag)
+                    (k == mz-2 && j== my-2) || isOversetJFace(k+1, j, i, j+1, meshTag)
                 )
                 {
                     dpdz = (p[k][j  ][i] - p[k-1][j  ][i] + p[k][j+1][i] - p[k-1][j+1][i]) * 0.5;
@@ -3698,12 +3663,7 @@ PetscErrorCode GradP(peqn_ *peqn)
                 else if
                 (
                     // k-left boundary -> use upwind  only at the corner faces
-                    (
-                        k == 1 &&
-                        (
-                            j== my-2
-                        )
-                    ) || isOversetJFace(k-1, j, i, j+1, meshTag)
+                    (k == 1 && j== my-2) || isOversetJFace(k-1, j, i, j+1, meshTag)
                 )
                 {
                     dpdz = (p[k+1][j  ][i] - p[k][j  ][i] + p[k+1][j+1][i] - p[k][j+1][i]) * 0.5;
@@ -3719,12 +3679,7 @@ PetscErrorCode GradP(peqn_ *peqn)
                 if
                 (
                     // i-right boundary -> use upwind  only at the corner faces
-                    (
-                        i == mx - 2 &&
-                        (
-                            k==mz-2
-                        )
-                    ) || isOversetKFace(k, j, i+1, k+1, meshTag)
+                    (i == mx - 2 && k==mz-2) || isOversetKFace(k, j, i+1, k+1, meshTag)
                 )
                 {
                     dpdc = (p[k  ][j][i] - p[k  ][j][i-1] + p[k+1][j][i] - p[k+1][j][i-1]) * 0.5;
@@ -3732,12 +3687,7 @@ PetscErrorCode GradP(peqn_ *peqn)
                 else if
                 (
                     // i-left boundary -> use upwind  only at the corner faces
-                    (
-                        i == 1 &&
-                        (
-                            k == mz - 2
-                        )
-                    ) || isOversetKFace(k, j, i-1, k+1, meshTag)
+                    (i == 1 && k == mz - 2) || isOversetKFace(k, j, i-1, k+1, meshTag)
                 )
                 {
                     dpdc = (p[k  ][j][i+1] - p[k  ][j][i] + p[k+1][j][i+1] - p[k+1][j][i]) * 0.5;
@@ -3750,12 +3700,7 @@ PetscErrorCode GradP(peqn_ *peqn)
                 if
                 (
                     // j-right boundary -> use upwind  only at the corner faces
-                    (
-                        j == my - 2 &&
-                        (
-                            k==mz-2
-                        )
-                    ) || isOversetKFace(k, j+1, i, k+1, meshTag)
+                    (j == my - 2 && k==mz-2) || isOversetKFace(k, j+1, i, k+1, meshTag)
                 )
                 {
                     dpde = (p[k  ][j][i] - p[k  ][j-1][i] + p[k+1][j][i] - p[k+1][j-1][i]) * 0.5;
@@ -3763,12 +3708,7 @@ PetscErrorCode GradP(peqn_ *peqn)
                 else if
                 (
                     // j-left boundary -> use upwind  only at the corner faces
-                    (
-                        j == 1 &&
-                        (
-                            k==mz-2
-                        )
-                    )  || isOversetKFace(k, j-1, i, k+1, meshTag)
+                    (j == 1 && k==mz-2)  || isOversetKFace(k, j-1, i, k+1, meshTag)
                 )
                 {
                     dpde = (p[k  ][j+1][i] - p[k  ][j][i] + p[k+1][j+1][i] - p[k+1][j][i]) * 0.5;
