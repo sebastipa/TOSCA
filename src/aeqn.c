@@ -41,13 +41,15 @@ PetscErrorCode InitializeAEqn(aeqn_ *aeqn)
         VecDuplicate(mesh->Nvert, &(aeqn->Rhs));         VecSet(aeqn->Rhs,      0.0);
         
         // density fields
-        VecDuplicate(mesh->lAj,   &(aeqn->lRho));        VecSet(aeqn->lRho,   0.0);
+        VecDuplicate(mesh->lAj,   &(aeqn->lRho));        VecSet(aeqn->lRho,      0.0);
         VecDuplicate(mesh->Cent,  &(aeqn->dRho));        VecSet(aeqn->dRho,      0.0);
-        VecDuplicate(mesh->lCent, &(aeqn->lRhoFace));    VecSet(aeqn->lRhoFace,0.0);
+        VecDuplicate(mesh->lCent, &(aeqn->lRhoFace));    VecSet(aeqn->lRhoFace,  0.0);
         VecDuplicate(mesh->lCent, &(aeqn->lRhoFace_o));  VecSet(aeqn->lRhoFace_o,0.0);
+        VecDuplicate(mesh->lCent, &(aeqn->lRhoFaceStage));VecSet(aeqn->lRhoFaceStage,  0.0);
 
         // MULES fields
         VecDuplicate(mesh->lCent, &(aeqn->lDivA));       VecSet(aeqn->lDivA,    0.0);
+        VecDuplicate(mesh->lCent, &(aeqn->lDivMean));    VecSet(aeqn->lDivMean, 0.0);
         VecDuplicate(mesh->lCent, &(aeqn->lDivALO));     VecSet(aeqn->lDivALO,  0.0);
         VecDuplicate(mesh->lCent, &(aeqn->lDivAHO));     VecSet(aeqn->lDivAHO,  0.0);
         VecDuplicate(mesh->lCent, &(aeqn->lDivACor));    VecSet(aeqn->lDivACor, 0.0);
@@ -55,6 +57,10 @@ PetscErrorCode InitializeAEqn(aeqn_ *aeqn)
         VecDuplicate(mesh->lAj,   &(aeqn->lAlphaLO));    VecSet(aeqn->lAlphaLO, 0.0);
         VecDuplicate(mesh->lAj,   &(aeqn->lRplusA));     VecSet(aeqn->lRplusA,  1.0);
         VecDuplicate(mesh->lAj,   &(aeqn->lRminusA));    VecSet(aeqn->lRminusA, 1.0);
+
+        // compression term & acquisition fields 
+        VecDuplicate(mesh->lCent, &(aeqn->lGradAlpha));  VecSet(aeqn->lGradAlpha,  0.0);
+        VecDuplicate(mesh->lAj,   &(aeqn->lAlphaSmooth));VecSet(aeqn->lAlphaSmooth,0.0);
 
         // alpha sub-cycling steps
         aeqn->nAlphaSubCycles = 3;
@@ -235,8 +241,6 @@ PetscErrorCode SolveAEqn(aeqn_ *aeqn)
     else if (aeqn->ddtScheme=="RK3")
         AeqnRK3(aeqn);
 
-    // reset periodicity (strict enforcement is crucial)
-    enforceInteriorCellPeriodicity(mesh, aeqn->Alpha, aeqn->lAlpha, "scalar");
     resetCellPeriodicFluxes(mesh, aeqn->Alpha, aeqn->lAlpha, "scalar", "globalToLocal");
 
     return(0);
@@ -282,6 +286,8 @@ PetscErrorCode boundAlpha(aeqn_ *aeqn)
 
 //***************************************************************************************************************//
 
+#define PHIG(k,j,i) (nMag(gravity) * (nDot(vertical, cent[k][j][i]) - Href))
+
 PetscErrorCode GradRho(aeqn_ *aeqn)
 {
     mesh_         *mesh = aeqn->access->mesh;
@@ -296,7 +302,8 @@ PetscErrorCode GradRho(aeqn_ *aeqn)
     Cmpnts        ***icsi, ***ieta, ***izet,
                   ***jcsi, ***jeta, ***jzet,
                   ***kcsi, ***keta, ***kzet,
-                  ***drho, ***cent;
+                  ***drho, ***cent,
+                  ***rhoFace;
 
     PetscReal     ***rho, ***nvert, ***meshTag;
     PetscReal     ***iaj, ***jaj, ***kaj;
@@ -338,9 +345,10 @@ PetscErrorCode GradRho(aeqn_ *aeqn)
 
     DMDAVecGetArray(fda, aeqn->dRho, &drho);
     DMDAVecGetArray(da,  aeqn->lRho, &rho);
+    DMDAVecGetArray(fda, aeqn->lRhoFace, &rhoFace);
 
     PetscReal coeff_i, coeff_j, coeff_k;
-    Cmpnts    cent_f;
+    PetscReal phi1, phi2;
 
     for (k=lzs; k<lze; k++)
     {
@@ -359,7 +367,7 @@ PetscErrorCode GradRho(aeqn_ *aeqn)
                 PetscReal g33_k = (kzet[k][j][i].x * kzet[k][j][i].x + kzet[k][j][i].y * kzet[k][j][i].y + kzet[k][j][i].z * kzet[k][j][i].z);
 
                 // density gradient in the i-direction
-                drdc = rho[k][j][i+1] - rho[k][j][i];
+                drdc = (rho[k][j][i+1] - rho[k][j][i]) * 0.5 * (PHIG(k,j,i+1) + PHIG(k,j,i));   
 
                 if
                 (
@@ -367,7 +375,11 @@ PetscErrorCode GradRho(aeqn_ *aeqn)
                     (j==my-2 && i==mx-2) || isOversetIFace(k, j+1, i, i+1, meshTag)
                 )
                 {
-                    drde = (rho[k][j  ][i  ] - rho[k][j-1][i  ] + rho[k][j  ][i+1] - rho[k][j-1][i+1]) * 0.5;
+                    PetscReal coeff_1 = 0.5 * (PHIG(k,j,i)   + PHIG(k,j-1,i));
+                    PetscReal coeff_2 = 0.5 * (PHIG(k,j,i+1) + PHIG(k,j-1,i+1));
+                    PetscReal diff_1 = (rho[k][j  ][i  ] - rho[k][j-1][i  ]) * coeff_1;
+                    PetscReal diff_2 = (rho[k][j  ][i+1] - rho[k][j-1][i+1]) * coeff_2;
+                    drde = (diff_1 + diff_2) * 0.5;
                 }
                 else if
                 (
@@ -375,11 +387,21 @@ PetscErrorCode GradRho(aeqn_ *aeqn)
                     (j == 1 && i == mx-2) || isOversetIFace(k, j-1, i, i+1, meshTag)
                 )
                 {
-                    drde = (rho[k][j+1][i  ] - rho[k][j  ][i  ] + rho[k][j+1][i+1] - rho[k][j  ][i+1]) * 0.5;
+                    PetscReal coeff_1 = 0.5 * (PHIG(k,j,i)   + PHIG(k,j+1,i));
+                    PetscReal coeff_2 = 0.5 * (PHIG(k,j,i+1) + PHIG(k,j+1,i+1));
+                    PetscReal diff_1 = (rho[k][j+1][i  ] - rho[k][j  ][i  ]) * coeff_1;
+                    PetscReal diff_2 = (rho[k][j+1][i+1] - rho[k][j  ][i+1]) * coeff_2;
+                    drde = (diff_1 + diff_2) * 0.5;
+                    //drde = (rho[k][j+1][i  ] - rho[k][j  ][i  ] + rho[k][j+1][i+1] - rho[k][j  ][i+1]) * 0.5;
                 }
                 else
                 {
-                    drde = (rho[k][j+1][i] - rho[k][j-1][i] + rho[k][j+1][i+1] - rho[k][j-1][i+1]) * 0.25;
+                    PetscReal coeff_1 = 0.5 * (PHIG(k,j+1,i) + PHIG(k,j-1,i));
+                    PetscReal coeff_2 = 0.5 * (PHIG(k,j+1,i+1) + PHIG(k,j-1,i+1));
+                    PetscReal diff_1 = (rho[k][j+1][i  ] - rho[k][j-1][i  ]) * coeff_1;
+                    PetscReal diff_2 = (rho[k][j+1][i+1] - rho[k][j-1][i+1]) * coeff_2;
+                    drde = (diff_1 + diff_2) * 0.25;
+                    //drde = (rho[k][j+1][i] - rho[k][j-1][i] + rho[k][j+1][i+1] - rho[k][j-1][i+1]) * 0.25;
                 }
 
                 if
@@ -388,7 +410,12 @@ PetscErrorCode GradRho(aeqn_ *aeqn)
                     (k == mz-2 && i==mx-2) || isOversetIFace(k+1, j, i, i+1, meshTag)
                 )
                 {
-                    drdz = (rho[k][j][i  ] - rho[k-1][j][i  ] + rho[k][j][i+1] - rho[k-1][j][i+1]) * 0.5;
+                    PetscReal coeff_1 = 0.5 * (PHIG(k,j,i)   + PHIG(k-1,j,i));
+                    PetscReal coeff_2 = 0.5 * (PHIG(k,j,i+1) + PHIG(k-1,j,i+1));
+                    PetscReal diff_1 = (rho[k  ][j][i  ] - rho[k-1][j][i  ]) * coeff_1;
+                    PetscReal diff_2 = (rho[k  ][j][i+1] - rho[k-1][j][i+1]) * coeff_2;
+                    drdz = (diff_1 + diff_2) * 0.5;
+                    //drdz = (rho[k][j][i  ] - rho[k-1][j][i  ] + rho[k][j][i+1] - rho[k-1][j][i+1]) * 0.5;
                 }
                 else if
                 (
@@ -396,17 +423,24 @@ PetscErrorCode GradRho(aeqn_ *aeqn)
                     (k == 1 && i==mx-2) || isOversetIFace(k-1, j, i, i+1, meshTag)
                 )
                 {
-                    drdz = (rho[k+1][j][i  ] - rho[k][j][i  ] + rho[k+1][j][i+1] - rho[k][j][i+1]) * 0.5;
+                    PetscReal coeff_1 = 0.5 * (PHIG(k,j,i)   + PHIG(k+1,j,i));
+                    PetscReal coeff_2 = 0.5 * (PHIG(k,j,i+1) + PHIG(k+1,j,i+1));
+                    PetscReal diff_1 = (rho[k+1][j][i  ] - rho[k][j][i  ]) * coeff_1;
+                    PetscReal diff_2 = (rho[k+1][j][i+1] - rho[k][j][i+1]) * coeff_2;
+                    drdz = (diff_1 + diff_2) * 0.5;
+                    //drdz = (rho[k+1][j][i  ] - rho[k][j][i  ] + rho[k+1][j][i+1] - rho[k][j][i+1]) * 0.5;
                 }
                 else
                 {
-                    drdz = (rho[k+1][j][i] - rho[k-1][j][i] + rho[k+1][j][i+1] - rho[k-1][j][i+1]) * 0.25;
+                    PetscReal coeff_1 = 0.5 * (PHIG(k+1,j,i)   + PHIG(k-1,j,i));
+                    PetscReal coeff_2 = 0.5 * (PHIG(k+1,j,i+1) + PHIG(k-1,j,i+1));
+                    PetscReal diff_1 = (rho[k+1][j][i  ] - rho[k-1][j][i  ]) * coeff_1;
+                    PetscReal diff_2 = (rho[k+1][j][i+1] - rho[k-1][j][i+1]) * coeff_2;
+                    drdz = (diff_1 + diff_2) * 0.25;
+                    //drdz = (rho[k+1][j][i] - rho[k-1][j][i] + rho[k+1][j][i+1] - rho[k-1][j][i+1]) * 0.25;
                 }  
 
-                cent_f  = nScale(0.5, nSum(cent[k][j][i], cent[k][j][i+1]));
-                coeff_i = nMag(gravity)*(nDot(vertical, cent_f) - Href);
-
-                drho[k][j][i].x = (drdc * g11_i + drde *  g12_i + drdz * g13_i) * iaj[k][j][i] * coeff_i;
+                drho[k][j][i].x = (drdc * g11_i + drde *  g12_i + drdz * g13_i) * iaj[k][j][i];
 
                 // pressure gradient in the j-direction
                 if
@@ -415,7 +449,12 @@ PetscErrorCode GradRho(aeqn_ *aeqn)
                     (i == mx-2 && j==my-2) || isOversetJFace(k, j, i+1, j+1, meshTag)
                 )
                 {
-                    drdc = (rho[k][j  ][i] - rho[k][j  ][i-1] + rho[k][j+1][i] - rho[k][j+1][i-1]) * 0.5;
+                    PetscReal coeff_1 = 0.5 * (PHIG(k,j,i)   + PHIG(k,j,i-1));
+                    PetscReal coeff_2 = 0.5 * (PHIG(k,j+1,i) + PHIG(k,j+1,i-1));
+                    PetscReal diff_1 = (rho[k][j  ][i  ] - rho[k][j  ][i-1]) * coeff_1;
+                    PetscReal diff_2 = (rho[k][j+1][i  ] - rho[k][j+1][i-1]) * coeff_2;
+                    drdc = (diff_1 + diff_2) * 0.5; 
+                    //drdc = (rho[k][j  ][i] - rho[k][j  ][i-1] + rho[k][j+1][i] - rho[k][j+1][i-1]) * 0.5;
                 }
                 else if
                 (
@@ -423,14 +462,24 @@ PetscErrorCode GradRho(aeqn_ *aeqn)
                     (i == 1 && j==my-2) || isOversetJFace(k, j, i-1, j+1, meshTag)
                 )
                 {
-                    drdc = (rho[k][j  ][i+1] - rho[k][j  ][i] + rho[k][j+1][i+1] - rho[k][j+1][i]) * 0.5;
+                    PetscReal coeff_1 = 0.5 * (PHIG(k,j,i+1)   + PHIG(k,j,i));
+                    PetscReal coeff_2 = 0.5 * (PHIG(k,j+1,i+1) + PHIG(k,j+1,i));
+                    PetscReal diff_1 = (rho[k][j  ][i+1] - rho[k][j  ][i  ]) * coeff_1;
+                    PetscReal diff_2 = (rho[k][j+1][i+1] - rho[k][j+1][i  ]) * coeff_2;
+                    drdc = (diff_1 + diff_2) * 0.5;
+                    //drdc = (rho[k][j  ][i+1] - rho[k][j  ][i] + rho[k][j+1][i+1] - rho[k][j+1][i]) * 0.5;
                 }
                 else
                 {
-                    drdc = (rho[k][j  ][i+1] - rho[k][j  ][i-1] + rho[k][j+1][i+1] - rho[k][j+1][i-1]) * 0.25;
+                    PetscReal coeff_1 = 0.5 * (PHIG(k,j,i+1)   + PHIG(k,j,i-1));
+                    PetscReal coeff_2 = 0.5 * (PHIG(k,j+1,i+1) + PHIG(k,j+1,i-1));
+                    PetscReal diff_1 = (rho[k][j  ][i+1] - rho[k][j  ][i-1]) * coeff_1;
+                    PetscReal diff_2 = (rho[k][j+1][i+1] - rho[k][j+1][i-1]) * coeff_2;
+                    drdc = (diff_1 + diff_2) * 0.25;
+                    //drdc = (rho[k][j  ][i+1] - rho[k][j  ][i-1] + rho[k][j+1][i+1] - rho[k][j+1][i-1]) * 0.25;
                 }
 
-                drde = rho[k][j+1][i] - rho[k][j][i];
+                drde = (rho[k][j+1][i] - rho[k][j][i]) * 0.5 * (PHIG(k,j+1,i) + PHIG(k,j,i));
 
                 if
                 (
@@ -438,7 +487,12 @@ PetscErrorCode GradRho(aeqn_ *aeqn)
                     (k == mz-2 && j== my-2) || isOversetJFace(k+1, j, i, j+1, meshTag)
                 )
                 {
-                    drdz = (rho[k][j  ][i] - rho[k-1][j  ][i] + rho[k][j+1][i] - rho[k-1][j+1][i]) * 0.5;
+                    PetscReal coeff_1 = 0.5 * (PHIG(k,j,i)   + PHIG(k-1,j,i));
+                    PetscReal coeff_2 = 0.5 * (PHIG(k,j+1,i) + PHIG(k-1,j+1,i));
+                    PetscReal diff_1 = (rho[k  ][j  ][i  ] - rho[k-1][j  ][i  ]) * coeff_1;
+                    PetscReal diff_2 = (rho[k  ][j+1][i  ] - rho[k-1][j+1][i  ]) * coeff_2;
+                    drdz = (diff_1 + diff_2) * 0.5;
+                    //drdz = (rho[k][j  ][i] - rho[k-1][j  ][i] + rho[k][j+1][i] - rho[k-1][j+1][i]) * 0.5;
                 }
                 else if
                 (
@@ -446,17 +500,24 @@ PetscErrorCode GradRho(aeqn_ *aeqn)
                     (k == 1 && j== my-2) || isOversetJFace(k-1, j, i, j+1, meshTag)
                 )
                 {
-                    drdz = (rho[k+1][j  ][i] - rho[k][j  ][i] + rho[k+1][j+1][i] - rho[k][j+1][i]) * 0.5;
+                    PetscReal coeff_1 = 0.5 * (PHIG(k,j,i)   + PHIG(k+1,j,i));
+                    PetscReal coeff_2 = 0.5 * (PHIG(k,j+1,i) + PHIG(k+1,j+1,i));
+                    PetscReal diff_1 = (rho[k+1][j  ][i  ] - rho[k][j  ][i  ]) * coeff_1;
+                    PetscReal diff_2 = (rho[k+1][j+1][i  ] - rho[k][j+1][i  ]) * coeff_2;
+                    drdz = (diff_1 + diff_2) * 0.5;
+                    //drdz = (rho[k+1][j  ][i] - rho[k][j  ][i] + rho[k+1][j+1][i] - rho[k][j+1][i]) * 0.5;
                 }
                 else
                 {
-                    drdz = (rho[k+1][j  ][i] - rho[k-1][j  ][i] + rho[k+1][j+1][i] - rho[k-1][j+1][i]) * 0.25;
+                    PetscReal coeff_1 = 0.5 * (PHIG(k+1,j,i)   + PHIG(k-1,j,i));
+                    PetscReal coeff_2 = 0.5 * (PHIG(k+1,j+1,i) + PHIG(k-1,j+1,i));
+                    PetscReal diff_1 = (rho[k+1][j  ][i  ] - rho[k-1][j  ][i  ]) * coeff_1;
+                    PetscReal diff_2 = (rho[k+1][j+1][i  ] - rho[k-1][j+1][i  ]) * coeff_2;
+                    drdz = (diff_1 + diff_2) * 0.25;
+                    //drdz = (rho[k+1][j  ][i] - rho[k-1][j  ][i] + rho[k+1][j+1][i] - rho[k-1][j+1][i]) * 0.25;
                 }
-                
-                cent_f  = nScale(0.5, nSum(cent[k][j][i], cent[k][j+1][i]));
-                coeff_j = nMag(gravity)*(nDot(vertical, cent_f) - Href);
 
-                drho[k][j][i].y = (drdc * g21_j + drde * g22_j + drdz * g23_j) * jaj[k][j][i] * coeff_j;
+                drho[k][j][i].y = (drdc * g21_j + drde * g22_j + drdz * g23_j) * jaj[k][j][i];
 
                 // pressure gradient in the k-direction
                 if
@@ -465,7 +526,12 @@ PetscErrorCode GradRho(aeqn_ *aeqn)
                     (i == mx - 2 && k==mz-2) || isOversetKFace(k, j, i+1, k+1, meshTag)
                 )
                 {
-                    drdc = (rho[k  ][j][i] - rho[k  ][j][i-1] + rho[k+1][j][i] - rho[k+1][j][i-1]) * 0.5;
+                    PetscReal coeff_1 = 0.5 * (PHIG(k,j,i)   + PHIG(k,j,i-1));
+                    PetscReal coeff_2 = 0.5 * (PHIG(k+1,j,i) + PHIG(k+1,j,i-1));
+                    PetscReal diff_1 = (rho[k  ][j][i  ] - rho[k  ][j][i-1]) * coeff_1;
+                    PetscReal diff_2 = (rho[k+1][j][i  ] - rho[k+1][j][i-1]) * coeff_2;
+                    drdc = (diff_1 + diff_2) * 0.5;
+                    //drdc = (rho[k  ][j][i] - rho[k  ][j][i-1] + rho[k+1][j][i] - rho[k+1][j][i-1]) * 0.5;
                 }
                 else if
                 (
@@ -473,11 +539,21 @@ PetscErrorCode GradRho(aeqn_ *aeqn)
                     (i == 1 && k == mz - 2) || isOversetKFace(k, j, i-1, k+1, meshTag)
                 )
                 {
-                    drdc = (rho[k  ][j][i+1] - rho[k  ][j][i] + rho[k+1][j][i+1] - rho[k+1][j][i]) * 0.5;
+                    PetscReal coeff_1 = 0.5 * (PHIG(k,j,i)   + PHIG(k,j,i+1));
+                    PetscReal coeff_2 = 0.5 * (PHIG(k+1,j,i) + PHIG(k+1,j,i+1));
+                    PetscReal diff_1 = (rho[k  ][j][i+1] - rho[k  ][j][i  ]) * coeff_1;
+                    PetscReal diff_2 = (rho[k+1][j][i+1] - rho[k+1][j][i  ]) * coeff_2;
+                    drdc = (diff_1 + diff_2) * 0.5;
+                    //drdc = (rho[k  ][j][i+1] - rho[k  ][j][i] + rho[k+1][j][i+1] - rho[k+1][j][i]) * 0.5;
                 }
                 else
                 {
-                    drdc = (rho[k  ][j][i+1] - rho[k  ][j][i-1] + rho[k+1][j][i+1] - rho[k+1][j][i-1]) * 0.25;
+                    PetscReal coeff_1 = 0.5 * (PHIG(k,j,i+1)   + PHIG(k,j,i-1));
+                    PetscReal coeff_2 = 0.5 * (PHIG(k+1,j,i+1) + PHIG(k+1,j,i-1));
+                    PetscReal diff_1 = (rho[k  ][j][i+1] - rho[k  ][j][i-1]) * coeff_1;
+                    PetscReal diff_2 = (rho[k+1][j][i+1] - rho[k+1][j][i-1]) * coeff_2;
+                    drdc = (diff_1 + diff_2) * 0.25;
+                    //drdc = (rho[k  ][j][i+1] - rho[k  ][j][i-1] + rho[k+1][j][i+1] - rho[k+1][j][i-1]) * 0.25;
                 }
 
                 if
@@ -486,7 +562,12 @@ PetscErrorCode GradRho(aeqn_ *aeqn)
                     (j == my - 2 && k==mz-2) || isOversetKFace(k, j+1, i, k+1, meshTag)
                 )
                 {
-                    drde = (rho[k  ][j][i] - rho[k  ][j-1][i] + rho[k+1][j][i] - rho[k+1][j-1][i]) * 0.5;
+                    PetscReal coeff_1 = 0.5 * (PHIG(k,j,i)   + PHIG(k,j-1,i));
+                    PetscReal coeff_2 = 0.5 * (PHIG(k+1,j,i) + PHIG(k+1,j-1,i));
+                    PetscReal diff_1 = (rho[k  ][j  ][i  ] - rho[k  ][j-1][i  ]) * coeff_1;
+                    PetscReal diff_2 = (rho[k+1][j  ][i  ] - rho[k+1][j-1][i  ]) * coeff_2;
+                    drde = (diff_1 + diff_2) * 0.5;
+                    //drde = (rho[k  ][j][i] - rho[k  ][j-1][i] + rho[k+1][j][i] - rho[k+1][j-1][i]) * 0.5;
                 }
                 else if
                 (
@@ -494,19 +575,26 @@ PetscErrorCode GradRho(aeqn_ *aeqn)
                     (j == 1 && k==mz-2)  || isOversetKFace(k, j-1, i, k+1, meshTag)
                 )
                 {
-                    drde = (rho[k  ][j+1][i] - rho[k  ][j][i] + rho[k+1][j+1][i] - rho[k+1][j][i]) * 0.5;
+                    PetscReal coeff_1 = 0.5 * (PHIG(k,j,i)   + PHIG(k,j+1,i));
+                    PetscReal coeff_2 = 0.5 * (PHIG(k+1,j,i) + PHIG(k+1,j+1,i));
+                    PetscReal diff_1 = (rho[k  ][j+1][i  ] - rho[k  ][j  ][i  ]) * coeff_1;
+                    PetscReal diff_2 = (rho[k+1][j+1][i  ] - rho[k+1][j  ][i  ]) * coeff_2;
+                    drde = (diff_1 + diff_2) * 0.5;
+                    //drde = (rho[k  ][j+1][i] - rho[k  ][j][i] + rho[k+1][j+1][i] - rho[k+1][j][i]) * 0.5;
                 }
                 else
                 {
-                    drde = (rho[k  ][j+1][i] - rho[k  ][j-1][i] + rho[k+1][j+1][i] - rho[k+1][j-1][i]) * 0.25;
+                    PetscReal coeff_1 = 0.5 * (PHIG(k,j+1,i)   + PHIG(k,j-1,i));
+                    PetscReal coeff_2 = 0.5 * (PHIG(k+1,j+1,i) + PHIG(k+1,j-1,i));
+                    PetscReal diff_1 = (rho[k  ][j+1][i  ] - rho[k  ][j-1][i  ]) * coeff_1;
+                    PetscReal diff_2 = (rho[k+1][j+1][i  ] - rho[k+1][j-1][i  ]) * coeff_2;
+                    drde = (diff_1 + diff_2) * 0.25;
+                    //drde = (rho[k  ][j+1][i] - rho[k  ][j-1][i] + rho[k+1][j+1][i] - rho[k+1][j-1][i]) * 0.25;
                 }
 
-                drdz = (rho[k+1][j][i] - rho[k][j][i]);
-                   
-                cent_f  = nScale(0.5, nSum(cent[k][j][i], cent[k+1][j][i]));
-                coeff_k = nMag(gravity)*(nDot(vertical, cent_f) - Href);
+                drdz = (rho[k+1][j][i] - rho[k][j][i]) * 0.5 * (PHIG(k+1,j,i) + PHIG(k,j,i));
 
-                drho[k][j][i].z = (drdc * g31_k + drde * g32_k + drdz * g33_k) * kaj[k][j][i] * coeff_k;
+                drho[k][j][i].z = (drdc * g31_k + drde * g32_k + drdz * g33_k) * kaj[k][j][i];
 
                 // periodic: set to zero only on left boundaries since the contrav. velocity is not solved there
                 // non-periodic: set to zero also on right boundaries since the contrav. velocity is not solved there
@@ -553,6 +641,7 @@ PetscErrorCode GradRho(aeqn_ *aeqn)
 
     DMDAVecRestoreArray(fda, aeqn->dRho, &drho);
     DMDAVecRestoreArray(da,  aeqn->lRho, &rho);
+    DMDAVecRestoreArray(fda, aeqn->lRhoFace, &rhoFace);
 
     return(0);
 }
