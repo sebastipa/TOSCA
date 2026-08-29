@@ -245,6 +245,10 @@ PetscErrorCode FormAHighOrder(aeqn_ *aeqn)
     DMDAVecRestoreArray(fda, ueqn->lUcont,       &ucont);
     DMDAVecRestoreArray(da,  mesh->lNvert,       &nvert);
     DMDAVecRestoreArray(da,  mesh->lmeshTag,     &meshTag);
+    DMDAVecRestoreArray(da,  mesh->lAj,          &aj);
+    DMDAVecRestoreArray(fda, mesh->lCsi,         &csi);
+    DMDAVecRestoreArray(fda, mesh->lEta,         &eta);
+    DMDAVecRestoreArray(fda, mesh->lZet,         &zet);
     DMDAVecRestoreArray(fda, aeqn->lGradAlpha,   &gradAlpha);
     DMDAVecRestoreArray(da,  aeqn->lAlphaSmooth, &alphaSmooth);
 
