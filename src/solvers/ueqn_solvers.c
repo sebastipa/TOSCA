@@ -182,6 +182,23 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
         nuDY = 1.0;
     }
 
+    // Setup divergence scheme context (initialize once to avoid runtime branching)
+    DivSchemeAccess divAccs;
+    divAccs.mesh      = mesh;
+    divAccs.ucat      = ucat;
+    divAccs.ucont     = ucont;
+    divAccs.nvert     = nvert;
+    divAccs.meshTag   = meshTag;
+    divAccs.limiter   = limiter;
+    divAccs.aj        = aj;         
+    divAccs.csi       = csi;
+    divAccs.eta       = eta;
+    divAccs.zet       = zet;
+    divAccs.mx        = mx;
+    divAccs.my        = my;
+    divAccs.mz        = mz;
+    divAccs.hyperVisc = ueqn->hyperVisc;
+
     for (k=zs; k<ze; k++)
     {
         for (j=ys; j<ye; j++)
@@ -245,99 +262,20 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
                         PetscReal denom;
                         getFace2Cell4StencilCsi(mesh, k, j, i, mx, &iL, &iR, &denom, nvert, meshTag);
 
+                        // Update context for this face
+                        divAccs.k    = k;  divAccs.j  = j; divAccs.i = i;
+                        divAccs.iL   = iL; divAccs.iR = iR;
+                        divAccs.wavespeed = ucont[k][j][i].x;
+                        divAccs.flux = flux;
+
                         // always use 2-point central differencing at overset interpolated faces
                         if(isOversetIFace(k, j, i, i+1, meshTag))
                         {
-                            div1[k][j][i] = nScale
-                            (
-                                flux,
-                                centralVec
-                                (
-                                    ucat[k][j][i], ucat[k][j][i+1]
-                                )
-                            );
-                        }
-                        // test: inviscid flow or weno3Div
-                        else if(ueqn->inviscid || ueqn->weno3Div)
-                        {
-                            div1[k][j][i] = nScale
-                            (
-                                flux,
-                                weno3Vec
-                                (
-                                    ucat[k][j][iL], ucat[k][j][i], ucat[k][j][i+1], ucat[k][j][iR],
-                                    ucont[k][j][i].x
-                                )
-                            );
+                            div1[k][j][i] = nScale(flux, centralVec(ucat[k][j][i], ucat[k][j][i+1]));
                         }
                         else
                         {
-                            // central scheme
-                            if(ueqn->centralDiv)
-                            {
-                                // ucat is interpolated at the face
-                                div1[k][j][i] = nScale
-                                (
-                                    flux,
-                                    centralVec
-                                    (
-                                        ucat[k][j][i], ucat[k][j][i+1]
-                                    )
-                                );
-                            }
-                            else if(ueqn->central4Div)
-                            {
-                                
-                                div1[k][j][i] = nScale
-                                (
-                                    flux,
-                                    centralVec4thCsi(mesh, k, j, i, mx, nvert, meshTag, ucat, ucont[k][j][i].x, ueqn->hyperVisc)
-                                );
-                            }
-                            else if(ueqn->centralUpwindDiv)
-                            {
-                                div1[k][j][i] = nScale
-                                (
-                                    flux,
-                                    centralUpwindVec
-                                    (
-                                        ucat[k][j][iL], ucat[k][j][i], ucat[k][j][i+1], ucat[k][j][iR],
-                                        ucont[k][j][i].x, limiter[k][j][i].x
-                                    )
-                                );
-                            }
-                            else if(ueqn->centralUpwindWDiv)
-                            {
-                                // compute cell widths
-                                PetscReal d0 = 1.0 / (aj[k][j][iL ] * nMag(csi[k][j][iL ]));
-                                PetscReal d1 = 1.0 / (aj[k][j][i  ] * nMag(csi[k][j][i  ]));
-                                PetscReal d2 = 1.0 / (aj[k][j][i+1] * nMag(csi[k][j][i+1]));
-                                PetscReal d3 = 1.0 / (aj[k][j][iR ] * nMag(csi[k][j][iR ]));
-
-                                div1[k][j][i] = nScale
-                                (
-                                    flux,
-                                    wCentralUpwindVec
-                                    (
-                                        ucat[k][j][iL], ucat[k][j][i], ucat[k][j][i+1], ucat[k][j][iR],
-                                        d0, d1, d2, d3,
-                                        ucont[k][j][i].x, limiter[k][j][i].x
-                                    )
-                                );
-                            }
-                            // quickDiv scheme (3rd order upwind)
-                            else if(ueqn->quickDiv)
-                            {
-                                div1[k][j][i] = nScale
-                                (
-                                    flux,
-                                    quadraticUpwindVec
-                                    (
-                                        ucat[k][j][iL], ucat[k][j][i], ucat[k][j][i+1], ucat[k][j][iR],
-                                        ucont[k][j][i].x
-                                    )
-                                );
-                            }
+                            div1[k][j][i] = nScale(flux, ueqn->divSchemeCsi(&divAccs, 0));
                         }
                     } 
 
@@ -479,98 +417,20 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
                         PetscReal denom;
                         getFace2Cell4StencilEta(mesh, k, j, i, my, &jL, &jR, &denom, nvert, meshTag);
 
+                        // Update context for this face
+                        divAccs.k = k;   divAccs.j  = j; divAccs.i = i;
+                        divAccs.jL = jL; divAccs.jR = jR;
+                        divAccs.wavespeed = ucont[k][j][i].y;
+                        divAccs.flux = flux;
+
                         // always use 2-point central differencing at overset interpolated faces
                         if(isOversetJFace(k, j, i, j+1, meshTag))
                         {
-                            div2[k][j][i] = nScale
-                            (
-                                flux,
-                                centralVec
-                                (
-                                    ucat[k][j][i], ucat[k][j+1][i]
-                                )
-                            );
-                        }
-                        // test: inviscid flow or weno3Div
-                        else if( ueqn->inviscid || ueqn->weno3Div)
-                        {
-                            div2[k][j][i] = nScale
-                            (
-                                flux,
-                                weno3Vec
-                                (
-                                    ucat[k][jL][i], ucat[k][j][i], ucat[k][j+1][i], ucat[k][jR][i],
-                                    ucont[k][j][i].y
-                                )
-                            );
+                            div2[k][j][i] = nScale(flux, centralVec(ucat[k][j][i], ucat[k][j+1][i]));
                         }
                         else
                         {
-                            // second order divergence scheme
-                            if(ueqn->centralDiv)
-                            {
-                                div2[k][j][i] = nScale
-                                (
-                                    flux,
-                                    centralVec
-                                    (
-                                        ucat[k][j][i], ucat[k][j+1][i]
-                                    )
-                                );
-                            }
-                            else if(ueqn->central4Div)
-                            {
-                                
-                                div2[k][j][i] = nScale
-                                (
-                                    flux,
-                                    centralVec4thEta(mesh, k, j, i, my, nvert, meshTag, ucat, ucont[k][j][i].y, ueqn->hyperVisc)
-                                );
-                            }
-                            else if(ueqn->centralUpwindDiv)
-                            {
-                                div2[k][j][i] = nScale
-                                (
-                                    flux,
-                                    centralUpwindVec
-                                    (
-                                        ucat[k][jL][i], ucat[k][j][i], ucat[k][j+1][i], ucat[k][jR][i],
-                                        ucont[k][j][i].y, limiter[k][j][i].y
-                                    )
-                                );
-                            }
-                            else if(ueqn->centralUpwindWDiv)
-                            {
-                                // compute cell widths
-                                PetscReal d0 = 1.0 / (aj[k][jL ][i] * nMag(eta[k][jL ][i]));
-                                PetscReal d1 = 1.0 / (aj[k][j  ][i] * nMag(eta[k][j  ][i]));
-                                PetscReal d2 = 1.0 / (aj[k][j+1][i] * nMag(eta[k][j+1][i]));
-                                PetscReal d3 = 1.0 / (aj[k][jR ][i] * nMag(eta[k][jR ][i]));
-
-                                div2[k][j][i] = nScale
-                                (
-                                    flux,
-                                    wCentralUpwindVec
-                                    (
-                                        ucat[k][jL][i], ucat[k][j][i], ucat[k][j+1][i], ucat[k][jR][i],
-                                        d0, d1, d2, d3,
-                                        ucont[k][j][i].y, limiter[k][j][i].y
-                                    )
-                                );
-                            }
-                            // quickDiv scheme (3rd order upwind)
-                            else if(ueqn->quickDiv)
-                            {
-                                div2[k][j][i] = nScale
-                                (
-                                    flux,
-                                    quadraticUpwindVec
-                                    (
-                                        ucat[k][jL][i], ucat[k][j][i], ucat[k][j+1][i], ucat[k][jR][i],
-                                        ucont[k][j][i].y
-                                    )
-                                );
-                            }
+                            div2[k][j][i] = nScale(flux, ueqn->divSchemeEta(&divAccs, 1));
                         }
                     } 
 
@@ -711,99 +571,20 @@ PetscErrorCode FormU(ueqn_ *ueqn, Vec &Rhs, PetscReal scale, PetscInt formMode)
                         PetscReal denom;
                         getFace2Cell4StencilZet(mesh, k, j, i, mz, &kL, &kR, &denom, nvert, meshTag);
 
+                        // Update context for this face
+                        divAccs.k = k;   divAccs.j  = j; divAccs.i = i;
+                        divAccs.kL = kL; divAccs.kR = kR;
+                        divAccs.wavespeed = ucont[k][j][i].z;
+                        divAccs.flux = flux;
+
                         // always use 2-point central differencing at overset interpolated faces
                         if(isOversetKFace(k, j, i, k+1, meshTag))
                         {
-                            div3[k][j][i] = nScale
-                            (
-                                flux,
-                                centralVec
-                                (
-                                    ucat[k][j][i], ucat[k+1][j][i]
-                                )
-                            );
-                        }
-                        // inviscid flow or weno3Div
-                        else if(ueqn->inviscid || ueqn->weno3Div)
-                        {
-                            div3[k][j][i] = nScale
-                            (
-                                flux,
-                                weno3Vec
-                                (
-                                    ucat[kL][j][i], ucat[k][j][i], ucat[k+1][j][i], ucat[kR][j][i],
-                                    ucont[k][j][i].z
-                                )
-                            );
+                            div3[k][j][i] = nScale(flux, centralVec(ucat[k][j][i], ucat[k+1][j][i]));
                         }
                         else
                         {
-                            // second order divergence scheme
-                            if(ueqn->centralDiv)
-                            {
-                                // ucat is interpolated at the face
-                                div3[k][j][i] = nScale
-                                (
-                                    flux,
-                                    centralVec
-                                    (
-                                        ucat[k][j][i], ucat[k+1][j][i]
-                                    )
-                                );
-                            }
-                            else if(ueqn->central4Div)
-                            {
-                                
-                                div3[k][j][i] = nScale
-                                (
-                                    flux,
-                                    centralVec4thZet(mesh, k, j, i, mz, nvert, meshTag, ucat, ucont[k][j][i].z, ueqn->hyperVisc)
-                                );
-                            }
-                            else if(ueqn->centralUpwindDiv)
-                            {
-                                div3[k][j][i] = nScale
-                                (
-                                    flux,
-                                    centralUpwindVec
-                                    (
-                                        ucat[kL][j][i], ucat[k][j][i], ucat[k+1][j][i], ucat[kR][j][i],
-                                        ucont[k][j][i].z, limiter[k][j][i].z
-                                    )
-                                );
-                            }
-                            else if(ueqn->centralUpwindWDiv)
-                            {
-                                // compute cell widths
-                                PetscReal d0 = 1.0 / (aj[kL ][j][i] * nMag(zet[kL ][j][i]));
-                                PetscReal d1 = 1.0 / (aj[k  ][j][i] * nMag(zet[k  ][j][i]));
-                                PetscReal d2 = 1.0 / (aj[k+1][j][i] * nMag(zet[k+1][j][i]));
-                                PetscReal d3 = 1.0 / (aj[kR ][j][i] * nMag(zet[kR ][j][i]));
-
-                                div3[k][j][i] = nScale
-                                (
-                                    flux,
-                                    wCentralUpwindVec
-                                    (
-                                        ucat[kL][j][i], ucat[k][j][i], ucat[k+1][j][i], ucat[kR][j][i],
-                                        d0, d1, d2, d3,
-                                        ucont[k][j][i].z, limiter[k][j][i].z
-                                    )
-                                );
-                            }
-                            // quickDiv scheme (3rd order upwind)
-                            else if(ueqn->quickDiv)
-                            {
-                                div3[k][j][i] = nScale
-                                (
-                                    flux,
-                                    quadraticUpwindVec
-                                    (
-                                        ucat[kL][j][i], ucat[k][j][i], ucat[k+1][j][i], ucat[kR][j][i],
-                                        ucont[k][j][i].z
-                                    )
-                                );
-                            }
+                            div3[k][j][i] = nScale(flux, ueqn->divSchemeZet(&divAccs, 2));
                         }
                     } 
 

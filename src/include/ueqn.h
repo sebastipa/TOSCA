@@ -4,6 +4,33 @@
 #ifndef _UEQN_H_
 #define _UEQN_H_
 
+// Forward declaration for function pointer context
+typedef struct DivSchemeAccess_ DivSchemeAccess;
+
+//! \brief Context structure for divergence scheme function pointers
+struct DivSchemeAccess_
+{
+    mesh_     *mesh;
+    Cmpnts    ***ucat;
+    Cmpnts    ***ucont;
+    PetscReal ***nvert;
+    PetscReal ***meshTag;
+    Cmpnts    ***limiter;
+    PetscReal ***aj;
+    Cmpnts    ***csi;
+    Cmpnts    ***eta;
+    Cmpnts    ***zet;
+    PetscInt  k, j, i;
+    PetscInt  iL, iR, jL, jR, kL, kR;
+    PetscInt  mx, my, mz;
+    PetscReal hyperVisc;
+    PetscReal wavespeed;
+    PetscReal flux;
+};
+
+//! \brief Function pointer type for divergence schemes
+typedef Cmpnts (*DivSchemeFunc)(DivSchemeAccess *divaccess, PetscInt direction);
+
 //! \brief structure storing momentum equation
 struct ueqn_
 {
@@ -66,6 +93,12 @@ struct ueqn_
     PetscInt      centralUpwindWDiv;          //!< blending between linear and upwind scheme for non-uniform mesh
     PetscInt      quickDiv;                   //!< 3rd order QUICK scheme
     PetscInt      weno3Div;                   //!< 3rd order WENO scheme
+    PetscInt      upwindDiv;                  //!< 1st order upwind scheme
+
+    // divergence scheme function pointers (set during initialization to avoid runtime branching)
+    DivSchemeFunc divSchemeCsi;               //!< function pointer for csi-direction divergence scheme
+    DivSchemeFunc divSchemeEta;               //!< function pointer for eta-direction divergence scheme
+    DivSchemeFunc divSchemeZet;               //!< function pointer for zet-direction divergence scheme
 
     PetscReal     hyperVisc;                  //!< hyperviscocity parameter to add artificial diffusion - (b = 0 is blend between 3rd order upwind and 4th order, b = 1 is central 4th order, b = 0.8 is hybrid 3-4 scheme)
     PetscReal     hyperVisc4i;                //!< biharmonic hyperviscosity along csi direction 

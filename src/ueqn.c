@@ -87,13 +87,15 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
     ueqn->centralUpwindWDiv = 0;
     ueqn->weno3Div          = 0;
     ueqn->quickDiv          = 0;
+    ueqn->upwindDiv         = 0;
 
     if      (ueqn->divScheme == "centralUpwind")   ueqn->centralUpwindDiv  = 1;
     else if (ueqn->divScheme == "centralUpwindW")  ueqn->centralUpwindWDiv = 1;
     else if (ueqn->divScheme == "central")         ueqn->centralDiv        = 1;
     else if (ueqn->divScheme == "central4")        ueqn->central4Div       = 1;
     else if (ueqn->divScheme == "weno3")           ueqn->weno3Div          = 1;
-    else if (ueqn->divScheme == "quickDiv")        ueqn->quickDiv          = 1;
+    else if (ueqn->divScheme == "quick")           ueqn->quickDiv          = 1;
+    else if (ueqn->divScheme == "upwind")          ueqn->upwindDiv         = 1;
     else
     {
         char error[512];
@@ -104,9 +106,54 @@ PetscErrorCode InitializeUEqn(ueqn_ *ueqn)
             "    - central\n"
             "    - central4\n"
             "    - weno3\n"
-            "    - quickDiv",
+            "    - quick\n"
+            "    - upwind",
             ueqn->divScheme.c_str());
         fatalErrorInFunction("InitializeUEqn", error);
+    }
+
+    // Set function pointers for divergence schemes (eliminates runtime branching)
+    if      (ueqn->centralUpwindDiv)  
+    {
+        ueqn->divSchemeCsi = &divScheme_centralUpwind;
+        ueqn->divSchemeEta = &divScheme_centralUpwind;
+        ueqn->divSchemeZet = &divScheme_centralUpwind;
+    }
+    else if (ueqn->centralUpwindWDiv) 
+    {
+        ueqn->divSchemeCsi = &divScheme_centralUpwindW;
+        ueqn->divSchemeEta = &divScheme_centralUpwindW;
+        ueqn->divSchemeZet = &divScheme_centralUpwindW;
+    }
+    else if (ueqn->centralDiv)        
+    {
+        ueqn->divSchemeCsi = &divScheme_central;
+        ueqn->divSchemeEta = &divScheme_central;
+        ueqn->divSchemeZet = &divScheme_central;
+    }
+    else if (ueqn->central4Div)       
+    {
+        ueqn->divSchemeCsi = &divScheme_central4;
+        ueqn->divSchemeEta = &divScheme_central4;
+        ueqn->divSchemeZet = &divScheme_central4;
+    }
+    else if (ueqn->weno3Div)          
+    {
+        ueqn->divSchemeCsi = &divScheme_weno3;
+        ueqn->divSchemeEta = &divScheme_weno3;
+        ueqn->divSchemeZet = &divScheme_weno3;
+    }
+    else if (ueqn->quickDiv)          
+    {
+        ueqn->divSchemeCsi = &divScheme_quick;
+        ueqn->divSchemeEta = &divScheme_quick;
+        ueqn->divSchemeZet = &divScheme_quick;
+    }
+    else if (ueqn->upwindDiv)         
+    {
+        ueqn->divSchemeCsi = &divScheme_upwind;
+        ueqn->divSchemeEta = &divScheme_upwind;
+        ueqn->divSchemeZet = &divScheme_upwind;
     }
 
     // read hyperviscosity parameter if applicable
