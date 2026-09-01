@@ -491,7 +491,7 @@ PetscErrorCode CreatePETScSolver(peqn_ *peqn)
     KSPSetInitialGuessNonzero(peqn->ksp, PETSC_TRUE);
 
     KSPSetUp(peqn->ksp);
-
+    
     return(0);
 }
 
@@ -886,7 +886,7 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                     }
                 }
                 // with all-Neumann BCs we have to remove the null space manually
-                else if(!flags->isOversetActive && i==1 && j==1 && k==1)
+                else if(!flags->isOversetActive && i==mx-2 && j==my-2 && k==mz-2)
                 {
                     HYPRE_Int nrows = 1, ncols = 1, col = row;
                     HYPRE_IJMatrixSetValues(peqn->hypreA, nrows, &ncols, &row, &col, &one);
@@ -2057,7 +2057,7 @@ PetscErrorCode SetRHS(peqn_ *peqn)
                     val = 0;
                 }
                 // with all-Neumann BCs we have to remove the null space manually
-                else if(!flags->isOversetActive && i==1 && j==1 && k==1)
+                else if(!flags->isOversetActive && i==mx-2 && j==my-2 && k==mz-2)
                 {
                     val = 0;
                 }
@@ -2069,22 +2069,22 @@ PetscErrorCode SetRHS(peqn_ *peqn)
                     val = 0;
 
                     // i+1/2
-                    val += ucont[k][j][i].x;
+                    val += (ucont[k][j][i].x /*+ dt * grad_rho_optionally*/);
 
                     // i-1/2
-                    val -= ucont[k][j][i-1].x;
+                    val -= (ucont[k][j][i-1].x /*+ dt * grad_rho_optionally*/);
 
                     // j+1/2
-                    val += ucont[k][j][i].y;
+                    val += (ucont[k][j][i].y /*+ dt * grad_rho_optionally*/);
 
                     // j-1/2
-                    val -= ucont[k][j-1][i].y;
+                    val -= (ucont[k][j-1][i].y /*+ dt * grad_rho_optionally*/);
 
                     // k+1/2
-                    val += ucont[k][j][i].z;
+                    val += (ucont[k][j][i].z /*+ dt * grad_rho_optionally*/);
 
                     // k-1/2
-                    val -= ucont[k-1][j][i].z;
+                    val -= (ucont[k-1][j][i].z /*+ dt * grad_rho_optionally*/);
 
                     val *=  1.0 / dt;
                 }
@@ -2115,10 +2115,10 @@ PetscErrorCode SetRHS(peqn_ *peqn)
     }
     if(peqn->solverType == "PETSc")
     {
+        VecRestoreArray(peqn->petscRhs, &rhs);
+
         VecAssemblyBegin(peqn->petscRhs);
         VecAssemblyEnd  (peqn->petscRhs);
-
-        VecRestoreArray(peqn->petscRhs, &rhs);
     }
 
     DMDAVecRestoreArray(fda, ueqn->lUcont, &ucont);
@@ -2563,6 +2563,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
 {
     mesh_         *mesh  = peqn->access->mesh;
     ueqn_         *ueqn  = peqn->access->ueqn;
+    aeqn_         *aeqn;
     clock_        *clock = peqn->access->clock;
     flags_        *flags = peqn->access->flags;
     DM            da     = mesh->da, fda = mesh->fda;
@@ -2712,7 +2713,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                                     izet[k][j][i].y * icsi[k][j][i].y +
                                     izet[k][j][i].z * icsi[k][j][i].z
                                 ) * iaj[k][j][i]
-                            ) * clock->dt;
+                            /*-grad_rho_optionally*/) * clock->dt;
                         }
                         else if (isInterpolatedIFace(k, j, i, i+1, meshTag))
                         {
@@ -2819,7 +2820,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                                     jzet[k][j][i].y * jeta[k][j][i].y +
                                     jzet[k][j][i].z * jeta[k][j][i].z
                                 ) * jaj[k][j][i]
-                            ) * clock->dt;
+                            /*-grad_rho_optionally*/) * clock->dt;
                         }
                         else if (isInterpolatedJFace(k, j, i, j+1, meshTag))
                         {
@@ -2925,7 +2926,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                                     kzet[k][j][i].y * kzet[k][j][i].y +
                                     kzet[k][j][i].z * kzet[k][j][i].z
                                 ) * kaj[k][j][i]
-                            ) * clock->dt;
+                            /*-grad_rho_optionally*/) * clock->dt;
                         }
                         else if (isInterpolatedKFace(k, j, i, k+1, meshTag))
                         {
@@ -3821,28 +3822,27 @@ PetscErrorCode SolvePEqn(peqn_ *peqn)
                 HYPRE_IJVectorInitialize(peqn->hypreP);
                 HYPRE_IJVectorInitialize(peqn->hypreRhs);
 
+                // set coefficient matrix
+                SetCoeffMatrix(peqn);
+
                 MPI_Barrier(mesh->MESH_COMM);
             }
-
-            // set coefficient matrix
-            SetCoeffMatrix(peqn);
-
-            MPI_Barrier(mesh->MESH_COMM);
-
-            if(peqn->solverType == "PETSc")
+            else if(peqn->solverType == "PETSc")
             {
-                // The matrix object (petscA) is never destroyed: SetCoeffMatrix
-                // already called MatZeroEntries + MatAssemblyEnd, incrementing
-                // PETSc's internal version counter. Re-registering the operator
-                // marks the preconditioner as stale so PCGAMG rebuilds its
-                // hierarchy on the next KSPSolve. This avoids tearing down and
-                // recreating the entire KSP context (which discards the
-                // warm-start state and monitor registration).
-                KSPSetOperators(peqn->ksp, peqn->petscA, peqn->petscA);
-
+                DestroyPETScSolver(peqn);
+                
                 // reset RHS vector
                 VecSet(peqn->petscRhs, 0.0);
-            }
+
+                // set coefficient matrix
+                SetCoeffMatrix(peqn);
+
+                CreatePETScSolver(peqn);
+
+                //KSPSetOperators(peqn->ksp, peqn->petscA, peqn->petscA);
+
+                MPI_Barrier(mesh->MESH_COMM);
+            }  
         }
     }
 

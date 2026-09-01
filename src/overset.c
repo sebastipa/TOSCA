@@ -271,9 +271,10 @@ PetscErrorCode SyncPressureAcrossDomains(domain_ *domain)
         mesh_         *mesh = domain[0].mesh;
         DM             da   = mesh->da;
         DMDALocalInfo  info = mesh->info;
-        PetscInt       xs   = info.xs, xe = info.xs + info.xm;
-        PetscInt       ys   = info.ys, ye = info.ys + info.ym;
-        PetscInt       zs   = info.zs, ze = info.zs + info.zm;
+        PetscInt      xs   = info.xs, xe = info.xs + info.xm;
+        PetscInt      ys   = info.ys, ye = info.ys + info.ym;
+        PetscInt      zs   = info.zs, ze = info.zs + info.zm;
+        PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
 
         PetscReal ***p, ***nvert, ***meshTag;
 
@@ -281,12 +282,14 @@ PetscErrorCode SyncPressureAcrossDomains(domain_ *domain)
         DMDAVecGetArray(da, mesh->lNvert, &nvert);
         DMDAVecGetArray(da, mesh->lmeshTag, &meshTag);
 
-        // read p[1][1][1] on whichever rank owns it and send it to all other ranks
+        // read p[end][end][end] on whichever rank owns it and send it to all other ranks
         PetscReal localRef = 0.0;
 
-        if (xs <= 1 && 1 < xe && ys <= 1 && 1 < ye && zs <= 1 && 1 < ze)
+        //if (xs <= 1 && 1 < xe && ys <= 1 && 1 < ye && zs <= 1 && 1 < ze)
+        if(xe >= mx-2 && mx-2 > xs && ye >= my-2 && my-2 > ys && ze >= mz-2 && mz-2 > zs)
         {
-            localRef  = p[1][1][1];
+            //localRef  = p[1][1][1];
+            localRef  = p[mz-2][my-2][mx-2];
         }
 
         PetscReal globalRef = 0.0;
@@ -360,6 +363,7 @@ PetscErrorCode SyncPressureAcrossDomains(domain_ *domain)
         PetscInt      rxs = rInfo.xs, rxe = rInfo.xs + rInfo.xm;
         PetscInt      rys = rInfo.ys, rye = rInfo.ys + rInfo.ym;
         PetscInt      rzs = rInfo.zs, rze = rInfo.zs + rInfo.zm;
+        PetscInt      rmx = rInfo.mx, rmy = rInfo.my, rmz = rInfo.mz;
 
         PetscReal ***rootP, ***rootNvert, ***rootMeshTag;
         DMDAVecGetArray(rootDa, domain[rootId].peqn->P, &rootP);
@@ -367,9 +371,11 @@ PetscErrorCode SyncPressureAcrossDomains(domain_ *domain)
         DMDAVecGetArray(rootDa, rootMesh->lmeshTag, &rootMeshTag);
 
         PetscReal localRef = 0.0;
-        if (rxs <= 1 && 1 < rxe && rys <= 1 && 1 < rye && rzs <= 1 && 1 < rze)
+        //if (rxs <= 1 && 1 < rxe && rys <= 1 && 1 < rye && rzs <= 1 && 1 < rze)
+        if(rxe >= rmx-2 && rmx-2 > rxs && rye >= rmy-2 && rmy-2 > rys && rze >= rmz-2 && rmz-2 > rzs)
         {
-            localRef = rootP[1][1][1];
+            //localRef = rootP[1][1][1];
+            localRef = rootP[rmz-2][rmy-2][rmx-2];
         }
 
         PetscReal globalRef = 0.0;
@@ -436,7 +442,7 @@ PetscErrorCode SyncPressureAcrossDomains(domain_ *domain)
             PetscReal ***childNvert, ***childMeshTag;
             Cmpnts    ***parentCent;
 
-            // step 1: broadcast cent[1][1][1] of the child 
+            // step 1: broadcast cent[end][end][end] of the child 
             PetscReal localChildX = 0.0, localChildY = 0.0, localChildZ = 0.0;
             {
                 DM     cFda = childMesh->fda;
@@ -447,12 +453,17 @@ PetscErrorCode SyncPressureAcrossDomains(domain_ *domain)
                 PetscInt cxs = cInfo.xs, cxe = cInfo.xs + cInfo.xm;
                 PetscInt cys = cInfo.ys, cye = cInfo.ys + cInfo.ym;
                 PetscInt czs = cInfo.zs, cze = cInfo.zs + cInfo.zm;
+                PetscInt cmx = cInfo.mx, cmy = cInfo.my, cmz = cInfo.mz;
 
-                if (cxs <= 1 && 1 < cxe && cys <= 1 && 1 < cye && czs <= 1 && 1 < cze)
+                //if (cxs <= 1 && 1 < cxe && cys <= 1 && 1 < cye && czs <= 1 && 1 < cze)
+                if(cxe >= cmx-2 && cmx-2 > cxs && cye >= cmy-2 && cmy-2 > cys && cze >= cmz-2 && cmz-2 > czs)
                 {
-                    localChildX = childCent[1][1][1].x;
-                    localChildY = childCent[1][1][1].y;
-                    localChildZ = childCent[1][1][1].z;
+                    //localChildX = childCent[1][1][1].x;
+                    //localChildY = childCent[1][1][1].y;
+                    //localChildZ = childCent[1][1][1].z;
+                    localChildX = childCent[cmz-2][cmy-2][cmx-2].x;
+                    localChildY = childCent[cmz-2][cmy-2][cmx-2].y;
+                    localChildZ = childCent[cmz-2][cmy-2][cmx-2].z;
                 }
 
                 DMDAVecRestoreArray(cFda, childMesh->lCent, &childCent);
@@ -508,7 +519,7 @@ PetscErrorCode SyncPressureAcrossDomains(domain_ *domain)
             PetscReal parentRefP = 0.0;
             MPI_Allreduce(&localContrib, &parentRefP, 1, MPIU_REAL, MPIU_SUM, parentMesh->MESH_COMM);
 
-            // step 3: read child p[1][1][1] 
+            // step 3: read child p[end][end][end] 
             DMDAVecGetArray(childDa, domain[d].peqn->P, &childP);
             DMDAVecGetArray(childDa, childMesh->lNvert, &childNvert);
             DMDAVecGetArray(childDa, childMesh->lmeshTag, &childMeshTag);
@@ -518,9 +529,12 @@ PetscErrorCode SyncPressureAcrossDomains(domain_ *domain)
                 PetscInt cxs = cInfo.xs, cxe = cInfo.xs + cInfo.xm;
                 PetscInt cys = cInfo.ys, cye = cInfo.ys + cInfo.ym;
                 PetscInt czs = cInfo.zs, cze = cInfo.zs + cInfo.zm;
-                if (cxs <= 1 && 1 < cxe && cys <= 1 && 1 < cye && czs <= 1 && 1 < cze)
+                PetscInt cmx = cInfo.mx, cmy = cInfo.my, cmz = cInfo.mz;
+                //if (cxs <= 1 && 1 < cxe && cys <= 1 && 1 < cye && czs <= 1 && 1 < cze)
+                if(cxe >= cmx-2 && cmx-2 > cxs && cye >= cmy-2 && cmy-2 > cys && cze >= cmz-2 && cmz-2 > czs)
                 {
-                    localChildP = childP[1][1][1];
+                    //localChildP = childP[1][1][1];
+                    localChildP = childP[cmz-2][cmy-2][cmx-2];
                 }
             }
 
