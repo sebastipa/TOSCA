@@ -443,6 +443,9 @@ PetscErrorCode SetInitialFieldA(aeqn_ *aeqn)
         fatalErrorInFunction("SetInitialFieldA", error);
     }
 
+    // compute density field based on alpha field
+    SetRhoFromAlpha(aeqn);
+
     return(0);
 }
 
@@ -2034,6 +2037,57 @@ PetscErrorCode SpreadInletFlowT(teqn_ *teqn)
 
     // update cartesian BCs again (sets cartesian velocity on ghost nodes)
     UpdateTemperatureBCs(teqn);
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode SetRhoFromAlpha(aeqn_ *aeqn)
+{
+    mesh_         *mesh = aeqn->access->mesh;
+    constants_    *constants = aeqn->access->constants;
+    DM            da    = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info  = mesh->info;
+    PetscInt      xs    = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys    = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs    = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx    = info.mx, my = info.my, mz = info.mz;
+
+    PetscReal     ***a;
+    PetscReal     ***rho;
+
+    PetscInt      i, j, k;
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    DMDAVecGetArray(da, aeqn->Alpha, &a);
+    DMDAVecGetArray(da, aeqn->lRho, &rho);
+
+    // loop on the internal cells and set the alpha
+    for(k=lzs; k<lze; k++)
+    {
+        for(j=lys; j<lye; j++)
+        {
+            for(i=lxs; i<lxe; i++)
+            {
+                rho[k][j][i] = a[k][j][i] * constants->rhoWater + (1.0 - a[k][j][i]) * constants->rho;
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(da, aeqn->Alpha, &a);
+    DMDAVecRestoreArray(da, aeqn->lRho, &rho);
+
+    // scatter data to local values
+    DMLocalToLocalBegin(da, aeqn->lRho, INSERT_VALUES, aeqn->lRho);
+    DMLocalToLocalEnd(da, aeqn->lRho, INSERT_VALUES, aeqn->lRho);
+
+    // update BC so that have field on ghost nodes
+    UpdateRhoBCs(aeqn);
 
     return(0);
 }

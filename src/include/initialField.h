@@ -74,6 +74,9 @@ PetscErrorCode SpreadInletFlowT(teqn_ *teqn);
 //!< \brief set the internal pressure field as the TGV flow
 PetscErrorCode SetTaylorGreenFieldP(peqn_ *peqn);
 
+//!< \brief set the rho field from alpha water
+PetscErrorCode SetRhoFromAlpha(aeqn_ *aeqn);
+
 //!< \brief set the initial alpha water field as a cube of water in the domain
 PetscErrorCode SetCubeFieldA(aeqn_ *aeqn, PetscReal &length, Cmpnts &center);
 

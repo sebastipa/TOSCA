@@ -189,6 +189,9 @@ PetscErrorCode UpdateAlphaWaterBCs(aeqn_ *aeqn);
 //! \brief Update gradA boundary conditions
 PetscErrorCode UpdateGradABCs(aeqn_ *aeqn);
 
+//! \brief Update density boundary conditions
+PetscErrorCode UpdateRhoBCs(aeqn_ *aeqn);
+
 //! \brief Update effective viscosity boundary conditions
 PetscErrorCode UpdateNutBCs(les_ *les);
 

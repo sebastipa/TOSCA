@@ -302,8 +302,7 @@ PetscErrorCode GradRho(aeqn_ *aeqn)
     Cmpnts        ***icsi, ***ieta, ***izet,
                   ***jcsi, ***jeta, ***jzet,
                   ***kcsi, ***keta, ***kzet,
-                  ***drho, ***cent,
-                  ***rhoFace;
+                  ***drho, ***cent;
 
     PetscReal     ***rho, ***nvert, ***meshTag;
     PetscReal     ***iaj, ***jaj, ***kaj;
@@ -345,16 +344,15 @@ PetscErrorCode GradRho(aeqn_ *aeqn)
 
     DMDAVecGetArray(fda, aeqn->dRho, &drho);
     DMDAVecGetArray(da,  aeqn->lRho, &rho);
-    DMDAVecGetArray(fda, aeqn->lRhoFace, &rhoFace);
 
     PetscReal coeff_i, coeff_j, coeff_k;
     PetscReal phi1, phi2;
 
-    for (k=lzs; k<lze; k++)
+    for (k=zs; k<lze; k++)
     {
-        for (j=lys; j<lye; j++)
+        for (j=ys; j<lye; j++)
         {
-            for (i=lxs; i<lxe; i++)
+            for (i=xs; i<lxe; i++)
             {
                 PetscReal g11_i = (icsi[k][j][i].x * icsi[k][j][i].x + icsi[k][j][i].y * icsi[k][j][i].y + icsi[k][j][i].z * icsi[k][j][i].z);
                 PetscReal g12_i = (ieta[k][j][i].x * icsi[k][j][i].x + ieta[k][j][i].y * icsi[k][j][i].y + ieta[k][j][i].z * icsi[k][j][i].z);
@@ -366,258 +364,255 @@ PetscErrorCode GradRho(aeqn_ *aeqn)
                 PetscReal g32_k = (keta[k][j][i].x * kzet[k][j][i].x + keta[k][j][i].y * kzet[k][j][i].y + keta[k][j][i].z * kzet[k][j][i].z);
                 PetscReal g33_k = (kzet[k][j][i].x * kzet[k][j][i].x + kzet[k][j][i].y * kzet[k][j][i].y + kzet[k][j][i].z * kzet[k][j][i].z);
 
-                // density gradient in the i-direction
-                drdc = (rho[k][j][i+1] - rho[k][j][i]) * 0.5 * (PHIG(k,j,i+1) + PHIG(k,j,i));   
+                if
+                (
+                    j > 0 && k > 0 &&              // exclude non-defined indices in the i-direction
+                    (i>0 && i<mx-2 || periodic_i)  // exclude also first and last face unless periodic (has meaningful ghosts)
+                )
+                {
+                    // density gradient in the i-direction
+                    drdc = (rho[k][j][i+1] - rho[k][j][i]) * 0.5 * (PHIG(k,j,i+1) + PHIG(k,j,i));   
+
+                    if
+                    (
+                        // j-right boundary -> use upwind only at the corner faces
+                        (j==my-2 && i==mx-2) || isOversetIFace(k, j+1, i, i+1, meshTag)
+                    )
+                    {
+                        PetscReal coeff_1 = 0.5 * (PHIG(k,j,i)   + PHIG(k,j-1,i));
+                        PetscReal coeff_2 = 0.5 * (PHIG(k,j,i+1) + PHIG(k,j-1,i+1));
+                        PetscReal diff_1 = (rho[k][j  ][i  ] - rho[k][j-1][i  ]) * coeff_1;
+                        PetscReal diff_2 = (rho[k][j  ][i+1] - rho[k][j-1][i+1]) * coeff_2;
+                        drde = (diff_1 + diff_2) * 0.5;
+                    }
+                    else if
+                    (
+                        // j-left boundary -> use upwind  only at the corner faces
+                        (j == 1 && i == mx-2) || isOversetIFace(k, j-1, i, i+1, meshTag)
+                    )
+                    {
+                        PetscReal coeff_1 = 0.5 * (PHIG(k,j,i)   + PHIG(k,j+1,i));
+                        PetscReal coeff_2 = 0.5 * (PHIG(k,j,i+1) + PHIG(k,j+1,i+1));
+                        PetscReal diff_1 = (rho[k][j+1][i  ] - rho[k][j  ][i  ]) * coeff_1;
+                        PetscReal diff_2 = (rho[k][j+1][i+1] - rho[k][j  ][i+1]) * coeff_2;
+                        drde = (diff_1 + diff_2) * 0.5;
+                        //drde = (rho[k][j+1][i  ] - rho[k][j  ][i  ] + rho[k][j+1][i+1] - rho[k][j  ][i+1]) * 0.5;
+                    }
+                    else
+                    {
+                        PetscReal coeff_1 = 0.5 * (PHIG(k,j+1,i) + PHIG(k,j-1,i));
+                        PetscReal coeff_2 = 0.5 * (PHIG(k,j+1,i+1) + PHIG(k,j-1,i+1));
+                        PetscReal diff_1 = (rho[k][j+1][i  ] - rho[k][j-1][i  ]) * coeff_1;
+                        PetscReal diff_2 = (rho[k][j+1][i+1] - rho[k][j-1][i+1]) * coeff_2;
+                        drde = (diff_1 + diff_2) * 0.25;
+                        //drde = (rho[k][j+1][i] - rho[k][j-1][i] + rho[k][j+1][i+1] - rho[k][j-1][i+1]) * 0.25;
+                    }
+
+                    if
+                    (
+                        // k-right boundary -> use upwind  only at the corner faces
+                        (k == mz-2 && i==mx-2) || isOversetIFace(k+1, j, i, i+1, meshTag)
+                    )
+                    {
+                        PetscReal coeff_1 = 0.5 * (PHIG(k,j,i)   + PHIG(k-1,j,i));
+                        PetscReal coeff_2 = 0.5 * (PHIG(k,j,i+1) + PHIG(k-1,j,i+1));
+                        PetscReal diff_1 = (rho[k  ][j][i  ] - rho[k-1][j][i  ]) * coeff_1;
+                        PetscReal diff_2 = (rho[k  ][j][i+1] - rho[k-1][j][i+1]) * coeff_2;
+                        drdz = (diff_1 + diff_2) * 0.5;
+                        //drdz = (rho[k][j][i  ] - rho[k-1][j][i  ] + rho[k][j][i+1] - rho[k-1][j][i+1]) * 0.5;
+                    }
+                    else if
+                    (
+                        // k-left boundary  -> use upwind  only at the corner faces
+                        (k == 1 && i==mx-2) || isOversetIFace(k-1, j, i, i+1, meshTag)
+                    )
+                    {
+                        PetscReal coeff_1 = 0.5 * (PHIG(k,j,i)   + PHIG(k+1,j,i));
+                        PetscReal coeff_2 = 0.5 * (PHIG(k,j,i+1) + PHIG(k+1,j,i+1));
+                        PetscReal diff_1 = (rho[k+1][j][i  ] - rho[k][j][i  ]) * coeff_1;
+                        PetscReal diff_2 = (rho[k+1][j][i+1] - rho[k][j][i+1]) * coeff_2;
+                        drdz = (diff_1 + diff_2) * 0.5;
+                        //drdz = (rho[k+1][j][i  ] - rho[k][j][i  ] + rho[k+1][j][i+1] - rho[k][j][i+1]) * 0.5;
+                    }
+                    else
+                    {
+                        PetscReal coeff_1 = 0.5 * (PHIG(k+1,j,i)   + PHIG(k-1,j,i));
+                        PetscReal coeff_2 = 0.5 * (PHIG(k+1,j,i+1) + PHIG(k-1,j,i+1));
+                        PetscReal diff_1 = (rho[k+1][j][i  ] - rho[k-1][j][i  ]) * coeff_1;
+                        PetscReal diff_2 = (rho[k+1][j][i+1] - rho[k-1][j][i+1]) * coeff_2;
+                        drdz = (diff_1 + diff_2) * 0.25;
+                        //drdz = (rho[k+1][j][i] - rho[k-1][j][i] + rho[k+1][j][i+1] - rho[k-1][j][i+1]) * 0.25;
+                    }  
+
+                    drho[k][j][i].x = (drdc * g11_i + drde *  g12_i + drdz * g13_i) * iaj[k][j][i];
+                }
 
                 if
                 (
-                    // j-right boundary -> use upwind only at the corner faces
-                    (j==my-2 && i==mx-2) || isOversetIFace(k, j+1, i, i+1, meshTag)
+                    i > 0 && k > 0 &&              // exclude non-defined indices in the j-direction
+                    (j>0 && j<my-2 || periodic_j)  // exclude also first and last face unless periodic (has meaningful ghosts)
                 )
                 {
-                    PetscReal coeff_1 = 0.5 * (PHIG(k,j,i)   + PHIG(k,j-1,i));
-                    PetscReal coeff_2 = 0.5 * (PHIG(k,j,i+1) + PHIG(k,j-1,i+1));
-                    PetscReal diff_1 = (rho[k][j  ][i  ] - rho[k][j-1][i  ]) * coeff_1;
-                    PetscReal diff_2 = (rho[k][j  ][i+1] - rho[k][j-1][i+1]) * coeff_2;
-                    drde = (diff_1 + diff_2) * 0.5;
-                }
-                else if
-                (
-                    // j-left boundary -> use upwind  only at the corner faces
-                    (j == 1 && i == mx-2) || isOversetIFace(k, j-1, i, i+1, meshTag)
-                )
-                {
-                    PetscReal coeff_1 = 0.5 * (PHIG(k,j,i)   + PHIG(k,j+1,i));
-                    PetscReal coeff_2 = 0.5 * (PHIG(k,j,i+1) + PHIG(k,j+1,i+1));
-                    PetscReal diff_1 = (rho[k][j+1][i  ] - rho[k][j  ][i  ]) * coeff_1;
-                    PetscReal diff_2 = (rho[k][j+1][i+1] - rho[k][j  ][i+1]) * coeff_2;
-                    drde = (diff_1 + diff_2) * 0.5;
-                    //drde = (rho[k][j+1][i  ] - rho[k][j  ][i  ] + rho[k][j+1][i+1] - rho[k][j  ][i+1]) * 0.5;
-                }
-                else
-                {
-                    PetscReal coeff_1 = 0.5 * (PHIG(k,j+1,i) + PHIG(k,j-1,i));
-                    PetscReal coeff_2 = 0.5 * (PHIG(k,j+1,i+1) + PHIG(k,j-1,i+1));
-                    PetscReal diff_1 = (rho[k][j+1][i  ] - rho[k][j-1][i  ]) * coeff_1;
-                    PetscReal diff_2 = (rho[k][j+1][i+1] - rho[k][j-1][i+1]) * coeff_2;
-                    drde = (diff_1 + diff_2) * 0.25;
-                    //drde = (rho[k][j+1][i] - rho[k][j-1][i] + rho[k][j+1][i+1] - rho[k][j-1][i+1]) * 0.25;
-                }
+                    // pressure gradient in the j-direction
+                    if
+                    (
+                        // i-right boundary -> use upwind  only at the corner faces
+                        (i == mx-2 && j==my-2) || isOversetJFace(k, j, i+1, j+1, meshTag)
+                    )
+                    {
+                        PetscReal coeff_1 = 0.5 * (PHIG(k,j,i)   + PHIG(k,j,i-1));
+                        PetscReal coeff_2 = 0.5 * (PHIG(k,j+1,i) + PHIG(k,j+1,i-1));
+                        PetscReal diff_1 = (rho[k][j  ][i  ] - rho[k][j  ][i-1]) * coeff_1;
+                        PetscReal diff_2 = (rho[k][j+1][i  ] - rho[k][j+1][i-1]) * coeff_2;
+                        drdc = (diff_1 + diff_2) * 0.5; 
+                        //drdc = (rho[k][j  ][i] - rho[k][j  ][i-1] + rho[k][j+1][i] - rho[k][j+1][i-1]) * 0.5;
+                    }
+                    else if
+                    (
+                        // i-left boundary -> use upwind  only at the corner faces
+                        (i == 1 && j==my-2) || isOversetJFace(k, j, i-1, j+1, meshTag)
+                    )
+                    {
+                        PetscReal coeff_1 = 0.5 * (PHIG(k,j,i+1)   + PHIG(k,j,i));
+                        PetscReal coeff_2 = 0.5 * (PHIG(k,j+1,i+1) + PHIG(k,j+1,i));
+                        PetscReal diff_1 = (rho[k][j  ][i+1] - rho[k][j  ][i  ]) * coeff_1;
+                        PetscReal diff_2 = (rho[k][j+1][i+1] - rho[k][j+1][i  ]) * coeff_2;
+                        drdc = (diff_1 + diff_2) * 0.5;
+                        //drdc = (rho[k][j  ][i+1] - rho[k][j  ][i] + rho[k][j+1][i+1] - rho[k][j+1][i]) * 0.5;
+                    }
+                    else
+                    {
+                        PetscReal coeff_1 = 0.5 * (PHIG(k,j,i+1)   + PHIG(k,j,i-1));
+                        PetscReal coeff_2 = 0.5 * (PHIG(k,j+1,i+1) + PHIG(k,j+1,i-1));
+                        PetscReal diff_1 = (rho[k][j  ][i+1] - rho[k][j  ][i-1]) * coeff_1;
+                        PetscReal diff_2 = (rho[k][j+1][i+1] - rho[k][j+1][i-1]) * coeff_2;
+                        drdc = (diff_1 + diff_2) * 0.25;
+                        //drdc = (rho[k][j  ][i+1] - rho[k][j  ][i-1] + rho[k][j+1][i+1] - rho[k][j+1][i-1]) * 0.25;
+                    }
 
-                if
-                (
-                    // k-right boundary -> use upwind  only at the corner faces
-                    (k == mz-2 && i==mx-2) || isOversetIFace(k+1, j, i, i+1, meshTag)
-                )
-                {
-                    PetscReal coeff_1 = 0.5 * (PHIG(k,j,i)   + PHIG(k-1,j,i));
-                    PetscReal coeff_2 = 0.5 * (PHIG(k,j,i+1) + PHIG(k-1,j,i+1));
-                    PetscReal diff_1 = (rho[k  ][j][i  ] - rho[k-1][j][i  ]) * coeff_1;
-                    PetscReal diff_2 = (rho[k  ][j][i+1] - rho[k-1][j][i+1]) * coeff_2;
-                    drdz = (diff_1 + diff_2) * 0.5;
-                    //drdz = (rho[k][j][i  ] - rho[k-1][j][i  ] + rho[k][j][i+1] - rho[k-1][j][i+1]) * 0.5;
-                }
-                else if
-                (
-                    // k-left boundary  -> use upwind  only at the corner faces
-                    (k == 1 && i==mx-2) || isOversetIFace(k-1, j, i, i+1, meshTag)
-                )
-                {
-                    PetscReal coeff_1 = 0.5 * (PHIG(k,j,i)   + PHIG(k+1,j,i));
-                    PetscReal coeff_2 = 0.5 * (PHIG(k,j,i+1) + PHIG(k+1,j,i+1));
-                    PetscReal diff_1 = (rho[k+1][j][i  ] - rho[k][j][i  ]) * coeff_1;
-                    PetscReal diff_2 = (rho[k+1][j][i+1] - rho[k][j][i+1]) * coeff_2;
-                    drdz = (diff_1 + diff_2) * 0.5;
-                    //drdz = (rho[k+1][j][i  ] - rho[k][j][i  ] + rho[k+1][j][i+1] - rho[k][j][i+1]) * 0.5;
-                }
-                else
-                {
-                    PetscReal coeff_1 = 0.5 * (PHIG(k+1,j,i)   + PHIG(k-1,j,i));
-                    PetscReal coeff_2 = 0.5 * (PHIG(k+1,j,i+1) + PHIG(k-1,j,i+1));
-                    PetscReal diff_1 = (rho[k+1][j][i  ] - rho[k-1][j][i  ]) * coeff_1;
-                    PetscReal diff_2 = (rho[k+1][j][i+1] - rho[k-1][j][i+1]) * coeff_2;
-                    drdz = (diff_1 + diff_2) * 0.25;
-                    //drdz = (rho[k+1][j][i] - rho[k-1][j][i] + rho[k+1][j][i+1] - rho[k-1][j][i+1]) * 0.25;
-                }  
+                    drde = (rho[k][j+1][i] - rho[k][j][i]) * 0.5 * (PHIG(k,j+1,i) + PHIG(k,j,i));
 
-                drho[k][j][i].x = (drdc * g11_i + drde *  g12_i + drdz * g13_i) * iaj[k][j][i];
+                    if
+                    (
+                        // k-right boundary -> use upwind  only at the corner faces
+                        (k == mz-2 && j== my-2) || isOversetJFace(k+1, j, i, j+1, meshTag)
+                    )
+                    {
+                        PetscReal coeff_1 = 0.5 * (PHIG(k,j,i)   + PHIG(k-1,j,i));
+                        PetscReal coeff_2 = 0.5 * (PHIG(k,j+1,i) + PHIG(k-1,j+1,i));
+                        PetscReal diff_1 = (rho[k  ][j  ][i  ] - rho[k-1][j  ][i  ]) * coeff_1;
+                        PetscReal diff_2 = (rho[k  ][j+1][i  ] - rho[k-1][j+1][i  ]) * coeff_2;
+                        drdz = (diff_1 + diff_2) * 0.5;
+                        //drdz = (rho[k][j  ][i] - rho[k-1][j  ][i] + rho[k][j+1][i] - rho[k-1][j+1][i]) * 0.5;
+                    }
+                    else if
+                    (
+                        // k-left boundary -> use upwind  only at the corner faces
+                        (k == 1 && j== my-2) || isOversetJFace(k-1, j, i, j+1, meshTag)
+                    )
+                    {
+                        PetscReal coeff_1 = 0.5 * (PHIG(k,j,i)   + PHIG(k+1,j,i));
+                        PetscReal coeff_2 = 0.5 * (PHIG(k,j+1,i) + PHIG(k+1,j+1,i));
+                        PetscReal diff_1 = (rho[k+1][j  ][i  ] - rho[k][j  ][i  ]) * coeff_1;
+                        PetscReal diff_2 = (rho[k+1][j+1][i  ] - rho[k][j+1][i  ]) * coeff_2;
+                        drdz = (diff_1 + diff_2) * 0.5;
+                        //drdz = (rho[k+1][j  ][i] - rho[k][j  ][i] + rho[k+1][j+1][i] - rho[k][j+1][i]) * 0.5;
+                    }
+                    else
+                    {
+                        PetscReal coeff_1 = 0.5 * (PHIG(k+1,j,i)   + PHIG(k-1,j,i));
+                        PetscReal coeff_2 = 0.5 * (PHIG(k+1,j+1,i) + PHIG(k-1,j+1,i));
+                        PetscReal diff_1 = (rho[k+1][j  ][i  ] - rho[k-1][j  ][i  ]) * coeff_1;
+                        PetscReal diff_2 = (rho[k+1][j+1][i  ] - rho[k-1][j+1][i  ]) * coeff_2;
+                        drdz = (diff_1 + diff_2) * 0.25;
+                        //drdz = (rho[k+1][j  ][i] - rho[k-1][j  ][i] + rho[k+1][j+1][i] - rho[k-1][j+1][i]) * 0.25;
+                    }
 
-                // pressure gradient in the j-direction
-                if
-                (
-                    // i-right boundary -> use upwind  only at the corner faces
-                    (i == mx-2 && j==my-2) || isOversetJFace(k, j, i+1, j+1, meshTag)
-                )
-                {
-                    PetscReal coeff_1 = 0.5 * (PHIG(k,j,i)   + PHIG(k,j,i-1));
-                    PetscReal coeff_2 = 0.5 * (PHIG(k,j+1,i) + PHIG(k,j+1,i-1));
-                    PetscReal diff_1 = (rho[k][j  ][i  ] - rho[k][j  ][i-1]) * coeff_1;
-                    PetscReal diff_2 = (rho[k][j+1][i  ] - rho[k][j+1][i-1]) * coeff_2;
-                    drdc = (diff_1 + diff_2) * 0.5; 
-                    //drdc = (rho[k][j  ][i] - rho[k][j  ][i-1] + rho[k][j+1][i] - rho[k][j+1][i-1]) * 0.5;
+                    drho[k][j][i].y = (drdc * g21_j + drde * g22_j + drdz * g23_j) * jaj[k][j][i];
                 }
-                else if
-                (
-                    // i-left boundary -> use upwind  only at the corner faces
-                    (i == 1 && j==my-2) || isOversetJFace(k, j, i-1, j+1, meshTag)
-                )
-                {
-                    PetscReal coeff_1 = 0.5 * (PHIG(k,j,i+1)   + PHIG(k,j,i));
-                    PetscReal coeff_2 = 0.5 * (PHIG(k,j+1,i+1) + PHIG(k,j+1,i));
-                    PetscReal diff_1 = (rho[k][j  ][i+1] - rho[k][j  ][i  ]) * coeff_1;
-                    PetscReal diff_2 = (rho[k][j+1][i+1] - rho[k][j+1][i  ]) * coeff_2;
-                    drdc = (diff_1 + diff_2) * 0.5;
-                    //drdc = (rho[k][j  ][i+1] - rho[k][j  ][i] + rho[k][j+1][i+1] - rho[k][j+1][i]) * 0.5;
-                }
-                else
-                {
-                    PetscReal coeff_1 = 0.5 * (PHIG(k,j,i+1)   + PHIG(k,j,i-1));
-                    PetscReal coeff_2 = 0.5 * (PHIG(k,j+1,i+1) + PHIG(k,j+1,i-1));
-                    PetscReal diff_1 = (rho[k][j  ][i+1] - rho[k][j  ][i-1]) * coeff_1;
-                    PetscReal diff_2 = (rho[k][j+1][i+1] - rho[k][j+1][i-1]) * coeff_2;
-                    drdc = (diff_1 + diff_2) * 0.25;
-                    //drdc = (rho[k][j  ][i+1] - rho[k][j  ][i-1] + rho[k][j+1][i+1] - rho[k][j+1][i-1]) * 0.25;
-                }
-
-                drde = (rho[k][j+1][i] - rho[k][j][i]) * 0.5 * (PHIG(k,j+1,i) + PHIG(k,j,i));
-
-                if
-                (
-                    // k-right boundary -> use upwind  only at the corner faces
-                    (k == mz-2 && j== my-2) || isOversetJFace(k+1, j, i, j+1, meshTag)
-                )
-                {
-                    PetscReal coeff_1 = 0.5 * (PHIG(k,j,i)   + PHIG(k-1,j,i));
-                    PetscReal coeff_2 = 0.5 * (PHIG(k,j+1,i) + PHIG(k-1,j+1,i));
-                    PetscReal diff_1 = (rho[k  ][j  ][i  ] - rho[k-1][j  ][i  ]) * coeff_1;
-                    PetscReal diff_2 = (rho[k  ][j+1][i  ] - rho[k-1][j+1][i  ]) * coeff_2;
-                    drdz = (diff_1 + diff_2) * 0.5;
-                    //drdz = (rho[k][j  ][i] - rho[k-1][j  ][i] + rho[k][j+1][i] - rho[k-1][j+1][i]) * 0.5;
-                }
-                else if
-                (
-                    // k-left boundary -> use upwind  only at the corner faces
-                    (k == 1 && j== my-2) || isOversetJFace(k-1, j, i, j+1, meshTag)
-                )
-                {
-                    PetscReal coeff_1 = 0.5 * (PHIG(k,j,i)   + PHIG(k+1,j,i));
-                    PetscReal coeff_2 = 0.5 * (PHIG(k,j+1,i) + PHIG(k+1,j+1,i));
-                    PetscReal diff_1 = (rho[k+1][j  ][i  ] - rho[k][j  ][i  ]) * coeff_1;
-                    PetscReal diff_2 = (rho[k+1][j+1][i  ] - rho[k][j+1][i  ]) * coeff_2;
-                    drdz = (diff_1 + diff_2) * 0.5;
-                    //drdz = (rho[k+1][j  ][i] - rho[k][j  ][i] + rho[k+1][j+1][i] - rho[k][j+1][i]) * 0.5;
-                }
-                else
-                {
-                    PetscReal coeff_1 = 0.5 * (PHIG(k+1,j,i)   + PHIG(k-1,j,i));
-                    PetscReal coeff_2 = 0.5 * (PHIG(k+1,j+1,i) + PHIG(k-1,j+1,i));
-                    PetscReal diff_1 = (rho[k+1][j  ][i  ] - rho[k-1][j  ][i  ]) * coeff_1;
-                    PetscReal diff_2 = (rho[k+1][j+1][i  ] - rho[k-1][j+1][i  ]) * coeff_2;
-                    drdz = (diff_1 + diff_2) * 0.25;
-                    //drdz = (rho[k+1][j  ][i] - rho[k-1][j  ][i] + rho[k+1][j+1][i] - rho[k-1][j+1][i]) * 0.25;
-                }
-
-                drho[k][j][i].y = (drdc * g21_j + drde * g22_j + drdz * g23_j) * jaj[k][j][i];
 
                 // pressure gradient in the k-direction
                 if
                 (
-                    // i-right boundary -> use upwind  only at the corner faces
-                    (i == mx - 2 && k==mz-2) || isOversetKFace(k, j, i+1, k+1, meshTag)
+                    i > 0 && j > 0 &&              // exclude non-defined indices in the k-direction
+                    (k>0 && k<mz-2 || periodic_k)  // exclude also first and last face unless periodic (has meaningful ghosts)
                 )
                 {
-                    PetscReal coeff_1 = 0.5 * (PHIG(k,j,i)   + PHIG(k,j,i-1));
-                    PetscReal coeff_2 = 0.5 * (PHIG(k+1,j,i) + PHIG(k+1,j,i-1));
-                    PetscReal diff_1 = (rho[k  ][j][i  ] - rho[k  ][j][i-1]) * coeff_1;
-                    PetscReal diff_2 = (rho[k+1][j][i  ] - rho[k+1][j][i-1]) * coeff_2;
-                    drdc = (diff_1 + diff_2) * 0.5;
-                    //drdc = (rho[k  ][j][i] - rho[k  ][j][i-1] + rho[k+1][j][i] - rho[k+1][j][i-1]) * 0.5;
-                }
-                else if
-                (
-                    // i-left boundary -> use upwind  only at the corner faces
-                    (i == 1 && k == mz - 2) || isOversetKFace(k, j, i-1, k+1, meshTag)
-                )
-                {
-                    PetscReal coeff_1 = 0.5 * (PHIG(k,j,i)   + PHIG(k,j,i+1));
-                    PetscReal coeff_2 = 0.5 * (PHIG(k+1,j,i) + PHIG(k+1,j,i+1));
-                    PetscReal diff_1 = (rho[k  ][j][i+1] - rho[k  ][j][i  ]) * coeff_1;
-                    PetscReal diff_2 = (rho[k+1][j][i+1] - rho[k+1][j][i  ]) * coeff_2;
-                    drdc = (diff_1 + diff_2) * 0.5;
-                    //drdc = (rho[k  ][j][i+1] - rho[k  ][j][i] + rho[k+1][j][i+1] - rho[k+1][j][i]) * 0.5;
-                }
-                else
-                {
-                    PetscReal coeff_1 = 0.5 * (PHIG(k,j,i+1)   + PHIG(k,j,i-1));
-                    PetscReal coeff_2 = 0.5 * (PHIG(k+1,j,i+1) + PHIG(k+1,j,i-1));
-                    PetscReal diff_1 = (rho[k  ][j][i+1] - rho[k  ][j][i-1]) * coeff_1;
-                    PetscReal diff_2 = (rho[k+1][j][i+1] - rho[k+1][j][i-1]) * coeff_2;
-                    drdc = (diff_1 + diff_2) * 0.25;
-                    //drdc = (rho[k  ][j][i+1] - rho[k  ][j][i-1] + rho[k+1][j][i+1] - rho[k+1][j][i-1]) * 0.25;
-                }
+                    if
+                    (
+                        // i-right boundary -> use upwind  only at the corner faces
+                        (i == mx - 2 && k==mz-2) || isOversetKFace(k, j, i+1, k+1, meshTag)
+                    )
+                    {
+                        PetscReal coeff_1 = 0.5 * (PHIG(k,j,i)   + PHIG(k,j,i-1));
+                        PetscReal coeff_2 = 0.5 * (PHIG(k+1,j,i) + PHIG(k+1,j,i-1));
+                        PetscReal diff_1 = (rho[k  ][j][i  ] - rho[k  ][j][i-1]) * coeff_1;
+                        PetscReal diff_2 = (rho[k+1][j][i  ] - rho[k+1][j][i-1]) * coeff_2;
+                        drdc = (diff_1 + diff_2) * 0.5;
+                        //drdc = (rho[k  ][j][i] - rho[k  ][j][i-1] + rho[k+1][j][i] - rho[k+1][j][i-1]) * 0.5;
+                    }
+                    else if
+                    (
+                        // i-left boundary -> use upwind  only at the corner faces
+                        (i == 1 && k == mz - 2) || isOversetKFace(k, j, i-1, k+1, meshTag)
+                    )
+                    {
+                        PetscReal coeff_1 = 0.5 * (PHIG(k,j,i)   + PHIG(k,j,i+1));
+                        PetscReal coeff_2 = 0.5 * (PHIG(k+1,j,i) + PHIG(k+1,j,i+1));
+                        PetscReal diff_1 = (rho[k  ][j][i+1] - rho[k  ][j][i  ]) * coeff_1;
+                        PetscReal diff_2 = (rho[k+1][j][i+1] - rho[k+1][j][i  ]) * coeff_2;
+                        drdc = (diff_1 + diff_2) * 0.5;
+                        //drdc = (rho[k  ][j][i+1] - rho[k  ][j][i] + rho[k+1][j][i+1] - rho[k+1][j][i]) * 0.5;
+                    }
+                    else
+                    {
+                        PetscReal coeff_1 = 0.5 * (PHIG(k,j,i+1)   + PHIG(k,j,i-1));
+                        PetscReal coeff_2 = 0.5 * (PHIG(k+1,j,i+1) + PHIG(k+1,j,i-1));
+                        PetscReal diff_1 = (rho[k  ][j][i+1] - rho[k  ][j][i-1]) * coeff_1;
+                        PetscReal diff_2 = (rho[k+1][j][i+1] - rho[k+1][j][i-1]) * coeff_2;
+                        drdc = (diff_1 + diff_2) * 0.25;
+                        //drdc = (rho[k  ][j][i+1] - rho[k  ][j][i-1] + rho[k+1][j][i+1] - rho[k+1][j][i-1]) * 0.25;
+                    }
 
-                if
-                (
-                    // j-right boundary -> use upwind  only at the corner faces
-                    (j == my - 2 && k==mz-2) || isOversetKFace(k, j+1, i, k+1, meshTag)
-                )
-                {
-                    PetscReal coeff_1 = 0.5 * (PHIG(k,j,i)   + PHIG(k,j-1,i));
-                    PetscReal coeff_2 = 0.5 * (PHIG(k+1,j,i) + PHIG(k+1,j-1,i));
-                    PetscReal diff_1 = (rho[k  ][j  ][i  ] - rho[k  ][j-1][i  ]) * coeff_1;
-                    PetscReal diff_2 = (rho[k+1][j  ][i  ] - rho[k+1][j-1][i  ]) * coeff_2;
-                    drde = (diff_1 + diff_2) * 0.5;
-                    //drde = (rho[k  ][j][i] - rho[k  ][j-1][i] + rho[k+1][j][i] - rho[k+1][j-1][i]) * 0.5;
-                }
-                else if
-                (
-                    // j-left boundary -> use upwind  only at the corner faces
-                    (j == 1 && k==mz-2)  || isOversetKFace(k, j-1, i, k+1, meshTag)
-                )
-                {
-                    PetscReal coeff_1 = 0.5 * (PHIG(k,j,i)   + PHIG(k,j+1,i));
-                    PetscReal coeff_2 = 0.5 * (PHIG(k+1,j,i) + PHIG(k+1,j+1,i));
-                    PetscReal diff_1 = (rho[k  ][j+1][i  ] - rho[k  ][j  ][i  ]) * coeff_1;
-                    PetscReal diff_2 = (rho[k+1][j+1][i  ] - rho[k+1][j  ][i  ]) * coeff_2;
-                    drde = (diff_1 + diff_2) * 0.5;
-                    //drde = (rho[k  ][j+1][i] - rho[k  ][j][i] + rho[k+1][j+1][i] - rho[k+1][j][i]) * 0.5;
-                }
-                else
-                {
-                    PetscReal coeff_1 = 0.5 * (PHIG(k,j+1,i)   + PHIG(k,j-1,i));
-                    PetscReal coeff_2 = 0.5 * (PHIG(k+1,j+1,i) + PHIG(k+1,j-1,i));
-                    PetscReal diff_1 = (rho[k  ][j+1][i  ] - rho[k  ][j-1][i  ]) * coeff_1;
-                    PetscReal diff_2 = (rho[k+1][j+1][i  ] - rho[k+1][j-1][i  ]) * coeff_2;
-                    drde = (diff_1 + diff_2) * 0.25;
-                    //drde = (rho[k  ][j+1][i] - rho[k  ][j-1][i] + rho[k+1][j+1][i] - rho[k+1][j-1][i]) * 0.25;
-                }
+                    if
+                    (
+                        // j-right boundary -> use upwind  only at the corner faces
+                        (j == my - 2 && k==mz-2) || isOversetKFace(k, j+1, i, k+1, meshTag)
+                    )
+                    {
+                        PetscReal coeff_1 = 0.5 * (PHIG(k,j,i)   + PHIG(k,j-1,i));
+                        PetscReal coeff_2 = 0.5 * (PHIG(k+1,j,i) + PHIG(k+1,j-1,i));
+                        PetscReal diff_1 = (rho[k  ][j  ][i  ] - rho[k  ][j-1][i  ]) * coeff_1;
+                        PetscReal diff_2 = (rho[k+1][j  ][i  ] - rho[k+1][j-1][i  ]) * coeff_2;
+                        drde = (diff_1 + diff_2) * 0.5;
+                        //drde = (rho[k  ][j][i] - rho[k  ][j-1][i] + rho[k+1][j][i] - rho[k+1][j-1][i]) * 0.5;
+                    }
+                    else if
+                    (
+                        // j-left boundary -> use upwind  only at the corner faces
+                        (j == 1 && k==mz-2)  || isOversetKFace(k, j-1, i, k+1, meshTag)
+                    )
+                    {
+                        PetscReal coeff_1 = 0.5 * (PHIG(k,j,i)   + PHIG(k,j+1,i));
+                        PetscReal coeff_2 = 0.5 * (PHIG(k+1,j,i) + PHIG(k+1,j+1,i));
+                        PetscReal diff_1 = (rho[k  ][j+1][i  ] - rho[k  ][j  ][i  ]) * coeff_1;
+                        PetscReal diff_2 = (rho[k+1][j+1][i  ] - rho[k+1][j  ][i  ]) * coeff_2;
+                        drde = (diff_1 + diff_2) * 0.5;
+                        //drde = (rho[k  ][j+1][i] - rho[k  ][j][i] + rho[k+1][j+1][i] - rho[k+1][j][i]) * 0.5;
+                    }
+                    else
+                    {
+                        PetscReal coeff_1 = 0.5 * (PHIG(k,j+1,i)   + PHIG(k,j-1,i));
+                        PetscReal coeff_2 = 0.5 * (PHIG(k+1,j+1,i) + PHIG(k+1,j-1,i));
+                        PetscReal diff_1 = (rho[k  ][j+1][i  ] - rho[k  ][j-1][i  ]) * coeff_1;
+                        PetscReal diff_2 = (rho[k+1][j+1][i  ] - rho[k+1][j-1][i  ]) * coeff_2;
+                        drde = (diff_1 + diff_2) * 0.25;
+                        //drde = (rho[k  ][j+1][i] - rho[k  ][j-1][i] + rho[k+1][j+1][i] - rho[k+1][j-1][i]) * 0.25;
+                    }
 
-                drdz = (rho[k+1][j][i] - rho[k][j][i]) * 0.5 * (PHIG(k+1,j,i) + PHIG(k,j,i));
+                    drdz = (rho[k+1][j][i] - rho[k][j][i]) * 0.5 * (PHIG(k+1,j,i) + PHIG(k,j,i));
 
-                drho[k][j][i].z = (drdc * g31_k + drde * g32_k + drdz * g33_k) * kaj[k][j][i];
-
-                // periodic: set to zero only on left boundaries since the contrav. velocity is not solved there
-                // non-periodic: set to zero also on right boundaries since the contrav. velocity is not solved there
-                if
-                (
-                    i==0 || (!mesh->i_periodic && !mesh->ii_periodic && i==mx-2) || isOversetIFace(k, j, i, i+1, meshTag)
-                )
-                {
-                    drho[k][j][i].x = 0;
-                }
-                if
-                (
-                    j==0 || (!mesh->j_periodic && !mesh->jj_periodic && j==my-2) || isOversetJFace(k, j, i, j+1, meshTag)
-                )
-                {
-                    drho[k][j][i].y = 0;
-                }
-                if
-                (
-                    k==0 || (!mesh->k_periodic && !mesh->kk_periodic && k==mz-2) || isOversetKFace(k, j, i, k+1, meshTag)
-                )
-                {
-                    drho[k][j][i].z = 0;
+                    drho[k][j][i].z = (drdc * g31_k + drde * g32_k + drdz * g33_k) * kaj[k][j][i];
                 }
             }
         }
@@ -641,7 +636,6 @@ PetscErrorCode GradRho(aeqn_ *aeqn)
 
     DMDAVecRestoreArray(fda, aeqn->dRho, &drho);
     DMDAVecRestoreArray(da,  aeqn->lRho, &rho);
-    DMDAVecRestoreArray(fda, aeqn->lRhoFace, &rhoFace);
 
     return(0);
 }

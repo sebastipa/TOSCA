@@ -3628,6 +3628,82 @@ PetscErrorCode UpdatektBCs(les_ *les)
 
 //***************************************************************************************************************//
 
+PetscErrorCode UpdateRhoBCs(aeqn_ *aeqn)
+{
+    mesh_          *mesh = aeqn->access->mesh;
+    DM            da   = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info = mesh->info;
+    PetscInt      xs   = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys   = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs   = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx   = info.mx, my = info.my, mz = info.mz;
+
+    word          typeName = "boundary/Rho";
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k;
+
+    PetscReal     ***rho, ***meshTag;
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    DMDAVecGetArray(da, mesh->lmeshTag, &meshTag);
+    DMDAVecGetArray(da, aeqn->lRho, &rho);
+
+    for (k=zs; k<ze; k++)
+    {
+        for (j=ys; j<ye; j++)
+        {
+            for (i=xs; i<xe; i++)
+            {
+                PetscInt a=i, b=j, c=k, flag=0;
+
+                if(i==0)
+                {
+                    if(!mesh->i_periodic && !mesh->ii_periodic) a=1, flag=1;
+                }
+                if(i==mx-1)
+                {
+                    if(!mesh->i_periodic && !mesh->ii_periodic) a=mx-2, flag=1;
+                }
+                if(j==0)
+                {
+                    if(!mesh->j_periodic && !mesh->jj_periodic) b=1, flag=1;
+                }
+                if(j==my-1)
+                {
+                    if(!mesh->j_periodic && !mesh->jj_periodic) b=my-2, flag=1;
+                }
+                if(k==0)
+                {
+                    if(!mesh->k_periodic && !mesh->kk_periodic) c=1, flag=1;
+                }
+                if(k==mz-1)
+                {
+                    if(!mesh->k_periodic && !mesh->kk_periodic) c=mz-2, flag=1;
+                }
+
+                if(flag)
+                {
+                    rho[k][j][i] = rho[c][b][a];
+                }
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(da, mesh->lmeshTag, &meshTag);
+    DMDAVecRestoreArray(da, aeqn->lRho, &rho);
+
+    // reset periodic cell fluxes and scatter
+    resetCellPeriodicFluxes(mesh, aeqn->lRho, aeqn->lRho, "scalar", "localToLocal");
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
 PetscErrorCode UpdatePressureBCs(peqn_ *peqn)
 {
     mesh_          *mesh = peqn->access->mesh;

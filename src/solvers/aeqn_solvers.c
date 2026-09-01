@@ -994,6 +994,131 @@ PetscErrorCode UpdateRho(aeqn_ *aeqn)
     PetscReal     rhoAir   = constants->rho;
     PetscReal     rhoWater = constants->rhoWater;
 
+    Cmpnts        ***rhoFace, ***divA, ***ucont;
+
+    PetscReal     ***rho, ***rho_o, ***aj, ***alpha, ***alpha_o;  
+
+    lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
+    lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
+    lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
+
+    DMDAVecGetArray(da,  aeqn->lRho,     &rho);
+    DMDAVecGetArray(da,  mesh->lAj,      &aj);
+    DMDAVecGetArray(fda, aeqn->lDivMean, &divA);
+    DMDAVecGetArray(fda, ueqn->lUcont,   &ucont);
+    DMDAVecGetArray(da,  aeqn->Alpha_o,  &alpha_o);
+    
+    PetscScalar tol = 1.0e-5;
+    PetscReal divRhoU, rhoU_i, rhoU_j, rhoU_k, rhoU_im1, rhoU_jm1, rhoU_km1; 
+
+    for (k=lzs; k<lze; k++)
+    {
+        for (j=lys; j<lye; j++)
+        {
+            for (i=lxs; i<lxe; i++)
+            {
+                rhoU_i   = (-divA[k][j][i].x - ucont[k][j][i].x) * rhoAir + divA[k][j][i].x * rhoWater;
+                rhoU_j   = (-divA[k][j][i].y - ucont[k][j][i].y) * rhoAir + divA[k][j][i].y * rhoWater;
+                rhoU_k   = (-divA[k][j][i].z - ucont[k][j][i].z) * rhoAir + divA[k][j][i].z * rhoWater;
+                rhoU_im1 = (-divA[k][j][i-1].x - ucont[k][j][i-1].x) * rhoAir + divA[k][j][i-1].x * rhoWater;
+                rhoU_jm1 = (-divA[k][j-1][i].y - ucont[k][j-1][i].y) * rhoAir + divA[k][j-1][i].y * rhoWater;
+                rhoU_km1 = (-divA[k-1][j][i].z - ucont[k-1][j][i].z) * rhoAir + divA[k-1][j][i].z * rhoWater;
+                
+                divRhoU  = rhoU_i - rhoU_im1 + 
+                           rhoU_j - rhoU_jm1 + 
+                           rhoU_k - rhoU_km1;
+
+                PetscReal rho_old = alpha_o[k][j][i] * rhoWater + (1.0 - alpha_o[k][j][i]) * rhoAir;
+                
+                rho[k][j][i] = rho_old + clock->dt * aj[k][j][i] * divRhoU;
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(da,  aeqn->lRho,     &rho);
+    DMDAVecRestoreArray(da,  mesh->lAj,      &aj);
+    DMDAVecRestoreArray(da,  aeqn->Alpha_o,  &alpha_o);
+    DMDAVecRestoreArray(fda, aeqn->lDivMean, &divA);
+    DMDAVecRestoreArray(fda, ueqn->lUcont,   &ucont);
+
+    DMLocalToLocalBegin(da, aeqn->lRho,  INSERT_VALUES, aeqn->lRho);
+    DMLocalToLocalEnd  (da, aeqn->lRho,  INSERT_VALUES, aeqn->lRho);
+
+    // rho BCs update is not required as this field is derived from alpha which is alredy in sync
+    UpdateRhoBCs(aeqn);
+
+    DMDAVecGetArray(da,  aeqn->lAlpha,   &alpha);
+    DMDAVecGetArray(fda, aeqn->lRhoFace, &rhoFace);
+
+    PetscReal alpha_face;
+
+    for (k=zs; k<lze; k++)
+    {
+        for (j=ys; j<lye; j++)
+        {
+            for (i=xs; i<lxe; i++)
+            {
+                if(j!=0 && k!=0)
+                {
+                    // algebraic mean
+                    alpha_face = 0.5 * (alpha[k][j][i] + alpha[k][j][i+1]);
+
+                    rhoFace[k][j][i].x  = alpha_face * rhoWater + (1.0 - alpha_face) * rhoAir;
+                }
+
+                if(i!=0 && k!=0)
+                {
+                    // algebraic mean
+                    alpha_face = 0.5 * (alpha[k][j][i] + alpha[k][j+1][i]);  
+
+                    rhoFace[k][j][i].y  = alpha_face * rhoWater + (1.0 - alpha_face) * rhoAir;
+                }
+
+                if(i!=0 && j!=0)
+                {
+                    // algebraic mean
+                    alpha_face = 0.5 * (alpha[k][j][i] + alpha[k+1][j][i]);
+
+                    rhoFace[k][j][i].z  = alpha_face * rhoWater + (1.0 - alpha_face) * rhoAir;
+                }
+            }
+        }
+    }
+
+    DMDAVecRestoreArray(da,  aeqn->lAlpha,   &alpha);
+    DMDAVecRestoreArray(fda, aeqn->lRhoFace, &rhoFace);
+
+    // local to local scatter 
+    DMLocalToLocalBegin(fda, aeqn->lRhoFace,  INSERT_VALUES, aeqn->lRhoFace);
+    DMLocalToLocalEnd  (fda, aeqn->lRhoFace,  INSERT_VALUES, aeqn->lRhoFace);
+
+    // handle periodicity
+    resetFacePeriodicFluxesVector(mesh, aeqn->lRhoFace,  aeqn->lRhoFace,  "localToLocal");
+
+    return(0);
+}
+
+//***************************************************************************************************************//
+
+PetscErrorCode UpdateRhoOld(aeqn_ *aeqn)
+{
+    mesh_         *mesh  = aeqn->access->mesh;
+    ueqn_         *ueqn  = aeqn->access->ueqn;
+    clock_        *clock = aeqn->access->clock;
+    constants_    *constants = aeqn->access->constants;
+    DM            da     = mesh->da, fda = mesh->fda;
+    DMDALocalInfo info   = mesh->info;
+    PetscInt      xs = info.xs, xe = info.xs + info.xm;
+    PetscInt      ys = info.ys, ye = info.ys + info.ym;
+    PetscInt      zs = info.zs, ze = info.zs + info.zm;
+    PetscInt      mx = info.mx, my = info.my, mz = info.mz;
+
+    PetscInt      lxs, lxe, lys, lye, lzs, lze;
+    PetscInt      i, j, k;
+
+    PetscReal     rhoAir   = constants->rho;
+    PetscReal     rhoWater = constants->rhoWater;
+
     Cmpnts        ***rhoFace;
 
     PetscReal     ***alpha, ***rhoCell;
@@ -1061,7 +1186,7 @@ PetscErrorCode UpdateRho(aeqn_ *aeqn)
 
     for (k=zs; k<ze; k++)
     {
-        for (j=lys; j<ye; j++)
+        for (j=ys; j<ye; j++)
         {
             for (i=xs; i<xe; i++)
             {
