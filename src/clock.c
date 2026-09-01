@@ -340,9 +340,9 @@ PetscErrorCode adjustTimeStep (domain_ *domain)
     // prevent time step from increasing too fast
     if(flags->isAdjustableTime)
     {
-        if(clock->dt > 1.5 * clock->dtOld)
+        if(clock->dt > 1.2 * clock->dtOld)
         {
-            clock->dt    = 1.5 * clock->dtOld;
+            clock->dt    = 1.2 * clock->dtOld;
         }
     }
 
@@ -562,7 +562,7 @@ PetscErrorCode timeStepInfoMultiphase(domain_ *domain, clock_ *clock, PetscReal 
 
     Cmpnts        ***divAlpha;
 
-    PetscReal     deltaAlphaMax = 0.25;
+    PetscReal     deltaAlphaMax = 0.2;
 
     PetscInt      i, j, k;
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
