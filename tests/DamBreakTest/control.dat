@@ -6,7 +6,7 @@
 -startFrom                 startTime
 -startTime                 0
 -endTime                   2
--cfl                       0.1
+-cfl                       0.6
 -adjustTimeStep            1
 -timeStep                  0.0001
 
@@ -19,10 +19,12 @@
 # Solution 
 # ---------------------------------
 -multiphase                1
+-alphaCompCoeff            0.5
+-nAlphaSubCycles           5
 -absTolU                   1e-10
 -absTolA                   1e-10
--poissonIt                 20
--poissonTol                1e-10
+-poissonIt                 50
+-poissonTol                1e-15
 -poissonSolver             HYPRE
 # Turbulence Model
 # ---------------------------------
@@ -31,8 +33,8 @@
 
 # Numerical Schemes
 # ---------------------------------
--dUdtScheme                CN
--dAdtScheme                RK4
+-dUdtScheme                RK3WCN
+-dAdtScheme                RK3
 -divScheme                 centralUpwind
 
 # Constants 

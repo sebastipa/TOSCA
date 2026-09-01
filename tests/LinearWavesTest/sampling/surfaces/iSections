@@ -1,0 +1,6 @@
+surfaceNumber 1
+timeStart     0
+intervalType  adjustableTime
+timeInterval  0.1
+coordinates   0.25
+

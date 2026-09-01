@@ -1,0 +1,9 @@
+# TOSCA Input file - Water Wave Properties 
+# -------------------------------------------
+
+kRightAlphaDampingProperties
+{
+    patchDistance       5.0
+    stillWaterLevel     0.54
+    dampingCoeff        5.0
+}

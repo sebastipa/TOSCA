@@ -1,0 +1,29 @@
+# TOSCA Input file - T boundary conditions 
+# -------------------------------------------
+
+#internal field 
+
+internalField    spreadInflow
+
+# boundary patches
+
+iLeft   periodic
+
+iRight  periodic
+
+jLeft   fixedValue 1.0
+
+jRight  fixedValue 0.0
+
+kLeft   inletFunction
+        {
+            type       7
+            N          1
+            file       wavecoeffs
+            waterLevel 0.54
+            xFocus     0.0
+            tStart     0
+            tEnd       40
+        }
+        
+kRight  zeroGradient 

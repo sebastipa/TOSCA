@@ -11,14 +11,14 @@ internalField    uniform
                  }
 
 # boundary patches
-iLeft   periodic
+iLeft   noSlip
 
-iRight  periodic
+iRight  noSlip
 
 jLeft   noSlip
         
-jRight  slip
+jRight  noSlip
 
-kLeft   periodic
+kLeft   noSlip
         
-kRight  periodic   
+kRight  noSlip   

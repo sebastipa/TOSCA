@@ -10,14 +10,14 @@ internalField    uniform
                  
 # boundary patches
 
-iLeft   periodic
+iLeft   zeroGradient
 
-iRight  periodic
+iRight  zeroGradient
 
-jLeft   fixedValue 0.0
+jLeft   zeroGradient
 
-jRight  fixedValue 0.0
+jRight  zeroGradient
 
-kLeft   periodic
+kLeft   zeroGradient
 
-kRight  periodic
+kRight  zeroGradient

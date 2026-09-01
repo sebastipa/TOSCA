@@ -1,0 +1,31 @@
+# TOSCA Input file - U boundary conditions 
+# -------------------------------------------
+
+#internal field 
+
+internalField    spreadInflow
+
+# boundary patches
+iLeft   periodic
+
+iRight  periodic
+
+jLeft   noSlip
+        
+jRight  slip
+
+kLeft   inletFunction
+        {
+            type       7
+            N          1
+            file       wavecoeffs
+            waterLevel 0.54
+            xFocus     0.0
+            tStart     0
+            tEnd       40
+
+            frictionU  0.163
+            kRough     7.8971e-07
+        }
+        
+kRight  zeroGradient   
