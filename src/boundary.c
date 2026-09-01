@@ -1752,6 +1752,7 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                     else if (ifPtr->typeU == 7)
                     {
                         PetscReal u_wave = 0.0, w_wave = 0.0;
+                        PetscReal u_wind = 0.0;
 
                         PetscReal z_wave   = cent[k][j][i].z - mesh->bounds.zmin;
                         PetscReal d        = ifPtr->dfWaterLevel - mesh->bounds.zmin;
@@ -1816,6 +1817,15 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                             }
                         }
 
+                        if(z_wave > d)
+                        {
+                            u_wind = ifPtr->uTau / 0.41 * std::log((z_wave - d)/ifPtr->roughness);
+                        }
+                        else
+                        {
+                            u_wind = ifPtr->uTau;
+                        }
+
                         // theoretical water level is eta_wave so we have three types of cells 
                         PetscReal alphaTeo  = z_wave < eta_wave ? 1.0 : 0.0;
 
@@ -1823,11 +1833,10 @@ PetscErrorCode UpdateCartesianBCs(ueqn_ *ueqn)
                         PetscReal specialStart = PetscMin(ifPtr->etaMeasured[i], eta_wave);
                         PetscReal specialEnd   = PetscMax(ifPtr->etaMeasured[i], eta_wave);
 
-                        
                         // fully air
                         if (cellBot >= specialEnd)
                         {
-                            ucat[k-1][j][i].x = 0.0;
+                            ucat[k-1][j][i].x = u_wind;
                             ucat[k-1][j][i].y = 0.0;
                             ucat[k-1][j][i].z = 0.0;
                         }

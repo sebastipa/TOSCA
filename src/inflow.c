@@ -876,6 +876,8 @@ PetscErrorCode SetInflowFunctions(mesh_ *mesh)
             readSubDictDouble(fileName.c_str(), "inletFunction", "xFocus",     &(ifPtr->dfxFocus));
             readSubDictDouble(fileName.c_str(), "inletFunction", "tStart",     &(ifPtr->dftStart));
             readSubDictDouble(fileName.c_str(), "inletFunction", "tEnd",       &(ifPtr->dftEnd));
+            readSubDictDouble(fileName.c_str(), "inletFunction", "frictionU",  &(ifPtr->uTau));
+            readSubDictDouble(fileName.c_str(), "inletFunction", "kRough",     &(ifPtr->roughness));
             
             ifPtr->dfAmplitudes  = new PetscReal[ifPtr->dfN];
             ifPtr->dfWaveNumbers = new PetscReal[ifPtr->dfN];
