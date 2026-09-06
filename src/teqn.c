@@ -364,11 +364,11 @@ PetscErrorCode ghGradRhoK(teqn_ *teqn)
 
     DMDAVecGetArray(da, teqn->lRhoK,  &rhok);
 
-    for (k=lzs; k<lze; k++)
+    for (k=zs; k<lze; k++)
     {
-        for (j=lys; j<lye; j++)
+        for (j=ys; j<lye; j++)
         {
-            for (i=lxs; i<lxe; i++)
+            for (i=xs; i<lxe; i++)
             {
                 PetscReal g11_i = (icsi[k][j][i].x * icsi[k][j][i].x + icsi[k][j][i].y * icsi[k][j][i].y + icsi[k][j][i].z * icsi[k][j][i].z);
                 PetscReal g12_i = (ieta[k][j][i].x * icsi[k][j][i].x + ieta[k][j][i].y * icsi[k][j][i].y + ieta[k][j][i].z * icsi[k][j][i].z);
@@ -380,248 +380,259 @@ PetscErrorCode ghGradRhoK(teqn_ *teqn)
                 PetscReal g32_k = (keta[k][j][i].x * kzet[k][j][i].x + keta[k][j][i].y * kzet[k][j][i].y + keta[k][j][i].z * kzet[k][j][i].z);
                 PetscReal g33_k = (kzet[k][j][i].x * kzet[k][j][i].x + kzet[k][j][i].y * kzet[k][j][i].y + kzet[k][j][i].z * kzet[k][j][i].z);
 
-                // pressure gradient in the i-direction
-                if( i==mx-2 && mesh->ii_periodic)
+                // pressure gradient in the i-direction: needs j,k interior, i itself spans 0..mx-2 (boundary faces included)
+                if(j > 0 && k > 0)
                 {
-                    dbdc = rhok[k][j][mx+1] - rhok[k][j][i];
+                    if( i==mx-2 && mesh->ii_periodic)
+                    {
+                        dbdc = rhok[k][j][mx+1] - rhok[k][j][i];
+                    }
+                    else
+                    {
+                        dbdc = rhok[k][j][i+1] - rhok[k][j][i];
+                    }
+
+                    if
+                    (
+                        // j-right boundary -> use upwind only at the corner faces
+                        (
+                            j==my-2 &&
+                            (
+                                i==mx-2
+                            )
+                        ) || isOversetIFace(k, j+1, i, i+1, meshTag)
+                    )
+                    {
+                        dbde = (rhok[k][j  ][i  ] - rhok[k][j-1][i  ] + rhok[k][j  ][i+1] - rhok[k][j-1][i+1]) * 0.5;
+                    }
+                    else if
+                    (
+                        // j-left boundary -> use upwind  only at the corner faces
+                        (
+                            j == 1 &&
+                            (
+                                i == mx - 2
+                            )
+                         ) || isOversetIFace(k, j-1, i, i+1, meshTag)
+                    )
+                    {
+                        dbde = (rhok[k][j+1][i  ] - rhok[k][j  ][i  ] + rhok[k][j+1][i+1] - rhok[k][j  ][i+1]) * 0.5;
+                    }
+                    else
+                    {
+                        dbde = (rhok[k][j+1][i] - rhok[k][j-1][i] + rhok[k][j+1][i+1] - rhok[k][j-1][i+1]) * 0.25;
+                    }
+
+                    if
+                    (
+                        // k-right boundary -> use upwind  only at the corner faces
+                        (
+                            k == mz - 2 &&
+                            (
+                                i==mx-2
+                            )
+                        ) || isOversetIFace(k+1, j, i, i+1, meshTag)
+                    )
+                    {
+                        dbdz = (rhok[k][j][i  ] - rhok[k-1][j][i  ] + rhok[k][j][i+1] - rhok[k-1][j][i+1]) * 0.5;
+                    }
+                    else if
+                    (
+                        // k-left boundary  -> use upwind  only at the corner faces
+                        (
+                            k == 1 &&
+                            (
+                                i==mx-2
+                            )
+                        ) || isOversetIFace(k-1, j, i, i+1, meshTag)
+                    )
+                    {
+                        dbdz = (rhok[k+1][j][i  ] - rhok[k][j][i  ] + rhok[k+1][j][i+1] - rhok[k][j][i+1]) * 0.5;
+                    }
+                    else
+                    {
+                        dbdz = (rhok[k+1][j][i] - rhok[k-1][j][i] + rhok[k+1][j][i+1] - rhok[k-1][j][i+1]) * 0.25;
+                    }
+
+                    db[k][j][i].x = g * coor[k][j][i].z * (dbdc * g11_i + dbde *  g12_i + dbdz * g13_i ) * iaj[k][j][i];
                 }
                 else
-                {
-                    dbdc = rhok[k][j][i+1] - rhok[k][j][i];
-                }
-
-                if
-                (
-                    // j-right boundary -> use upwind only at the corner faces
-                    (
-                        j==my-2 &&
-                        (
-                            i==mx-2
-                        )
-                    ) || isOversetIFace(k, j+1, i, i+1, meshTag)
-                )
-                {
-                    dbde = (rhok[k][j  ][i  ] - rhok[k][j-1][i  ] + rhok[k][j  ][i+1] - rhok[k][j-1][i+1]) * 0.5;
-                }
-                else if
-                (
-                    // j-left boundary -> use upwind  only at the corner faces
-                    (
-                        j == 1 &&
-                        (
-                            i == mx - 2
-                        )
-                     ) || isOversetIFace(k, j-1, i, i+1, meshTag)
-                )
-                {
-                    dbde = (rhok[k][j+1][i  ] - rhok[k][j  ][i  ] + rhok[k][j+1][i+1] - rhok[k][j  ][i+1]) * 0.5;
-                }
-                else
-                {
-                    dbde = (rhok[k][j+1][i] - rhok[k][j-1][i] + rhok[k][j+1][i+1] - rhok[k][j-1][i+1]) * 0.25;
-                }
-
-                if
-                (
-                    // k-right boundary -> use upwind  only at the corner faces
-                    (
-                        k == mz - 2 &&
-                        (
-                            i==mx-2
-                        )
-                    ) || isOversetIFace(k+1, j, i, i+1, meshTag)
-                )
-                {
-                    dbdz = (rhok[k][j][i  ] - rhok[k-1][j][i  ] + rhok[k][j][i+1] - rhok[k-1][j][i+1]) * 0.5;
-                }
-                else if
-                (
-                    // k-left boundary  -> use upwind  only at the corner faces
-                    (
-                        k == 1 &&
-                        (
-                            i==mx-2
-                        )
-                    ) || isOversetIFace(k-1, j, i, i+1, meshTag)
-                )
-                {
-                    dbdz = (rhok[k+1][j][i  ] - rhok[k][j][i  ] + rhok[k+1][j][i+1] - rhok[k][j][i+1]) * 0.5;
-                }
-                else
-                {
-                    dbdz = (rhok[k+1][j][i] - rhok[k-1][j][i] + rhok[k+1][j][i+1] - rhok[k-1][j][i+1]) * 0.25;
-                }
-
-                db[k][j][i].x = g * coor[k][j][i].z * (dbdc * g11_i + dbde *  g12_i + dbdz * g13_i ) * iaj[k][j][i];
-
-                // pressure gradient in the j-direction
-                if
-                (
-                    // i-right boundary -> use upwind  only at the corner faces
-                    (
-                        i == mx-2 &&
-                        (
-                            j==my-2
-                        )
-                    ) || isOversetJFace(k, j, i+1, j+1, meshTag)
-                )
-                {
-                    dbdc = (rhok[k][j  ][i] - rhok[k][j  ][i-1] + rhok[k][j+1][i] - rhok[k][j+1][i-1]) * 0.5;
-                }
-                else if
-                (
-                    // i-left boundary -> use upwind  only at the corner faces
-                    (
-                        i == 1 &&
-                        (
-                            j==my-2
-                        )
-                    ) || isOversetJFace(k, j, i-1, j+1, meshTag)
-                )
-                {
-                    dbdc = (rhok[k][j  ][i+1] - rhok[k][j  ][i] + rhok[k][j+1][i+1] - rhok[k][j+1][i]) * 0.5;
-                }
-                else
-                {
-                    dbdc = (rhok[k][j  ][i+1] - rhok[k][j  ][i-1] + rhok[k][j+1][i+1] - rhok[k][j+1][i-1]) * 0.25;
-                }
-
-                if( j==my-2 && mesh->jj_periodic)
-                {
-                    dbde = rhok[k][my+1][i] - rhok[k][j][i];
-                }
-                else
-                {
-                    dbde = rhok[k][j+1][i] - rhok[k][j][i];
-                }
-
-                if
-                (
-                    // k-right boundary -> use upwind  only at the corner faces
-                    (
-                        k == mz-2 &&
-                        (
-                            j== my-2
-                        )
-                    ) || isOversetJFace(k+1, j, i, j+1, meshTag)
-                )
-                {
-                    dbdz = (rhok[k][j  ][i] - rhok[k-1][j  ][i] + rhok[k][j+1][i] - rhok[k-1][j+1][i]) * 0.5;
-                }
-                else if
-                (
-                    // k-left boundary -> use upwind  only at the corner faces
-                    (
-                        k == 1 &&
-                        (
-                            j== my-2
-                        )
-                    ) || isOversetJFace(k-1, j, i, j+1, meshTag)
-                )
-                {
-                    dbdz = (rhok[k+1][j  ][i] - rhok[k][j  ][i] + rhok[k+1][j+1][i] - rhok[k][j+1][i]) * 0.5;
-                }
-                else
-                {
-                    dbdz = (rhok[k+1][j  ][i] - rhok[k-1][j  ][i] + rhok[k+1][j+1][i] - rhok[k-1][j+1][i]) * 0.25;
-                }
-
-                db[k][j][i].y = g * coor[k][j][i].z * (dbdc * g21_j + dbde * g22_j + dbdz * g23_j ) * jaj[k][j][i];
-
-                // pressure gradient in the k-direction
-                if
-                (
-                    // i-right boundary -> use upwind  only at the corner faces
-                    (
-                        i == mx - 2 &&
-                        (
-                            k==mz-2
-                        )
-                    ) || isOversetKFace(k, j, i+1, k+1, meshTag)
-                )
-                {
-                    dbdc = (rhok[k  ][j][i] - rhok[k  ][j][i-1] + rhok[k+1][j][i] - rhok[k+1][j][i-1]) * 0.5;
-                }
-                else if
-                (
-                    // i-left boundary -> use upwind  only at the corner faces
-                    (
-                        i == 1 &&
-                        (
-                            k == mz - 2
-                        )
-                    ) || isOversetKFace(k, j, i-1, k+1, meshTag)
-                )
-                {
-                    dbdc = (rhok[k  ][j][i+1] - rhok[k  ][j][i] + rhok[k+1][j][i+1] - rhok[k+1][j][i]) * 0.5;
-                }
-                else
-                {
-                    dbdc = (rhok[k  ][j][i+1] - rhok[k  ][j][i-1] + rhok[k+1][j][i+1] - rhok[k+1][j][i-1]) * 0.25;
-                }
-
-                if
-                (
-                    // j-right boundary -> use upwind  only at the corner faces
-                    (
-                        j == my - 2 &&
-                        (
-                            k==mz-2
-                        )
-                    ) || isOversetKFace(k, j+1, i, k+1, meshTag)
-                )
-                {
-                    dbde = (rhok[k  ][j][i] - rhok[k  ][j-1][i] + rhok[k+1][j][i] - rhok[k+1][j-1][i]) * 0.5;
-                }
-                else if
-                (
-                    // j-left boundary -> use upwind  only at the corner faces
-                    (
-                        j == 1 &&
-                        (
-                            k==mz-2
-                        )
-                    ) || isOversetKFace(k, j-1, i, k+1, meshTag)
-                )
-                {
-                    dbde = (rhok[k  ][j+1][i] - rhok[k  ][j][i] + rhok[k+1][j+1][i] - rhok[k+1][j][i]) * 0.5;
-                }
-                else
-                {
-                    dbde = (rhok[k  ][j+1][i] - rhok[k  ][j-1][i] + rhok[k+1][j+1][i] - rhok[k+1][j-1][i]) * 0.25;
-                }
-
-                if( k==mz-2 && mesh->kk_periodic)
-                {
-                    dbdz = rhok[mz+1][j][i] - rhok[k][j][i];
-                }
-                else
-                {
-                    dbdz = (rhok[k+1][j][i] - rhok[k][j][i]);
-                }
-
-                db[k][j][i].z = g * coor[k][j][i].z * (dbdc * g31_k + dbde * g32_k + dbdz * g33_k ) * kaj[k][j][i];
-
-                // periodic: set to zero only on left boundaries since the contrav. velocity is not solved there
-                // non-periodic: set to zero also on right boundaries since the contrav. velocity is not solved there
-                if
-                (
-                    i==0 || (!mesh->i_periodic && !mesh->ii_periodic && i==mx-2) || isOversetIFace(k, j, i, i+1, meshTag)
-                )
                 {
                     db[k][j][i].x = 0;
                 }
-                if
-                (
-                    j==0 || (!mesh->j_periodic && !mesh->jj_periodic && j==my-2) || isOversetJFace(k, j, i, j+1, meshTag)
-                )
+
+                // pressure gradient in the j-direction: needs i,k interior, j itself spans 0..my-2 (boundary faces included)
+                if(i > 0 && k > 0)
+                {
+                    if
+                    (
+                        // i-right boundary -> use upwind  only at the corner faces
+                        (
+                            i == mx-2 &&
+                            (
+                                j==my-2
+                            )
+                        ) || isOversetJFace(k, j, i+1, j+1, meshTag)
+                    )
+                    {
+                        dbdc = (rhok[k][j  ][i] - rhok[k][j  ][i-1] + rhok[k][j+1][i] - rhok[k][j+1][i-1]) * 0.5;
+                    }
+                    else if
+                    (
+                        // i-left boundary -> use upwind  only at the corner faces
+                        (
+                            i == 1 &&
+                            (
+                                j==my-2
+                            )
+                        ) || isOversetJFace(k, j, i-1, j+1, meshTag)
+                    )
+                    {
+                        dbdc = (rhok[k][j  ][i+1] - rhok[k][j  ][i] + rhok[k][j+1][i+1] - rhok[k][j+1][i]) * 0.5;
+                    }
+                    else
+                    {
+                        dbdc = (rhok[k][j  ][i+1] - rhok[k][j  ][i-1] + rhok[k][j+1][i+1] - rhok[k][j+1][i-1]) * 0.25;
+                    }
+
+                    if( j==my-2 && mesh->jj_periodic)
+                    {
+                        dbde = rhok[k][my+1][i] - rhok[k][j][i];
+                    }
+                    else
+                    {
+                        dbde = rhok[k][j+1][i] - rhok[k][j][i];
+                    }
+
+                    if
+                    (
+                        // k-right boundary -> use upwind  only at the corner faces
+                        (
+                            k == mz-2 &&
+                            (
+                                j== my-2
+                            )
+                        ) || isOversetJFace(k+1, j, i, j+1, meshTag)
+                    )
+                    {
+                        dbdz = (rhok[k][j  ][i] - rhok[k-1][j  ][i] + rhok[k][j+1][i] - rhok[k-1][j+1][i]) * 0.5;
+                    }
+                    else if
+                    (
+                        // k-left boundary -> use upwind  only at the corner faces
+                        (
+                            k == 1 &&
+                            (
+                                j== my-2
+                            )
+                        ) || isOversetJFace(k-1, j, i, j+1, meshTag)
+                    )
+                    {
+                        dbdz = (rhok[k+1][j  ][i] - rhok[k][j  ][i] + rhok[k+1][j+1][i] - rhok[k][j+1][i]) * 0.5;
+                    }
+                    else
+                    {
+                        dbdz = (rhok[k+1][j  ][i] - rhok[k-1][j  ][i] + rhok[k+1][j+1][i] - rhok[k-1][j+1][i]) * 0.25;
+                    }
+
+                    db[k][j][i].y = g * coor[k][j][i].z * (dbdc * g21_j + dbde * g22_j + dbdz * g23_j ) * jaj[k][j][i];
+                }
+                else
                 {
                     db[k][j][i].y = 0;
                 }
-                if
-                (
-                    k==0 || (!mesh->k_periodic && !mesh->kk_periodic && k==mz-2) || isOversetKFace(k, j, i, k+1, meshTag)
-                )
+
+                // pressure gradient in the k-direction: needs i,j interior, k itself spans 0..mz-2 (boundary faces included)
+                if(i > 0 && j > 0)
+                {
+                    if
+                    (
+                        // i-right boundary -> use upwind  only at the corner faces
+                        (
+                            i == mx - 2 &&
+                            (
+                                k==mz-2
+                            )
+                        ) || isOversetKFace(k, j, i+1, k+1, meshTag)
+                    )
+                    {
+                        dbdc = (rhok[k  ][j][i] - rhok[k  ][j][i-1] + rhok[k+1][j][i] - rhok[k+1][j][i-1]) * 0.5;
+                    }
+                    else if
+                    (
+                        // i-left boundary -> use upwind  only at the corner faces
+                        (
+                            i == 1 &&
+                            (
+                                k == mz - 2
+                            )
+                        ) || isOversetKFace(k, j, i-1, k+1, meshTag)
+                    )
+                    {
+                        dbdc = (rhok[k  ][j][i+1] - rhok[k  ][j][i] + rhok[k+1][j][i+1] - rhok[k+1][j][i]) * 0.5;
+                    }
+                    else
+                    {
+                        dbdc = (rhok[k  ][j][i+1] - rhok[k  ][j][i-1] + rhok[k+1][j][i+1] - rhok[k+1][j][i-1]) * 0.25;
+                    }
+
+                    if
+                    (
+                        // j-right boundary -> use upwind  only at the corner faces
+                        (
+                            j == my - 2 &&
+                            (
+                                k==mz-2
+                            )
+                        ) || isOversetKFace(k, j+1, i, k+1, meshTag)
+                    )
+                    {
+                        dbde = (rhok[k  ][j][i] - rhok[k  ][j-1][i] + rhok[k+1][j][i] - rhok[k+1][j-1][i]) * 0.5;
+                    }
+                    else if
+                    (
+                        // j-left boundary -> use upwind  only at the corner faces
+                        (
+                            j == 1 &&
+                            (
+                                k==mz-2
+                            )
+                        ) || isOversetKFace(k, j-1, i, k+1, meshTag)
+                    )
+                    {
+                        dbde = (rhok[k  ][j+1][i] - rhok[k  ][j][i] + rhok[k+1][j+1][i] - rhok[k+1][j][i]) * 0.5;
+                    }
+                    else
+                    {
+                        dbde = (rhok[k  ][j+1][i] - rhok[k  ][j-1][i] + rhok[k+1][j+1][i] - rhok[k+1][j-1][i]) * 0.25;
+                    }
+
+                    if( k==mz-2 && mesh->kk_periodic)
+                    {
+                        dbdz = rhok[mz+1][j][i] - rhok[k][j][i];
+                    }
+                    else
+                    {
+                        dbdz = (rhok[k+1][j][i] - rhok[k][j][i]);
+                    }
+
+                    db[k][j][i].z = g * coor[k][j][i].z * (dbdc * g31_k + dbde * g32_k + dbdz * g33_k ) * kaj[k][j][i];
+                }
+                else
+                {
+                    db[k][j][i].z = 0;
+                }
+
+                // zero out overset fringe faces (not physical boundaries: those already hold real one-sided values above)
+                if(isOversetIFace(k, j, i, i+1, meshTag))
+                {
+                    db[k][j][i].x = 0;
+                }
+                if(isOversetJFace(k, j, i, j+1, meshTag))
+                {
+                    db[k][j][i].y = 0;
+                }
+                if(isOversetKFace(k, j, i, k+1, meshTag))
                 {
                     db[k][j][i].z = 0;
                 }

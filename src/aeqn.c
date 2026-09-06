@@ -366,8 +366,7 @@ PetscErrorCode GradRho(aeqn_ *aeqn)
 
                 if
                 (
-                    j > 0 && k > 0 &&              // exclude non-defined indices in the i-direction
-                    (i>0 && i<mx-2 || periodic_i)  // exclude also first and last face unless periodic (has meaningful ghosts)
+                    j > 0 && k > 0                 // i itself ranges over all faces 0..mx-2 (boundary faces included)
                 )
                 {
                     // density gradient in the i-direction
@@ -449,8 +448,7 @@ PetscErrorCode GradRho(aeqn_ *aeqn)
 
                 if
                 (
-                    i > 0 && k > 0 &&              // exclude non-defined indices in the j-direction
-                    (j>0 && j<my-2 || periodic_j)  // exclude also first and last face unless periodic (has meaningful ghosts)
+                    i > 0 && k > 0                 // j itself ranges over all faces 0..my-2 (boundary faces included)
                 )
                 {
                     // pressure gradient in the j-direction
@@ -534,8 +532,7 @@ PetscErrorCode GradRho(aeqn_ *aeqn)
                 // pressure gradient in the k-direction
                 if
                 (
-                    i > 0 && j > 0 &&              // exclude non-defined indices in the k-direction
-                    (k>0 && k<mz-2 || periodic_k)  // exclude also first and last face unless periodic (has meaningful ghosts)
+                    i > 0 && j > 0                 // k itself ranges over all faces 0..mz-2 (boundary faces included)
                 )
                 {
                     if

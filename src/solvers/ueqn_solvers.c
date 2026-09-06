@@ -1189,6 +1189,7 @@ PetscErrorCode ExplicitRhsU(ueqn_ *ueqn, PetscInt formMode)
     if(ueqn->access->flags->isTeqnActive)
     {
         teqn_ *teqn = ueqn->access->teqn;
+        
         if(teqn->pTildeFormulation)
         {
             if(clock->it > clock->itStart)

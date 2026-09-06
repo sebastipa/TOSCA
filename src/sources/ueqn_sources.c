@@ -2979,18 +2979,18 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, PetscReal scale)
     DMDAVecGetArray(da, mesh->lNvert, &nvert);
     DMDAVecGetArray(da, mesh->lmeshTag, &meshTag);
 
-    for (k=lzs; k<lze; k++)
+    for (k=zs; k<lze; k++)
     {
-        for (j=lys; j<lye; j++)
+        for (j=ys; j<lye; j++)
         {
-            for (i=lxs; i<lxe; i++)
+            for (i=xs; i<lxe; i++)
             {
                 // interpolate temperature at cell faces
                 PetscReal tempI    =  0.5*(tmprt[k][j][i] + tmprt[k][j][i+1]);
                 PetscReal tempJ    =  0.5*(tmprt[k][j][i] + tmprt[k][j+1][i]);
                 PetscReal tempK    =  0.5*(tmprt[k][j][i] + tmprt[k+1][j][i]);
 
-                if(isFluidIFace(k, j, i, i+1, nvert) && isCalculatedIFace(k, j, i, i+1, meshTag))
+                if(j > 0 && k > 0 && isFluidIFace(k, j, i, i+1, nvert) && isCalculatedIFace(k, j, i, i+1, meshTag))
                 {
                     btheta[k][j][i].x
                     +=
@@ -3003,7 +3003,7 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, PetscReal scale)
                     );
                 }
 
-                if(isFluidJFace(k, j, i, j+1, nvert) && isCalculatedJFace(k, j, i, j+1, meshTag))
+                if(i > 0 && k > 0 && isFluidJFace(k, j, i, j+1, nvert) && isCalculatedJFace(k, j, i, j+1, meshTag))
                 {
                     btheta[k][j][i].y
                     +=
@@ -3016,7 +3016,7 @@ PetscErrorCode Buoyancy(ueqn_ *ueqn, PetscReal scale)
                     );
                 }
 
-                if(isFluidKFace(k, j, i, k+1, nvert) && isCalculatedKFace(k, j, i, k+1, meshTag))
+                if(i > 0 && j > 0 && isFluidKFace(k, j, i, k+1, nvert) && isCalculatedKFace(k, j, i, k+1, meshTag))
                 {
                     btheta[k][j][i].z
                     +=
