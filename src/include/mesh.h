@@ -63,6 +63,7 @@ struct mesh_
     scalarBC       boundaryA;                 //!< alpha water boundary conditions   
     scalarBC       boundaryNut;               //!< eddy viscosity boundary conditions
     scalarBC       boundaryT;                 //!< temperature boundary conditions
+    scalarBC       boundaryP;                 //!< pressure (phi) boundary conditions
     vectorBC       boundaryU;                 //!< velocity boundary conditions
 
     // special inflow boundary conditions

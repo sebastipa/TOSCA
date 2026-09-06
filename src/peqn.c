@@ -32,6 +32,20 @@
 
 //***************************************************************************************************************//
 
+// true if no patch has a dirichlet pressure BC (pure Neumann/periodic domain): matrix has a constant null space
+PetscBool pressureHasNoDirichletBC(mesh_ *mesh)
+{
+    if(mesh->boundaryP.iLeft  == "dirichlet") return PETSC_FALSE;
+    if(mesh->boundaryP.iRight == "dirichlet") return PETSC_FALSE;
+    if(mesh->boundaryP.jLeft  == "dirichlet") return PETSC_FALSE;
+    if(mesh->boundaryP.jRight == "dirichlet") return PETSC_FALSE;
+    if(mesh->boundaryP.kLeft  == "dirichlet") return PETSC_FALSE;
+    if(mesh->boundaryP.kRight == "dirichlet") return PETSC_FALSE;
+    return PETSC_TRUE;
+}
+
+//***************************************************************************************************************//
+
 PetscErrorCode InitializePEqn(peqn_ *peqn)
 {
     // set pointer to mesh
@@ -44,6 +58,9 @@ PetscErrorCode InitializePEqn(peqn_ *peqn)
     VecDuplicate(mesh->lNvert, &(peqn->lPhi));      VecSet(peqn->lPhi,0.0);
     VecDuplicate(mesh->lNvert, &(peqn->lGid));
     VecDuplicate(mesh->lNvert, &(peqn->lLid));
+
+    // must start NULL: only created when pressureHasNoDirichletBC is true, checked before destroy
+    peqn->petscNs = PETSC_NULL;
 
     // default parameters
     peqn->hypreSolverType = 1;
@@ -82,7 +99,6 @@ PetscErrorCode InitializePEqn(peqn_ *peqn)
 
         // create parallel coeff. matrix framework
         CreatePETScMatrix(peqn);
-
     }
     else
     {
@@ -472,9 +488,14 @@ PetscErrorCode CreatePETScSolver(peqn_ *peqn)
     // FGMRES only supports right preconditioning
     KSPSetPCSide(peqn->ksp,PC_RIGHT);
 
-    // null space
-    MatNullSpaceCreate(mesh->MESH_COMM, PETSC_TRUE,0,0, &(peqn->petscNs));
-    MatSetNullSpace(peqn->petscA,peqn->petscNs);
+    // null space: only for a pure Neumann/periodic system (matches the HYPRE corner-pin gating);
+    // attaching a constant null space when a dirichlet patch exists makes the matrix nonsingular
+    // assumption wrong and can stall/crash the KSP, especially with parallel GAMG coarsening
+    if(pressureHasNoDirichletBC(mesh))
+    {
+        MatNullSpaceCreate(mesh->MESH_COMM, PETSC_TRUE,0,0, &(peqn->petscNs));
+        MatSetNullSpace(peqn->petscA,peqn->petscNs);
+    }
 
     // FGMRES allows variable preconditioners (required for AMG) and is more
     // stable than pipelined PGMRES on CPU paths
@@ -549,6 +570,14 @@ PetscErrorCode DestroyPETScSolver(peqn_ *peqn)
 {
     // destroy AMG preconditioner
     KSPDestroy(&(peqn->ksp));
+
+    // destroy null space if it was created (paired with CreatePETScSolver, avoids leaking
+    // one MatNullSpace object every time the matrix/solver are rebuilt, e.g. every timestep
+    // when aeqn is active)
+    if(peqn->petscNs)
+    {
+        MatNullSpaceDestroy(&(peqn->petscNs));
+    }
 
     return(0);
 }
@@ -885,8 +914,8 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                         MatSetValues(peqn->petscA, 1, &rowId, 1, &rowId, &one, ADD_VALUES);
                     }
                 }
-                // with all-Neumann BCs we have to remove the null space manually
-                else if(!flags->isOversetActive && i==mx-2 && j==my-2 && k==mz-2)
+                // with all-Neumann/periodic BCs (no dirichlet patch) the matrix is singular, pin one row manually
+                else if(!flags->isOversetActive && i==mx-2 && j==my-2 && k==mz-2 && pressureHasNoDirichletBC(mesh) && peqn->solverType == "HYPRE")
                 {
                     HYPRE_Int nrows = 1, ncols = 1, col = row;
                     HYPRE_IJMatrixSetValues(peqn->hypreA, nrows, &ncols, &row, &col, &one);
@@ -899,7 +928,6 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                     {
                         vol[m] = 0.0;
                     }
-
 
                     // contribution from east face in i-direction (i+1/2)
                     if(flags->isAeqnActive)
@@ -983,14 +1011,49 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             vol[BE] -= g13[k][j][i] * 0.25 * oneByRho; //i+1, j, k-1
                         }
                     }
-                    // Dirichlet phi=0 at i+1: normal term only, consistent with velocity projection 
+                    // Dirichlet phi=0 at i+1: cross terms included, phi[i+1,*,*]=0 drops only the i+1-referencing sub-terms
                     else if
                     (
-                        isInterpolatedCell(k,j,i+1,meshTag)
+                        isInterpolatedCell(k,j,i+1,meshTag) ||
+                        (i==mx-2 && !mesh->i_periodic && !mesh->ii_periodic && mesh->boundaryP.iRight=="dirichlet")
                     )
                     {
                         // dpdc: (phi[i+1]-phi[i])*g11, phi[i+1]=0
                         vol[CP] -= g11[k][j][i] * oneByRho;
+
+                        // dpde{i} cross term: (j+1)-(j-1) part only, (i+1,·) part vanishes
+                        if( (j == my-2) || isIBMIFace(k, j+1, i, i+1, nvert) || isOversetIFace(k, j+1, i, i+1, meshTag))
+                        {
+                            vol[CP] += g12[k][j][i] * 0.5 * oneByRho;
+                            vol[SP] -= g12[k][j][i] * 0.5 * oneByRho;
+                        }
+                        else if((j == 1) || isIBMIFace(k, j-1, i, i+1, nvert) || isOversetIFace(k, j-1, i, i+1, meshTag))
+                        {
+                            vol[NP] += g12[k][j][i] * 0.5 * oneByRho;
+                            vol[CP] -= g12[k][j][i] * 0.5 * oneByRho;
+                        }
+                        else
+                        {
+                            vol[NP] += g12[k][j][i] * 0.25 * oneByRho;
+                            vol[SP] -= g12[k][j][i] * 0.25 * oneByRho;
+                        }
+
+                        // dpdz{i} cross term: (k+1)-(k-1) part only, (i+1,·) part vanishes
+                        if((k==mz-2) || isIBMIFace(k+1, j, i, i+1, nvert) || isOversetIFace(k+1, j, i, i+1, meshTag))
+                        {
+                            vol[CP] += g13[k][j][i] * 0.5 * oneByRho;
+                            vol[BP] -= g13[k][j][i] * 0.5 * oneByRho;
+                        }
+                        else if((k==1) || isIBMIFace(k-1, j, i, i+1, nvert) || isOversetIFace(k-1, j, i, i+1, meshTag))
+                        {
+                            vol[TP] += g13[k][j][i] * 0.5 * oneByRho;
+                            vol[CP] -= g13[k][j][i] * 0.5 * oneByRho;
+                        }
+                        else
+                        {
+                            vol[TP] += g13[k][j][i] * 0.25 * oneByRho;
+                            vol[BP] -= g13[k][j][i] * 0.25 * oneByRho;
+                        }
                     }
 
                     // contribution from west face in i-direction (i-1/2)
@@ -1073,14 +1136,49 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             vol[BW] += g13[k][j][i-1] * 0.25 * oneByRho; // i-1, j, k-1
                         }
                     }
-                    // Dirichlet phi=0 at i-1: normal term only, consistent with velocity projection 
+                    // Dirichlet phi=0 at i-1: cross terms included, phi[i-1,*,*]=0 drops only the i-1-referencing sub-terms
                     else if
                     (
-                        isInterpolatedCell(k,j,i-1,meshTag)
+                        isInterpolatedCell(k,j,i-1,meshTag) ||
+                        (i==1 && !mesh->i_periodic && !mesh->ii_periodic && mesh->boundaryP.iLeft=="dirichlet")
                     )
                     {
                         // -dpdc: -(phi[i]-phi[i-1])*g11[i-1], phi[i-1]=0
                         vol[CP] -= g11[k][j][i-1] * oneByRho;
+
+                        // -dpde{i-1} cross term: (j+1)-(j-1) part only, (i-1,·) part vanishes
+                        if((j==my-2) || isIBMIFace(k, j+1, i, i-1, nvert) || isOversetIFace(k, j+1, i, i-1, meshTag))
+                        {
+                            vol[CP] -= g12[k][j][i-1] * 0.5 * oneByRho;
+                            vol[SP] += g12[k][j][i-1] * 0.5 * oneByRho;
+                        }
+                        else if((j==1) || isIBMIFace(k, j-1, i, i-1, nvert) || isOversetIFace(k, j-1, i, i-1, meshTag))
+                        {
+                            vol[NP] -= g12[k][j][i-1] * 0.5 * oneByRho;
+                            vol[CP] += g12[k][j][i-1] * 0.5 * oneByRho;
+                        }
+                        else
+                        {
+                            vol[NP] -= g12[k][j][i-1] * 0.25 * oneByRho;
+                            vol[SP] += g12[k][j][i-1] * 0.25 * oneByRho;
+                        }
+
+                        // -dpdz{i-1} cross term: (k+1)-(k-1) part only, (i-1,·) part vanishes
+                        if((k==mz-2) || isIBMIFace(k+1, j, i, i-1, nvert) || isOversetIFace(k+1, j, i, i-1, meshTag))
+                        {
+                            vol[CP] -= g13[k][j][i-1] * 0.5 * oneByRho;
+                            vol[BP] += g13[k][j][i-1] * 0.5 * oneByRho;
+                        }
+                        else if((k==1) || isIBMIFace(k-1, j, i, i-1, nvert) || isOversetIFace(k-1, j, i, i-1, meshTag))
+                        {
+                            vol[TP] -= g13[k][j][i-1] * 0.5 * oneByRho;
+                            vol[CP] += g13[k][j][i-1] * 0.5 * oneByRho;
+                        }
+                        else
+                        {
+                            vol[TP] -= g13[k][j][i-1] * 0.25 * oneByRho;
+                            vol[BP] += g13[k][j][i-1] * 0.25 * oneByRho;
+                        }
                     }
 
                     // contribution from north face in j-direction (j+1/2)
@@ -1163,14 +1261,49 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             vol[BN] -= g23[k][j][i] * 0.25 * oneByRho; // i, j+1, k-1
                         }
                     }
-                    // Dirichlet phi=0 at j+1: normal term only, consistent with velocity projection 
+                    // Dirichlet phi=0 at j+1: cross terms included, phi[j+1,*,*]=0 drops only the j+1-referencing sub-terms
                     else if
                     (
-                        isInterpolatedCell(k,j+1,i,meshTag)
+                        isInterpolatedCell(k,j+1,i,meshTag) ||
+                        (j==my-2 && !mesh->j_periodic && !mesh->jj_periodic && mesh->boundaryP.jRight=="dirichlet")
                     )
                     {
+                        // dpdc{j} cross term: (i+1)-(i-1) part only, (·,j+1) part vanishes
+                        if((i==mx-2) || isIBMJFace(k, j, i+1, j+1, nvert) || isOversetJFace(k, j, i+1, j+1, meshTag))
+                        {
+                            vol[CP] += g21[k][j][i] * 0.5 * oneByRho;
+                            vol[WP] -= g21[k][j][i] * 0.5 * oneByRho;
+                        }
+                        else if((i==1) || isIBMJFace(k, j, i-1, j+1, nvert) || isOversetJFace(k, j, i-1, j+1, meshTag))
+                        {
+                            vol[EP] += g21[k][j][i] * 0.5 * oneByRho;
+                            vol[CP] -= g21[k][j][i] * 0.5 * oneByRho;
+                        }
+                        else
+                        {
+                            vol[EP] += g21[k][j][i] * 0.25 * oneByRho;
+                            vol[WP] -= g21[k][j][i] * 0.25 * oneByRho;
+                        }
+
                         // dpde: (phi[j+1]-phi[j])*g22, phi[j+1]=0
                         vol[CP] -= g22[k][j][i] * oneByRho;
+
+                        // dpdz{j} cross term: (k+1)-(k-1) part only, (·,j+1) part vanishes
+                        if((k==mz-2) || isIBMJFace(k+1, j, i, j+1, nvert) || isOversetJFace(k+1, j, i, j+1, meshTag))
+                        {
+                            vol[CP] += g23[k][j][i] * 0.5 * oneByRho;
+                            vol[BP] -= g23[k][j][i] * 0.5 * oneByRho;
+                        }
+                        else if((k==1) || isIBMJFace(k-1, j, i, j+1, nvert) || isOversetJFace(k-1, j, i, j+1, meshTag))
+                        {
+                            vol[TP] += g23[k][j][i] * 0.5 * oneByRho;
+                            vol[CP] -= g23[k][j][i] * 0.5 * oneByRho;
+                        }
+                        else
+                        {
+                            vol[TP] += g23[k][j][i] * 0.25 * oneByRho;
+                            vol[BP] -= g23[k][j][i] * 0.25 * oneByRho;
+                        }
                     }
 
                     // contribution from south face in j-direction (j-1/2)
@@ -1253,17 +1386,49 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                             vol[BS] += g23[k][j-1][i] * 0.25 * oneByRho; // i, j-1, k-1
                         }
                     }
-                    // Dirichlet phi=0 at j-1: normal term only, consistent with velocity projection 
+                    // Dirichlet phi=0 at j-1: cross terms included, phi[j-1,*,*]=0 drops only the j-1-referencing sub-terms
                     else if
                     (
-                        isInterpolatedCell(k,j-1,i,meshTag)
+                        isInterpolatedCell(k,j-1,i,meshTag) ||
+                        (j==1 && !mesh->j_periodic && !mesh->jj_periodic && mesh->boundaryP.jLeft=="dirichlet")
                     )
                     {
+                        // -dpdc{j-1} cross term: (i+1)-(i-1) part only, (·,j-1) part vanishes
+                        if((i==mx-2) || isIBMJFace(k, j, i+1, j-1, nvert) || isOversetJFace(k, j, i+1, j-1, meshTag))
+                        {
+                            vol[CP] -= g21[k][j-1][i] * 0.5 * oneByRho;
+                            vol[WP] += g21[k][j-1][i] * 0.5 * oneByRho;
+                        }
+                        else if((i==1) || isIBMJFace(k, j, i-1, j-1, nvert) || isOversetJFace(k, j, i-1, j-1, meshTag))
+                        {
+                            vol[EP] -= g21[k][j-1][i] * 0.5 * oneByRho;
+                            vol[CP] += g21[k][j-1][i] * 0.5 * oneByRho;
+                        }
+                        else
+                        {
+                            vol[EP] -= g21[k][j-1][i] * 0.25 * oneByRho;
+                            vol[WP] += g21[k][j-1][i] * 0.25 * oneByRho;
+                        }
+
                         // -dpde: -(phi[j]-phi[j-1])*g22[j-1], phi[j-1]=0
                         vol[CP] -= g22[k][j-1][i] * oneByRho;
 
-                        // normal term only, consistent with ProjectVelocity fringe correction
-                        // (cross terms removed - fringe face correction in ProjectVelocity also uses normal term only)
+                        // -dpdz{j-1} cross term: (k+1)-(k-1) part only, (·,j-1) part vanishes
+                        if((k==mz-2) || isIBMJFace(k+1, j, i, j-1, nvert) || isOversetJFace(k+1, j, i, j-1, meshTag))
+                        {
+                            vol[CP] -= g23[k][j-1][i] * 0.5 * oneByRho;
+                            vol[BP] += g23[k][j-1][i] * 0.5 * oneByRho;
+                        }
+                        else if((k==1) || isIBMJFace(k-1, j, i, j-1, nvert) || isOversetJFace(k-1, j, i, j-1, meshTag))
+                        {
+                            vol[TP] -= g23[k][j-1][i] * 0.5 * oneByRho;
+                            vol[CP] += g23[k][j-1][i] * 0.5 * oneByRho;
+                        }
+                        else
+                        {
+                            vol[TP] -= g23[k][j-1][i] * 0.25 * oneByRho;
+                            vol[BP] += g23[k][j-1][i] * 0.25 * oneByRho;
+                        }
                     }
 
                     // contribution from top face in k-direction (k+1/2)
@@ -1346,12 +1511,47 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                         vol[CP] -= g33[k][j][i] * oneByRho; // i, j, k
                         vol[TP] += g33[k][j][i] * oneByRho; // i, j, k+1
                     }
-                    // Dirichlet phi=0 at k+1: normal term only, consistent with velocity projection 
+                    // Dirichlet phi=0 at k+1: cross terms included, phi[k+1,*,*]=0 drops only the k+1-referencing sub-terms
                     else if
                     (
-                        isInterpolatedCell(k+1,j,i,meshTag)
+                        isInterpolatedCell(k+1,j,i,meshTag)  || 
+                        (k==mz-2 && !mesh->k_periodic && !mesh->kk_periodic && mesh->boundaryP.kRight=="dirichlet")
                     )
                     {
+                        // dpdc{k} cross term: (i+1,k)-(i-1,k) part only, (·,k+1) part vanishes
+                        if((i==mx-2) || isIBMKFace(k, j, i+1, k+1, nvert) || isOversetKFace(k, j, i+1, k+1, meshTag))
+                        {
+                            vol[CP] += g31[k][j][i] * 0.5 * oneByRho;
+                            vol[WP] -= g31[k][j][i] * 0.5 * oneByRho;
+                        }
+                        else if((i==1) || isIBMKFace(k, j, i-1, k+1, nvert) || isOversetKFace(k, j, i-1, k+1, meshTag))
+                        {
+                            vol[EP] += g31[k][j][i] * 0.5 * oneByRho;
+                            vol[CP] -= g31[k][j][i] * 0.5 * oneByRho;
+                        }
+                        else
+                        {
+                            vol[EP] += g31[k][j][i] * 0.25 * oneByRho;
+                            vol[WP] -= g31[k][j][i] * 0.25 * oneByRho;
+                        }
+
+                        // dpde{k} cross term: (j+1,k)-(j-1,k) part only, (·,k+1) part vanishes
+                        if((j==my-2) || isIBMKFace(k, j+1, i, k+1, nvert) || isOversetKFace(k, j+1, i, k+1, meshTag))
+                        {
+                            vol[CP] += g32[k][j][i] * 0.5 * oneByRho;
+                            vol[SP] -= g32[k][j][i] * 0.5 * oneByRho;
+                        }
+                        else if((j==1) || isIBMKFace(k, j-1, i, k+1, nvert) || isOversetKFace(k, j-1, i, k+1, meshTag))
+                        {
+                            vol[NP] += g32[k][j][i] * 0.5 * oneByRho;
+                            vol[CP] -= g32[k][j][i] * 0.5 * oneByRho;
+                        }
+                        else
+                        {
+                            vol[NP] += g32[k][j][i] * 0.25 * oneByRho;
+                            vol[SP] -= g32[k][j][i] * 0.25 * oneByRho;
+                        }
+
                         // dpdz: (phi[k+1]-phi[k])*g33, phi[k+1]=0
                         vol[CP] -= g33[k][j][i] * oneByRho;
                     }
@@ -1436,17 +1636,49 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                         vol[CP] -= g33[k-1][j][i] * oneByRho; // i, j, k
                         vol[BP] += g33[k-1][j][i] * oneByRho; //i, j, k-1
                     }
-                    // Dirichlet phi=0 at k-1: normal term only, consistent with velocity projection 
+                    // Dirichlet phi=0 at k-1: cross terms included, phi[k-1,*,*]=0 drops only the k-1-referencing sub-terms
                     else if
                     (
-                        isInterpolatedCell(k-1,j,i,meshTag)
+                        isInterpolatedCell(k-1,j,i,meshTag) ||
+                        (k==1 && !mesh->k_periodic && !mesh->kk_periodic && mesh->boundaryP.kLeft=="dirichlet")
                     )
                     {
+                        // -dpdc{k-1} cross term: (i+1)-(i-1) part only, (·,k-1) part vanishes
+                        if((i==mx-2) || isIBMKFace(k, j, i+1, k-1, nvert) || isOversetKFace(k, j, i+1, k-1, meshTag))
+                        {
+                            vol[CP] -= g31[k-1][j][i] * 0.5 * oneByRho;
+                            vol[WP] += g31[k-1][j][i] * 0.5 * oneByRho;
+                        }
+                        else if((i==1) || isIBMKFace(k, j, i-1, k-1, nvert) || isOversetKFace(k, j, i-1, k-1, meshTag))
+                        {
+                            vol[EP] -= g31[k-1][j][i] * 0.5 * oneByRho;
+                            vol[CP] += g31[k-1][j][i] * 0.5 * oneByRho;
+                        }
+                        else
+                        {
+                            vol[EP] -= g31[k-1][j][i] * 0.25 * oneByRho;
+                            vol[WP] += g31[k-1][j][i] * 0.25 * oneByRho;
+                        }
+
+                        // -dpde{k-1} cross term: (j+1)-(j-1) part only, (·,k-1) part vanishes
+                        if((j==my-2) || isIBMKFace(k, j+1, i, k-1, nvert) || isOversetKFace(k, j+1, i, k-1, meshTag))
+                        {
+                            vol[CP] -= g32[k-1][j][i] * 0.5 * oneByRho;
+                            vol[SP] += g32[k-1][j][i] * 0.5 * oneByRho;
+                        }
+                        else if((j==1) || isIBMKFace(k, j-1, i, k-1, nvert) || isOversetKFace(k, j-1, i, k-1, meshTag))
+                        {
+                            vol[NP] -= g32[k-1][j][i] * 0.5 * oneByRho;
+                            vol[CP] += g32[k-1][j][i] * 0.5 * oneByRho;
+                        }
+                        else
+                        {
+                            vol[NP] -= g32[k-1][j][i] * 0.25 * oneByRho;
+                            vol[SP] += g32[k-1][j][i] * 0.25 * oneByRho;
+                        }
+
                         // -dpdz: -(phi[k]-phi[k-1])*g33[k-1], phi[k-1]=0
                         vol[CP] -= g33[k-1][j][i] * oneByRho;
-
-                        // normal term only, consistent with ProjectVelocity fringe correction
-                        // (cross terms removed - fringe face correction in ProjectVelocity also uses normal term only)
                     }
 
                     idx[CP] = matID(i  , j  , k  );
@@ -1468,6 +1700,24 @@ PetscErrorCode SetCoeffMatrix(peqn_ *peqn)
                     idx[BE] = matID(i+1, j  , k-1);
                     idx[TW] = matID(i-1, j  , k+1);
                     idx[BW] = matID(i-1, j  , k-1);
+
+                    // diagnostic: a fluid cell whose diagonal ended up exactly zero produces
+                    // "Zero diagonal on row ..." from PETSc later - print its indices/neighbors now
+                    if(fabs(vol[CP]) < 1.e-10)
+                    {
+                        PetscMPIInt dbgRank; MPI_Comm_rank(mesh->MESH_COMM, &dbgRank);
+                        printf
+                        (
+                            "[rank %d] zero-diagonal fluid cell at (i,j,k)=(%ld,%ld,%ld) row=%ld, nvert(self)=%lf, "
+                            "nvert(i+-1)=%lf/%lf nvert(j+-1)=%lf/%lf nvert(k+-1)=%lf/%lf, "
+                            "meshTag(self)=%lf\n",
+                            dbgRank, i, j, k, (long)row, nvert[k][j][i],
+                            nvert[k][j][i+1], nvert[k][j][i-1],
+                            nvert[k][j+1][i], nvert[k][j-1][i],
+                            nvert[k+1][j][i], nvert[k-1][j][i],
+                            meshTag[k][j][i]
+                        );
+                    }
 
                     for(m=0; m<19; m++)
                     {
@@ -1856,35 +2106,40 @@ PetscErrorCode SubtractAverageHypre(peqn_ *peqn, HYPRE_IJVector &B)
     DMDAVecGetArray(da, mesh->lmeshTag, &meshTag);
 
     PetscReal lsum = 0, gsum = 0;
-    PetscInt    lcount = 0, gcount = 0;
+    PetscInt    lcount = 0, gcount = 1;
 
-    // local sum the vector values
-    for (k=lzs; k<lze; k++)
+    PetscBool noDirichletP = pressureHasNoDirichletBC(mesh);
+
+    if(noDirichletP)
     {
-        for (j=lys; j<lye; j++)
+        // local sum the vector values
+        for (k=lzs; k<lze; k++)
         {
-            for (i=lxs; i<lxe; i++)
+            for (j=lys; j<lye; j++)
             {
-                PetscReal val;
-
-                if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
+                for (i=lxs; i<lxe; i++)
                 {
-                    HYPRE_Int idx = matID(i, j, k);
-                    HYPRE_IJVectorGetValues(B, 1, &idx, &val);
+                    PetscReal val;
 
-                    lsum += val;
-                    lcount++;
+                    if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
+                    {
+                        HYPRE_Int idx = matID(i, j, k);
+                        HYPRE_IJVectorGetValues(B, 1, &idx, &val);
+
+                        lsum += val;
+                        lcount++;
+                    }
+
                 }
-
             }
         }
+
+        // global number of counts among processors
+        MPI_Allreduce(&lsum, &gsum, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+
+        // global number of counts among processors
+        MPI_Allreduce(&lcount, &gcount, 1, MPIU_INT, MPI_SUM, mesh->MESH_COMM);
     }
-
-    // global number of counts among processors
-    MPI_Allreduce(&lsum, &gsum, 1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-
-    // global number of counts among processors
-    MPI_Allreduce(&lcount, &gcount, 1, MPIU_INT, MPI_SUM, mesh->MESH_COMM);
 
     // compute the mean of the values in the vector
     PetscReal val  = -gsum/(PetscReal)gcount;
@@ -1897,7 +2152,7 @@ PetscErrorCode SubtractAverageHypre(peqn_ *peqn, HYPRE_IJVector &B)
         {
             for (i=lxs; i<lxe; i++)
             {
-                if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
+                if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag) && noDirichletP)
                 {
                     HYPRE_Int idx = matID(i, j, k);
                     HYPRE_IJVectorAddToValues(B, 1, &idx, &val);
@@ -1945,28 +2200,33 @@ PetscErrorCode SubtractAveragePETSc(peqn_ *peqn, Vec &B)
     VecGetArray(B, &b);
 
     PetscReal lsum = 0, gsum = 0;
-    PetscInt  lcount = 0, gcount = 0;
+    PetscInt  lcount = 0, gcount = 1;
 
-    // average only over fluid/calculated cells, mirroring SubtractAverageHypre
-    for (k=lzs; k<lze; k++)
+    PetscBool noDirichletP = pressureHasNoDirichletBC(mesh);
+
+    if(noDirichletP)
     {
-        for (j=lys; j<lye; j++)
+        // average only over fluid/calculated cells, mirroring SubtractAverageHypre
+        for (k=lzs; k<lze; k++)
         {
-            for (i=lxs; i<lxe; i++)
+            for (j=lys; j<lye; j++)
             {
-                if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
+                for (i=lxs; i<lxe; i++)
                 {
-                    PetscInt idx = (PetscInt)matID(i, j, k) - peqn->thisRankStart;
-                    lsum += b[idx];
-                    lcount++;
+                    if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
+                    {
+                        PetscInt idx = (PetscInt)matID(i, j, k) - peqn->thisRankStart;
+                        lsum += b[idx];
+                        lcount++;
+                    }
                 }
             }
         }
-    }
 
-    // global number of counts among processors
-    MPI_Allreduce(&lsum,   &gsum,   1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
-    MPI_Allreduce(&lcount, &gcount, 1, MPIU_INT,  MPI_SUM,  mesh->MESH_COMM);
+        // global number of counts among processors
+        MPI_Allreduce(&lsum,   &gsum,   1, MPIU_REAL, MPIU_SUM, mesh->MESH_COMM);
+        MPI_Allreduce(&lcount, &gcount, 1, MPIU_INT,  MPI_SUM,  mesh->MESH_COMM);
+    }
 
     // compute the mean of the values in the vector
     PetscReal val  = -gsum/(PetscReal)gcount;
@@ -1979,7 +2239,7 @@ PetscErrorCode SubtractAveragePETSc(peqn_ *peqn, Vec &B)
         {
             for (i=lxs; i<lxe; i++)
             {
-                if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag))
+                if (isFluidCell(k, j, i, nvert) && isCalculatedCell(k, j, i, meshTag) && noDirichletP)
                 {
                     PetscInt idx = (PetscInt)matID(i, j, k) - peqn->thisRankStart;
                     b[idx] += val;
@@ -2043,11 +2303,11 @@ PetscErrorCode SetRHS(peqn_ *peqn)
         VecGetLocalSize(peqn->petscRhs, &size);
     }
 
-    for (k=lzs; k<lze; k++)
+    for (k=zs; k<lze; k++)
     {
-        for (j=lys; j<lye; j++)
+        for (j=ys; j<lye; j++)
         {
-            for (i=lxs; i<lxe; i++)
+            for (i=xs; i<lxe; i++)
             {
                 PetscReal val;
 
@@ -2056,10 +2316,10 @@ PetscErrorCode SetRHS(peqn_ *peqn)
                 {
                     val = 0;
                 }
-                // with all-Neumann BCs we have to remove the null space manually
-                else if(!flags->isOversetActive && i==mx-2 && j==my-2 && k==mz-2)
+                // with all-Neumann/periodic BCs (no dirichlet patch) the matrix row above is pinned, match it here
+                else if(peqn->solverType == "HYPRE" && !flags->isOversetActive && i==mx-2 && j==my-2 && k==mz-2 && pressureHasNoDirichletBC(mesh))
                 {
-                    val = 0;
+                   val = 0;
                 }
                 // i, j, k is a fluid point
                 else
@@ -2069,24 +2329,24 @@ PetscErrorCode SetRHS(peqn_ *peqn)
                     val = 0;
 
                     // i+1/2
-                    val += (ucont[k][j][i].x /*+ dt * grad_rho_optionally*/);
+                    val += (ucont[k][j][i].x);
 
                     // i-1/2
-                    val -= (ucont[k][j][i-1].x /*+ dt * grad_rho_optionally*/);
+                    val -= (ucont[k][j][i-1].x);
 
                     // j+1/2
-                    val += (ucont[k][j][i].y /*+ dt * grad_rho_optionally*/);
+                    val += (ucont[k][j][i].y);
 
                     // j-1/2
-                    val -= (ucont[k][j-1][i].y /*+ dt * grad_rho_optionally*/);
+                    val -= (ucont[k][j-1][i].y);
 
                     // k+1/2
-                    val += (ucont[k][j][i].z /*+ dt * grad_rho_optionally*/);
+                    val += (ucont[k][j][i].z);
 
                     // k-1/2
-                    val -= (ucont[k-1][j][i].z /*+ dt * grad_rho_optionally*/);
+                    val -= (ucont[k-1][j][i].z);
 
-                    val *=  1.0 / dt;
+                    //val *=  1.0 / dt;
                 }
 
                 if(peqn->solverType == "HYPRE")
@@ -2619,16 +2879,16 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
              periodic_k = mesh->k_periodic + mesh->kk_periodic;
 
 
-    for (k=zs; k<lze; k++)
+    for (k=lzs; k<lze; k++)
     {
-        for (j=ys; j<lye; j++)
+        for (j=lys; j<lye; j++)
         {
-            for (i=xs; i<lxe; i++)
+            for (i=lxs; i<lxe; i++)
             {
                 if
                 (
                     j > 0 && k > 0 &&              // exclude non-defined indices in the i-direction
-                    (i>0 && i<mx-2 || periodic_i)  // exclude also first and last face unless periodic (has meaningful ghosts)
+                    (i>0 || periodic_i)  // exclude also first face unless periodic (has meaningful ghosts)
                 )
                 {
                     // compute one by rho at i face 
@@ -2689,7 +2949,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                         isFluidIFace(k, j, i, i+1, nvert)
                     )
                     {
-                        if (isCalculatedIFace(k, j, i, i+1, meshTag))
+                        if (isCalculatedIFace(k, j, i, i+1, meshTag) && (i < mx-2 || periodic_i))
                         {
                             // full gradient correction for calculated face
                             ucont[k][j][i].x
@@ -2713,7 +2973,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                                     izet[k][j][i].y * icsi[k][j][i].y +
                                     izet[k][j][i].z * icsi[k][j][i].z
                                 ) * iaj[k][j][i]
-                            /*-grad_rho_optionally*/) * clock->dt;
+                            /*-grad_rho_optionally*/);// * clock->dt;
                         }
                         else if (isInterpolatedIFace(k, j, i, i+1, meshTag))
                         {
@@ -2725,7 +2985,33 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                                 icsi[k][j][i].x * icsi[k][j][i].x +
                                 icsi[k][j][i].y * icsi[k][j][i].y +
                                 icsi[k][j][i].z * icsi[k][j][i].z
-                            ) * iaj[k][j][i] * clock->dt;
+                            ) * iaj[k][j][i];// * clock->dt;
+                        }
+                        // Dirichlet phi=0 iRight boundary: full gradient, dpde/dpdz already have phi[i+1]=0 baked in via UpdatePhiBCs
+                        else if (i == mx-2 && !mesh->i_periodic && !mesh->ii_periodic && mesh->boundaryP.iRight=="dirichlet")
+                        {
+                            ucont[k][j][i].x
+                            -=
+                            (
+                                dpdc * oneByRho *
+                                (
+                                    icsi[k][j][i].x * icsi[k][j][i].x +
+                                    icsi[k][j][i].y * icsi[k][j][i].y +
+                                    icsi[k][j][i].z * icsi[k][j][i].z
+                                ) * iaj[k][j][i] +
+                                dpde * oneByRho *
+                                (
+                                    ieta[k][j][i].x * icsi[k][j][i].x +
+                                    ieta[k][j][i].y * icsi[k][j][i].y +
+                                    ieta[k][j][i].z * icsi[k][j][i].z
+                                ) * iaj[k][j][i] +
+                                dpdz * oneByRho *
+                                (
+                                    izet[k][j][i].x * icsi[k][j][i].x +
+                                    izet[k][j][i].y * icsi[k][j][i].y +
+                                    izet[k][j][i].z * icsi[k][j][i].z
+                                ) * iaj[k][j][i]
+                            );// * clock->dt;
                         }
                     }
                 }
@@ -2733,7 +3019,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                 if
                 (
                     i > 0 && k > 0 &&              // exclude non-defined indices in the j-direction
-                    (j>0 && j<my-2 || periodic_j)  // exclude also first and last face unless periodic (has meaningful ghosts)
+                    (j>0 || periodic_j)  // exclude also first and last face unless periodic (has meaningful ghosts)
                 )
                 {
                     // compute one by rho at j face 
@@ -2796,7 +3082,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                         isFluidJFace(k, j, i, j+1, nvert)
                     )
                     {
-                        if (isCalculatedJFace(k, j, i, j+1, meshTag))
+                        if (isCalculatedJFace(k, j, i, j+1, meshTag) && (j < my-2 || periodic_j))
                         {
                             // full gradient correction for calculated face
                             ucont[k][j][i].y
@@ -2820,7 +3106,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                                     jzet[k][j][i].y * jeta[k][j][i].y +
                                     jzet[k][j][i].z * jeta[k][j][i].z
                                 ) * jaj[k][j][i]
-                            /*-grad_rho_optionally*/) * clock->dt;
+                            /*-grad_rho_optionally*/);// * clock->dt;
                         }
                         else if (isInterpolatedJFace(k, j, i, j+1, meshTag))
                         {
@@ -2832,7 +3118,33 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                                 jeta[k][j][i].x * jeta[k][j][i].x +
                                 jeta[k][j][i].y * jeta[k][j][i].y +
                                 jeta[k][j][i].z * jeta[k][j][i].z
-                            ) * jaj[k][j][i] * clock->dt;
+                            ) * jaj[k][j][i];// * clock->dt;
+                        }
+                        // Dirichlet phi=0 jRight boundary: full gradient, dpdc/dpdz already have phi[j+1]=0 baked in via UpdatePhiBCs
+                        else if (j == my-2 && !mesh->j_periodic && !mesh->jj_periodic && mesh->boundaryP.jRight=="dirichlet")
+                        {
+                            ucont[k][j][i].y
+                            -=
+                            (
+                                dpdc * oneByRho *
+                                (
+                                    jcsi[k][j][i].x * jeta[k][j][i].x +
+                                    jcsi[k][j][i].y * jeta[k][j][i].y +
+                                    jcsi[k][j][i].z * jeta[k][j][i].z
+                                ) * jaj[k][j][i] +
+                                dpde * oneByRho *
+                                (
+                                    jeta[k][j][i].x * jeta[k][j][i].x +
+                                    jeta[k][j][i].y * jeta[k][j][i].y +
+                                    jeta[k][j][i].z * jeta[k][j][i].z
+                                ) * jaj[k][j][i] +
+                                dpdz * oneByRho *
+                                (
+                                    jzet[k][j][i].x * jeta[k][j][i].x +
+                                    jzet[k][j][i].y * jeta[k][j][i].y +
+                                    jzet[k][j][i].z * jeta[k][j][i].z
+                                ) * jaj[k][j][i]
+                            );// * clock->dt;
                         }
                     }
                 }
@@ -2840,7 +3152,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                 if
                 (
                     i > 0 && j > 0 &&              // exclude non-defined indices in the k-direction
-                    (k>0 && k<mz-2 || periodic_k)  // exclude also first and last face unless periodic (has meaningful ghosts)
+                    (k>0 || periodic_k)  // exclude also first and last face unless periodic (has meaningful ghosts)
                 )
                 {
                     // compute one by rho at k face
@@ -2902,7 +3214,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                         isFluidKFace(k, j, i, k+1, nvert)
                     )
                     {
-                        if (isCalculatedKFace(k, j, i, k+1, meshTag))
+                        if (isCalculatedKFace(k, j, i, k+1, meshTag) && (k < mz - 2 || periodic_k))
                         {
                             // full gradient correction for calculated face
                             ucont[k][j][i].z
@@ -2926,7 +3238,7 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                                     kzet[k][j][i].y * kzet[k][j][i].y +
                                     kzet[k][j][i].z * kzet[k][j][i].z
                                 ) * kaj[k][j][i]
-                            /*-grad_rho_optionally*/) * clock->dt;
+                            /*-grad_rho_optionally*/);// * clock->dt;
                         }
                         else if (isInterpolatedKFace(k, j, i, k+1, meshTag))
                         {
@@ -2938,7 +3250,33 @@ PetscErrorCode ProjectVelocity(peqn_ *peqn)
                                 kzet[k][j][i].x * kzet[k][j][i].x +
                                 kzet[k][j][i].y * kzet[k][j][i].y +
                                 kzet[k][j][i].z * kzet[k][j][i].z
-                            ) * kaj[k][j][i] * clock->dt;
+                            ) * kaj[k][j][i];// * clock->dt;
+                        }
+                        // Dirichlet phi=0 top boundary: full gradient, dpdc/dpde already have phi[k+1]=0 baked in via UpdatePhiBCs
+                        else if (k == mz-2 && !mesh->k_periodic && !mesh->kk_periodic && mesh->boundaryP.kRight=="dirichlet")
+                        {
+                            ucont[k][j][i].z
+                            -=
+                            (
+                                dpdc * oneByRho *
+                                (
+                                    kcsi[k][j][i].x * kzet[k][j][i].x +
+                                    kcsi[k][j][i].y * kzet[k][j][i].y +
+                                    kcsi[k][j][i].z * kzet[k][j][i].z
+                                ) * kaj[k][j][i] +
+                                dpde * oneByRho *
+                                (
+                                    keta[k][j][i].x * kzet[k][j][i].x +
+                                    keta[k][j][i].y * kzet[k][j][i].y +
+                                    keta[k][j][i].z * kzet[k][j][i].z
+                                ) * kaj[k][j][i] +
+                                dpdz * oneByRho *
+                                (
+                                    kzet[k][j][i].x * kzet[k][j][i].x +
+                                    kzet[k][j][i].y * kzet[k][j][i].y +
+                                    kzet[k][j][i].z * kzet[k][j][i].z
+                                ) * kaj[k][j][i]
+                            );// * clock->dt;
                         }
                     }
                 }
@@ -3006,11 +3344,11 @@ PetscErrorCode UpdatePressure(peqn_ *peqn)
     DMDAVecGetArray(da, mesh->lNvert, &nvert);
     DMDAVecGetArray(da, mesh->lmeshTag, &meshTag);
 
-    for (k=lzs; k<lze; k++)
+    for (k=zs; k<ze; k++)
     {
-        for (j=lys; j<lye; j++)
+        for (j=ys; j<ye; j++)
         {
-            for (i=lxs; i<lxe; i++)
+            for (i=xs; i<xe; i++)
             {
                 if (isIBMCell(k, j, i, nvert) || isOversetCell(k, j, i, meshTag)) 
                 {
@@ -3019,7 +3357,7 @@ PetscErrorCode UpdatePressure(peqn_ *peqn)
                 else
                 {
                     // p updated only at fluid cells
-                    p[k][j][i] += lphi[k][j][i];
+                    p[k][j][i] += lphi[k][j][i] / clock->dt;
                 }
             }
         }
@@ -3032,6 +3370,9 @@ PetscErrorCode UpdatePressure(peqn_ *peqn)
 
     DMGlobalToLocalBegin(da, peqn->P, INSERT_VALUES, peqn->lP);
     DMGlobalToLocalEnd  (da, peqn->P, INSERT_VALUES, peqn->lP);
+
+    // update boundary conditions (required to update ghost and interpolated cells which are NOT updated from the solve)
+    //UpdatePressureBCs(peqn);
 
     return(0);
 }
@@ -3566,11 +3907,11 @@ PetscErrorCode GradP(peqn_ *peqn)
     DMDAVecGetArray(da,  peqn->lP,  &p );
     DMDAVecGetArray(fda, ueqn->dP, &dp);
 
-    for (k=lzs; k<lze; k++)
+    for (k=zs; k<lze; k++)
     {
-        for (j=lys; j<lye; j++)
+        for (j=ys; j<lye; j++)
         {
-            for (i=lxs; i<lxe; i++)
+            for (i=xs; i<lxe; i++)
             {
                 PetscReal g11_i = (icsi[k][j][i].x * icsi[k][j][i].x + icsi[k][j][i].y * icsi[k][j][i].y + icsi[k][j][i].z * icsi[k][j][i].z);
                 PetscReal g12_i = (ieta[k][j][i].x * icsi[k][j][i].x + ieta[k][j][i].y * icsi[k][j][i].y + ieta[k][j][i].z * icsi[k][j][i].z);
@@ -3722,30 +4063,6 @@ PetscErrorCode GradP(peqn_ *peqn)
                 dpdz = (p[k+1][j][i] - p[k][j][i]);
 
                 dp[k][j][i].z = (dpdc * g31_k + dpde * g32_k + dpdz * g33_k) * kaj[k][j][i];
-
-                // periodic: set to zero only on left boundaries since the contrav. velocity is not solved there
-                // non-periodic: set to zero also on right boundaries since the contrav. velocity is not solved there
-                if
-                (
-                    i==0 || (!mesh->i_periodic && !mesh->ii_periodic && i==mx-2) || isOversetIFace(k, j, i, i+1, meshTag)
-                )
-                {
-                    dp[k][j][i].x = 0;
-                }
-                if
-                (
-                    j==0 || (!mesh->j_periodic && !mesh->jj_periodic && j==my-2) || isOversetJFace(k, j, i, j+1, meshTag)
-                )
-                {
-                    dp[k][j][i].y = 0;
-                }
-                if
-                (
-                    k==0 || (!mesh->k_periodic && !mesh->kk_periodic && k==mz-2) || isOversetKFace(k, j, i, k+1, meshTag)
-                )
-                {
-                    dp[k][j][i].z = 0;
-                }
             }
         }
     }
@@ -3797,7 +4114,7 @@ PetscErrorCode SolvePEqn(peqn_ *peqn)
 
     if(flags->isIBMActive || flags->isAeqnActive)
     {
-        if( peqn->access->ibm->dynamic || flags->isAeqnActive)
+        if(peqn->access->ibm->dynamic || flags->isAeqnActive)
         {
             if(peqn->solverType == "HYPRE")
             {
@@ -3830,7 +4147,7 @@ PetscErrorCode SolvePEqn(peqn_ *peqn)
             else if(peqn->solverType == "PETSc")
             {
                 DestroyPETScSolver(peqn);
-                
+
                 // reset RHS vector
                 VecSet(peqn->petscRhs, 0.0);
 
@@ -3838,8 +4155,6 @@ PetscErrorCode SolvePEqn(peqn_ *peqn)
                 SetCoeffMatrix(peqn);
 
                 CreatePETScSolver(peqn);
-
-                //KSPSetOperators(peqn->ksp, peqn->petscA, peqn->petscA);
 
                 MPI_Barrier(mesh->MESH_COMM);
             }  
@@ -3955,9 +4270,6 @@ PetscErrorCode SolvePEqn(peqn_ *peqn)
 
     // update pressure
     UpdatePressure(peqn);
-
-    // update boundary conditions (required to update ghost and interpolated cells which are NOT updated from the solve)
-    UpdatePressureBCs(peqn);
 
     // update velocity (also project at interpolated faces when overset is actve - might want to do that also for IBM)
     ProjectVelocity(peqn);
