@@ -92,6 +92,9 @@ PetscErrorCode SetBoundaryConditions(mesh_ *mesh)
         readScalarBC(location, "AlphaWater", &(mesh->boundaryA));
     }
 
+    // read pressure (phi) boundary conditions
+    readScalarBC(location, "p", &(mesh->boundaryP));
+
     // check boundary conditions
     checkBCsAndSetPatchTypes(mesh);
 
@@ -109,7 +112,7 @@ PetscErrorCode checkBCsAndSetPatchTypes(mesh_ *mesh)
 
     vectorBC boundaryU   = mesh->boundaryU;
 
-    std::vector<PetscInt> flagU(6,0), flagT(6,0), flagA(6,0), flagNut(6,0), patchType(6,0);
+    std::vector<PetscInt> flagU(6,0), flagT(6,0), flagA(6,0), flagNut(6,0), flagP(6,0), patchType(6,0);
 
     std::vector<word> UAvailableBC   = {"inletFunction","inletFunctionkLeft", "inletFunctionkRight", "inletFunctionjLeft","inletFunctionjRight",
                                         "inletFunctioniLeft", "inletFunctioniRight", "noSlip", "slip", "velocityWallFunction",
@@ -124,6 +127,8 @@ PetscErrorCode checkBCsAndSetPatchTypes(mesh_ *mesh)
     std::vector<word> nutAvailableBC = {"inletFunction","inletFunctionkLeft", "inletFunctionkRight", "inletFunctionjLeft","inletFunctionjRight",
                                         "inletFunctioniLeft", "inletFunctioniRight", "zeroGradient", "fixedValue",
                                         "periodic", "oversetInterpolate"};
+
+    std::vector<word> pAvailableBC    = {"dirichlet", "neumann", "periodic"};
 
     std::vector<word> wallPatchTypes = {"noSlip", "slip", "velocityWallFunction"};
 
@@ -386,6 +391,68 @@ PetscErrorCode checkBCsAndSetPatchTypes(mesh_ *mesh)
             char error[512];
             sprintf(error, "In %s/nut, nut boundary condition at iRight = '%s' does not match with available BCs.\n", location.c_str(), boundaryNut.iRight.c_str());
             fatalErrorInFunction("checkBoundaryConditions", error);
+        }
+    }
+
+    {
+        scalarBC boundaryP = mesh->boundaryP;
+
+        for(PetscInt i = 0; i < pAvailableBC.size(); i++)
+        {
+            if( boundaryP.kLeft  == pAvailableBC[i])
+                flagP[0] = 1;
+            if( boundaryP.kRight == pAvailableBC[i])
+                flagP[1] = 1;
+            if( boundaryP.jLeft  == pAvailableBC[i])
+                flagP[2] = 1;
+            if( boundaryP.jRight == pAvailableBC[i])
+                flagP[3] = 1;
+            if( boundaryP.iLeft  == pAvailableBC[i])
+                flagP[4] = 1;
+            if( boundaryP.iRight == pAvailableBC[i])
+                flagP[5] = 1;
+        }
+
+        if(flagP[0] == 0)
+        {
+            char error[512];
+            sprintf(error, "In %s/p, p boundary condition at kLeft = '%s' does not match with available BCs.\n", location.c_str(), boundaryP.kLeft.c_str());
+            fatalErrorInFunction("checkBCsAndSetPatchTypes", error);
+        }
+
+        if(flagP[1] == 0)
+        {
+            char error[512];
+            sprintf(error, "In %s/p, p boundary condition at kRight = '%s' does not match with available BCs.\n", location.c_str(), boundaryP.kRight.c_str());
+            fatalErrorInFunction("checkBCsAndSetPatchTypes", error);
+        }
+
+        if(flagP[2] == 0)
+        {
+            char error[512];
+            sprintf(error, "In %s/p, p boundary condition at jLeft = '%s' does not match with available BCs.\n", location.c_str(), boundaryP.jLeft.c_str());
+            fatalErrorInFunction("checkBCsAndSetPatchTypes", error);
+        }
+
+        if(flagP[3] == 0)
+        {
+            char error[512];
+            sprintf(error, "In %s/p, p boundary condition at jRight = '%s' does not match with available BCs.\n", location.c_str(), boundaryP.jRight.c_str());
+            fatalErrorInFunction("checkBCsAndSetPatchTypes", error);
+        }
+
+        if(flagP[4] == 0)
+        {
+            char error[512];
+            sprintf(error, "In %s/p, p boundary condition at iLeft = '%s' does not match with available BCs.\n", location.c_str(), boundaryP.iLeft.c_str());
+            fatalErrorInFunction("checkBCsAndSetPatchTypes", error);
+        }
+
+        if(flagP[5] == 0)
+        {
+            char error[512];
+            sprintf(error, "In %s/p, p boundary condition at iRight = '%s' does not match with available BCs.\n", location.c_str(), boundaryP.iRight.c_str());
+            fatalErrorInFunction("checkBCsAndSetPatchTypes", error);
         }
     }
 
@@ -789,44 +856,146 @@ PetscErrorCode UpdateContravariantBCs(ueqn_ *ueqn)
         {
             for (i=xs; i<lxe; i++)
             {
-                // fixedValue type: interpolate the contravariant velocity
-                if
-                (
-                    (mesh->boundaryU.kLeftPatchType == 0 && k == 0) ||
-                    (mesh->boundaryU.kRightPatchType == 0 && k == mz-2)
-                )
+                PetscReal  boundaryFlux;
+                
+                if(k == 0)
                 {
-                    ucont[k][j][i].z
-                    =
-                    0.5 * (lucat[k+1][j][i].x + lucat[k][j][i].x) * kzet[k][j][i].x +
-                    0.5 * (lucat[k+1][j][i].y + lucat[k][j][i].y) * kzet[k][j][i].y +
-                    0.5 * (lucat[k+1][j][i].z + lucat[k][j][i].z) * kzet[k][j][i].z;
+                    if(mesh->boundaryU.kLeft == "zeroGradient")
+                    {
+                        boundaryFlux
+                        =
+                        0.5 * (lucat[k+1][j][i].x + lucat[k][j][i].x) * kzet[k][j][i].x +
+                        0.5 * (lucat[k+1][j][i].y + lucat[k][j][i].y) * kzet[k][j][i].y +
+                        0.5 * (lucat[k+1][j][i].z + lucat[k][j][i].z) * kzet[k][j][i].z;
+
+                        if(boundaryFlux > 0.0)
+                        {
+                            boundaryFlux = 0.0;
+                        }
+                    }
+                    else if(mesh->boundaryU.kLeftPatchType == 0)
+                    {
+                        boundaryFlux = nDot(lucat[k][j][i], kzet[k][j][i]);
+                    }
+
+                    ucont[k][j][i].z = boundaryFlux;
+                }
+                // fixedValue-type kRight: ghost node is at k+1
+                if(k == mz-2)
+                {
+                    if(mesh->boundaryU.kRight == "zeroGradient")
+                    {
+                        boundaryFlux
+                        =
+                        0.5 * (lucat[k+1][j][i].x + lucat[k][j][i].x) * kzet[k][j][i].x +
+                        0.5 * (lucat[k+1][j][i].y + lucat[k][j][i].y) * kzet[k][j][i].y +
+                        0.5 * (lucat[k+1][j][i].z + lucat[k][j][i].z) * kzet[k][j][i].z;
+
+                        if(boundaryFlux < 0.0)
+                        {
+                            boundaryFlux = 0.0;
+                        }
+                    }
+                    else if(mesh->boundaryU.kRightPatchType == 0)
+                    {
+                        boundaryFlux = nDot(lucat[k+1][j][i], kzet[k][j][i]);
+                    }
+
+                    ucont[k][j][i].z = boundaryFlux;
                 }
 
-                if 
-                (
-                    (mesh->boundaryU.jLeftPatchType == 0 && j == 0) ||
-                    (mesh->boundaryU.jRightPatchType == 0 && j == my-2)
-                )
+                // fixedValue-type jLeft: ghost node is at j
+                if(j == 0)
                 {
-                    ucont[k][j][i].y
-                    =
-                    0.5 * (lucat[k][j+1][i].x + lucat[k][j][i].x) * jeta[k][j][i].x +
-                    0.5 * (lucat[k][j+1][i].y + lucat[k][j][i].y) * jeta[k][j][i].y +
-                    0.5 * (lucat[k][j+1][i].z + lucat[k][j][i].z) * jeta[k][j][i].z;
+                    if(mesh->boundaryU.jLeft == "zeroGradient")
+                    {
+                        boundaryFlux
+                        =
+                        0.5 * (lucat[k][j+1][i].x + lucat[k][j][i].x) * jeta[k][j][i].x +
+                        0.5 * (lucat[k][j+1][i].y + lucat[k][j][i].y) * jeta[k][j][i].y +
+                        0.5 * (lucat[k][j+1][i].z + lucat[k][j][i].z) * jeta[k][j][i].z;
+
+                        if(boundaryFlux > 0.0)
+                        {
+                            boundaryFlux = 0.0;
+                        }
+                    }
+                    else if(mesh->boundaryU.jLeftPatchType == 0)
+                    {
+                        boundaryFlux = nDot(lucat[k][j][i], jeta[k][j][i]);
+                    }
+
+                    ucont[k][j][i].y = boundaryFlux;
+                }
+                // fixedValue-type jRight: ghost node is at j+1
+                if(j == my-2)
+                {
+                    if(mesh->boundaryU.jRight == "zeroGradient")
+                    {
+                        boundaryFlux
+                        =
+                        0.5 * (lucat[k][j+1][i].x + lucat[k][j][i].x) * jeta[k][j][i].x +
+                        0.5 * (lucat[k][j+1][i].y + lucat[k][j][i].y) * jeta[k][j][i].y +
+                        0.5 * (lucat[k][j+1][i].z + lucat[k][j][i].z) * jeta[k][j][i].z;
+
+                        if(boundaryFlux < 0.0)
+                        {
+                            boundaryFlux = 0.0;
+                        }
+                    }
+                    else if(mesh->boundaryU.jRightPatchType == 0)
+                    {
+                        boundaryFlux = nDot(lucat[k][j+1][i], jeta[k][j][i]);
+                    }
+
+                    ucont[k][j][i].y = boundaryFlux;
                 }
 
-                if 
-                (
-                    (mesh->boundaryU.iLeftPatchType == 0 && i == 0) ||
-                    (mesh->boundaryU.iRightPatchType == 0 && i == mx-2)
-                )
+                // fixedValue-type iLeft: ghost node is at i
+                if(i == 0)
                 {
-                    ucont[k][j][i].x
-                    =
-                    0.5 * (lucat[k][j][i+1].x + lucat[k][j][i].x) * icsi[k][j][i].x +
-                    0.5 * (lucat[k][j][i+1].y + lucat[k][j][i].y) * icsi[k][j][i].y +
-                    0.5 * (lucat[k][j][i+1].z + lucat[k][j][i].z) * icsi[k][j][i].z;
+                    if(mesh->boundaryU.iLeft == "zeroGradient")
+                    {
+                        boundaryFlux
+                        =
+                        0.5 * (lucat[k][j][i+1].x + lucat[k][j][i].x) * icsi[k][j][i].x +
+                        0.5 * (lucat[k][j][i+1].y + lucat[k][j][i].y) * icsi[k][j][i].y +
+                        0.5 * (lucat[k][j][i+1].z + lucat[k][j][i].z) * icsi[k][j][i].z;
+
+                        if(boundaryFlux > 0.0)
+                        {
+                            boundaryFlux = 0.0;
+                        }
+                    }
+                    else if(mesh->boundaryU.iLeftPatchType == 0)
+                    {
+                        boundaryFlux = nDot(lucat[k][j][i], icsi[k][j][i]);
+                    }
+
+                    ucont[k][j][i].x = boundaryFlux;
+                }
+                // fixedValue-type iRight: ghost node is at i+1
+                if(i == mx-2)
+                {
+                    if(mesh->boundaryU.iRight == "zeroGradient")
+                    {
+                        boundaryFlux
+                        =
+                        0.5 * (lucat[k][j][i+1].x + lucat[k][j][i].x) * icsi[k][j][i].x +
+                        0.5 * (lucat[k][j][i+1].y + lucat[k][j][i].y) * icsi[k][j][i].y +
+                        0.5 * (lucat[k][j][i+1].z + lucat[k][j][i].z) * icsi[k][j][i].z;
+
+                        if(boundaryFlux < 0.0)
+                        {
+                            boundaryFlux = 0.0;
+                        }
+                    }
+                    else if(mesh->boundaryU.iRightPatchType == 0)
+                    {
+                        boundaryFlux = nDot(lucat[k][j][i+1], icsi[k][j][i]);
+                    }
+
+                    ucont[k][j][i].x = boundaryFlux;
                 }
 
                 // no penetration type: set velocity at the boundary faces to zero
@@ -853,32 +1022,6 @@ PetscErrorCode UpdateContravariantBCs(ueqn_ *ueqn)
                 )
                 {
                     ucont[k][j][i].z = 0.0;
-                }
-
-                // zero gradient type: velocity is solved, but set flux to zero if reverse flow
-                if (mesh->boundaryU.iLeft=="zeroGradient" && i==0)
-                {
-                    if(ucont[k][j][i].x > 0.0) ucont[k][j][i].x = 0.0;
-                }
-                if (mesh->boundaryU.iRight=="zeroGradient" && i==mx-2)
-                {
-                    if(ucont[k][j][i].x < 0.0) ucont[k][j][i].x = 0.0;
-                }
-                if (mesh->boundaryU.jLeft=="zeroGradient" && j==0)
-                {
-                    if(ucont[k][j][i].y > 0.0) ucont[k][j][i].y = 0.0;
-                }
-                if (mesh->boundaryU.jRight=="zeroGradient" && j==my-2)
-                {
-                    if(ucont[k][j][i].y < 0.0) ucont[k][j][i].y = 0.0;
-                }
-                if (mesh->boundaryU.kLeft=="zeroGradient" && k==0)
-                {
-                    if(ucont[k][j][i].z > 0.0) ucont[k][j][i].z = 0.0;
-                }
-                if (mesh->boundaryU.kRight=="zeroGradient" && k==mz-2)
-                {
-                    if(ucont[k][j][i].z < 0.0) ucont[k][j][i].z = 0.0;
                 }
             }
         }
@@ -3640,6 +3783,7 @@ PetscErrorCode UpdatektBCs(les_ *les)
 PetscErrorCode UpdateRhoBCs(aeqn_ *aeqn)
 {
     mesh_          *mesh = aeqn->access->mesh;
+    constants_    *constants = aeqn->access->constants;
     DM            da   = mesh->da, fda = mesh->fda;
     DMDALocalInfo info = mesh->info;
     PetscInt      xs   = info.xs, xe = info.xs + info.xm;
@@ -3652,7 +3796,7 @@ PetscErrorCode UpdateRhoBCs(aeqn_ *aeqn)
     PetscInt      lxs, lxe, lys, lye, lzs, lze;
     PetscInt      i, j, k;
 
-    PetscReal     ***rho, ***meshTag;
+    PetscReal     ***rho, ***meshTag, ***alpha;
 
     lxs = xs; lxe = xe; if (xs==0) lxs = xs+1; if (xe==mx) lxe = xe-1;
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
@@ -3660,6 +3804,7 @@ PetscErrorCode UpdateRhoBCs(aeqn_ *aeqn)
 
     DMDAVecGetArray(da, mesh->lmeshTag, &meshTag);
     DMDAVecGetArray(da, aeqn->lRho, &rho);
+    DMDAVecGetArray(da, aeqn->lAlpha, &alpha);
 
     for (k=zs; k<ze; k++)
     {
@@ -3704,6 +3849,7 @@ PetscErrorCode UpdateRhoBCs(aeqn_ *aeqn)
 
     DMDAVecRestoreArray(da, mesh->lmeshTag, &meshTag);
     DMDAVecRestoreArray(da, aeqn->lRho, &rho);
+    DMDAVecRestoreArray(da, aeqn->lAlpha, &alpha);
 
     // reset periodic cell fluxes and scatter
     resetCellPeriodicFluxes(mesh, aeqn->lRho, aeqn->lRho, "scalar", "localToLocal");
@@ -3748,39 +3894,45 @@ PetscErrorCode UpdatePressureBCs(peqn_ *peqn)
 
                 if(i==0)
                 {
-                    if(mesh->i_periodic)       a=mx-2, flag=1;
-                    else if(mesh->ii_periodic) a=-2, flag=1;
-                    else                       a=1, flag=1;
+                    if(mesh->i_periodic)                         a=mx-2, flag=1;
+                    else if(mesh->ii_periodic)                   a=-2, flag=1;
+                    else if(mesh->boundaryP.iLeft=="dirichlet")  p[k][j][i] = 0.0;
+                    else                                         a=1, flag=1;
                 }
                 if(i==mx-1)
                 {
-                    if(mesh->i_periodic)       a=1, flag=1;
-                    else if(mesh->ii_periodic) a=mx+1, flag=1;
-                    else                       a=mx-2, flag=1;
+                    if(mesh->i_periodic)                         a=1, flag=1;
+                    else if(mesh->ii_periodic)                   a=mx+1, flag=1;
+                    else if(mesh->boundaryP.iRight=="dirichlet") p[k][j][i] = 0.0;
+                    else                                         a=mx-2, flag=1;
                 }
                 if(j==0)
                 {
-                    if(mesh->j_periodic)       b=my-2, flag=1;
-                    else if(mesh->jj_periodic) b=-2, flag=1;
-                    else                       b=1, flag=1;
+                    if(mesh->j_periodic)                         b=my-2, flag=1;
+                    else if(mesh->jj_periodic)                   b=-2, flag=1;
+                    else if(mesh->boundaryP.jLeft=="dirichlet")  p[k][j][i] = 0.0;
+                    else                                         b=1, flag=1;
                 }
                 if(j==my-1)
                 {
-                    if(mesh->j_periodic)       b=1, flag=1;
-                    else if(mesh->jj_periodic) b=my+1, flag=1;
-                    else                       b=my-2, flag=1;
+                    if(mesh->j_periodic)                         b=1, flag=1;
+                    else if(mesh->jj_periodic)                   b=my+1, flag=1;
+                    else if(mesh->boundaryP.jRight=="dirichlet") p[k][j][i] = 0.0;
+                    else                                         b=my-2, flag=1;
                 }
                 if(k==0)
                 {
-                    if(mesh->k_periodic)       c=mz-2, flag=1;
-                    else if(mesh->kk_periodic) c=-2, flag=1;
-                    else                       c=1, flag=1;
+                    if(mesh->k_periodic)                         c=mz-2, flag=1;
+                    else if(mesh->kk_periodic)                   c=-2, flag=1;
+                    else if(mesh->boundaryP.kLeft=="dirichlet")  p[k][j][i] = 0.0;
+                    else                                         c=1, flag=1;
                 }
                 if(k==mz-1)
                 {
-                    if(mesh->k_periodic)       c=1, flag=1;
-                    else if(mesh->kk_periodic) c=mz+1, flag=1;
-                    else                       c=mz-2, flag=1;
+                    if(mesh->k_periodic)                         c=1, flag=1;
+                    else if(mesh->kk_periodic)                   c=mz+1, flag=1;
+                    else if(mesh->boundaryP.kRight=="dirichlet") p[k][j][i] = 0.0;
+                    else                                         c=mz-2, flag=1;
                 }
 
                 if(flag)
@@ -3837,39 +3989,45 @@ PetscErrorCode UpdatePhiBCs(peqn_ *peqn)
 
                 if(i==0 && mesh->boundaryU.iLeft != "oversetInterpolate")
                 {
-                    if(mesh->i_periodic)       a=mx-2, flag=1;
-                    else if(mesh->ii_periodic) a=-2, flag=1;
-                    else                       a=1, flag=1;
+                    if(mesh->i_periodic)                         a=mx-2, flag=1;
+                    else if(mesh->ii_periodic)                   a=-2, flag=1;
+                    else if(mesh->boundaryP.iLeft=="dirichlet")  phi[k][j][i] = 0.0;
+                    else                                         a=1, flag=1;
                 }
                 if(i==mx-1 && mesh->boundaryU.iRight != "oversetInterpolate")
                 {
-                    if(mesh->i_periodic)       a=1, flag=1;
-                    else if(mesh->ii_periodic) a=mx+1, flag=1;
-                    else                       a=mx-2, flag=1;
+                    if(mesh->i_periodic)                         a=1, flag=1;
+                    else if(mesh->ii_periodic)                   a=mx+1, flag=1;
+                    else if(mesh->boundaryP.iRight=="dirichlet") phi[k][j][i] = 0.0;
+                    else                                         a=mx-2, flag=1;
                 }
                 if(j==0 && mesh->boundaryU.jLeft != "oversetInterpolate")
                 {
-                    if(mesh->j_periodic)       b=my-2, flag=1;
-                    else if(mesh->jj_periodic) b=-2, flag=1;
-                    else                       b=1, flag=1;
+                    if(mesh->j_periodic)                         b=my-2, flag=1;
+                    else if(mesh->jj_periodic)                   b=-2, flag=1;
+                    else if(mesh->boundaryP.jLeft=="dirichlet")  phi[k][j][i] = 0.0;
+                    else                                         b=1, flag=1;
                 }
                 if(j==my-1 && mesh->boundaryU.jRight != "oversetInterpolate")
                 {
-                    if(mesh->j_periodic)       b=1, flag=1;
-                    else if(mesh->jj_periodic) b=my+1, flag=1;
-                    else                       b=my-2, flag=1;
+                    if(mesh->j_periodic)                         b=1, flag=1;
+                    else if(mesh->jj_periodic)                   b=my+1, flag=1;
+                    else if(mesh->boundaryP.jRight=="dirichlet") phi[k][j][i] = 0.0;
+                    else                                         b=my-2, flag=1;
                 }
                 if(k==0 && mesh->boundaryU.kLeft != "oversetInterpolate")
                 {
-                    if(mesh->k_periodic)       c=mz-2, flag=1;
-                    else if(mesh->kk_periodic) c=-2, flag=1;
-                    else                       c=1, flag=1;
+                    if(mesh->k_periodic)                         c=mz-2, flag=1;
+                    else if(mesh->kk_periodic)                   c=-2, flag=1;
+                    else if(mesh->boundaryP.kLeft=="dirichlet")  phi[k][j][i] = 0.0;
+                    else                                         c=1, flag=1;
                 }
                 if(k==mz-1 && mesh->boundaryU.kRight != "oversetInterpolate")
                 {
-                    if(mesh->k_periodic)       c=1, flag=1;
-                    else if(mesh->kk_periodic) c=mz+1, flag=1;
-                    else                       c=mz-2, flag=1;
+                    if(mesh->k_periodic)                         c=1, flag=1;
+                    else if(mesh->kk_periodic)                   c=mz+1, flag=1;
+                    else if(mesh->boundaryP.kRight=="dirichlet") phi[k][j][i] = 0.0;
+                    else                                         c=mz-2, flag=1;
                 }
 
                 if(flag)
