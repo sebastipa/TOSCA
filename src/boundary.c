@@ -3976,6 +3976,10 @@ PetscErrorCode UpdatePhiBCs(peqn_ *peqn)
     lys = ys; lye = ye; if (ys==0) lys = ys+1; if (ye==my) lye = ye-1;
     lzs = zs; lze = ze; if (zs==0) lzs = zs+1; if (ze==mz) lze = ze-1;
 
+    PetscInt periodic_i = mesh->i_periodic + mesh->ii_periodic,
+             periodic_j = mesh->j_periodic + mesh->jj_periodic,
+             periodic_k = mesh->k_periodic + mesh->kk_periodic;
+
     DMDAVecGetArray(da, peqn->lPhi, &lphi);
     DMDAVecGetArray(da, peqn->Phi, &phi);
 
@@ -3987,47 +3991,46 @@ PetscErrorCode UpdatePhiBCs(peqn_ *peqn)
             {
                 PetscInt a=i, b=j, c=k, flag=0;
 
-                if(i==0 && mesh->boundaryU.iLeft != "oversetInterpolate")
+                if(!periodic_i)
                 {
-                    if(mesh->i_periodic)                         a=mx-2, flag=1;
-                    else if(mesh->ii_periodic)                   a=-2, flag=1;
-                    else if(mesh->boundaryP.iLeft=="dirichlet")  phi[k][j][i] = 0.0;
-                    else                                         a=1, flag=1;
+                    if(i==0 && mesh->boundaryU.iLeft != "oversetInterpolate")
+                    {
+                        if(mesh->boundaryP.iLeft=="dirichlet")  phi[k][j][i] = 0.0;
+                        else                                    a=1, flag=1;
+                    }
+                    if(i==mx-1 && mesh->boundaryU.iRight != "oversetInterpolate")
+                    {
+                        if(mesh->boundaryP.iRight=="dirichlet") phi[k][j][i] = 0.0;
+                        else                                    a=mx-2, flag=1;
+                    }
                 }
-                if(i==mx-1 && mesh->boundaryU.iRight != "oversetInterpolate")
+
+                if(!periodic_j)
                 {
-                    if(mesh->i_periodic)                         a=1, flag=1;
-                    else if(mesh->ii_periodic)                   a=mx+1, flag=1;
-                    else if(mesh->boundaryP.iRight=="dirichlet") phi[k][j][i] = 0.0;
-                    else                                         a=mx-2, flag=1;
+                    if(j==0 && mesh->boundaryU.jLeft != "oversetInterpolate")
+                    {
+                        if(mesh->boundaryP.jLeft=="dirichlet")  phi[k][j][i] = 0.0;
+                        else                                    b=1, flag=1;
+                    }
+                    if(j==my-1 && mesh->boundaryU.jRight != "oversetInterpolate")
+                    {
+                        if(mesh->boundaryP.jRight=="dirichlet") phi[k][j][i] = 0.0;
+                        else                                    b=my-2, flag=1;
+                    }
                 }
-                if(j==0 && mesh->boundaryU.jLeft != "oversetInterpolate")
+                
+                if(!periodic_k)
                 {
-                    if(mesh->j_periodic)                         b=my-2, flag=1;
-                    else if(mesh->jj_periodic)                   b=-2, flag=1;
-                    else if(mesh->boundaryP.jLeft=="dirichlet")  phi[k][j][i] = 0.0;
-                    else                                         b=1, flag=1;
-                }
-                if(j==my-1 && mesh->boundaryU.jRight != "oversetInterpolate")
-                {
-                    if(mesh->j_periodic)                         b=1, flag=1;
-                    else if(mesh->jj_periodic)                   b=my+1, flag=1;
-                    else if(mesh->boundaryP.jRight=="dirichlet") phi[k][j][i] = 0.0;
-                    else                                         b=my-2, flag=1;
-                }
-                if(k==0 && mesh->boundaryU.kLeft != "oversetInterpolate")
-                {
-                    if(mesh->k_periodic)                         c=mz-2, flag=1;
-                    else if(mesh->kk_periodic)                   c=-2, flag=1;
-                    else if(mesh->boundaryP.kLeft=="dirichlet")  phi[k][j][i] = 0.0;
-                    else                                         c=1, flag=1;
-                }
-                if(k==mz-1 && mesh->boundaryU.kRight != "oversetInterpolate")
-                {
-                    if(mesh->k_periodic)                         c=1, flag=1;
-                    else if(mesh->kk_periodic)                   c=mz+1, flag=1;
-                    else if(mesh->boundaryP.kRight=="dirichlet") phi[k][j][i] = 0.0;
-                    else                                         c=mz-2, flag=1;
+                    if(k==0 && mesh->boundaryU.kLeft != "oversetInterpolate")
+                    {
+                        if(mesh->boundaryP.kLeft=="dirichlet")  phi[k][j][i] = 0.0;
+                        else                                    c=1, flag=1;
+                    }
+                    if(k==mz-1 && mesh->boundaryU.kRight != "oversetInterpolate")
+                    {
+                        if(mesh->boundaryP.kRight=="dirichlet") phi[k][j][i] = 0.0;
+                        else                                    c=mz-2, flag=1;
+                    }
                 }
 
                 if(flag)
